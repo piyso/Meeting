@@ -137,6 +137,17 @@ export class VectorClockManager {
   }
 
   /**
+   * Detect if there is a conflict between two clocks (alias for isConcurrent)
+   *
+   * @param local - Local vector clock
+   * @param remote - Remote vector clock
+   * @returns True if conflict detected (concurrent edits)
+   */
+  public detectConflict(local: VectorClock, remote: VectorClock): boolean {
+    return this.isConcurrent(local, remote)
+  }
+
+  /**
    * Serialize vector clock to string for storage
    *
    * @param clock - Vector clock

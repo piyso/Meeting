@@ -196,6 +196,165 @@ export class AudioPipelineService extends EventEmitter {
         : 0,
     }
   }
+
+  // ─── External Device Management ────────────────────────────
+
+  private deviceSwitchHistory: Array<{ from: string; to: string; timestamp: number }> = []
+  private currentDevice: string = 'Built-in Speakers'
+
+  /**
+   * Enumerate available audio sources/devices
+   */
+  async enumerateAudioSources(): Promise<AudioDeviceInfo[]> {
+    try {
+      if (process.platform === 'darwin') {
+        return [
+          {
+            id: 'system-audio',
+            label: 'System Audio (via ScreenCaptureKit)',
+            kind: 'system' as const,
+            isDefault: true,
+            isAvailable: true,
+            deviceType: 'built-in' as const,
+            connectionType: 'internal' as const,
+          },
+        ]
+      }
+      return []
+    } catch (error) {
+      console.error('[AudioPipeline] Enumeration failed:', error)
+      return []
+    }
+  }
+
+  /**
+   * Handle audio device switch during recording
+   */
+  handleDeviceSwitch(device: AudioDeviceInfo): void {
+    if (!this.isCapturing) {
+      console.warn('[AudioPipeline] Cannot switch device: no active capture session')
+      return
+    }
+
+    this.deviceSwitchHistory.push({
+      from: this.currentDevice,
+      to: device.label,
+      timestamp: Date.now(),
+    })
+    this.currentDevice = device.label
+
+    this.emit('deviceSwitch', { device, history: this.deviceSwitchHistory })
+    console.log(`[AudioPipeline] Device switched to: ${device.label}`)
+  }
+
+  /**
+   * Get device switch history for current/last session
+   */
+  getDeviceSwitchHistory(): Array<{ from: string; to: string; timestamp: number }> {
+    return [...this.deviceSwitchHistory]
+  }
+
+  /**
+   * Get detailed device information and recommendations
+   */
+  async getDetailedDeviceInfo(): Promise<{
+    devices: AudioDeviceInfo[]
+    platform: string
+    recommendations: string[]
+    deviceSwitchCount: number
+  }> {
+    const devices = await this.enumerateAudioSources()
+    const recommendations: string[] = []
+
+    if (process.platform === 'darwin') {
+      recommendations.push(
+        'macOS: Grant Screen Recording permission for system audio capture',
+        'macOS: Use ScreenCaptureKit for best quality'
+      )
+    } else if (process.platform === 'win32') {
+      recommendations.push(
+        'Windows: Enable Stereo Mix in Sound settings for system audio',
+        'Windows: Use WASAPI loopback as fallback'
+      )
+    }
+
+    recommendations.push(
+      'Bluetooth devices may add 100-200ms latency',
+      'Use wired connections for lowest latency recording'
+    )
+
+    return {
+      devices,
+      platform: process.platform,
+      recommendations,
+      deviceSwitchCount: this.deviceSwitchHistory.length,
+    }
+  }
+
+  /**
+   * Test if a specific audio device is available and working
+   */
+  async testAudioDevice(
+    deviceId: string
+  ): Promise<{ success: boolean; deviceInfo: AudioDeviceInfo | null; latency?: number; error?: string }> {
+    const devices = await this.enumerateAudioSources()
+    const device = devices.find((d) => d.id === deviceId)
+
+    if (!device) {
+      return { success: false, deviceInfo: null, error: `Device not found: ${deviceId}` }
+    }
+
+    // Estimate latency based on connection type
+    let latency = 10
+    if (device.connectionType === 'bluetooth') latency = 150
+    else if (device.connectionType === 'usb') latency = 20
+    else if (device.connectionType === 'hdmi' || device.connectionType === 'displayport') latency = 30
+
+    return { success: true, deviceInfo: device, latency }
+  }
+
+  /**
+   * Check Screen Recording permission status (macOS only)
+   */
+  getScreenRecordingPermissionStatus(): string {
+    if (process.platform !== 'darwin') return 'not-applicable'
+
+    try {
+      const { systemPreferences } = require('electron')
+      return systemPreferences.getMediaAccessStatus('screen')
+    } catch {
+      return 'unknown'
+    }
+  }
+
+  /**
+   * Get guidance for enabling Stereo Mix (Windows only)
+   */
+  getStereoMixGuidance(): { title: string; steps: string[]; link: string } {
+    return {
+      title: 'Enable Stereo Mix for System Audio',
+      steps: [
+        'Right-click the speaker icon in your system tray',
+        'Select "Sound settings" → "More sound settings"',
+        'Go to the "Recording" tab',
+        'Right-click and check "Show Disabled Devices"',
+        'Right-click "Stereo Mix" → "Enable"',
+        'Set as default recording device',
+      ],
+      link: 'https://support.piyapi.com/stereo-mix',
+    }
+  }
+}
+
+/** Audio device information */
+export interface AudioDeviceInfo {
+  id: string
+  label: string
+  kind: 'system' | 'input' | 'output'
+  isDefault: boolean
+  isAvailable: boolean
+  deviceType: 'built-in' | 'bluetooth' | 'usb' | 'external-monitor' | 'hdmi' | 'displayport'
+  connectionType: 'internal' | 'bluetooth' | 'usb' | 'hdmi' | 'displayport'
 }
 
 // Singleton

@@ -160,9 +160,9 @@ function setupTranscriptEventForwarding(
       speakerId?: string
       speakerName?: string
     }) => {
-      // Get main window from electron/main.ts
-      const { getMainWindow } = require('../../../electron/main')
-      const mainWindow: BrowserWindow | null = getMainWindow()
+      // Get main window via Electron API (no circular imports)
+      const windows = BrowserWindow.getAllWindows()
+      const mainWindow: BrowserWindow | null = windows.length > 0 ? windows[0]! : null
 
       if (!mainWindow || mainWindow.isDestroyed()) {
         console.warn('[IPC] Cannot send transcript event: main window not available')

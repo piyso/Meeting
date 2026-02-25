@@ -2,14 +2,15 @@ import { LocalEmbeddingService } from '../LocalEmbeddingService'
 import * as ort from 'onnxruntime-node'
 import * as fs from 'fs'
 import * as path from 'path'
+import { vi, describe, it, expect, beforeEach } from 'vitest'
 
 // Mock dependencies
-jest.mock('onnxruntime-node')
-jest.mock('fs')
-jest.mock('electron', () => ({
+vi.mock('onnxruntime-node')
+vi.mock('fs')
+vi.mock('electron', () => ({
   app: {
     isPackaged: false,
-    getPath: jest.fn(() => '/mock/app/path'),
+    getPath: vi.fn(() => '/mock/app/path'),
   },
 }))
 
@@ -19,11 +20,11 @@ describe('LocalEmbeddingService', () => {
 
   beforeEach(() => {
     service = new LocalEmbeddingService()
-    jest.clearAllMocks()
+    vi.clearAllMocks()
 
     // Mock file system
-    ;(fs.existsSync as jest.Mock).mockReturnValue(true)
-    ;(fs.readFileSync as jest.Mock).mockImplementation((filePath: string) => {
+    ;(fs.existsSync as any).mockReturnValue(true)
+    ;(fs.readFileSync as any).mockImplementation((filePath: string) => {
       if (filePath.includes('tokenizer.json')) {
         return JSON.stringify({ vocab: {} })
       }
@@ -35,14 +36,14 @@ describe('LocalEmbeddingService', () => {
 
     // Mock ONNX session
     mockSession = {
-      run: jest.fn().mockResolvedValue({
+      run: vi.fn().mockResolvedValue({
         last_hidden_state: {
           data: new Float32Array(384).fill(0.5), // 384 dimensions
         },
       }),
-      release: jest.fn().mockResolvedValue(undefined),
+      release: vi.fn().mockResolvedValue(undefined),
     }
-    ;(ort.InferenceSession.create as jest.Mock).mockResolvedValue(mockSession)
+    ;(ort.InferenceSession.create as any).mockResolvedValue(mockSession)
   })
 
   describe('initialize', () => {
@@ -69,7 +70,7 @@ describe('LocalEmbeddingService', () => {
     })
 
     it('should throw error if model file not found', async () => {
-      ;(fs.existsSync as jest.Mock).mockImplementation((filePath: string) => {
+      ;(fs.existsSync as any).mockImplementation((filePath: string) => {
         return !filePath.includes('.onnx')
       })
 
@@ -77,7 +78,7 @@ describe('LocalEmbeddingService', () => {
     })
 
     it('should throw error if tokenizer file not found', async () => {
-      ;(fs.existsSync as jest.Mock).mockImplementation((filePath: string) => {
+      ;(fs.existsSync as any).mockImplementation((filePath: string) => {
         return !filePath.includes('tokenizer.json')
       })
 
@@ -85,7 +86,7 @@ describe('LocalEmbeddingService', () => {
     })
 
     it('should throw error if vocabulary file not found', async () => {
-      ;(fs.existsSync as jest.Mock).mockImplementation((filePath: string) => {
+      ;(fs.existsSync as any).mockImplementation((filePath: string) => {
         return !filePath.includes('vocab.txt')
       })
 
@@ -101,7 +102,7 @@ describe('LocalEmbeddingService', () => {
     })
 
     it('should log initialization time', async () => {
-      const consoleSpy = jest.spyOn(console, 'log').mockImplementation()
+      const consoleSpy = vi.spyOn(console, 'log').mockImplementation(() => {})
 
       await service.initialize()
 
@@ -459,8 +460,6 @@ describe('LocalEmbeddingService', () => {
       await service.embed('test text')
       const duration = Date.now() - start
 
-      // In real scenario, should be <50ms
-      // In mocked scenario, should be very fast
       expect(duration).toBeLessThan(100)
     })
 
@@ -491,7 +490,6 @@ describe('LocalEmbeddingService', () => {
     })
 
     it('should handle local-only workflow for Free tier', async () => {
-      // Free tier user generates embeddings locally
       const text = 'Important meeting notes'
 
       const result = await service.embed(text)
@@ -501,10 +499,8 @@ describe('LocalEmbeddingService', () => {
     })
 
     it('should support dual-path pipeline', async () => {
-      // Generate embedding locally
       const localResult = await service.embed('test note')
 
-      // Embedding can be encrypted and synced to cloud
       expect(localResult.embedding).toHaveLength(384)
       expect(Array.isArray(localResult.embedding)).toBe(true)
     })
@@ -529,7 +525,7 @@ describe('LocalEmbeddingService', () => {
 
   describe('Error handling', () => {
     it('should handle model loading errors', async () => {
-      ;(ort.InferenceSession.create as jest.Mock).mockRejectedValue(
+      ;(ort.InferenceSession.create as any).mockRejectedValue(
         new Error('Failed to load model')
       )
 
@@ -537,7 +533,7 @@ describe('LocalEmbeddingService', () => {
     })
 
     it('should handle tokenizer parsing errors', async () => {
-      ;(fs.readFileSync as jest.Mock).mockImplementation((filePath: string) => {
+      ;(fs.readFileSync as any).mockImplementation((filePath: string) => {
         if (filePath.includes('tokenizer.json')) {
           return 'invalid json'
         }
@@ -556,7 +552,7 @@ describe('LocalEmbeddingService', () => {
     })
 
     it('should log errors to console', async () => {
-      const consoleSpy = jest.spyOn(console, 'error').mockImplementation()
+      const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
 
       mockSession.run.mockRejectedValue(new Error('Test error'))
 

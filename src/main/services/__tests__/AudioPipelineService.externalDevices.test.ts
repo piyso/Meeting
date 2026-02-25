@@ -18,7 +18,7 @@ describe('AudioPipelineService - External Devices (Task 9.6)', () => {
       // Test device detection logic by examining the private method behavior
       // In real implementation, this would test actual device enumeration
 
-      const _bluetoothDeviceNames = [
+      const bluetoothDeviceNames = [
         'AirPods Pro',
         'Bluetooth Speaker',
         'Wireless Headphones',
@@ -124,7 +124,7 @@ describe('AudioPipelineService - External Devices (Task 9.6)', () => {
       expect(history[0].to).toBe('AirPods Pro')
 
       // Stop capture
-      await audioService.stopCapture(meetingId)
+      await audioService.stopCapture()
     })
 
     it('should track multiple device switches', async () => {
@@ -162,7 +162,7 @@ describe('AudioPipelineService - External Devices (Task 9.6)', () => {
       expect(history[0].to).toBe('AirPods Pro')
       expect(history[1].to).toBe('LG HDMI Audio')
 
-      await audioService.stopCapture(meetingId)
+      await audioService.stopCapture()
     })
 
     it('should not allow device switch without active session', () => {
@@ -255,7 +255,7 @@ describe('AudioPipelineService - External Devices (Task 9.6)', () => {
 
     it('should estimate latency for Bluetooth devices', async () => {
       // Create a mock Bluetooth device
-      const _bluetoothDevice = {
+      const bluetoothDevice = {
         id: 'test-bluetooth',
         label: 'AirPods Pro',
         kind: 'system' as const,

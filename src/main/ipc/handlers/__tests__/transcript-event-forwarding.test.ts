@@ -23,7 +23,9 @@ vi.mock('electron', () => ({
   ipcMain: {
     handle: vi.fn(),
   },
-  BrowserWindow: vi.fn(),
+  BrowserWindow: {
+    getAllWindows: vi.fn(() => [mockMainWindow]),
+  },
 }))
 
 // Mock getMainWindow

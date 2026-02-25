@@ -230,6 +230,30 @@ export class AuditLogger {
   }
 
   /**
+   * Log device operation (register, deactivate, etc.)
+   *
+   * @param userId - User ID
+   * @param operation - Device operation type
+   * @param deviceId - Device ID
+   * @param metadata - Additional metadata
+   * @returns Audit log entry
+   */
+  public async logDeviceOperation(
+    userId: string,
+    operation: string,
+    deviceId: string,
+    metadata?: Record<string, any>
+  ): Promise<AuditLogEntry> {
+    return this.log({
+      userId,
+      operation: operation as AuditOperation,
+      table: 'devices',
+      recordId: deviceId,
+      metadata,
+    })
+  }
+
+  /**
    * Query audit logs
    *
    * @param query - Query parameters

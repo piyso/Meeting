@@ -1,0 +1,4 @@
+/* layout.css additions that are specific to the shell layout */
+.animate-slide-up {
+  animation: slide-up 300ms var(--ease-fluid) forwards;
+}

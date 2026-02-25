@@ -1,0 +1,23 @@
+{
+  "name": "piyapi-notes-audio-tests",
+  "version": "1.0.0",
+  "description": "Audio capture validation tests for PiyAPI Notes",
+  "main": "run-audio-test.js",
+  "scripts": {
+    "test": "electron .",
+    "test:audio": "electron run-audio-test.js"
+  },
+  "keywords": [
+    "audio",
+    "capture",
+    "test",
+    "electron",
+    "windows"
+  ],
+  "author": "PiyAPI Notes Team",
+  "license": "MIT",
+  "devDependencies": {
+    "electron": "^25.0.0"
+  },
+  "dependencies": {}
+}

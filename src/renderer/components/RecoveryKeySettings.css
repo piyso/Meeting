@@ -1,0 +1,392 @@
+/**
+ * Recovery Key Settings Component Styles
+ */
+
+.recovery-key-settings {
+  padding: 20px;
+  background-color: white;
+  border: 1px solid #dee2e6;
+  border-radius: 8px;
+}
+
+/* Info Section */
+.recovery-key-info h3 {
+  font-size: 18px;
+  font-weight: 600;
+  color: #1a1a1a;
+  margin: 0 0 15px 0;
+}
+
+.info-text {
+  font-size: 14px;
+  color: #666;
+  margin: 0 0 15px 0;
+  line-height: 1.5;
+}
+
+.warning-box {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 15px;
+  background-color: #fff3cd;
+  border: 1px solid #ffc107;
+  border-radius: 6px;
+  margin-bottom: 20px;
+}
+
+.warning-box .warning-icon {
+  font-size: 20px;
+  flex-shrink: 0;
+}
+
+.warning-box span:last-child {
+  font-size: 13px;
+  color: #856404;
+}
+
+.export-button {
+  padding: 10px 20px;
+  font-size: 14px;
+  font-weight: 600;
+  border: none;
+  border-radius: 6px;
+  background-color: #007bff;
+  color: white;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.export-button:hover {
+  background-color: #0056b3;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0, 123, 255, 0.3);
+}
+
+/* Password Prompt */
+.password-prompt {
+  padding: 20px;
+}
+
+.password-prompt h3 {
+  font-size: 18px;
+  font-weight: 600;
+  color: #1a1a1a;
+  margin: 0 0 10px 0;
+}
+
+.prompt-text {
+  font-size: 14px;
+  color: #666;
+  margin: 0 0 20px 0;
+}
+
+.form-group {
+  margin-bottom: 20px;
+}
+
+.form-group label {
+  display: block;
+  font-size: 14px;
+  font-weight: 600;
+  color: #495057;
+  margin-bottom: 8px;
+}
+
+.password-input {
+  width: 100%;
+  padding: 10px 15px;
+  font-size: 14px;
+  border: 2px solid #dee2e6;
+  border-radius: 6px;
+  transition: border-color 0.2s ease;
+}
+
+.password-input:focus {
+  outline: none;
+  border-color: #007bff;
+}
+
+.error-message {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 15px;
+  background-color: #f8d7da;
+  border: 1px solid #f5c6cb;
+  border-radius: 6px;
+  margin-bottom: 15px;
+}
+
+.error-icon {
+  font-size: 16px;
+  color: #721c24;
+}
+
+.error-message span:last-child {
+  font-size: 13px;
+  color: #721c24;
+}
+
+.form-actions {
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
+}
+
+.cancel-button,
+.confirm-button {
+  padding: 10px 20px;
+  font-size: 14px;
+  font-weight: 600;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.cancel-button {
+  background-color: white;
+  color: #495057;
+  border: 2px solid #dee2e6;
+}
+
+.cancel-button:hover:not(:disabled) {
+  background-color: #f8f9fa;
+  border-color: #adb5bd;
+}
+
+.confirm-button {
+  background-color: #007bff;
+  color: white;
+}
+
+.confirm-button:hover:not(:disabled) {
+  background-color: #0056b3;
+}
+
+.confirm-button:disabled,
+.cancel-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Recovery Key Display */
+.recovery-key-display {
+  padding: 20px;
+}
+
+.display-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+}
+
+.display-header h3 {
+  font-size: 18px;
+  font-weight: 600;
+  color: #1a1a1a;
+  margin: 0;
+}
+
+.close-button {
+  padding: 5px 10px;
+  font-size: 18px;
+  font-weight: bold;
+  border: none;
+  background: none;
+  color: #6c757d;
+  cursor: pointer;
+  transition: color 0.2s ease;
+}
+
+.close-button:hover {
+  color: #1a1a1a;
+}
+
+.warning-banner {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 15px;
+  background-color: #fff3cd;
+  border: 1px solid #ffc107;
+  border-radius: 6px;
+  margin-bottom: 20px;
+}
+
+.warning-banner .warning-icon {
+  font-size: 24px;
+  flex-shrink: 0;
+}
+
+.warning-content strong {
+  display: block;
+  font-size: 14px;
+  color: #856404;
+  margin-bottom: 5px;
+}
+
+.warning-content p {
+  font-size: 13px;
+  color: #856404;
+  margin: 0;
+}
+
+.recovery-phrase-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 15px;
+  padding: 20px;
+  background-color: #f8f9fa;
+  border: 1px solid #dee2e6;
+  border-radius: 6px;
+  margin-bottom: 20px;
+}
+
+.recovery-column {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.recovery-word {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  background-color: white;
+  border: 1px solid #dee2e6;
+  border-radius: 4px;
+  font-family: 'Monaco', 'Courier New', monospace;
+}
+
+.word-number {
+  font-size: 11px;
+  color: #6c757d;
+  font-weight: 600;
+  min-width: 20px;
+}
+
+.word-text {
+  font-size: 13px;
+  color: #1a1a1a;
+  font-weight: 500;
+}
+
+.recovery-actions {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+}
+
+.action-button {
+  padding: 10px 20px;
+  font-size: 14px;
+  font-weight: 500;
+  border: 2px solid #dee2e6;
+  border-radius: 6px;
+  background-color: white;
+  color: #495057;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.action-button:hover {
+  background-color: #f8f9fa;
+  border-color: #adb5bd;
+}
+
+.action-button.success {
+  background-color: #d4edda;
+  border-color: #28a745;
+  color: #155724;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .recovery-phrase-grid {
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+
+  .recovery-actions {
+    flex-direction: column;
+  }
+
+  .action-button {
+    width: 100%;
+    justify-content: center;
+  }
+}
+
+/* Dark Mode Support */
+@media (prefers-color-scheme: dark) {
+  .recovery-key-settings {
+    background-color: #212529;
+    border-color: #495057;
+  }
+
+  .recovery-key-info h3,
+  .password-prompt h3,
+  .display-header h3 {
+    color: #f8f9fa;
+  }
+
+  .info-text,
+  .prompt-text {
+    color: #adb5bd;
+  }
+
+  .password-input {
+    background-color: #343a40;
+    border-color: #495057;
+    color: #f8f9fa;
+  }
+
+  .recovery-phrase-grid {
+    background-color: #343a40;
+    border-color: #495057;
+  }
+
+  .recovery-word {
+    background-color: #212529;
+    border-color: #495057;
+  }
+
+  .word-text {
+    color: #f8f9fa;
+  }
+
+  .action-button {
+    background-color: #343a40;
+    border-color: #495057;
+    color: #f8f9fa;
+  }
+
+  .action-button:hover {
+    background-color: #495057;
+  }
+
+  .cancel-button {
+    background-color: #343a40;
+    border-color: #495057;
+    color: #f8f9fa;
+  }
+
+  .cancel-button:hover:not(:disabled) {
+    background-color: #495057;
+  }
+
+  .close-button {
+    color: #adb5bd;
+  }
+
+  .close-button:hover {
+    color: #f8f9fa;
+  }
+}

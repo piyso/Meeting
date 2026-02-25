@@ -1,0 +1,129 @@
+/* command.css */
+
+.ui-cmd-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  z-index: 100;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  padding-top: 15vh;
+}
+
+.ui-cmd-panel {
+  width: 560px;
+  max-height: 420px;
+  padding: 0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  animation: cmd-enter 200ms var(--ease-fluid) forwards;
+}
+
+@keyframes cmd-enter {
+  from { opacity: 0; transform: scale(0.96) translateZ(0); }
+  to { opacity: 1; transform: scale(1) translateZ(0); }
+}
+
+.ui-cmd-input-row {
+  display: flex;
+  align-items: center;
+  height: var(--h-xl);
+  padding: 0 var(--space-16);
+  border-bottom: 1px solid var(--color-border-subtle);
+  flex-shrink: 0;
+}
+
+.ui-cmd-search-icon {
+  color: var(--color-text-tertiary);
+  margin-right: var(--space-12);
+}
+
+.ui-cmd-input {
+  flex: 1;
+  background: transparent;
+  border: none;
+  font-family: var(--font-body);
+  font-size: var(--text-base);
+  color: var(--color-text-primary);
+  outline: none;
+}
+
+.ui-cmd-input::placeholder {
+  color: var(--color-text-tertiary);
+}
+
+.ui-cmd-results {
+  overflow-y: auto;
+  padding: var(--space-4);
+  max-height: calc(420px - 48px);
+}
+
+.ui-cmd-section {
+  margin-bottom: var(--space-8);
+}
+
+.ui-cmd-section-title {
+  font-size: var(--text-xs);
+  letter-spacing: var(--tracking-wide);
+  color: var(--color-text-tertiary);
+  padding: var(--space-8) var(--space-12);
+}
+
+.ui-cmd-item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-12);
+  width: 100%;
+  height: 48px;
+  padding: 0 var(--space-12);
+  background: transparent;
+  border: border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  text-align: left;
+  cursor: pointer;
+  transition: all 0.1s ease;
+}
+
+.ui-cmd-item.selected {
+  background: var(--color-bg-glass);
+  border-color: var(--color-border-subtle);
+}
+
+.ui-cmd-item-icon {
+  color: var(--color-text-tertiary);
+  display: flex;
+}
+
+.ui-cmd-item-text {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  overflow: hidden;
+}
+
+.ui-cmd-item-label {
+  font-size: var(--text-sm);
+  color: var(--color-text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.ui-cmd-item-desc {
+  font-size: var(--text-xs);
+  color: var(--color-text-tertiary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.ui-global-context-bar {
+  width: 640px;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+}

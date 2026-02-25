@@ -1,0 +1,265 @@
+/* ════════════════════════════════════════════════
+   PiyAPI Notes — Zen Glass Design System
+   Complete token system + effects + utilities
+   ════════════════════════════════════════════════ */
+
+/* ── Font Face Declarations (MUST be first) ── */
+@font-face {
+  font-family: 'Geist';
+  src: url('../resources/fonts/geist-regular.woff2') format('woff2');
+  font-weight: 400;
+  font-display: block;
+}
+@font-face {
+  font-family: 'Geist';
+  src: url('../resources/fonts/geist-medium.woff2') format('woff2');
+  font-weight: 500;
+  font-display: block;
+}
+@font-face {
+  font-family: 'Geist';
+  src: url('../resources/fonts/geist-semibold.woff2') format('woff2');
+  font-weight: 600;
+  font-display: block;
+}
+@font-face {
+  font-family: 'Geist';
+  src: url('../resources/fonts/geist-bold.woff2') format('woff2');
+  font-weight: 700;
+  font-display: block;
+}
+@font-face {
+  font-family: 'Geist Mono';
+  src: url('../resources/fonts/geist-mono-regular.woff2') format('woff2');
+  font-weight: 400;
+  font-display: block;
+}
+
+/* ── CSS Custom Properties (Design Tokens) ── */
+:root {
+  /* Base Surfaces (Infinite Depth) */
+  --color-bg-root:         #030303;
+  --color-bg-panel:        rgba(15, 15, 17, 0.6);
+  --color-bg-glass:        rgba(255, 255, 255, 0.02);
+  --color-bg-glass-hover:  rgba(255, 255, 255, 0.05);
+
+  /* Borders & Lights */
+  --color-border-inset:    rgba(255, 255, 255, 0.04);
+  --color-border-subtle:   rgba(255, 255, 255, 0.08);
+  --color-glow-violet:     rgba(139, 92, 246, 0.15);
+
+  /* Text Hierarchy (High Contrast) */
+  --color-text-primary:    #FFFFFF;
+  --color-text-secondary:  #A1A1AA;
+  --color-text-tertiary:   #52525B;
+
+  /* Semantic Accents (Desaturated & Elegant) */
+  --color-emerald:         #34D399;
+  --color-amber:           #FBBF24;
+  --color-violet:          #A78BFA;
+  --color-rose:            #FB7185;
+
+  /* Premium Smart Chip Entities */
+  --chip-person-bg:        rgba(96, 165, 250, 0.08);
+  --chip-person-text:      #93C5FD;
+  --chip-date-bg:          rgba(52, 211, 153, 0.08);
+  --chip-date-text:        #6EE7B7;
+  --chip-amount-bg:        rgba(251, 191, 36, 0.08);
+  --chip-amount-text:      #FCD34D;
+  --chip-action-bg:        rgba(251, 113, 133, 0.08);
+  --chip-action-text:      #FDA4AF;
+
+  /* Typography */
+  --font-heading:    'Geist', 'Inter', system-ui, sans-serif;
+  --font-body:       'Geist', 'Inter', system-ui, sans-serif;
+  --font-mono:       'Geist Mono', 'JetBrains Mono', monospace;
+
+  /* Type Scale */
+  --text-xs:    0.75rem;
+  --text-sm:    0.875rem;
+  --text-base:  1rem;
+  --text-lg:    1.125rem;
+  --text-xl:    1.5rem;
+  --text-2xl:   2rem;
+
+  /* Tracking */
+  --tracking-tight: -0.02em;
+  --tracking-wide:   0.05em;
+
+  /* Structural Spacing (8px Grid) */
+  --space-8:  8px;
+  --space-16: 16px;
+  --space-24: 24px;
+  --space-32: 32px;
+  --space-64: 64px;
+
+  /* Component Internal Flow (4px Grid) */
+  --space-4:  4px;
+  --space-12: 12px;
+  --space-20: 20px;
+
+  /* Native Component Heights */
+  --h-sm: 24px;
+  --h-md: 32px;
+  --h-lg: 40px;
+  --h-xl: 48px;
+
+  /* Radii (Squircle Math) */
+  --radius-sm:   6px;
+  --radius-md:   10px;
+  --radius-lg:   16px;
+  --radius-xl:   20px;
+  --radius-full: 9999px;
+
+  /* Timing Functions */
+  --ease-spring:       cubic-bezier(0.175, 0.885, 0.32, 1.1);
+  --ease-fluid:        cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-snappy:       cubic-bezier(0.4, 0, 0.2, 1);
+
+  --transition-fast:   150ms var(--ease-snappy);
+  --transition-base:   300ms var(--ease-fluid);
+  --transition-slow:   500ms var(--ease-fluid);
+}
+
+/* ── Global Reset ── */
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html, body, #root {
+  height: 100%;
+  background: var(--color-bg-root);
+  color: var(--color-text-primary);
+  font-family: var(--font-body);
+  font-size: var(--text-base);
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  overflow: hidden;
+}
+
+/* ── Premium Glass Texture Formula ── */
+.surface-glass-premium {
+  background: linear-gradient(
+    145deg,
+    rgba(255, 255, 255, 0.03) 0%,
+    rgba(255, 255, 255, 0.01) 100%
+  );
+  backdrop-filter: blur(24px) saturate(120%);
+  -webkit-backdrop-filter: blur(24px) saturate(120%);
+  box-shadow:
+    0 4px 24px -1px rgba(0, 0, 0, 0.4),
+    0 1px 0 0 rgba(255, 255, 255, 0.1) inset,
+    0 0 0 1px rgba(255, 255, 255, 0.05);
+  border-radius: var(--radius-xl);
+  transform: translateZ(0);
+}
+
+/* ── Film Grain Noise Overlay ── */
+.with-noise::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='1'/%3E%3C/svg%3E");
+  opacity: 0.03;
+  mix-blend-mode: overlay;
+  pointer-events: none;
+  border-radius: inherit;
+}
+
+/* ── Premium Hover Effect ── */
+.premium-hover {
+  transition: transform var(--transition-base), box-shadow var(--transition-base);
+  will-change: transform;
+}
+.premium-hover:hover {
+  transform: translateY(-1px) scale(1.01);
+  box-shadow: 0 8px 24px -4px rgba(0, 0, 0, 0.5),
+              0 0 0 1px var(--color-border-subtle),
+              0 0 12px var(--color-glow-violet);
+}
+
+/* ── Staggered Entrance Choreography ── */
+@keyframes stagger-in {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.stagger-child {
+  animation: stagger-in 300ms var(--ease-fluid) both;
+}
+/* JS applies: style="animation-delay: ${index * 40}ms" per child. Max 12 staggered, rest instant. */
+
+/* ── Overlay Scrollbars (macOS Native Feel) ── */
+::-webkit-scrollbar { width: 8px; height: 8px; background: transparent; }
+::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.1); border-radius: var(--radius-full); }
+::-webkit-scrollbar-thumb:hover { background: rgba(255, 255, 255, 0.2); }
+
+/* ── Window Blur (Lost Focus) State ── */
+.window-blurred {
+  --color-bg-panel: rgba(15, 15, 17, 0.3);
+  --color-border-subtle: rgba(255, 255, 255, 0.03);
+  --color-glow-violet: transparent;
+}
+.window-blurred .surface-glass-premium {
+  backdrop-filter: blur(12px) saturate(100%);
+}
+
+/* ── GPU Compositing (apply to max 10 elements) ── */
+.gpu-promoted {
+  will-change: transform;
+  transform: translateZ(0);
+  contain: layout style paint;
+}
+
+/* ── Skeleton Shimmer ── */
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+.skeleton {
+  background: linear-gradient(
+    90deg,
+    rgba(255, 255, 255, 0.03) 25%,
+    rgba(255, 255, 255, 0.06) 50%,
+    rgba(255, 255, 255, 0.03) 75%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+  border-radius: var(--radius-md);
+}
+
+/* ── Slide Up Animation (for Dialogs) ── */
+@keyframes slide-up {
+  from { opacity: 0; transform: translateY(16px) scale(0.98); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+.slide-up, .animate-slide-up {
+  animation: slide-up 400ms var(--ease-spring) both;
+}
+
+/* ── Additional Transitions ── */
+@keyframes fade-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+.animate-fade-in {
+  animation: fade-in 300ms ease-out both;
+}
+
+@keyframes bounce {
+  0%, 100% { transform: translateY(-5%); animation-timing-function: cubic-bezier(0.8,0,1,1); }
+  50% { transform: translateY(0); animation-timing-function: cubic-bezier(0,0,0.2,1); }
+}
+.animate-bounce {
+  animation: bounce 1s infinite;
+}
+
+/* ── Drag Region (macOS title bar) ── */
+.drag-region {
+  -webkit-app-region: drag;
+}
+.no-drag {
+  -webkit-app-region: no-drag;
+}

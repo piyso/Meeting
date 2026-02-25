@@ -1,0 +1,99 @@
+/* SplitPaneLayout Component Styles */
+
+.split-pane-layout {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.split-container {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  width: 100%;
+}
+
+.split-pane {
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.transcript-pane {
+  background: #f8f9fa;
+}
+
+.notes-pane {
+  background: #ffffff;
+}
+
+/* Gutter (divider) styles */
+.gutter {
+  background-color: #e0e0e0;
+  background-repeat: no-repeat;
+  background-position: 50%;
+  transition: background-color 0.2s;
+  position: relative;
+}
+
+.gutter:hover {
+  background-color: #667eea;
+}
+
+.gutter.gutter-vertical {
+  cursor: row-resize;
+  background-image: url('data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAUAAAAeCAYAAADkftS9AAAAIklEQVQoU2M4c+bMfxAGAgYYmwGrIIiDjrELjpo5aiZeMwF+yNnOs5KSvgAAAABJRU5ErkJggg==');
+}
+
+.gutter.gutter-vertical:hover {
+  background-image: url('data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAUAAAAeCAYAAADkftS9AAAAIklEQVQoU2M4c+bMfxAGAgYYmwGrIIiDjrELjpo5aiZeMwF+yNnOs5KSvgAAAABJRU5ErkJggg==');
+}
+
+/* Add visual feedback during drag */
+.gutter.gutter-vertical:active {
+  background-color: #5568d3;
+}
+
+/* Ensure panes take full height */
+.split-pane > * {
+  height: 100%;
+  overflow: auto;
+}
+
+/* Smooth transitions */
+.split-pane {
+  transition: flex-basis 0.1s ease-out;
+}
+
+/* Responsive adjustments */
+@media (max-height: 600px) {
+  .split-pane {
+    min-height: 150px;
+  }
+}
+
+/* Accessibility: Focus styles for keyboard navigation */
+.gutter:focus {
+  outline: 2px solid #667eea;
+  outline-offset: 2px;
+}
+
+/* Dark mode support (future enhancement) */
+@media (prefers-color-scheme: dark) {
+  .gutter {
+    background-color: #333;
+  }
+
+  .gutter:hover {
+    background-color: #667eea;
+  }
+
+  .transcript-pane {
+    background: #1a1a1a;
+  }
+
+  .notes-pane {
+    background: #2a2a2a;
+  }
+}

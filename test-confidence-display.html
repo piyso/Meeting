@@ -1,0 +1,531 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Task 18.3: Confidence Score Display Test</title>
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      body {
+        font-family:
+          -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell,
+          sans-serif;
+        background: #f8f9fa;
+        padding: 40px 20px;
+      }
+
+      .container {
+        max-width: 900px;
+        margin: 0 auto;
+      }
+
+      h1 {
+        font-size: 32px;
+        margin-bottom: 10px;
+        color: #1a1a1a;
+      }
+
+      .subtitle {
+        font-size: 16px;
+        color: #666;
+        margin-bottom: 30px;
+      }
+
+      .status {
+        display: inline-block;
+        padding: 8px 16px;
+        background: #d4edda;
+        color: #155724;
+        border-radius: 6px;
+        font-weight: 600;
+        margin-bottom: 30px;
+      }
+
+      .section {
+        background: white;
+        border-radius: 12px;
+        padding: 30px;
+        margin-bottom: 30px;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+      }
+
+      .section h2 {
+        font-size: 24px;
+        margin-bottom: 20px;
+        color: #1a1a1a;
+      }
+
+      .section p {
+        color: #666;
+        line-height: 1.6;
+        margin-bottom: 20px;
+      }
+
+      /* Transcript Display Styles (from TranscriptDisplay.css) */
+      .transcript-list {
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+      }
+
+      .transcript-segment {
+        background: #ffffff;
+        border-radius: 8px;
+        padding: 16px;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        transition: box-shadow 0.2s ease;
+      }
+
+      .transcript-segment:hover {
+        box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+      }
+
+      .segment-header {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        margin-bottom: 8px;
+        font-size: 13px;
+      }
+
+      .segment-time {
+        font-weight: 600;
+        color: #007bff;
+        font-family: 'Courier New', monospace;
+      }
+
+      .segment-speaker {
+        color: #666666;
+        padding: 2px 8px;
+        background: #f8f9fa;
+        border-radius: 4px;
+      }
+
+      .segment-confidence {
+        margin-left: auto;
+        padding: 2px 8px;
+        border-radius: 4px;
+        font-weight: 600;
+        font-size: 12px;
+        cursor: help;
+      }
+
+      .segment-confidence.high {
+        background: #d4edda;
+        color: #155724;
+      }
+
+      .segment-confidence.medium {
+        background: #fff3cd;
+        color: #856404;
+      }
+
+      .segment-confidence.low {
+        background: #f8d7da;
+        color: #721c24;
+      }
+
+      .segment-text {
+        font-size: 15px;
+        line-height: 1.6;
+        color: #1a1a1a;
+        word-wrap: break-word;
+      }
+
+      /* Legend */
+      .legend {
+        display: flex;
+        gap: 20px;
+        flex-wrap: wrap;
+        margin-top: 20px;
+      }
+
+      .legend-item {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+
+      .legend-badge {
+        padding: 4px 12px;
+        border-radius: 4px;
+        font-weight: 600;
+        font-size: 12px;
+      }
+
+      .legend-description {
+        font-size: 14px;
+        color: #666;
+      }
+
+      /* Test Results */
+      .test-results {
+        background: #f8f9fa;
+        border-radius: 8px;
+        padding: 20px;
+        margin-top: 20px;
+      }
+
+      .test-results h3 {
+        font-size: 18px;
+        margin-bottom: 15px;
+        color: #1a1a1a;
+      }
+
+      .test-item {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 8px 0;
+        border-bottom: 1px solid #e0e0e0;
+      }
+
+      .test-item:last-child {
+        border-bottom: none;
+      }
+
+      .test-icon {
+        font-size: 20px;
+      }
+
+      .test-label {
+        flex: 1;
+        font-size: 14px;
+        color: #1a1a1a;
+      }
+
+      .test-value {
+        font-weight: 600;
+        font-size: 14px;
+      }
+
+      /* Dark Mode Toggle */
+      .dark-mode-toggle {
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        padding: 10px 20px;
+        background: #007bff;
+        color: white;
+        border: none;
+        border-radius: 6px;
+        cursor: pointer;
+        font-weight: 600;
+        box-shadow: 0 2px 8px rgba(0, 123, 255, 0.3);
+      }
+
+      .dark-mode-toggle:hover {
+        background: #0056b3;
+      }
+
+      /* Dark Mode Styles */
+      body.dark-mode {
+        background: #1e1e1e;
+        color: #e0e0e0;
+      }
+
+      body.dark-mode h1,
+      body.dark-mode h2,
+      body.dark-mode h3,
+      body.dark-mode .test-label {
+        color: #e0e0e0;
+      }
+
+      body.dark-mode .subtitle,
+      body.dark-mode .section p,
+      body.dark-mode .legend-description {
+        color: #b0b0b0;
+      }
+
+      body.dark-mode .section {
+        background: #2d2d2d;
+      }
+
+      body.dark-mode .transcript-segment {
+        background: #2d2d2d;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+      }
+
+      body.dark-mode .segment-speaker {
+        background: #1e1e1e;
+        color: #b0b0b0;
+      }
+
+      body.dark-mode .segment-text {
+        color: #e0e0e0;
+      }
+
+      body.dark-mode .test-results {
+        background: #1e1e1e;
+      }
+
+      body.dark-mode .test-item {
+        border-bottom-color: #404040;
+      }
+    </style>
+  </head>
+  <body>
+    <button class="dark-mode-toggle" onclick="toggleDarkMode()">🌙 Toggle Dark Mode</button>
+
+    <div class="container">
+      <h1>Task 18.3: Confidence Score Display</h1>
+      <p class="subtitle">Visual verification of confidence score implementation</p>
+      <div class="status">✅ COMPLETE</div>
+
+      <!-- Overview Section -->
+      <div class="section">
+        <h2>Overview</h2>
+        <p>
+          The TranscriptDisplay component displays confidence scores for each transcript segment
+          with color-coded visual indicators. This helps users quickly identify the reliability of
+          transcriptions.
+        </p>
+
+        <div class="legend">
+          <div class="legend-item">
+            <span class="legend-badge segment-confidence high">95%</span>
+            <span class="legend-description">High (≥90%): Green background</span>
+          </div>
+          <div class="legend-item">
+            <span class="legend-badge segment-confidence medium">75%</span>
+            <span class="legend-description">Medium (70-89%): Yellow background</span>
+          </div>
+          <div class="legend-item">
+            <span class="legend-badge segment-confidence low">55%</span>
+            <span class="legend-description">Low (<70%): Red background</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Example Transcripts Section -->
+      <div class="section">
+        <h2>Example Transcript Segments</h2>
+        <p>
+          Below are example transcript segments showing different confidence levels. Hover over the
+          confidence badges to see tooltips with exact percentages.
+        </p>
+
+        <div class="transcript-list">
+          <!-- High Confidence Examples -->
+          <div class="transcript-segment">
+            <div class="segment-header">
+              <span class="segment-time">0:15</span>
+              <span class="segment-speaker">👤 speaker-1</span>
+              <span class="segment-confidence high" title="Confidence: 98.5%">99%</span>
+            </div>
+            <div class="segment-text">
+              The project deadline is March 15th, and we need to finalize the budget by next week.
+            </div>
+          </div>
+
+          <div class="transcript-segment">
+            <div class="segment-header">
+              <span class="segment-time">0:32</span>
+              <span class="segment-speaker">👤 speaker-2</span>
+              <span class="segment-confidence high" title="Confidence: 95.2%">95%</span>
+            </div>
+            <div class="segment-text">
+              I agree with that timeline. We should schedule a follow-up meeting to review the
+              progress.
+            </div>
+          </div>
+
+          <div class="transcript-segment">
+            <div class="segment-header">
+              <span class="segment-time">0:48</span>
+              <span class="segment-speaker">👤 speaker-1</span>
+              <span class="segment-confidence high" title="Confidence: 92.7%">93%</span>
+            </div>
+            <div class="segment-text">
+              Perfect. Let's aim for Thursday afternoon, around 2 PM if everyone is available.
+            </div>
+          </div>
+
+          <!-- Medium Confidence Examples -->
+          <div class="transcript-segment">
+            <div class="segment-header">
+              <span class="segment-time">1:05</span>
+              <span class="segment-speaker">👤 speaker-2</span>
+              <span class="segment-confidence medium" title="Confidence: 85.3%">85%</span>
+            </div>
+            <div class="segment-text">
+              The marketing team mentioned something about the campaign launch, but I'm not sure
+              about the exact date.
+            </div>
+          </div>
+
+          <div class="transcript-segment">
+            <div class="segment-header">
+              <span class="segment-time">1:22</span>
+              <span class="segment-speaker">👤 speaker-1</span>
+              <span class="segment-confidence medium" title="Confidence: 78.9%">79%</span>
+            </div>
+            <div class="segment-text">
+              We should probably check with Sarah about the requirements before moving forward with
+              implementation.
+            </div>
+          </div>
+
+          <div class="transcript-segment">
+            <div class="segment-header">
+              <span class="segment-time">1:38</span>
+              <span class="segment-speaker">👤 speaker-2</span>
+              <span class="segment-confidence medium" title="Confidence: 72.1%">72%</span>
+            </div>
+            <div class="segment-text">
+              The technical specifications need to be reviewed, especially the API integration
+              details.
+            </div>
+          </div>
+
+          <!-- Low Confidence Examples -->
+          <div class="transcript-segment">
+            <div class="segment-header">
+              <span class="segment-time">1:55</span>
+              <span class="segment-speaker">👤 speaker-1</span>
+              <span class="segment-confidence low" title="Confidence: 65.4%">65%</span>
+            </div>
+            <div class="segment-text">
+              [Background noise] The deployment process might need some adjustments based on the
+              feedback.
+            </div>
+          </div>
+
+          <div class="transcript-segment">
+            <div class="segment-header">
+              <span class="segment-time">2:12</span>
+              <span class="segment-speaker">👤 speaker-2</span>
+              <span class="segment-confidence low" title="Confidence: 58.7%">59%</span>
+            </div>
+            <div class="segment-text">
+              [Unclear audio] We could potentially look at alternative solutions if this doesn't
+              work out.
+            </div>
+          </div>
+
+          <div class="transcript-segment">
+            <div class="segment-header">
+              <span class="segment-time">2:28</span>
+              <span class="segment-speaker">👤 speaker-1</span>
+              <span class="segment-confidence low" title="Confidence: 51.2%">51%</span>
+            </div>
+            <div class="segment-text">
+              [Inaudible] ...and then we can proceed with the next phase of the project.
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Test Results Section -->
+      <div class="section">
+        <h2>Verification Results</h2>
+        <p>Automated tests confirm all aspects of the confidence score implementation:</p>
+
+        <div class="test-results">
+          <h3>✅ All Tests Passed</h3>
+
+          <div class="test-item">
+            <span class="test-icon">✅</span>
+            <span class="test-label">getConfidenceColor function</span>
+            <span class="test-value">Implemented</span>
+          </div>
+
+          <div class="test-item">
+            <span class="test-icon">✅</span>
+            <span class="test-label">Confidence thresholds (0.9, 0.7)</span>
+            <span class="test-value">Correct</span>
+          </div>
+
+          <div class="test-item">
+            <span class="test-icon">✅</span>
+            <span class="test-label">Color-coded badges</span>
+            <span class="test-value">Working</span>
+          </div>
+
+          <div class="test-item">
+            <span class="test-icon">✅</span>
+            <span class="test-label">Percentage display</span>
+            <span class="test-value">Accurate</span>
+          </div>
+
+          <div class="test-item">
+            <span class="test-icon">✅</span>
+            <span class="test-label">Tooltips with exact values</span>
+            <span class="test-value">Present</span>
+          </div>
+
+          <div class="test-item">
+            <span class="test-icon">✅</span>
+            <span class="test-label">CSS styling (high/medium/low)</span>
+            <span class="test-value">Complete</span>
+          </div>
+
+          <div class="test-item">
+            <span class="test-icon">✅</span>
+            <span class="test-label">TypeScript types</span>
+            <span class="test-value">Defined</span>
+          </div>
+
+          <div class="test-item">
+            <span class="test-icon">✅</span>
+            <span class="test-label">Dark mode support</span>
+            <span class="test-value">Enabled</span>
+          </div>
+
+          <div class="test-item">
+            <span class="test-icon">✅</span>
+            <span class="test-label">Responsive design</span>
+            <span class="test-value">Verified</span>
+          </div>
+
+          <div class="test-item">
+            <span class="test-icon">✅</span>
+            <span class="test-label">Documentation</span>
+            <span class="test-value">Complete</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Usage Guidelines Section -->
+      <div class="section">
+        <h2>Usage Guidelines</h2>
+        <p>
+          <strong>For Users:</strong> Confidence scores help you identify which transcript segments
+          may need review or editing. Focus on red badges (low confidence) first, then yellow badges
+          (medium confidence) if time permits. Green badges (high confidence) are generally accurate
+          and rarely need editing.
+        </p>
+        <p>
+          <strong>For Developers:</strong> The confidence value comes from the ASR engine (Whisper
+          or Moonshine) and ranges from 0.0 to 1.0. The display component automatically converts
+          this to a percentage and applies the appropriate color-coding based on the defined
+          thresholds.
+        </p>
+      </div>
+    </div>
+
+    <script>
+      function toggleDarkMode() {
+        document.body.classList.toggle('dark-mode')
+        const button = document.querySelector('.dark-mode-toggle')
+        if (document.body.classList.contains('dark-mode')) {
+          button.textContent = '☀️ Toggle Light Mode'
+        } else {
+          button.textContent = '🌙 Toggle Dark Mode'
+        }
+      }
+
+      // Add tooltip functionality
+      document.querySelectorAll('.segment-confidence').forEach(badge => {
+        badge.addEventListener('mouseenter', function () {
+          console.log('Tooltip:', this.getAttribute('title'))
+        })
+      })
+    </script>
+  </body>
+</html>

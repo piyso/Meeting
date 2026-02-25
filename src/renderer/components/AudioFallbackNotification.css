@@ -1,0 +1,245 @@
+/**
+ * Audio Fallback Notification Styles
+ *
+ * Toast-style notification that appears when audio capture falls back
+ * from one source to another (System → Microphone → Cloud).
+ */
+
+.audio-fallback-notification {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  z-index: 9999;
+  animation: slideIn 0.3s ease-out;
+}
+
+/* Highlight notifications that require user action */
+.audio-fallback-notification.requires-action .notification-content {
+  border-left-color: #f44336;
+  animation: pulse 2s ease-in-out infinite;
+}
+
+@keyframes slideIn {
+  from {
+    transform: translateX(400px);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+
+@keyframes pulse {
+  0%,
+  100% {
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  }
+  50% {
+    box-shadow: 0 4px 16px rgba(244, 67, 54, 0.3);
+  }
+}
+
+.notification-content {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  background: #fff;
+  border: 1px solid #e0e0e0;
+  border-left: 4px solid #ff9800;
+  border-radius: 8px;
+  padding: 16px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  max-width: 450px;
+  min-width: 320px;
+}
+
+.notification-icon {
+  font-size: 24px;
+  flex-shrink: 0;
+}
+
+.notification-text {
+  flex: 1;
+}
+
+.notification-title {
+  font-weight: 600;
+  font-size: 14px;
+  color: #333;
+  margin-bottom: 4px;
+}
+
+.notification-details {
+  font-size: 13px;
+  color: #666;
+  line-height: 1.4;
+  margin-bottom: 4px;
+}
+
+.notification-reason {
+  font-size: 12px;
+  color: #999;
+  font-style: italic;
+  margin-top: 4px;
+}
+
+.notification-actions {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.btn-settings {
+  background: #2196f3;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  padding: 6px 12px;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.2s;
+  white-space: nowrap;
+}
+
+.btn-settings:hover {
+  background: #1976d2;
+}
+
+.btn-settings:active {
+  background: #1565c0;
+}
+
+.btn-close {
+  background: transparent;
+  color: #999;
+  border: none;
+  font-size: 18px;
+  cursor: pointer;
+  padding: 0;
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  transition:
+    background 0.2s,
+    color 0.2s;
+}
+
+.btn-close:hover {
+  background: #f5f5f5;
+  color: #333;
+}
+
+.btn-close:active {
+  background: #e0e0e0;
+}
+
+/* Guidance section (expandable) */
+.notification-guidance {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid #e0e0e0;
+}
+
+.guidance-title {
+  font-weight: 600;
+  font-size: 13px;
+  color: #333;
+  margin-bottom: 8px;
+}
+
+.guidance-steps {
+  margin: 0;
+  padding-left: 20px;
+  font-size: 12px;
+  color: #666;
+  line-height: 1.6;
+}
+
+.guidance-steps li {
+  margin-bottom: 4px;
+}
+
+/* Dark mode support */
+@media (prefers-color-scheme: dark) {
+  .notification-content {
+    background: #2d2d2d;
+    border-color: #444;
+    border-left-color: #ff9800;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+  }
+
+  .audio-fallback-notification.requires-action .notification-content {
+    border-left-color: #f44336;
+  }
+
+  @keyframes pulse {
+    0%,
+    100% {
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+    }
+    50% {
+      box-shadow: 0 4px 16px rgba(244, 67, 54, 0.5);
+    }
+  }
+
+  .notification-title {
+    color: #e0e0e0;
+  }
+
+  .notification-details {
+    color: #b0b0b0;
+  }
+
+  .notification-reason {
+    color: #888;
+  }
+
+  .notification-guidance {
+    border-top-color: #444;
+  }
+
+  .guidance-title {
+    color: #e0e0e0;
+  }
+
+  .guidance-steps {
+    color: #b0b0b0;
+  }
+
+  .btn-close:hover {
+    background: #3d3d3d;
+    color: #e0e0e0;
+  }
+
+  .btn-close:active {
+    background: #4d4d4d;
+  }
+}
+
+/* Mobile responsive */
+@media (max-width: 768px) {
+  .audio-fallback-notification {
+    top: 10px;
+    right: 10px;
+    left: 10px;
+  }
+
+  .notification-content {
+    max-width: none;
+    min-width: 0;
+  }
+
+  .notification-actions {
+    flex-direction: column;
+  }
+
+  .btn-settings {
+    width: 100%;
+  }
+}

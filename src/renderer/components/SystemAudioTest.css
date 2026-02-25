@@ -1,0 +1,523 @@
+/**
+ * System Audio Test Component Styles
+ * Task 12.2: Test system audio capture
+ */
+
+.system-audio-test {
+  max-width: 600px;
+  margin: 0 auto;
+  padding: 24px;
+  background: var(--bg-secondary, #f5f5f5);
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.test-header {
+  text-align: center;
+  margin-bottom: 24px;
+}
+
+.test-header h3 {
+  margin: 0 0 8px 0;
+  font-size: 24px;
+  color: var(--text-primary, #333);
+}
+
+.test-description {
+  margin: 0;
+  font-size: 14px;
+  color: var(--text-secondary, #666);
+  line-height: 1.5;
+}
+
+/* Idle State */
+.test-idle {
+  text-align: center;
+}
+
+.test-instructions {
+  background: white;
+  padding: 20px;
+  border-radius: 8px;
+  margin-bottom: 20px;
+  text-align: left;
+}
+
+.test-instructions h4 {
+  margin: 0 0 12px 0;
+  font-size: 16px;
+  color: var(--text-primary, #333);
+}
+
+.test-instructions ul {
+  margin: 0;
+  padding-left: 20px;
+}
+
+.test-instructions li {
+  margin-bottom: 8px;
+  font-size: 14px;
+  color: var(--text-secondary, #666);
+  line-height: 1.5;
+}
+
+.test-instructions strong {
+  color: var(--text-primary, #333);
+  font-weight: 600;
+}
+
+.btn-start-test {
+  padding: 12px 32px;
+  font-size: 16px;
+  font-weight: 600;
+  color: white;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  transition:
+    transform 0.2s,
+    box-shadow 0.2s;
+}
+
+.btn-start-test:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+}
+
+.btn-start-test:active {
+  transform: translateY(0);
+}
+
+/* Instructions Phase */
+.test-instructions-phase {
+  text-align: center;
+  padding: 40px 20px;
+}
+
+.instruction-box {
+  background: white;
+  padding: 32px;
+  border-radius: 12px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.instruction-icon {
+  font-size: 48px;
+  margin-bottom: 16px;
+}
+
+.instruction-box h4 {
+  margin: 0 0 12px 0;
+  font-size: 20px;
+  color: var(--text-primary, #333);
+}
+
+.instruction-box p {
+  margin: 0 0 16px 0;
+  font-size: 14px;
+  color: var(--text-secondary, #666);
+  line-height: 1.5;
+}
+
+.countdown {
+  font-size: 14px;
+  color: var(--primary, #667eea);
+  font-weight: 600;
+  animation: pulse 1s infinite;
+}
+
+@keyframes pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
+
+/* Testing State */
+.test-active {
+  text-align: center;
+}
+
+.test-status {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: white;
+  padding: 16px 20px;
+  border-radius: 8px;
+  margin-bottom: 20px;
+}
+
+.status-indicator {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.status-dot {
+  width: 12px;
+  height: 12px;
+  background: #4caf50;
+  border-radius: 50%;
+}
+
+.status-dot.pulsing {
+  animation: pulse-dot 1.5s infinite;
+}
+
+@keyframes pulse-dot {
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.5;
+    transform: scale(1.2);
+  }
+}
+
+.status-text {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary, #333);
+}
+
+.test-duration {
+  font-size: 14px;
+  color: var(--text-secondary, #666);
+  font-weight: 500;
+}
+
+.instruction-prompt {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  padding: 24px;
+  border-radius: 8px;
+  margin-bottom: 20px;
+}
+
+.instruction-prompt h4 {
+  margin: 0 0 8px 0;
+  font-size: 18px;
+}
+
+.instruction-prompt p {
+  margin: 0;
+  font-size: 14px;
+  opacity: 0.9;
+}
+
+/* Audio Level Meter */
+.audio-level-meter {
+  background: white;
+  padding: 20px;
+  border-radius: 8px;
+  margin-bottom: 16px;
+}
+
+.meter-label {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary, #333);
+  margin-bottom: 12px;
+}
+
+.meter-container {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.meter-bar {
+  flex: 1;
+  height: 24px;
+  background: #e0e0e0;
+  border-radius: 12px;
+  overflow: hidden;
+  position: relative;
+}
+
+.meter-fill {
+  height: 100%;
+  transition:
+    width 0.1s ease-out,
+    background-color 0.3s;
+  border-radius: 12px;
+}
+
+.meter-value {
+  min-width: 50px;
+  text-align: right;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary, #333);
+}
+
+.meter-hint {
+  margin-top: 12px;
+  font-size: 14px;
+  text-align: center;
+}
+
+.audio-detected {
+  color: #4caf50;
+  font-weight: 600;
+}
+
+.waiting {
+  color: var(--text-secondary, #666);
+}
+
+/* Peak Level */
+.peak-level {
+  background: white;
+  padding: 12px 20px;
+  border-radius: 8px;
+  margin-bottom: 20px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.peak-label {
+  font-size: 14px;
+  color: var(--text-secondary, #666);
+}
+
+.peak-value {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--primary, #667eea);
+}
+
+.btn-stop-test {
+  padding: 12px 32px;
+  font-size: 16px;
+  font-weight: 600;
+  color: white;
+  background: #f44336;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  transition:
+    transform 0.2s,
+    box-shadow 0.2s;
+}
+
+.btn-stop-test:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(244, 67, 54, 0.4);
+}
+
+.btn-stop-test:active {
+  transform: translateY(0);
+}
+
+/* Complete State */
+.test-complete {
+  text-align: center;
+}
+
+.result-box {
+  background: white;
+  padding: 32px;
+  border-radius: 12px;
+  margin-bottom: 20px;
+  border: 3px solid;
+}
+
+.result-box.success {
+  border-color: #4caf50;
+}
+
+.result-box.failure {
+  border-color: #f44336;
+}
+
+.result-icon {
+  font-size: 64px;
+  margin-bottom: 16px;
+}
+
+.result-box h4 {
+  margin: 0 0 12px 0;
+  font-size: 24px;
+  color: var(--text-primary, #333);
+}
+
+.result-box p {
+  margin: 0;
+  font-size: 14px;
+  color: var(--text-secondary, #666);
+  line-height: 1.5;
+}
+
+.troubleshooting {
+  margin-top: 24px;
+  padding: 20px;
+  background: #fff3cd;
+  border-radius: 8px;
+  text-align: left;
+}
+
+.troubleshooting h5 {
+  margin: 0 0 12px 0;
+  font-size: 16px;
+  color: #856404;
+}
+
+.troubleshooting ul {
+  margin: 0;
+  padding-left: 20px;
+}
+
+.troubleshooting li {
+  margin-bottom: 8px;
+  font-size: 14px;
+  color: #856404;
+  line-height: 1.5;
+}
+
+.troubleshooting strong {
+  font-weight: 600;
+}
+
+.test-actions {
+  display: flex;
+  justify-content: center;
+  gap: 12px;
+}
+
+.btn-test-again {
+  padding: 12px 32px;
+  font-size: 16px;
+  font-weight: 600;
+  color: white;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  transition:
+    transform 0.2s,
+    box-shadow 0.2s;
+}
+
+.btn-test-again:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+}
+
+.btn-test-again:active {
+  transform: translateY(0);
+}
+
+/* Error State */
+.test-error {
+  text-align: center;
+}
+
+.error-box {
+  background: white;
+  padding: 32px;
+  border-radius: 12px;
+  margin-bottom: 20px;
+  border: 3px solid #f44336;
+}
+
+.error-icon {
+  font-size: 64px;
+  margin-bottom: 16px;
+}
+
+.error-box h4 {
+  margin: 0 0 12px 0;
+  font-size: 24px;
+  color: var(--text-primary, #333);
+}
+
+.error-message {
+  margin: 0;
+  font-size: 14px;
+  color: #f44336;
+  line-height: 1.5;
+  font-weight: 500;
+}
+
+.btn-try-again {
+  padding: 12px 32px;
+  font-size: 16px;
+  font-weight: 600;
+  color: white;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  transition:
+    transform 0.2s,
+    box-shadow 0.2s;
+}
+
+.btn-try-again:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+}
+
+.btn-try-again:active {
+  transform: translateY(0);
+}
+
+/* Dark mode support */
+@media (prefers-color-scheme: dark) {
+  .system-audio-test {
+    background: var(--bg-secondary, #2a2a2a);
+  }
+
+  .test-header h3 {
+    color: var(--text-primary, #e0e0e0);
+  }
+
+  .test-description {
+    color: var(--text-secondary, #b0b0b0);
+  }
+
+  .test-instructions,
+  .instruction-box,
+  .test-status,
+  .audio-level-meter,
+  .peak-level,
+  .result-box,
+  .error-box {
+    background: var(--bg-primary, #1e1e1e);
+  }
+
+  .test-instructions h4,
+  .instruction-box h4,
+  .status-text,
+  .meter-label,
+  .meter-value,
+  .result-box h4,
+  .error-box h4 {
+    color: var(--text-primary, #e0e0e0);
+  }
+
+  .test-instructions li,
+  .instruction-box p,
+  .test-duration,
+  .peak-label,
+  .result-box p {
+    color: var(--text-secondary, #b0b0b0);
+  }
+
+  .test-instructions strong {
+    color: var(--text-primary, #e0e0e0);
+  }
+
+  .meter-bar {
+    background: #3a3a3a;
+  }
+}

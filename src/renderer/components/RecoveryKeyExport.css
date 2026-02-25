@@ -1,0 +1,354 @@
+/**
+ * Recovery Key Export Component Styles
+ */
+
+.recovery-key-export {
+  max-width: 800px;
+  margin: 0 auto;
+  padding: 40px 20px;
+  font-family:
+    -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+}
+
+/* Header */
+.recovery-header {
+  text-align: center;
+  margin-bottom: 30px;
+}
+
+.recovery-header h2 {
+  font-size: 32px;
+  font-weight: 600;
+  color: #1a1a1a;
+  margin: 0 0 10px 0;
+}
+
+.recovery-subtitle {
+  font-size: 16px;
+  color: #666;
+  margin: 0;
+}
+
+/* Warning Banner */
+.warning-banner {
+  display: flex;
+  align-items: flex-start;
+  gap: 15px;
+  padding: 20px;
+  border-radius: 8px;
+  margin-bottom: 30px;
+}
+
+.warning-banner.critical {
+  background-color: #fff3cd;
+  border: 2px solid #ffc107;
+}
+
+.warning-icon {
+  font-size: 32px;
+  flex-shrink: 0;
+}
+
+.warning-content h3 {
+  font-size: 18px;
+  font-weight: 600;
+  color: #856404;
+  margin: 0 0 8px 0;
+}
+
+.warning-content p {
+  font-size: 14px;
+  color: #856404;
+  margin: 0;
+  line-height: 1.5;
+}
+
+/* Recovery Phrase Container */
+.recovery-phrase-container {
+  background-color: #f8f9fa;
+  border: 2px solid #dee2e6;
+  border-radius: 8px;
+  padding: 30px;
+  margin-bottom: 30px;
+}
+
+.recovery-phrase-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 20px;
+}
+
+.recovery-column {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.recovery-word {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 15px;
+  background-color: white;
+  border: 1px solid #dee2e6;
+  border-radius: 6px;
+  font-family: 'Monaco', 'Courier New', monospace;
+}
+
+.word-number {
+  font-size: 12px;
+  color: #6c757d;
+  font-weight: 600;
+  min-width: 25px;
+}
+
+.word-text {
+  font-size: 14px;
+  color: #1a1a1a;
+  font-weight: 500;
+}
+
+/* Action Buttons */
+.recovery-actions {
+  display: flex;
+  gap: 15px;
+  justify-content: center;
+  margin-bottom: 30px;
+}
+
+.action-button {
+  padding: 12px 24px;
+  font-size: 14px;
+  font-weight: 500;
+  border: 2px solid #dee2e6;
+  border-radius: 6px;
+  background-color: white;
+  color: #495057;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.action-button:hover {
+  background-color: #f8f9fa;
+  border-color: #adb5bd;
+}
+
+.action-button:active {
+  transform: translateY(1px);
+}
+
+.action-button.success {
+  background-color: #d4edda;
+  border-color: #28a745;
+  color: #155724;
+}
+
+/* Confirmation Checkbox */
+.recovery-confirmation {
+  margin-bottom: 20px;
+}
+
+.confirmation-checkbox {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 15px;
+  background-color: #f8f9fa;
+  border: 2px solid #dee2e6;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.confirmation-checkbox:hover {
+  background-color: #e9ecef;
+  border-color: #adb5bd;
+}
+
+.checkbox-input {
+  width: 20px;
+  height: 20px;
+  cursor: pointer;
+}
+
+.checkbox-label {
+  font-size: 14px;
+  font-weight: 500;
+  color: #495057;
+  cursor: pointer;
+}
+
+/* Skip Warning */
+.skip-warning {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin-bottom: 20px;
+  padding: 10px;
+  background-color: #fff3cd;
+  border-radius: 6px;
+}
+
+.skip-icon {
+  font-size: 16px;
+}
+
+.skip-text {
+  font-size: 14px;
+  font-weight: 600;
+  color: #856404;
+}
+
+/* Continue Button */
+.recovery-footer {
+  text-align: center;
+  margin-bottom: 30px;
+}
+
+.continue-button {
+  padding: 15px 40px;
+  font-size: 16px;
+  font-weight: 600;
+  border: none;
+  border-radius: 8px;
+  background-color: #007bff;
+  color: white;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  min-width: 200px;
+}
+
+.continue-button:hover:not(:disabled) {
+  background-color: #0056b3;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 123, 255, 0.3);
+}
+
+.continue-button:active:not(:disabled) {
+  transform: translateY(0);
+}
+
+.continue-button:disabled {
+  background-color: #6c757d;
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+/* Security Tips */
+.security-tips {
+  background-color: #e7f3ff;
+  border: 1px solid #b3d9ff;
+  border-radius: 8px;
+  padding: 20px;
+}
+
+.security-tips h4 {
+  font-size: 16px;
+  font-weight: 600;
+  color: #004085;
+  margin: 0 0 15px 0;
+}
+
+.security-tips ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.security-tips li {
+  font-size: 14px;
+  color: #004085;
+  margin-bottom: 8px;
+  padding-left: 5px;
+}
+
+.security-tips li:last-child {
+  margin-bottom: 0;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .recovery-phrase-grid {
+    grid-template-columns: 1fr;
+    gap: 15px;
+  }
+
+  .recovery-actions {
+    flex-direction: column;
+  }
+
+  .action-button {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .recovery-key-export {
+    padding: 20px 15px;
+  }
+
+  .recovery-header h2 {
+    font-size: 24px;
+  }
+}
+
+/* Dark Mode Support */
+@media (prefers-color-scheme: dark) {
+  .recovery-header h2 {
+    color: #f8f9fa;
+  }
+
+  .recovery-subtitle {
+    color: #adb5bd;
+  }
+
+  .recovery-phrase-container {
+    background-color: #212529;
+    border-color: #495057;
+  }
+
+  .recovery-word {
+    background-color: #343a40;
+    border-color: #495057;
+  }
+
+  .word-text {
+    color: #f8f9fa;
+  }
+
+  .action-button {
+    background-color: #343a40;
+    border-color: #495057;
+    color: #f8f9fa;
+  }
+
+  .action-button:hover {
+    background-color: #495057;
+  }
+
+  .confirmation-checkbox {
+    background-color: #212529;
+    border-color: #495057;
+  }
+
+  .confirmation-checkbox:hover {
+    background-color: #343a40;
+  }
+
+  .checkbox-label {
+    color: #f8f9fa;
+  }
+
+  .security-tips {
+    background-color: #1a2332;
+    border-color: #2c4a6e;
+  }
+
+  .security-tips h4,
+  .security-tips li {
+    color: #b3d9ff;
+  }
+}

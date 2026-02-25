@@ -1,0 +1,15 @@
+# AI Models (downloaded on first launch, not committed to git)
+
+# ONNX models
+*.onnx
+
+# GGML models
+*.bin
+*.ggml
+
+# Checksum files
+*-checksums.json
+
+# Keep README
+!README.md
+!.gitignore

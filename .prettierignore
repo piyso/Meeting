@@ -1,0 +1,55 @@
+# Dependencies
+node_modules
+
+# Build outputs
+dist
+dist-electron
+release
+build
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# Editor directories and files
+.vscode/*
+!.vscode/extensions.json
+.idea
+.DS_Store
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# Environment files
+.env
+.env.local
+.env.*.local
+
+# Package manager files
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
+
+# Test coverage
+coverage
+
+# Electron builder
+out
+
+# Database files
+*.db
+*.db-shm
+*.db-wal
+
+# Kiro specs
+.kiro
+
+# Documentation that should preserve formatting
+CHANGELOG.md
+LICENSE

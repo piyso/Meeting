@@ -1,0 +1,280 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>16kHz Audio Verification Test - Task 10.2</title>
+    <style>
+      body {
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        max-width: 900px;
+        margin: 40px auto;
+        padding: 20px;
+        background: #f5f5f5;
+      }
+
+      .container {
+        background: white;
+        border-radius: 8px;
+        padding: 30px;
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+      }
+
+      h1 {
+        color: #333;
+        border-bottom: 3px solid #4caf50;
+        padding-bottom: 10px;
+      }
+
+      .info-box {
+        background: #e3f2fd;
+        border-left: 4px solid #2196f3;
+        padding: 15px;
+        margin: 20px 0;
+        border-radius: 4px;
+      }
+
+      .warning-box {
+        background: #fff3e0;
+        border-left: 4px solid #ff9800;
+        padding: 15px;
+        margin: 20px 0;
+        border-radius: 4px;
+      }
+
+      button {
+        background: #4caf50;
+        color: white;
+        border: none;
+        padding: 12px 24px;
+        font-size: 16px;
+        border-radius: 4px;
+        cursor: pointer;
+        margin: 10px 5px;
+      }
+
+      button:hover {
+        background: #45a049;
+      }
+
+      button:disabled {
+        background: #cccccc;
+        cursor: not-allowed;
+      }
+
+      #console {
+        background: #1e1e1e;
+        color: #d4d4d4;
+        padding: 20px;
+        border-radius: 4px;
+        font-family: 'Courier New', monospace;
+        font-size: 14px;
+        max-height: 500px;
+        overflow-y: auto;
+        white-space: pre-wrap;
+        word-wrap: break-word;
+        margin-top: 20px;
+      }
+
+      .status {
+        display: inline-block;
+        padding: 4px 12px;
+        border-radius: 12px;
+        font-weight: bold;
+        margin-left: 10px;
+      }
+
+      .status.pass {
+        background: #4caf50;
+        color: white;
+      }
+
+      .status.fail {
+        background: #f44336;
+        color: white;
+      }
+
+      .status.warning {
+        background: #ff9800;
+        color: white;
+      }
+
+      .status.running {
+        background: #2196f3;
+        color: white;
+      }
+
+      .test-result {
+        margin: 15px 0;
+        padding: 15px;
+        background: #f9f9f9;
+        border-radius: 4px;
+        border-left: 4px solid #ddd;
+      }
+
+      .test-result.pass {
+        border-left-color: #4caf50;
+        background: #f1f8f4;
+      }
+
+      .test-result.fail {
+        border-left-color: #f44336;
+        background: #fef1f1;
+      }
+
+      .test-result.warning {
+        border-left-color: #ff9800;
+        background: #fff8f1;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h1>🎤 16kHz Audio Configuration Verification</h1>
+      <p><strong>Task 10.2:</strong> Implement 16kHz resampling</p>
+
+      <div class="info-box">
+        <h3>📋 Test Purpose</h3>
+        <p>
+          This test verifies that the audio capture system is correctly configured for 16kHz sample
+          rate, which is required by Whisper for optimal transcription quality.
+        </p>
+
+        <h4>What this test validates:</h4>
+        <ul>
+          <li>✅ AudioContext is created with 16kHz sample rate</li>
+          <li>✅ AudioWorklet processor receives 16kHz audio</li>
+          <li>✅ Audio chunks sent to main process have 16kHz sample rate</li>
+          <li>✅ Whisper will receive properly formatted audio</li>
+        </ul>
+      </div>
+
+      <div class="warning-box">
+        <h3>⚠️ Important Notes</h3>
+        <ul>
+          <li>This test requires <strong>microphone permission</strong></li>
+          <li>You will need to <strong>speak into your microphone</strong> during the test</li>
+          <li>The test may take up to 30 seconds to complete</li>
+          <li>Some browsers may resample audio automatically if 16kHz is not supported</li>
+        </ul>
+      </div>
+
+      <div>
+        <button id="runTest" onclick="runTest()">▶️ Run Verification Test</button>
+        <button id="clearConsole" onclick="clearConsole()">🗑️ Clear Console</button>
+        <span id="status"></span>
+      </div>
+
+      <div id="results"></div>
+
+      <h3>📊 Console Output</h3>
+      <div id="console"></div>
+    </div>
+
+    <script type="module">
+      // Import the test class
+      import Audio16kHzVerificationTest from './verify-16khz-audio.js'
+
+      let testInstance = null
+
+      // Override console.log to display in page
+      const originalLog = console.log
+      const originalWarn = console.warn
+      const originalError = console.error
+
+      function appendToConsole(message, type = 'log') {
+        const consoleDiv = document.getElementById('console')
+        const timestamp = new Date().toLocaleTimeString()
+
+        let color = '#d4d4d4'
+        if (type === 'warn') color = '#ff9800'
+        if (type === 'error') color = '#f44336'
+
+        const line = document.createElement('div')
+        line.style.color = color
+        line.textContent = `[${timestamp}] ${message}`
+        consoleDiv.appendChild(line)
+        consoleDiv.scrollTop = consoleDiv.scrollHeight
+
+        // Also log to real console
+        if (type === 'log') originalLog(message)
+        if (type === 'warn') originalWarn(message)
+        if (type === 'error') originalError(message)
+      }
+
+      console.log = (...args) => appendToConsole(args.join(' '), 'log')
+      console.warn = (...args) => appendToConsole(args.join(' '), 'warn')
+      console.error = (...args) => appendToConsole(args.join(' '), 'error')
+
+      window.runTest = async function () {
+        const runButton = document.getElementById('runTest')
+        const statusSpan = document.getElementById('status')
+        const resultsDiv = document.getElementById('results')
+
+        runButton.disabled = true
+        statusSpan.innerHTML = '<span class="status running">RUNNING</span>'
+        resultsDiv.innerHTML = ''
+
+        try {
+          testInstance = new Audio16kHzVerificationTest()
+          const results = await testInstance.runFullTest()
+
+          // Display results
+          let statusClass = 'fail'
+          if (results.verdict === 'PASS') statusClass = 'pass'
+          if (results.verdict === 'WARNING') statusClass = 'warning'
+
+          statusSpan.innerHTML = `<span class="status ${statusClass}">${results.verdict}</span>`
+
+          // Display detailed results
+          resultsDiv.innerHTML = `
+          <h3>📊 Test Results</h3>
+          
+          <div class="test-result ${results.tests.audioContext?.success ? 'pass' : 'fail'}">
+            <h4>Test 1: AudioContext Sample Rate</h4>
+            <p><strong>Sample Rate:</strong> ${results.summary.audioContextSampleRate || 'N/A'}Hz</p>
+            <p><strong>Status:</strong> ${results.tests.audioContext?.success ? '✅ PASS' : '❌ FAIL'}</p>
+          </div>
+          
+          <div class="test-result ${results.tests.worklet?.success ? 'pass' : 'fail'}">
+            <h4>Test 2: AudioWorklet Sample Rate</h4>
+            <p><strong>Sample Rate:</strong> ${results.summary.workletSampleRate || 'N/A'}Hz</p>
+            <p><strong>Status:</strong> ${results.tests.worklet?.success ? '✅ PASS' : '❌ FAIL'}</p>
+          </div>
+          
+          <div class="test-result ${results.tests.chunk?.success ? 'pass' : 'fail'}">
+            <h4>Test 3: Audio Chunk Sample Rate</h4>
+            <p><strong>Sample Rate:</strong> ${results.summary.chunkSampleRate || 'N/A'}Hz</p>
+            <p><strong>Status:</strong> ${results.tests.chunk?.success ? '✅ PASS' : '❌ FAIL'}</p>
+          </div>
+          
+          <div class="test-result ${results.summary.allMatch16kHz ? 'pass' : 'warning'}">
+            <h4>Overall Verdict</h4>
+            <p><strong>All components at 16kHz:</strong> ${results.summary.allMatch16kHz ? '✅ YES' : '⚠️ NO'}</p>
+            <p><strong>Whisper compatibility:</strong> ${results.summary.allMatch16kHz ? '✅ Optimal' : '⚠️ May require resampling'}</p>
+          </div>
+        `
+        } catch (error) {
+          console.error('Test failed with error:', error)
+          statusSpan.innerHTML = '<span class="status fail">ERROR</span>'
+          resultsDiv.innerHTML = `
+          <div class="test-result fail">
+            <h4>❌ Test Error</h4>
+            <p>${error.message}</p>
+          </div>
+        `
+        } finally {
+          runButton.disabled = false
+        }
+      }
+
+      window.clearConsole = function () {
+        document.getElementById('console').innerHTML = ''
+      }
+
+      // Initial message
+      console.log('16kHz Audio Verification Test loaded')
+      console.log('Click "Run Verification Test" to begin')
+    </script>
+  </body>
+</html>

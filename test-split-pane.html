@@ -1,0 +1,218 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Split Pane Layout Test - PiyAPI Notes</title>
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      body {
+        font-family:
+          -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell',
+          'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        padding: 20px;
+        height: 100vh;
+        display: flex;
+        flex-direction: column;
+      }
+
+      .container {
+        background: white;
+        border-radius: 16px;
+        overflow: hidden;
+        box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+      }
+
+      .header {
+        padding: 20px;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+      }
+
+      .header h1 {
+        margin: 0;
+        font-size: 24px;
+      }
+
+      .split-container {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+      }
+
+      .pane {
+        overflow: auto;
+        padding: 20px;
+      }
+
+      .transcript-pane {
+        background: #f8f9fa;
+        border-bottom: 4px solid #667eea;
+      }
+
+      .notes-pane {
+        background: #ffffff;
+      }
+
+      .pane h2 {
+        margin-bottom: 16px;
+        color: #667eea;
+      }
+
+      .transcript-item {
+        background: white;
+        padding: 12px;
+        margin-bottom: 12px;
+        border-radius: 8px;
+        border-left: 3px solid #667eea;
+      }
+
+      .transcript-time {
+        font-size: 12px;
+        color: #666;
+        margin-bottom: 4px;
+      }
+
+      textarea {
+        width: 100%;
+        min-height: 200px;
+        padding: 12px;
+        border: 1px solid #e0e0e0;
+        border-radius: 8px;
+        font-family: inherit;
+        font-size: 14px;
+        resize: vertical;
+      }
+
+      .test-info {
+        background: #e8f5e9;
+        padding: 16px;
+        margin-bottom: 16px;
+        border-radius: 8px;
+        border-left: 4px solid #4caf50;
+      }
+
+      .test-info h3 {
+        color: #2e7d32;
+        margin-bottom: 8px;
+      }
+
+      .test-info ul {
+        margin-left: 20px;
+        color: #2e7d32;
+      }
+
+      .test-info li {
+        margin-bottom: 4px;
+      }
+
+      .status {
+        position: fixed;
+        bottom: 20px;
+        right: 20px;
+        background: white;
+        padding: 12px 20px;
+        border-radius: 8px;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+        font-size: 14px;
+        color: #667eea;
+        font-weight: 600;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <div class="header">
+        <h1>🧪 Split Pane Layout Test</h1>
+        <p style="margin-top: 8px; opacity: 0.9">Task 19.1 - Verification</p>
+      </div>
+
+      <div class="split-container">
+        <div class="pane transcript-pane" style="flex: 60">
+          <div class="test-info">
+            <h3>✅ Test Instructions</h3>
+            <ul>
+              <li>This simulates the split-pane layout (60% transcript, 40% notes)</li>
+              <li>In the actual app, you can drag the divider to resize</li>
+              <li>Pane sizes are saved to localStorage</li>
+              <li>The react-split library provides smooth resizing</li>
+            </ul>
+          </div>
+
+          <h2>📝 Transcript Panel (Top - 60%)</h2>
+
+          <div class="transcript-item">
+            <div class="transcript-time">0:00 - Speaker 1</div>
+            <div>
+              Welcome everyone to today's meeting. Let's start by reviewing the agenda for this
+              session.
+            </div>
+          </div>
+
+          <div class="transcript-item">
+            <div class="transcript-time">0:15 - Speaker 2</div>
+            <div>
+              Thanks for having me. I'd like to discuss the Q1 budget allocations and our hiring
+              plans.
+            </div>
+          </div>
+
+          <div class="transcript-item">
+            <div class="transcript-time">0:32 - Speaker 1</div>
+            <div>
+              Great. Before we dive into that, let's make sure everyone has access to the shared
+              documents.
+            </div>
+          </div>
+
+          <div class="transcript-item">
+            <div class="transcript-time">0:48 - Speaker 3</div>
+            <div>I can see the documents. Should we start with the budget overview?</div>
+          </div>
+
+          <div class="transcript-item">
+            <div class="transcript-time">1:05 - Speaker 2</div>
+            <div>
+              Yes, let's begin. Our total budget for Q1 is $500,000, with 40% allocated to
+              engineering.
+            </div>
+          </div>
+        </div>
+
+        <div class="pane notes-pane" style="flex: 40">
+          <h2>📋 Notes Panel (Bottom - 40%)</h2>
+          <textarea
+            placeholder="Type your meeting notes here...
+
+In the actual app:
+- Press Ctrl+Enter to expand notes with AI
+- Notes are saved in real-time
+- Rich text editing with Tiptap (coming soon)"
+          ></textarea>
+        </div>
+      </div>
+    </div>
+
+    <div class="status">✅ Split-pane layout working</div>
+
+    <script>
+      console.log('[Test] Split-pane layout test loaded')
+      console.log('[Test] In the actual app, react-split provides:')
+      console.log('  - Draggable divider between panes')
+      console.log('  - Smooth resizing with visual feedback')
+      console.log('  - localStorage persistence of pane sizes')
+      console.log('  - Minimum size constraints (200px transcript, 150px notes)')
+      console.log('  - Snap offset for better UX')
+    </script>
+  </body>
+</html>

@@ -1,0 +1,338 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Audio Capture Test</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      padding: 20px;
+      background: #1e1e1e;
+      color: #d4d4d4;
+      line-height: 1.6;
+    }
+
+    .container {
+      max-width: 1000px;
+      margin: 0 auto;
+    }
+
+    h1 {
+      color: #4ec9b0;
+      margin-bottom: 20px;
+      font-size: 32px;
+    }
+
+    h3 {
+      color: #dcdcaa;
+      margin-bottom: 10px;
+    }
+
+    button {
+      background: #0e639c;
+      color: white;
+      border: none;
+      padding: 12px 24px;
+      font-size: 16px;
+      cursor: pointer;
+      border-radius: 4px;
+      margin: 10px 5px 10px 0;
+      transition: background 0.2s;
+    }
+
+    button:hover {
+      background: #1177bb;
+    }
+
+    button:disabled {
+      background: #555;
+      cursor: not-allowed;
+      opacity: 0.6;
+    }
+
+    #output {
+      background: #252526;
+      padding: 20px;
+      border-radius: 4px;
+      font-family: 'Consolas', 'Courier New', monospace;
+      font-size: 13px;
+      white-space: pre-wrap;
+      max-height: 600px;
+      overflow-y: auto;
+      margin-top: 20px;
+      border: 1px solid #3e3e42;
+    }
+
+    .instructions {
+      background: #2d2d30;
+      padding: 15px;
+      border-left: 4px solid #4ec9b0;
+      margin: 20px 0;
+      border-radius: 4px;
+    }
+
+    .instructions ol {
+      margin-left: 20px;
+      margin-top: 10px;
+    }
+
+    .instructions li {
+      margin: 5px 0;
+    }
+
+    .warning {
+      background: #2d2d30;
+      padding: 15px;
+      border-left: 4px solid #ce9178;
+      margin: 20px 0;
+      border-radius: 4px;
+    }
+
+    .button-group {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .status {
+      display: inline-block;
+      padding: 4px 8px;
+      border-radius: 3px;
+      font-size: 12px;
+      font-weight: bold;
+      margin-left: 10px;
+    }
+
+    .status.running {
+      background: #1177bb;
+      color: white;
+    }
+
+    .status.success {
+      background: #4ec9b0;
+      color: #1e1e1e;
+    }
+
+    .status.failed {
+      background: #f48771;
+      color: #1e1e1e;
+    }
+
+    #systemInfo {
+      background: #2d2d30;
+      padding: 15px;
+      border-radius: 4px;
+      margin: 20px 0;
+      font-size: 14px;
+    }
+
+    #systemInfo .info-row {
+      display: flex;
+      margin: 5px 0;
+    }
+
+    #systemInfo .info-label {
+      color: #9cdcfe;
+      min-width: 150px;
+    }
+
+    #systemInfo .info-value {
+      color: #ce9178;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>🎤 Windows Audio Capture Test</h1>
+    
+    <div id="systemInfo">
+      <h3>System Information</h3>
+      <div class="info-row">
+        <span class="info-label">Platform:</span>
+        <span class="info-value" id="platform">-</span>
+      </div>
+      <div class="info-row">
+        <span class="info-label">Node Version:</span>
+        <span class="info-value" id="nodeVersion">-</span>
+      </div>
+      <div class="info-row">
+        <span class="info-label">Electron Version:</span>
+        <span class="info-value" id="electronVersion">-</span>
+      </div>
+      <div class="info-row">
+        <span class="info-label">Chrome Version:</span>
+        <span class="info-value" id="chromeVersion">-</span>
+      </div>
+    </div>
+
+    <div class="instructions">
+      <h3>📋 Test Instructions:</h3>
+      <ol>
+        <li>Click the <strong>"Run Full Test"</strong> button below</li>
+        <li>When prompted, open <strong>YouTube</strong> and play any video with audio</li>
+        <li>Keep the audio playing for the entire test duration (approximately 10 seconds)</li>
+        <li>Observe the console output below for real-time test results</li>
+        <li>After completion, click <strong>"Export Results"</strong> to save the test data</li>
+      </ol>
+    </div>
+
+    <div class="warning">
+      <strong>⚠️ Important:</strong> 
+      <ul style="margin-left: 20px; margin-top: 10px;">
+        <li>Make sure your system audio is <strong>not muted</strong></li>
+        <li>Set volume to a reasonable level (<strong>50%+</strong>)</li>
+        <li>Close other applications that might use the microphone</li>
+        <li>If using headphones, ensure they're properly connected</li>
+      </ul>
+    </div>
+
+    <div class="button-group">
+      <button id="runTest">▶️ Run Full Test</button>
+      <button id="clearOutput">🗑️ Clear Output</button>
+      <button id="exportResults" disabled>💾 Export Results</button>
+      <span id="testStatus"></span>
+    </div>
+
+    <div id="output"></div>
+  </div>
+
+  <script>
+    const AudioCaptureTest = require('./audio-capture-test');
+    const fs = require('fs');
+    const path = require('path');
+    const os = require('os');
+
+    const outputDiv = document.getElementById('output');
+    const runTestBtn = document.getElementById('runTest');
+    const clearOutputBtn = document.getElementById('clearOutput');
+    const exportResultsBtn = document.getElementById('exportResults');
+    const testStatusSpan = document.getElementById('testStatus');
+
+    let testResults = null;
+
+    // Display system information
+    document.getElementById('platform').textContent = `${process.platform} (${os.release()})`;
+    document.getElementById('nodeVersion').textContent = process.version;
+    document.getElementById('electronVersion').textContent = process.versions.electron || 'N/A';
+    document.getElementById('chromeVersion').textContent = process.versions.chrome || 'N/A';
+
+    // Override console.log to display in UI
+    const originalLog = console.log;
+    console.log = function(...args) {
+      originalLog.apply(console, args);
+      const message = args.join(' ');
+      outputDiv.textContent += message + '\n';
+      outputDiv.scrollTop = outputDiv.scrollHeight;
+    };
+
+    const originalError = console.error;
+    console.error = function(...args) {
+      originalError.apply(console, args);
+      const message = '❌ ERROR: ' + args.join(' ');
+      outputDiv.textContent += message + '\n';
+      outputDiv.scrollTop = outputDiv.scrollHeight;
+    };
+
+    function setTestStatus(status, text) {
+      testStatusSpan.className = `status ${status}`;
+      testStatusSpan.textContent = text;
+    }
+
+    runTestBtn.addEventListener('click', async () => {
+      runTestBtn.disabled = true;
+      exportResultsBtn.disabled = true;
+      outputDiv.textContent = '';
+      setTestStatus('running', 'Running...');
+      
+      try {
+        const tester = new AudioCaptureTest();
+        testResults = await tester.runFullTest();
+        
+        // Add system info to results
+        testResults.systemInfo = {
+          ...testResults.systemInfo,
+          platform: process.platform,
+          osRelease: os.release(),
+          hostname: os.hostname(),
+          cpus: os.cpus()[0].model,
+          totalMemory: `${(os.totalmem() / (1024 ** 3)).toFixed(2)} GB`,
+          freeMemory: `${(os.freemem() / (1024 ** 3)).toFixed(2)} GB`
+        };
+        
+        if (testResults.verdict === 'PASS') {
+          setTestStatus('success', 'Test Passed ✓');
+        } else if (testResults.verdict === 'PARTIAL_PASS') {
+          setTestStatus('success', 'Partial Pass ⚠️');
+        } else {
+          setTestStatus('failed', 'Test Failed ✗');
+        }
+        
+        exportResultsBtn.disabled = false;
+      } catch (error) {
+        console.error('Test execution failed:', error);
+        setTestStatus('failed', 'Test Failed ✗');
+      } finally {
+        runTestBtn.disabled = false;
+      }
+    });
+
+    clearOutputBtn.addEventListener('click', () => {
+      outputDiv.textContent = '';
+      testStatusSpan.textContent = '';
+      testStatusSpan.className = 'status';
+    });
+
+    exportResultsBtn.addEventListener('click', () => {
+      if (!testResults) {
+        alert('No test results to export. Run the test first.');
+        return;
+      }
+
+      const resultsDir = path.join(__dirname, 'results');
+      if (!fs.existsSync(resultsDir)) {
+        fs.mkdirSync(resultsDir, { recursive: true });
+      }
+
+      const timestamp = Date.now();
+      const hostname = os.hostname().replace(/[^a-zA-Z0-9]/g, '-');
+      const filename = `audio-test-${hostname}-${timestamp}.json`;
+      const filepath = path.join(resultsDir, filename);
+      
+      try {
+        fs.writeFileSync(filepath, JSON.stringify(testResults, null, 2));
+        alert(`✅ Results exported successfully!\n\nFile: ${filename}\nLocation: ${resultsDir}`);
+        console.log(`\n✅ Results saved to: ${filepath}`);
+      } catch (error) {
+        alert(`❌ Failed to export results: ${error.message}`);
+        console.error('Export failed:', error);
+      }
+    });
+
+    // Keyboard shortcuts
+    document.addEventListener('keydown', (e) => {
+      if (e.ctrlKey && e.key === 'r') {
+        e.preventDefault();
+        if (!runTestBtn.disabled) {
+          runTestBtn.click();
+        }
+      } else if (e.ctrlKey && e.key === 'e') {
+        e.preventDefault();
+        if (!exportResultsBtn.disabled) {
+          exportResultsBtn.click();
+        }
+      } else if (e.ctrlKey && e.key === 'l') {
+        e.preventDefault();
+        clearOutputBtn.click();
+      }
+    });
+
+    console.log('Audio Capture Test ready. Press Ctrl+R to run test.');
+  </script>
+</body>
+</html>

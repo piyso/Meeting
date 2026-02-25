@@ -1,0 +1,308 @@
+{
+  "name": "piyapi-notes",
+  "version": "0.1.0",
+  "description": "Local-first meeting transcription application with AI-powered note expansion",
+  "main": "dist-electron/main.js",
+  "author": "PiyAPI",
+  "license": "MIT",
+  "private": true,
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build && electron-builder",
+    "preview": "vite preview",
+    "electron:dev": "concurrently \"vite\" \"wait-on http://localhost:5173 && electron .\"",
+    "electron:build": "vite build && electron-builder",
+    "build:mac": "vite build && electron-builder --mac",
+    "build:mac:universal": "vite build && electron-builder --mac --universal",
+    "build:mac:arm64": "vite build && electron-builder --mac --arm64",
+    "build:mac:x64": "vite build && electron-builder --mac --x64",
+    "build:win": "vite build && electron-builder --win",
+    "build:win:x64": "vite build && electron-builder --win --x64",
+    "build:win:ia32": "vite build && electron-builder --win --ia32",
+    "build:win:portable": "vite build && electron-builder --win portable",
+    "build:linux": "vite build && electron-builder --linux",
+    "build:linux:appimage": "vite build && electron-builder --linux AppImage",
+    "build:linux:deb": "vite build && electron-builder --linux deb",
+    "build:linux:rpm": "vite build && electron-builder --linux rpm",
+    "build:all": "vite build && electron-builder -mwl",
+    "test": "vitest",
+    "test:run": "vitest run",
+    "test:ui": "vitest --ui",
+    "test:coverage": "vitest --coverage",
+    "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
+    "lint:fix": "eslint . --ext ts,tsx --fix",
+    "format": "prettier --write \"src/**/*.{ts,tsx,js,jsx,json,css,scss,md}\"",
+    "format:check": "prettier --check \"src/**/*.{ts,tsx,js,jsx,json,css,scss,md}\"",
+    "type-check": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@tanstack/react-query": "^5.90.21",
+    "@tanstack/react-virtual": "^3.13.19",
+    "@tiptap/extension-bullet-list": "^3.20.0",
+    "@tiptap/extension-collaboration": "^3.20.0",
+    "@tiptap/extension-placeholder": "^3.20.0",
+    "@tiptap/react": "^3.20.0",
+    "@tiptap/starter-kit": "^3.20.0",
+    "better-sqlite3": "^12.6.2",
+    "keytar": "^7.9.0",
+    "lucide-react": "^0.575.0",
+    "ollama": "^0.6.3",
+    "onnxruntime-node": "^1.24.2",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "uuid": "^13.0.0",
+    "y-indexeddb": "^9.0.12",
+    "yjs": "^13.6.29",
+    "zustand": "^5.0.11"
+  },
+  "devDependencies": {
+    "@types/better-sqlite3": "^7.6.13",
+    "@types/react": "^18.2.43",
+    "@types/react-dom": "^18.2.17",
+    "@types/uuid": "^10.0.0",
+    "@typescript-eslint/eslint-plugin": "^6.14.0",
+    "@typescript-eslint/parser": "^6.14.0",
+    "@vitejs/plugin-react": "^4.2.1",
+    "concurrently": "^8.2.2",
+    "electron": "^40.6.1",
+    "electron-builder": "^25.1.8",
+    "electron-squirrel-startup": "^1.0.1",
+    "eslint": "^8.55.0",
+    "eslint-config-prettier": "^10.1.8",
+    "eslint-plugin-prettier": "^5.5.5",
+    "eslint-plugin-react-hooks": "^4.6.0",
+    "eslint-plugin-react-refresh": "^0.4.5",
+    "prettier": "^3.8.1",
+    "typescript": "^5.3.3",
+    "vite": "^5.0.8",
+    "vite-plugin-electron": "^0.28.0",
+    "vite-plugin-electron-renderer": "^0.14.5",
+    "vitest": "^3.2.4",
+    "wait-on": "^7.2.0"
+  },
+  "build": {
+    "appId": "com.piyapi.notes",
+    "productName": "PiyAPI Notes",
+    "copyright": "Copyright © 2024 PiyAPI",
+    "directories": {
+      "output": "release",
+      "buildResources": "build"
+    },
+    "files": [
+      "dist/**/*",
+      "dist-electron/**/*",
+      "!**/*.map",
+      "!**/node_modules/*/{CHANGELOG.md,README.md,README,readme.md,readme}",
+      "!**/node_modules/*/{test,__tests__,tests,powered-test,example,examples}",
+      "!**/node_modules/*.d.ts",
+      "!**/node_modules/.bin"
+    ],
+    "extraResources": [
+      {
+        "from": "resources/models",
+        "to": "models",
+        "filter": [
+          "**/*"
+        ]
+      }
+    ],
+    "publish": {
+      "provider": "generic",
+      "url": "https://updates.piyapi.cloud"
+    },
+    "mac": {
+      "category": "public.app-category.productivity",
+      "target": [
+        {
+          "target": "dmg",
+          "arch": [
+            "x64",
+            "arm64",
+            "universal"
+          ]
+        },
+        {
+          "target": "zip",
+          "arch": [
+            "x64",
+            "arm64",
+            "universal"
+          ]
+        }
+      ],
+      "icon": "build/icon.icns",
+      "hardenedRuntime": true,
+      "gatekeeperAssess": false,
+      "entitlements": "build/entitlements.mac.plist",
+      "entitlementsInherit": "build/entitlements.mac.plist",
+      "type": "distribution",
+      "minimumSystemVersion": "11.0",
+      "darkModeSupport": true,
+      "extendInfo": {
+        "NSMicrophoneUsageDescription": "PiyAPI Notes needs microphone access to record meeting audio for transcription.",
+        "NSScreenCaptureDescription": "PiyAPI Notes needs screen recording permission to capture system audio during meetings.",
+        "LSMinimumSystemVersion": "11.0"
+      }
+    },
+    "dmg": {
+      "contents": [
+        {
+          "x": 130,
+          "y": 220
+        },
+        {
+          "x": 410,
+          "y": 220,
+          "type": "link",
+          "path": "/Applications"
+        }
+      ],
+      "window": {
+        "width": 540,
+        "height": 380
+      },
+      "backgroundColor": "#ffffff",
+      "icon": "build/icon.icns",
+      "iconSize": 128,
+      "title": "Install ${productName}"
+    },
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64",
+            "ia32"
+          ]
+        },
+        {
+          "target": "portable",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "icon": "build/icon.ico",
+      "publisherName": "PiyAPI",
+      "verifyUpdateCodeSignature": false,
+      "requestedExecutionLevel": "asInvoker",
+      "fileAssociations": [
+        {
+          "ext": "pnotes",
+          "name": "PiyAPI Notes Meeting",
+          "description": "PiyAPI Notes Meeting File",
+          "icon": "build/file-icon.ico",
+          "role": "Editor"
+        }
+      ]
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "allowElevation": true,
+      "installerIcon": "build/icon.ico",
+      "uninstallerIcon": "build/icon.ico",
+      "installerHeaderIcon": "build/icon.ico",
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "${productName}",
+      "perMachine": false,
+      "runAfterFinish": true,
+      "deleteAppDataOnUninstall": false,
+      "include": "build/installer.nsh",
+      "artifactName": "${productName}-Setup-${version}.${ext}"
+    },
+    "portable": {
+      "artifactName": "${productName}-Portable-${version}.${ext}"
+    },
+    "linux": {
+      "target": [
+        {
+          "target": "AppImage",
+          "arch": [
+            "x64",
+            "arm64"
+          ]
+        },
+        {
+          "target": "deb",
+          "arch": [
+            "x64",
+            "arm64"
+          ]
+        },
+        {
+          "target": "rpm",
+          "arch": [
+            "x64",
+            "arm64"
+          ]
+        }
+      ],
+      "icon": "build/icons",
+      "category": "Office;AudioVideo;Recorder",
+      "synopsis": "Local-first meeting transcription with AI-powered notes",
+      "description": "PiyAPI Notes is a local-first meeting transcription application that provides real-time audio transcription, AI-powered note expansion, and intelligent meeting analysis.",
+      "desktop": {
+        "Name": "PiyAPI Notes",
+        "Comment": "Meeting transcription and AI notes",
+        "Keywords": "meeting;transcription;notes;ai;whisper;productivity",
+        "StartupWMClass": "piyapi-notes"
+      },
+      "fileAssociations": [
+        {
+          "ext": "pnotes",
+          "name": "PiyAPI Notes Meeting",
+          "description": "PiyAPI Notes Meeting File",
+          "mimeType": "application/x-piyapi-notes"
+        }
+      ]
+    },
+    "appImage": {
+      "artifactName": "${productName}-${version}.${ext}"
+    },
+    "deb": {
+      "depends": [
+        "libgtk-3-0",
+        "libnotify4",
+        "libnss3",
+        "libxss1",
+        "libxtst6",
+        "xdg-utils",
+        "libatspi2.0-0",
+        "libuuid1"
+      ],
+      "priority": "optional",
+      "afterInstall": "build/linux-after-install.sh"
+    },
+    "rpm": {
+      "depends": [
+        "gtk3",
+        "libnotify",
+        "nss",
+        "libXScrnSaver",
+        "libXtst",
+        "xdg-utils",
+        "at-spi2-core",
+        "libuuid"
+      ],
+      "afterInstall": "build/linux-after-install.sh"
+    },
+    "protocols": [
+      {
+        "name": "piyapi-notes",
+        "schemes": [
+          "piyapi-notes"
+        ],
+        "role": "Editor"
+      }
+    ],
+    "compression": "maximum",
+    "artifactName": "${productName}-${version}-${os}-${arch}.${ext}",
+    "asar": true,
+    "asarUnpack": [
+      "**/*.node",
+      "resources/models/**/*"
+    ]
+  }
+}

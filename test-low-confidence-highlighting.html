@@ -1,0 +1,402 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Task 18.4: Low-Confidence Highlighting Test</title>
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      body {
+        font-family:
+          -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell,
+          sans-serif;
+        background: #f8f9fa;
+        padding: 20px;
+      }
+
+      .container {
+        max-width: 900px;
+        margin: 0 auto;
+      }
+
+      h1 {
+        margin-bottom: 10px;
+        color: #1a1a1a;
+      }
+
+      .description {
+        margin-bottom: 30px;
+        color: #666;
+        line-height: 1.6;
+      }
+
+      .theme-toggle {
+        margin-bottom: 20px;
+        padding: 10px 20px;
+        background: #007bff;
+        color: white;
+        border: none;
+        border-radius: 6px;
+        cursor: pointer;
+        font-size: 14px;
+        font-weight: 600;
+      }
+
+      .theme-toggle:hover {
+        background: #0056b3;
+      }
+
+      /* Transcript Display Styles */
+      .transcript-display {
+        background: #f8f9fa;
+        border-radius: 8px;
+        overflow: hidden;
+      }
+
+      .transcript-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 16px 20px;
+        background: #ffffff;
+        border-bottom: 1px solid #e0e0e0;
+      }
+
+      .transcript-header h3 {
+        margin: 0;
+        font-size: 18px;
+        font-weight: 600;
+        color: #1a1a1a;
+      }
+
+      .transcript-container {
+        padding: 20px;
+      }
+
+      .transcript-list {
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+      }
+
+      /* Transcript Segment */
+      .transcript-segment {
+        background: #ffffff;
+        border-radius: 8px;
+        padding: 16px;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        transition: box-shadow 0.2s ease;
+      }
+
+      .transcript-segment:hover {
+        box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+      }
+
+      /* Low Confidence Highlighting */
+      .transcript-segment.low-confidence {
+        border-left: 4px solid #dc3545;
+        background: linear-gradient(to right, rgba(248, 215, 218, 0.3), #ffffff);
+        position: relative;
+      }
+
+      .transcript-segment.low-confidence::before {
+        content: '⚠️';
+        position: absolute;
+        top: 12px;
+        left: -2px;
+        font-size: 16px;
+        opacity: 0.8;
+      }
+
+      /* Segment Header */
+      .segment-header {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        margin-bottom: 8px;
+        font-size: 13px;
+      }
+
+      .segment-time {
+        font-weight: 600;
+        color: #007bff;
+        font-family: 'Courier New', monospace;
+      }
+
+      .segment-speaker {
+        color: #666666;
+        padding: 2px 8px;
+        background: #f8f9fa;
+        border-radius: 4px;
+      }
+
+      .segment-confidence {
+        margin-left: auto;
+        padding: 2px 8px;
+        border-radius: 4px;
+        font-weight: 600;
+        font-size: 12px;
+      }
+
+      .segment-confidence.high {
+        background: #d4edda;
+        color: #155724;
+      }
+
+      .segment-confidence.medium {
+        background: #fff3cd;
+        color: #856404;
+      }
+
+      .segment-confidence.low {
+        background: #f8d7da;
+        color: #721c24;
+      }
+
+      /* Segment Text */
+      .segment-text {
+        font-size: 15px;
+        line-height: 1.6;
+        color: #1a1a1a;
+        word-wrap: break-word;
+      }
+
+      /* Dark Mode */
+      body.dark-mode {
+        background: #1e1e1e;
+        color: #e0e0e0;
+      }
+
+      body.dark-mode h1 {
+        color: #e0e0e0;
+      }
+
+      body.dark-mode .description {
+        color: #b0b0b0;
+      }
+
+      body.dark-mode .transcript-display {
+        background: #1e1e1e;
+      }
+
+      body.dark-mode .transcript-header {
+        background: #2d2d2d;
+        border-bottom-color: #404040;
+      }
+
+      body.dark-mode .transcript-header h3 {
+        color: #e0e0e0;
+      }
+
+      body.dark-mode .transcript-segment {
+        background: #2d2d2d;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+      }
+
+      body.dark-mode .transcript-segment.low-confidence {
+        border-left-color: #e74c3c;
+        background: linear-gradient(to right, rgba(220, 53, 69, 0.15), #2d2d2d);
+      }
+
+      body.dark-mode .segment-speaker {
+        background: #1e1e1e;
+        color: #b0b0b0;
+      }
+
+      body.dark-mode .segment-text {
+        color: #e0e0e0;
+      }
+
+      .legend {
+        margin-top: 30px;
+        padding: 20px;
+        background: white;
+        border-radius: 8px;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+      }
+
+      body.dark-mode .legend {
+        background: #2d2d2d;
+      }
+
+      .legend h3 {
+        margin-bottom: 15px;
+        font-size: 16px;
+      }
+
+      .legend-item {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin-bottom: 10px;
+        font-size: 14px;
+      }
+
+      .legend-icon {
+        font-size: 20px;
+      }
+
+      .legend-text {
+        flex: 1;
+      }
+
+      body.dark-mode .legend-text {
+        color: #e0e0e0;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h1>Task 18.4: Low-Confidence Highlighting</h1>
+      <p class="description">
+        This demo shows how low-confidence transcript segments (confidence &lt; 70%) are visually
+        highlighted with a red border, gradient background, and warning icon. Toggle dark mode to
+        see how it adapts.
+      </p>
+
+      <button class="theme-toggle" onclick="toggleTheme()">Toggle Dark Mode</button>
+
+      <div class="transcript-display">
+        <div class="transcript-header">
+          <h3>Live Transcript</h3>
+        </div>
+
+        <div class="transcript-container">
+          <div class="transcript-list">
+            <!-- High Confidence Segment -->
+            <div class="transcript-segment">
+              <div class="segment-header">
+                <span class="segment-time">0:15</span>
+                <span class="segment-speaker">👤 Speaker 1</span>
+                <span class="segment-confidence high" title="Confidence: 95.0%">95%</span>
+              </div>
+              <div class="segment-text">
+                Welcome everyone to today's meeting. We have several important topics to discuss.
+              </div>
+            </div>
+
+            <!-- Medium Confidence Segment -->
+            <div class="transcript-segment">
+              <div class="segment-header">
+                <span class="segment-time">0:32</span>
+                <span class="segment-speaker">👤 Speaker 2</span>
+                <span class="segment-confidence medium" title="Confidence: 78.0%">78%</span>
+              </div>
+              <div class="segment-text">
+                The quarterly results show a positive trend in customer acquisition.
+              </div>
+            </div>
+
+            <!-- Low Confidence Segment (HIGHLIGHTED) -->
+            <div class="transcript-segment low-confidence">
+              <div class="segment-header">
+                <span class="segment-time">0:48</span>
+                <span class="segment-speaker">👤 Speaker 1</span>
+                <span class="segment-confidence low" title="Confidence: 62.0%">62%</span>
+              </div>
+              <div class="segment-text">
+                The [unclear] implementation will require additional resources and timeline
+                adjustments.
+              </div>
+            </div>
+
+            <!-- High Confidence Segment -->
+            <div class="transcript-segment">
+              <div class="segment-header">
+                <span class="segment-time">1:05</span>
+                <span class="segment-speaker">👤 Speaker 2</span>
+                <span class="segment-confidence high" title="Confidence: 92.0%">92%</span>
+              </div>
+              <div class="segment-text">
+                I agree. Let's schedule a follow-up meeting to discuss the details.
+              </div>
+            </div>
+
+            <!-- Low Confidence Segment (HIGHLIGHTED) -->
+            <div class="transcript-segment low-confidence">
+              <div class="segment-header">
+                <span class="segment-time">1:22</span>
+                <span class="segment-speaker">👤 Speaker 3</span>
+                <span class="segment-confidence low" title="Confidence: 55.0%">55%</span>
+              </div>
+              <div class="segment-text">
+                [inaudible] budget constraints might affect the [unclear] delivery schedule.
+              </div>
+            </div>
+
+            <!-- Medium Confidence Segment -->
+            <div class="transcript-segment">
+              <div class="segment-header">
+                <span class="segment-time">1:40</span>
+                <span class="segment-speaker">👤 Speaker 1</span>
+                <span class="segment-confidence medium" title="Confidence: 73.0%">73%</span>
+              </div>
+              <div class="segment-text">
+                We should prioritize the most critical features for the initial release.
+              </div>
+            </div>
+
+            <!-- Low Confidence Segment (HIGHLIGHTED) -->
+            <div class="transcript-segment low-confidence">
+              <div class="segment-header">
+                <span class="segment-time">1:58</span>
+                <span class="segment-speaker">👤 Speaker 2</span>
+                <span class="segment-confidence low" title="Confidence: 68.0%">68%</span>
+              </div>
+              <div class="segment-text">
+                The [unclear] team will need to coordinate with [unclear] department.
+              </div>
+            </div>
+
+            <!-- High Confidence Segment -->
+            <div class="transcript-segment">
+              <div class="segment-header">
+                <span class="segment-time">2:15</span>
+                <span class="segment-speaker">👤 Speaker 3</span>
+                <span class="segment-confidence high" title="Confidence: 97.0%">97%</span>
+              </div>
+              <div class="segment-text">
+                Perfect. I'll send out the meeting notes and action items by end of day.
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="legend">
+        <h3>Visual Indicators</h3>
+        <div class="legend-item">
+          <span class="legend-icon">🟢</span>
+          <span class="legend-text"
+            ><strong>High Confidence (≥90%):</strong> Green badge, no special highlighting</span
+          >
+        </div>
+        <div class="legend-item">
+          <span class="legend-icon">🟡</span>
+          <span class="legend-text"
+            ><strong>Medium Confidence (70-89%):</strong> Yellow badge, no special
+            highlighting</span
+          >
+        </div>
+        <div class="legend-item">
+          <span class="legend-icon">⚠️</span>
+          <span class="legend-text"
+            ><strong>Low Confidence (&lt;70%):</strong> Red badge + red border + gradient background
+            + warning icon</span
+          >
+        </div>
+      </div>
+    </div>
+
+    <script>
+      function toggleTheme() {
+        document.body.classList.toggle('dark-mode')
+      }
+    </script>
+  </body>
+</html>

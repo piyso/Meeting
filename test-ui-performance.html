@@ -1,0 +1,423 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Task 18.6: UI Performance Verification - No Lag or Freezing</title>
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      body {
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        min-height: 100vh;
+        padding: 20px;
+      }
+
+      .container {
+        max-width: 1400px;
+        margin: 0 auto;
+      }
+
+      .header {
+        background: white;
+        border-radius: 12px;
+        padding: 24px;
+        margin-bottom: 20px;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+      }
+
+      h1 {
+        color: #2d3748;
+        font-size: 28px;
+        margin-bottom: 8px;
+      }
+
+      .subtitle {
+        color: #718096;
+        font-size: 14px;
+      }
+
+      .controls {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 12px;
+        margin-bottom: 20px;
+      }
+
+      button {
+        background: white;
+        border: 2px solid #667eea;
+        color: #667eea;
+        padding: 12px 20px;
+        border-radius: 8px;
+        font-size: 14px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.2s;
+      }
+
+      button:hover {
+        background: #667eea;
+        color: white;
+        transform: translateY(-2px);
+        box-shadow: 0 4px 8px rgba(102, 126, 234, 0.3);
+      }
+
+      button:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+        transform: none;
+      }
+
+      button.danger {
+        border-color: #f56565;
+        color: #f56565;
+      }
+
+      button.danger:hover {
+        background: #f56565;
+        color: white;
+      }
+
+      button.success {
+        border-color: #48bb78;
+        color: #48bb78;
+      }
+
+      button.success:hover {
+        background: #48bb78;
+        color: white;
+      }
+
+      .metrics-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+        gap: 16px;
+        margin-bottom: 20px;
+      }
+
+      .metric-card {
+        background: white;
+        border-radius: 12px;
+        padding: 20px;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+      }
+
+      .metric-label {
+        color: #718096;
+        font-size: 12px;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        margin-bottom: 8px;
+      }
+
+      .metric-value {
+        color: #2d3748;
+        font-size: 32px;
+        font-weight: 700;
+      }
+
+      .metric-value.excellent {
+        color: #48bb78;
+      }
+
+      .metric-value.good {
+        color: #4299e1;
+      }
+
+      .metric-value.warning {
+        color: #ed8936;
+      }
+
+      .metric-value.poor {
+        color: #f56565;
+      }
+
+      .test-area {
+        background: white;
+        border-radius: 12px;
+        padding: 24px;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        margin-bottom: 20px;
+      }
+
+      .test-title {
+        color: #2d3748;
+        font-size: 18px;
+        font-weight: 600;
+        margin-bottom: 16px;
+      }
+
+      .transcript-container {
+        height: 400px;
+        overflow-y: auto;
+        border: 2px solid #e2e8f0;
+        border-radius: 8px;
+        padding: 16px;
+        background: #f7fafc;
+        scroll-behavior: smooth;
+      }
+
+      .transcript-segment {
+        background: white;
+        border-radius: 8px;
+        padding: 12px;
+        margin-bottom: 12px;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+        animation: slideIn 0.3s ease-out;
+      }
+
+      @keyframes slideIn {
+        from {
+          opacity: 0;
+          transform: translateY(10px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+
+      .segment-header {
+        display: flex;
+        gap: 12px;
+        align-items: center;
+        margin-bottom: 8px;
+        font-size: 12px;
+      }
+
+      .segment-time {
+        color: #667eea;
+        font-weight: 600;
+      }
+
+      .segment-speaker {
+        color: #718096;
+      }
+
+      .segment-confidence {
+        margin-left: auto;
+        padding: 2px 8px;
+        border-radius: 4px;
+        font-weight: 600;
+      }
+
+      .segment-confidence.high {
+        background: #c6f6d5;
+        color: #22543d;
+      }
+
+      .segment-confidence.medium {
+        background: #feebc8;
+        color: #7c2d12;
+      }
+
+      .segment-confidence.low {
+        background: #fed7d7;
+        color: #742a2a;
+      }
+
+      .segment-text {
+        color: #2d3748;
+        line-height: 1.6;
+      }
+
+      .log-container {
+        background: #1a202c;
+        border-radius: 8px;
+        padding: 16px;
+        height: 200px;
+        overflow-y: auto;
+        font-family: 'Monaco', 'Courier New', monospace;
+        font-size: 12px;
+      }
+
+      .log-entry {
+        color: #e2e8f0;
+        margin-bottom: 4px;
+      }
+
+      .log-entry.info {
+        color: #63b3ed;
+      }
+
+      .log-entry.success {
+        color: #68d391;
+      }
+
+      .log-entry.warning {
+        color: #f6ad55;
+      }
+
+      .log-entry.error {
+        color: #fc8181;
+      }
+
+      .progress-bar {
+        width: 100%;
+        height: 8px;
+        background: #e2e8f0;
+        border-radius: 4px;
+        overflow: hidden;
+        margin-top: 8px;
+      }
+
+      .progress-fill {
+        height: 100%;
+        background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+        transition: width 0.3s ease;
+      }
+
+      .interaction-test {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+        gap: 12px;
+        margin-top: 16px;
+      }
+
+      .interaction-button {
+        padding: 16px;
+        background: #edf2f7;
+        border: 2px solid #cbd5e0;
+        border-radius: 8px;
+        cursor: pointer;
+        transition: all 0.2s;
+        text-align: center;
+        font-weight: 600;
+      }
+
+      .interaction-button:hover {
+        background: #667eea;
+        color: white;
+        border-color: #667eea;
+        transform: scale(1.05);
+      }
+
+      .interaction-button:active {
+        transform: scale(0.95);
+      }
+
+      .status-indicator {
+        display: inline-block;
+        width: 12px;
+        height: 12px;
+        border-radius: 50%;
+        margin-right: 8px;
+      }
+
+      .status-indicator.running {
+        background: #48bb78;
+        animation: pulse 2s infinite;
+      }
+
+      .status-indicator.stopped {
+        background: #cbd5e0;
+      }
+
+      @keyframes pulse {
+        0%,
+        100% {
+          opacity: 1;
+        }
+        50% {
+          opacity: 0.5;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <div class="header">
+        <h1>🎯 Task 18.6: UI Performance Verification</h1>
+        <p class="subtitle">
+          Comprehensive test to verify no UI lag or freezing during transcript display
+        </p>
+      </div>
+
+      <div class="controls">
+        <button id="startBtn" class="success">▶️ Start Performance Test</button>
+        <button id="stopBtn" class="danger" disabled>⏹️ Stop Test</button>
+        <button id="stressBtn">⚡ Stress Test (500 segments)</button>
+        <button id="rapidBtn">🚀 Rapid Fire (10/sec)</button>
+        <button id="clearBtn">🗑️ Clear All</button>
+        <button id="reportBtn">📊 Generate Report</button>
+      </div>
+
+      <div class="metrics-grid">
+        <div class="metric-card">
+          <div class="metric-label">Frame Rate</div>
+          <div class="metric-value" id="fps">60 FPS</div>
+          <div class="progress-bar">
+            <div class="progress-fill" id="fpsBar" style="width: 100%"></div>
+          </div>
+        </div>
+
+        <div class="metric-card">
+          <div class="metric-label">Long Tasks</div>
+          <div class="metric-value" id="longTasks">0</div>
+          <div class="metric-label" style="margin-top: 8px">Tasks >50ms</div>
+        </div>
+
+        <div class="metric-card">
+          <div class="metric-label">Input Latency</div>
+          <div class="metric-value" id="inputLatency">0ms</div>
+          <div class="metric-label" style="margin-top: 8px">Click response time</div>
+        </div>
+
+        <div class="metric-card">
+          <div class="metric-label">Segments</div>
+          <div class="metric-value" id="segmentCount">0</div>
+          <div class="metric-label" style="margin-top: 8px">Total added</div>
+        </div>
+
+        <div class="metric-card">
+          <div class="metric-label">Memory Usage</div>
+          <div class="metric-value" id="memoryUsage">0 MB</div>
+          <div class="metric-label" style="margin-top: 8px">JS Heap size</div>
+        </div>
+
+        <div class="metric-card">
+          <div class="metric-label">Test Status</div>
+          <div class="metric-value" id="testStatus">
+            <span class="status-indicator stopped"></span>Ready
+          </div>
+        </div>
+      </div>
+
+      <div class="test-area">
+        <div class="test-title">📝 Transcript Display (Auto-scroll enabled)</div>
+        <div class="transcript-container" id="transcriptContainer">
+          <div style="text-align: center; color: #718096; padding: 40px">
+            <p style="font-size: 48px; margin-bottom: 16px">🎤</p>
+            <p style="font-size: 16px; font-weight: 600">Ready for testing</p>
+            <p style="font-size: 14px; margin-top: 8px">Click "Start Performance Test" to begin</p>
+          </div>
+        </div>
+
+        <div class="interaction-test">
+          <div class="interaction-button" id="btn1">Button 1</div>
+          <div class="interaction-button" id="btn2">Button 2</div>
+          <div class="interaction-button" id="btn3">Button 3</div>
+          <div class="interaction-button" id="btn4">Button 4</div>
+          <div class="interaction-button" id="btn5">Button 5</div>
+          <div class="interaction-button" id="btn6">Button 6</div>
+        </div>
+      </div>
+
+      <div class="test-area">
+        <div class="test-title">📊 Performance Log</div>
+        <div class="log-container" id="logContainer">
+          <div class="log-entry info">System ready. Waiting for test to start...</div>
+        </div>
+      </div>
+    </div>
+
+    <script src="test-ui-performance.js"></script>
+  </body>
+</html>

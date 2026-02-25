@@ -1,0 +1,430 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Task 18.5: Smooth Scrolling Test - 10-Minute Meeting Simulation</title>
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      body {
+        font-family:
+          -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell,
+          sans-serif;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        min-height: 100vh;
+        padding: 20px;
+      }
+
+      .container {
+        max-width: 1400px;
+        margin: 0 auto;
+      }
+
+      .header {
+        background: white;
+        padding: 30px;
+        border-radius: 12px;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        margin-bottom: 20px;
+      }
+
+      h1 {
+        color: #2d3748;
+        margin-bottom: 10px;
+        font-size: 28px;
+      }
+
+      .subtitle {
+        color: #718096;
+        font-size: 16px;
+        margin-bottom: 20px;
+      }
+
+      .controls {
+        display: flex;
+        gap: 15px;
+        flex-wrap: wrap;
+        align-items: center;
+      }
+
+      button {
+        padding: 12px 24px;
+        border: none;
+        border-radius: 8px;
+        font-size: 14px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.2s;
+      }
+
+      .btn-primary {
+        background: #667eea;
+        color: white;
+      }
+
+      .btn-primary:hover {
+        background: #5568d3;
+        transform: translateY(-1px);
+      }
+
+      .btn-danger {
+        background: #f56565;
+        color: white;
+      }
+
+      .btn-danger:hover {
+        background: #e53e3e;
+      }
+
+      .btn-secondary {
+        background: #e2e8f0;
+        color: #2d3748;
+      }
+
+      .btn-secondary:hover {
+        background: #cbd5e0;
+      }
+
+      button:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+      }
+
+      .stats {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 15px;
+        margin-top: 20px;
+      }
+
+      .stat-card {
+        background: #f7fafc;
+        padding: 15px;
+        border-radius: 8px;
+        border-left: 4px solid #667eea;
+      }
+
+      .stat-label {
+        color: #718096;
+        font-size: 12px;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        margin-bottom: 5px;
+      }
+
+      .stat-value {
+        color: #2d3748;
+        font-size: 24px;
+        font-weight: 700;
+      }
+
+      .stat-value.good {
+        color: #48bb78;
+      }
+
+      .stat-value.warning {
+        color: #ed8936;
+      }
+
+      .stat-value.bad {
+        color: #f56565;
+      }
+
+      .main-content {
+        display: grid;
+        grid-template-columns: 2fr 1fr;
+        gap: 20px;
+      }
+
+      .transcript-panel,
+      .metrics-panel {
+        background: white;
+        border-radius: 12px;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        overflow: hidden;
+      }
+
+      .panel-header {
+        background: #f7fafc;
+        padding: 20px;
+        border-bottom: 1px solid #e2e8f0;
+      }
+
+      .panel-title {
+        font-size: 18px;
+        font-weight: 600;
+        color: #2d3748;
+      }
+
+      .transcript-container {
+        height: 600px;
+        overflow-y: auto;
+        padding: 20px;
+        scroll-behavior: smooth;
+      }
+
+      .transcript-segment {
+        margin-bottom: 20px;
+        padding: 15px;
+        background: #f7fafc;
+        border-radius: 8px;
+        border-left: 3px solid #667eea;
+        animation: slideIn 0.3s ease-out;
+      }
+
+      @keyframes slideIn {
+        from {
+          opacity: 0;
+          transform: translateY(10px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+
+      .segment-header {
+        display: flex;
+        gap: 10px;
+        margin-bottom: 8px;
+        font-size: 12px;
+      }
+
+      .segment-time {
+        color: #667eea;
+        font-weight: 600;
+      }
+
+      .segment-speaker {
+        color: #718096;
+      }
+
+      .segment-confidence {
+        padding: 2px 8px;
+        border-radius: 4px;
+        font-weight: 600;
+      }
+
+      .segment-confidence.high {
+        background: #c6f6d5;
+        color: #22543d;
+      }
+
+      .segment-confidence.medium {
+        background: #feebc8;
+        color: #7c2d12;
+      }
+
+      .segment-confidence.low {
+        background: #fed7d7;
+        color: #742a2a;
+      }
+
+      .segment-text {
+        color: #2d3748;
+        line-height: 1.6;
+      }
+
+      .metrics-content {
+        padding: 20px;
+      }
+
+      .metric-item {
+        margin-bottom: 20px;
+        padding-bottom: 20px;
+        border-bottom: 1px solid #e2e8f0;
+      }
+
+      .metric-item:last-child {
+        border-bottom: none;
+      }
+
+      .metric-label {
+        color: #718096;
+        font-size: 14px;
+        margin-bottom: 8px;
+      }
+
+      .metric-value {
+        font-size: 20px;
+        font-weight: 700;
+        color: #2d3748;
+      }
+
+      .progress-bar {
+        width: 100%;
+        height: 8px;
+        background: #e2e8f0;
+        border-radius: 4px;
+        overflow: hidden;
+        margin-top: 8px;
+      }
+
+      .progress-fill {
+        height: 100%;
+        background: linear-gradient(90deg, #667eea, #764ba2);
+        transition: width 0.3s ease;
+      }
+
+      .log-container {
+        background: #1a202c;
+        color: #e2e8f0;
+        padding: 15px;
+        border-radius: 8px;
+        font-family: 'Courier New', monospace;
+        font-size: 12px;
+        max-height: 200px;
+        overflow-y: auto;
+        margin-top: 10px;
+      }
+
+      .log-entry {
+        margin-bottom: 5px;
+        padding: 5px;
+        border-left: 2px solid #667eea;
+        padding-left: 10px;
+      }
+
+      .log-entry.success {
+        border-left-color: #48bb78;
+      }
+
+      .log-entry.warning {
+        border-left-color: #ed8936;
+      }
+
+      .log-entry.error {
+        border-left-color: #f56565;
+      }
+
+      .status-indicator {
+        display: inline-block;
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+        margin-right: 8px;
+      }
+
+      .status-indicator.running {
+        background: #48bb78;
+        animation: pulse 2s infinite;
+      }
+
+      @keyframes pulse {
+        0%,
+        100% {
+          opacity: 1;
+        }
+        50% {
+          opacity: 0.5;
+        }
+      }
+
+      .status-indicator.stopped {
+        background: #cbd5e0;
+      }
+
+      @media (max-width: 1024px) {
+        .main-content {
+          grid-template-columns: 1fr;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <div class="header">
+        <h1>🎯 Task 18.5: Smooth Scrolling Test</h1>
+        <p class="subtitle">10-Minute Meeting Simulation with 200+ Transcript Segments</p>
+
+        <div class="controls">
+          <button id="startBtn" class="btn-primary">▶️ Start 10-Minute Test</button>
+          <button id="stopBtn" class="btn-danger" disabled>⏹️ Stop Test</button>
+          <button id="clearBtn" class="btn-secondary">🗑️ Clear Transcripts</button>
+          <button id="jumpBtn" class="btn-secondary">⚡ Jump to 5 Minutes</button>
+        </div>
+
+        <div class="stats">
+          <div class="stat-card">
+            <div class="stat-label">Test Duration</div>
+            <div class="stat-value" id="duration">0:00</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label">Segments Added</div>
+            <div class="stat-value" id="segmentCount">0</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label">Scroll Performance</div>
+            <div class="stat-value good" id="scrollPerf">Excellent</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-label">Frame Rate</div>
+            <div class="stat-value good" id="fps">60 FPS</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="main-content">
+        <div class="transcript-panel">
+          <div class="panel-header">
+            <div class="panel-title">
+              <span class="status-indicator stopped" id="statusIndicator"></span>
+              Live Transcript Stream
+            </div>
+          </div>
+          <div class="transcript-container" id="transcriptContainer">
+            <div style="text-align: center; padding: 40px; color: #718096">
+              <p style="font-size: 48px; margin-bottom: 10px">📝</p>
+              <p style="font-size: 18px; font-weight: 600; margin-bottom: 5px">Ready to Test</p>
+              <p style="font-size: 14px">Click "Start 10-Minute Test" to begin simulation</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="metrics-panel">
+          <div class="panel-header">
+            <div class="panel-title">Performance Metrics</div>
+          </div>
+          <div class="metrics-content">
+            <div class="metric-item">
+              <div class="metric-label">Test Progress</div>
+              <div class="metric-value" id="progress">0%</div>
+              <div class="progress-bar">
+                <div class="progress-fill" id="progressBar" style="width: 0%"></div>
+              </div>
+            </div>
+
+            <div class="metric-item">
+              <div class="metric-label">Scroll Events/sec</div>
+              <div class="metric-value" id="scrollEvents">0</div>
+            </div>
+
+            <div class="metric-item">
+              <div class="metric-label">Render Time (avg)</div>
+              <div class="metric-value" id="renderTime">0ms</div>
+            </div>
+
+            <div class="metric-item">
+              <div class="metric-label">Memory Usage</div>
+              <div class="metric-value" id="memoryUsage">N/A</div>
+            </div>
+
+            <div class="metric-item">
+              <div class="metric-label">Test Status</div>
+              <div class="log-container" id="logContainer">
+                <div class="log-entry">Waiting to start test...</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script src="test-smooth-scrolling.js"></script>
+  </body>
+</html>

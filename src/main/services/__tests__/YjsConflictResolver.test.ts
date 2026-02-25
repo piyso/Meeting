@@ -343,26 +343,28 @@ describe('YjsConflictResolver', () => {
   })
 
   describe('subscribeToChanges', () => {
-    it('should call callback on document changes', done => {
-      const doc = resolver.createDocument('note-1', 'Initial')
-      const text = doc.getText('content')
+    it('should call callback on document changes', () => {
+      return new Promise<void>((resolve) => {
+        const doc = resolver.createDocument('note-1', 'Initial')
+        const text = doc.getText('content')
 
-      let callbackCalled = false
-      const unsubscribe = resolver.subscribeToChanges('note-1', () => {
-        callbackCalled = true
-        done()
+        let callbackCalled = false
+        const unsubscribe = resolver.subscribeToChanges('note-1', () => {
+          callbackCalled = true
+          resolve()
+        })
+
+        expect(unsubscribe).not.toBeNull()
+
+        // Make change
+        text.insert(7, ' text')
+
+        // Callback should be called
+        setTimeout(() => {
+          expect(callbackCalled).toBe(true)
+          unsubscribe!()
+        }, 100)
       })
-
-      expect(unsubscribe).not.toBeNull()
-
-      // Make change
-      text.insert(7, ' text')
-
-      // Callback should be called
-      setTimeout(() => {
-        expect(callbackCalled).toBe(true)
-        unsubscribe!()
-      }, 100)
     })
 
     it('should return null for non-existent document', () => {
@@ -371,33 +373,35 @@ describe('YjsConflictResolver', () => {
       expect(unsubscribe).toBeNull()
     })
 
-    it('should stop calling callback after unsubscribe', done => {
-      const doc = resolver.createDocument('note-1', 'Test')
-      const text = doc.getText('content')
+    it('should stop calling callback after unsubscribe', () => {
+      return new Promise<void>((resolve) => {
+        const doc = resolver.createDocument('note-1', 'Test')
+        const text = doc.getText('content')
 
-      let callCount = 0
-      const unsubscribe = resolver.subscribeToChanges('note-1', () => {
-        callCount++
-      })
+        let callCount = 0
+        const unsubscribe = resolver.subscribeToChanges('note-1', () => {
+          callCount++
+        })
 
-      // Make first change
-      text.insert(4, ' 1')
-
-      setTimeout(() => {
-        expect(callCount).toBe(1)
-
-        // Unsubscribe
-        unsubscribe!()
-
-        // Make second change
-        text.insert(6, ' 2')
+        // Make first change
+        text.insert(4, ' 1')
 
         setTimeout(() => {
-          // Callback should not be called again
           expect(callCount).toBe(1)
-          done()
+
+          // Unsubscribe
+          unsubscribe!()
+
+          // Make second change
+          text.insert(6, ' 2')
+
+          setTimeout(() => {
+            // Callback should not be called again
+            expect(callCount).toBe(1)
+            resolve()
+          }, 100)
         }, 100)
-      }, 100)
+      })
     })
   })
 

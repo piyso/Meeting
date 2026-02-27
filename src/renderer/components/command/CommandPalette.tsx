@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useDeferredValue } from 'react'
 import { createPortal } from 'react-dom'
-import { Search, FileText, Settings, Maximize, Play } from 'lucide-react'
+import { Search, FileText, Settings, Maximize, Mic, Download, Shield, Layout } from 'lucide-react'
 import { useAppStore } from '../../store/appStore'
 import { Badge } from '../ui/Badge'
 import { useSearch } from '../../hooks/queries/useSearch'
@@ -26,20 +26,88 @@ export const CommandPalette: React.FC = () => {
   // Actions
   const baseActions: CommandItem[] = [
     {
-      id: 'a1', type: 'action', icon: <Play size={16} />, label: 'Start New Meeting',
-      description: 'Create a new recording session', shortcut: 'Cmd+N',
-      onSelect: () => { window.dispatchEvent(new CustomEvent('open-new-meeting')); toggleCommandPalette() }
+      id: 'a1',
+      type: 'action',
+      icon: <Mic size={16} />,
+      label: 'Start New Meeting',
+      description: 'Create a new recording session',
+      shortcut: 'Cmd+N',
+      onSelect: () => {
+        window.dispatchEvent(new CustomEvent('open-new-meeting'))
+        toggleCommandPalette()
+      },
     },
     {
-      id: 'a2', type: 'action', icon: <Settings size={16} />, label: 'Open Settings',
-      description: 'Configure audio, models, and preferences', shortcut: 'Cmd+,',
-      onSelect: () => { navigate('settings'); toggleCommandPalette() }
+      id: 'a2',
+      type: 'action',
+      icon: <Settings size={16} />,
+      label: 'Open Settings',
+      description: 'Configure audio, models, and preferences',
+      shortcut: 'Cmd+,',
+      onSelect: () => {
+        navigate('settings')
+        toggleCommandPalette()
+      },
     },
     {
-      id: 'a3', type: 'action', icon: <Maximize size={16} />, label: 'Toggle Focus Mode',
-      description: 'Hide navigation rails to maximize content', shortcut: 'Cmd+Shift+F',
-      onSelect: () => { toggleFocusMode(); toggleCommandPalette() }
-    }
+      id: 'a3',
+      type: 'action',
+      icon: <Maximize size={16} />,
+      label: 'Toggle Focus Mode',
+      description: 'Hide navigation rails to maximize content',
+      shortcut: 'Cmd+Shift+F',
+      onSelect: () => {
+        toggleFocusMode()
+        toggleCommandPalette()
+      },
+    },
+    {
+      id: 'a4',
+      type: 'action',
+      icon: <Mic size={16} />,
+      label: 'Start Recording',
+      description: 'Start or stop the current recording session',
+      shortcut: 'Cmd+Shift+R',
+      onSelect: () => {
+        window.dispatchEvent(new CustomEvent('toggle-recording'))
+        toggleCommandPalette()
+      },
+    },
+    {
+      id: 'a5',
+      type: 'action',
+      icon: <Download size={16} />,
+      label: 'Quick Export as Markdown',
+      description: 'Export the current meeting notes instantly',
+      shortcut: 'Cmd+Shift+E',
+      onSelect: () => {
+        window.dispatchEvent(new CustomEvent('quick-export'))
+        toggleCommandPalette()
+      },
+    },
+    {
+      id: 'a6',
+      type: 'action',
+      icon: <Shield size={16} />,
+      label: 'Open Privacy Dashboard',
+      description: 'View trust & security settings',
+      onSelect: () => {
+        navigate('settings')
+        toggleCommandPalette()
+      },
+    },
+    {
+      id: 'a7',
+      type: 'action',
+      icon: <Layout size={16} />,
+      label: 'Toggle Floating Widget',
+      description: 'Show or hide the native floating widget',
+      shortcut: 'Cmd+Shift+M',
+      onSelect: () => {
+        window.electronAPI?.window?.restoreMain()
+        toggleCommandPalette()
+      },
+    },
   ]
 
   const searchParams = React.useMemo(() => ({ query: deferredQuery }), [deferredQuery])
@@ -48,38 +116,53 @@ export const CommandPalette: React.FC = () => {
 
   // Map Results
   const isSearching = deferredQuery.trim().length > 1
-  
+
   const meetingItems: CommandItem[] = isSearching
     ? [
-        ...(searchResults?.transcripts || []).map((t) => ({
+        ...(searchResults?.transcripts || []).map(t => ({
           id: `t_${t.transcript.id}`,
           type: 'meeting' as const,
           icon: <FileText size={16} />,
           label: t.meeting.title || 'Untitled Meeting',
           description: t.snippet || 'Transcript match',
-          onSelect: () => { navigate('meeting-detail', t.meeting.id); toggleCommandPalette() }
+          onSelect: () => {
+            navigate('meeting-detail', t.meeting.id)
+            toggleCommandPalette()
+          },
         })),
-        ...(searchResults?.notes || []).map((n) => ({
+        ...(searchResults?.notes || []).map(n => ({
           id: `n_${n.note.id}`,
           type: 'meeting' as const,
           icon: <FileText size={16} />,
           label: n.meeting.title || 'Untitled Meeting',
           description: n.snippet || 'Note match',
-          onSelect: () => { navigate('meeting-detail', n.meeting.id); toggleCommandPalette() }
-        }))
+          onSelect: () => {
+            navigate('meeting-detail', n.meeting.id)
+            toggleCommandPalette()
+          },
+        })),
       ]
-    : (recentMeetings?.items || []).map((m) => ({
+    : (recentMeetings?.items || []).map(m => ({
         id: m.id,
         type: 'meeting' as const,
         icon: <FileText size={16} />,
         label: m.title || 'Untitled Meeting',
         description: 'Recent Meeting',
-        onSelect: () => { navigate('meeting-detail', m.id); toggleCommandPalette() }
+        onSelect: () => {
+          navigate('meeting-detail', m.id)
+          toggleCommandPalette()
+        },
       }))
 
-  const allItems = isSearching
-    ? [...baseActions.filter(a => a.label.toLowerCase().includes(deferredQuery.toLowerCase())), ...meetingItems]
-    : [...baseActions, ...meetingItems]
+  const allItems = React.useMemo(() => {
+    if (isSearching) {
+      return [
+        ...baseActions.filter(a => a.label.toLowerCase().includes(deferredQuery.toLowerCase())),
+        ...meetingItems,
+      ]
+    }
+    return [...baseActions, ...meetingItems]
+  }, [isSearching, baseActions, meetingItems, deferredQuery])
 
   useEffect(() => {
     setSelectedIndex(0)
@@ -103,10 +186,10 @@ export const CommandPalette: React.FC = () => {
       }
       if (e.key === 'Enter' && allItems[selectedIndex]) {
         e.preventDefault()
-        allItems[selectedIndex].onSelect()
+        allItems[selectedIndex]?.onSelect()
       }
     }
-    
+
     window.addEventListener('keydown', handleKey)
     return () => window.removeEventListener('keydown', handleKey)
   }, [commandPaletteOpen, allItems, selectedIndex, toggleCommandPalette])
@@ -118,10 +201,12 @@ export const CommandPalette: React.FC = () => {
 
   return createPortal(
     <div className="ui-cmd-overlay" onClick={toggleCommandPalette}>
-      <div 
-        className="ui-cmd-panel surface-glass-premium" 
+      <div
+        className="ui-cmd-panel surface-glass-premium"
         onClick={e => e.stopPropagation()}
         role="dialog"
+        aria-modal="true"
+        aria-label="Command palette"
       >
         <div className="ui-cmd-input-row">
           <Search size={20} className="ui-cmd-search-icon" />
@@ -130,10 +215,11 @@ export const CommandPalette: React.FC = () => {
             className="ui-cmd-input"
             placeholder="Search meetings, transcripts, notes..."
             value={query}
-            onChange={(e) => setQuery(e.target.value)}
+            onChange={e => setQuery(e.target.value)}
+            aria-label="Search meetings, actions, and transcripts"
           />
         </div>
-        
+
         <div className="ui-cmd-results">
           {actions.length > 0 && (
             <div className="ui-cmd-section">
@@ -141,8 +227,8 @@ export const CommandPalette: React.FC = () => {
               {actions.map((item, i) => {
                 const globalIndex = i
                 return (
-                  <button 
-                    key={item.id} 
+                  <button
+                    key={item.id}
                     className={`ui-cmd-item ${selectedIndex === globalIndex ? 'selected' : ''}`}
                     onClick={item.onSelect}
                     onMouseEnter={() => setSelectedIndex(globalIndex)}
@@ -150,9 +236,18 @@ export const CommandPalette: React.FC = () => {
                     <div className="ui-cmd-item-icon">{item.icon}</div>
                     <div className="ui-cmd-item-text">
                       <div className="ui-cmd-item-label">{item.label}</div>
-                      {item.description && <div className="ui-cmd-item-desc">{item.description}</div>}
+                      {item.description && (
+                        <div className="ui-cmd-item-desc">{item.description}</div>
+                      )}
                     </div>
-                    {item.shortcut && <Badge variant="default" className="ml-auto font-mono tracking-tighter opacity-70">{item.shortcut}</Badge>}
+                    {item.shortcut && (
+                      <Badge
+                        variant="default"
+                        className="ml-auto font-mono tracking-tighter opacity-70"
+                      >
+                        {item.shortcut}
+                      </Badge>
+                    )}
                   </button>
                 )
               })}
@@ -165,8 +260,8 @@ export const CommandPalette: React.FC = () => {
               {meetings.map((item, i) => {
                 const globalIndex = actions.length + i
                 return (
-                  <button 
-                    key={item.id} 
+                  <button
+                    key={item.id}
                     className={`ui-cmd-item ${selectedIndex === globalIndex ? 'selected' : ''}`}
                     onClick={item.onSelect}
                     onMouseEnter={() => setSelectedIndex(globalIndex)}
@@ -174,7 +269,9 @@ export const CommandPalette: React.FC = () => {
                     <div className="ui-cmd-item-icon">{item.icon}</div>
                     <div className="ui-cmd-item-text">
                       <div className="ui-cmd-item-label">{item.label}</div>
-                      {item.description && <div className="ui-cmd-item-desc">{item.description}</div>}
+                      {item.description && (
+                        <div className="ui-cmd-item-desc">{item.description}</div>
+                      )}
                     </div>
                   </button>
                 )
@@ -183,9 +280,7 @@ export const CommandPalette: React.FC = () => {
           )}
 
           {allItems.length === 0 && (
-            <div className="p-[var(--space-24)] text-center text-[var(--color-text-tertiary)] text-[var(--text-sm)]">
-              No results found for "{query}"
-            </div>
+            <div className="ui-cmd-empty-state">No results found for "{query}"</div>
           )}
         </div>
       </div>

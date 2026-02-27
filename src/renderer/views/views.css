@@ -1,0 +1,121 @@
+/* views.css */
+
+/* MeetingListView */
+.ui-view-meeting-list {
+  max-width: 960px;
+  margin: 0 auto;
+  padding-bottom: 8rem;
+  height: 100%;
+  overflow-y: auto;
+  padding-right: var(--space-16);
+}
+
+.ui-view-meeting-list.loading {
+  padding-top: var(--space-16);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-32);
+  width: 100%;
+}
+
+.ui-view-meeting-list-header {
+  display: flex;
+  justify-content: center;
+  margin-bottom: var(--space-32);
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  padding-top: var(--space-16);
+  background: linear-gradient(to bottom, var(--color-bg-root) 60%, transparent);
+  padding-bottom: var(--space-16);
+}
+
+.ui-view-meeting-list-start-btn {
+  border-radius: var(--radius-full);
+  display: flex;
+  align-items: center;
+  gap: var(--space-8);
+  padding: 0 var(--space-20);
+  height: var(--h-xl);
+  border: 1px solid var(--color-border-subtle);
+  cursor: pointer;
+  background: transparent;
+}
+
+.ui-view-meeting-list-start-icon {
+  width: 24px;
+  height: 24px;
+  border-radius: var(--radius-full);
+  background: var(--color-violet);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #FFFFFF;
+}
+
+.ui-view-meeting-list-start-text {
+  font-weight: 500;
+  font-size: var(--text-sm);
+}
+
+.ui-view-meeting-list-sections {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-32);
+}
+
+.ui-view-meeting-list-section-title {
+  font-size: var(--text-xs);
+  letter-spacing: var(--tracking-widest);
+  color: var(--color-text-tertiary);
+  text-transform: uppercase;
+  font-weight: 600;
+  margin-bottom: var(--space-16);
+  margin-top: 0;
+}
+
+/* MeetingDetailView */
+.ui-view-meeting-detail {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  gap: var(--space-16);
+}
+
+.ui-view-meeting-detail-main {
+  height: 100%;
+  transition: width 500ms var(--ease-spring);
+}
+.ui-view-meeting-detail-main.full {
+  width: 100%;
+}
+.ui-view-meeting-detail-main.split {
+  width: 60%;
+}
+
+.ui-view-meeting-detail-panel {
+  width: 100%;
+  height: 100%;
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--color-border-subtle);
+  overflow: hidden;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+}
+
+.ui-view-meeting-detail-side {
+  width: 40%;
+  height: 100%;
+}
+
+.ui-view-meeting-detail-empty, .ui-view-meeting-detail-loading {
+  padding: var(--space-32);
+  color: var(--color-text-tertiary);
+}
+
+/* SettingsView */
+.ui-view-settings {
+  width: 100%;
+  height: 100%;
+  padding: var(--space-24);
+  overflow-y: auto;
+}

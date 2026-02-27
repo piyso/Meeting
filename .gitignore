@@ -44,3 +44,6 @@ Thumbs.db
 resources/models/*.bin
 resources/models/*.onnx
 !resources/models/README.md
+
+# Stale TypeScript declaration files (build artifacts emitted into source)
+src/main/**/*.d.ts

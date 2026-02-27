@@ -8,7 +8,12 @@ interface TooltipProps {
   delay?: number
 }
 
-export const Tooltip: React.FC<TooltipProps> = ({ content, children, position = 'top', delay = 300 }) => {
+export const Tooltip: React.FC<TooltipProps> = ({
+  content,
+  children,
+  position = 'top',
+  delay = 300,
+}) => {
   const [isVisible, setIsVisible] = useState(false)
   const timer = useRef<NodeJS.Timeout>()
 
@@ -25,9 +30,7 @@ export const Tooltip: React.FC<TooltipProps> = ({ content, children, position = 
     <div className="ui-tooltip-container" onMouseEnter={onMouseEnter} onMouseLeave={onMouseLeave}>
       {children}
       {isVisible && (
-        <div className={`ui-tooltip-content tooltip-${position} stagger-child`}>
-          {content}
-        </div>
+        <div className={`ui-tooltip-content tooltip-${position} stagger-child`}>{content}</div>
       )}
     </div>
   )

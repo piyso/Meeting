@@ -2,16 +2,16 @@ import { useEffect } from 'react'
 import { useAppStore } from '../store/appStore'
 
 export function useSyncEngine() {
-  const { setSyncStatus, setIsOnline, isOnline } = useAppStore()
+  const { setSyncStatus, setIsOnline, isOnline, setLastSyncTimestamp } = useAppStore()
 
   useEffect(() => {
     // Poll sync status
     const interval = setInterval(async () => {
       if (!isOnline) {
-        setSyncStatus('error')
+        setSyncStatus('idle') // Not an error — just offline
         return
       }
-      
+
       try {
         const res = await window.electronAPI.sync.getStatus()
         if (res.success && res.data) {
@@ -22,9 +22,16 @@ export function useSyncEngine() {
           } else {
             setSyncStatus('idle')
           }
+          if (res.data.lastSyncTime) {
+            setLastSyncTimestamp(res.data.lastSyncTime)
+          }
+        } else {
+          // SyncManager not initialized — treat as idle, not error
+          setSyncStatus('idle')
         }
-      } catch (err) {
-        setSyncStatus('error')
+      } catch {
+        // Sync service not available — stay idle silently
+        setSyncStatus('idle')
       }
     }, 5000)
 

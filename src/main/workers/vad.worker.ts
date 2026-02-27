@@ -25,6 +25,13 @@
 import { parentPort } from 'worker_threads'
 import * as ort from 'onnxruntime-node'
 
+/** Structured worker logging */
+const workerLog = {
+  info: (...args: unknown[]) => console.log('[VAD Worker]', ...args),
+  warn: (...args: unknown[]) => console.warn('[VAD Worker]', ...args),
+  error: (...args: unknown[]) => console.error('[VAD Worker]', ...args),
+}
+
 interface AudioChunkMessage {
   type: 'audioChunk'
   data: Float32Array
@@ -68,7 +75,7 @@ class VADWorker {
   private sr: ort.Tensor | null = null
 
   constructor() {
-    console.log('[VAD Worker] Initialized')
+    workerLog.info('Initialized')
   }
 
   /**
@@ -81,7 +88,7 @@ class VADWorker {
    * @param modelPath - Path to ONNX model file
    */
   public async initialize(modelPath: string): Promise<void> {
-    console.log(`[VAD Worker] Initializing with model: ${modelPath}`)
+    workerLog.info(`Initializing with model: ${modelPath}`)
 
     try {
       // Load ONNX model using onnxruntime-node
@@ -98,11 +105,11 @@ class VADWorker {
       this.sr = new ort.Tensor('int64', new BigInt64Array([BigInt(this.sampleRate)]), [1])
 
       this.isInitialized = true
-      console.log('[VAD Worker] Initialization complete')
-      console.log('[VAD Worker] Model inputs:', this.session.inputNames)
-      console.log('[VAD Worker] Model outputs:', this.session.outputNames)
+      workerLog.info('Initialization complete')
+      workerLog.info('Model inputs:', this.session.inputNames)
+      workerLog.info('Model outputs:', this.session.outputNames)
     } catch (error) {
-      console.error('[VAD Worker] Failed to initialize:', error)
+      workerLog.error('Failed to initialize:', error)
       throw error
     }
   }
@@ -122,7 +129,7 @@ class VADWorker {
     _sampleRate: number
   ): Promise<{ hasVoice: boolean; confidence: number }> {
     if (!this.isInitialized || !this.session || !this.h || !this.c || !this.sr) {
-      console.warn('[VAD Worker] Not initialized, skipping VAD processing')
+      workerLog.warn('Not initialized, skipping VAD processing')
       // Default to assuming voice is present until VAD is implemented
       return { hasVoice: true, confidence: 1.0 }
     }
@@ -163,7 +170,7 @@ class VADWorker {
       // cn: new cell state [2, 1, 64]
       const outputTensor = results.output
       if (!outputTensor) {
-        console.error('[VAD Worker] No output tensor from model')
+        workerLog.error('No output tensor from model')
         return { hasVoice: true, confidence: 1.0 }
       }
 
@@ -185,7 +192,7 @@ class VADWorker {
         confidence,
       }
     } catch (error) {
-      console.error('[VAD Worker] Error during inference:', error)
+      workerLog.error('Error during inference:', error)
       // On error, default to assuming voice is present
       return { hasVoice: true, confidence: 1.0 }
     }
@@ -197,7 +204,7 @@ class VADWorker {
    * Clears internal LSTM state tensors.
    */
   public reset(): void {
-    console.log('[VAD Worker] Reset')
+    workerLog.info('Reset')
 
     // Reset state tensors to zeros
     if (this.h && this.c) {
@@ -234,8 +241,8 @@ if (parentPort) {
 
           // Log inference time for first few chunks
           if (inferenceTime > 10) {
-            console.warn(
-              `[VAD Worker] Inference time: ${inferenceTime}ms (target: <10ms) - may need optimization`
+            workerLog.warn(
+              `Inference time: ${inferenceTime}ms (target: <10ms) - may need optimization`
             )
           }
 
@@ -262,10 +269,10 @@ if (parentPort) {
         }
 
         default:
-          console.warn('[VAD Worker] Unknown message type:', (message as { type: string }).type)
+          workerLog.warn('Unknown message type:', (message as { type: string }).type)
       }
     } catch (error) {
-      console.error('[VAD Worker] Error processing message:', error)
+      workerLog.error('Error processing message:', error)
       parentPort?.postMessage({
         type: 'error',
         error: error instanceof Error ? error.message : 'Unknown error',
@@ -273,7 +280,7 @@ if (parentPort) {
     }
   })
 
-  console.log('[VAD Worker] Ready to receive messages')
+  workerLog.info('Ready to receive messages')
 } else {
-  console.error('[VAD Worker] parentPort is null - worker not properly initialized')
+  workerLog.error('parentPort is null - worker not properly initialized')
 }

@@ -53,9 +53,15 @@ vi.mock('../../../database/crud/transcripts', () => ({
 }))
 
 describe('Transcript Event Forwarding', () => {
-  beforeEach(() => {
+  beforeEach(async () => {
     vi.clearAllMocks()
     mockTranscriptService = new MockTranscriptService()
+    // Reset mock state that clearAllMocks doesn't reset
+    mockMainWindow.isDestroyed = vi.fn(() => false)
+    mockMainWindow.webContents = mockWebContents
+    // Reset BrowserWindow.getAllWindows to return mock window
+    const { BrowserWindow: BW } = await import('electron')
+    vi.mocked(BW.getAllWindows).mockReturnValue([mockMainWindow as any])
   })
 
   afterEach(() => {
@@ -149,9 +155,9 @@ describe('Transcript Event Forwarding', () => {
   it('should not send events when window is null', async () => {
     const { registerTranscriptHandlers } = await import('../transcript.handlers')
 
-    // Mock getMainWindow to return null
-    const { getMainWindow } = await import('../../../../electron/main')
-    vi.mocked(getMainWindow).mockReturnValue(null)
+    // Mock BrowserWindow.getAllWindows to return empty
+    const { BrowserWindow: BW } = await import('electron')
+    vi.mocked(BW.getAllWindows).mockReturnValue([])
 
     registerTranscriptHandlers()
 

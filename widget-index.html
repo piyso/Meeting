@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <!-- Content Security Policy to ensure Electron security -->
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline';"
+    />
+    <title>PiyAPI Notes - Widget</title>
+    <style>
+      /* Ensure the Electron window's HTML/Body is completely transparent so only the React widget shows */
+      html,
+      body,
+      #root {
+        width: 100%;
+        height: 100%;
+        margin: 0;
+        padding: 0;
+        background-color: transparent !important;
+        overflow: hidden;
+      }
+
+      /* App region drag allows moving the borderless window natively in macOS */
+      .widget-draggable {
+        -webkit-app-region: drag;
+        user-select: none;
+      }
+      .widget-nodrag {
+        -webkit-app-region: no-drag;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/renderer/WidgetApp.tsx"></script>
+  </body>
+</html>

@@ -11,6 +11,9 @@ import * as path from 'path'
 import * as os from 'os'
 import * as crypto from 'crypto'
 import * as https from 'https'
+import { Logger } from './Logger'
+
+const log = Logger.create('ModelDownloadService')
 
 export type HardwareTier = 'high' | 'mid' | 'low'
 export type ModelType = 'whisper-turbo' | 'moonshine-base'
@@ -36,9 +39,26 @@ export class ModelDownloadService {
   private modelsDir: string
   private mainWindow: BrowserWindow | null = null
 
+  /** Model download endpoints (abstracted to avoid tech leaks in compiled JS) */
+  private static readonly MODEL_URLS = {
+    asrPrimary: ['https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-turbo.bin'],
+    asrFallback: [
+      'https://huggingface.co/UsefulSensors/moonshine/resolve/main/onnx/base.onnx',
+      'https://huggingface.co/UsefulSensors/moonshine/resolve/main/onnx/preprocess.onnx',
+    ],
+  }
+
   constructor() {
-    this.modelsDir = path.join(app.getAppPath(), 'resources', 'models')
+    // In production: models live in userData (persists across updates, outside asar)
+    // In dev: use project resources folder
+    this.modelsDir = app.isPackaged
+      ? path.join(app.getPath('userData'), 'models')
+      : path.join(process.cwd(), 'resources', 'models')
     this.ensureModelsDirectory()
+    // Copy bundled micro-models from extraResources to userData on first launch
+    if (app.isPackaged) {
+      this.copyBundledModels()
+    }
   }
 
   setMainWindow(window: BrowserWindow) {
@@ -51,6 +71,23 @@ export class ModelDownloadService {
   private ensureModelsDirectory(): void {
     if (!fs.existsSync(this.modelsDir)) {
       fs.mkdirSync(this.modelsDir, { recursive: true })
+    }
+  }
+
+  /**
+   * Copy bundled micro-models (silero_vad, MiniLM) from extraResources to userData
+   */
+  private copyBundledModels(): void {
+    const bundledDir = path.join(process.resourcesPath, 'models')
+    if (!fs.existsSync(bundledDir)) return
+    const files = fs.readdirSync(bundledDir)
+    for (const file of files) {
+      const src = path.join(bundledDir, file)
+      const dest = path.join(this.modelsDir, file)
+      if (!fs.existsSync(dest) && fs.statSync(src).isFile()) {
+        fs.copyFileSync(src, dest)
+        log.info(`Copied bundled model: ${file}`)
+      }
     }
   }
 
@@ -124,11 +161,11 @@ export class ModelDownloadService {
     const modelType = tierInfo.recommendedASR
 
     if (this.areModelsDownloaded(modelType)) {
-      console.log(`Models already downloaded for ${modelType}`)
+      log.info(`Models already downloaded for ${modelType}`)
       return
     }
 
-    console.log(`Downloading models for ${tierInfo.tier} tier (${modelType})...`)
+    log.info(`Downloading models for ${tierInfo.tier} tier (${modelType})...`)
 
     let lastError: Error | null = null
 
@@ -140,16 +177,16 @@ export class ModelDownloadService {
           await this.downloadMoonshineBase()
         }
 
-        console.log(`✅ Models downloaded successfully on attempt ${attempt}`)
+        log.info(`✅ Models downloaded successfully on attempt ${attempt}`)
         return // Success
-      } catch (error: any) {
-        lastError = error
-        console.error(`Download attempt ${attempt}/${maxRetries} failed:`, error.message)
+      } catch (error: unknown) {
+        lastError = error as Error
+        log.error(`Download attempt ${attempt}/${maxRetries} failed:`, (error as Error).message)
 
         if (attempt < maxRetries) {
           // Exponential backoff: 5s, 10s, 20s
           const backoffMs = 5000 * Math.pow(2, attempt - 1)
-          console.log(`Retrying in ${backoffMs / 1000} seconds...`)
+          log.info(`Retrying in ${backoffMs / 1000} seconds...`)
           await new Promise(resolve => setTimeout(resolve, backoffMs))
         }
       }
@@ -163,7 +200,8 @@ export class ModelDownloadService {
    * Download Whisper turbo model
    */
   private async downloadWhisperTurbo(): Promise<void> {
-    const modelUrl = 'https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-turbo.bin'
+    const modelUrl = ModelDownloadService.MODEL_URLS.asrPrimary[0]
+    if (!modelUrl) throw new Error('Whisper Turbo download URL not configured')
     const modelPath = path.join(this.modelsDir, 'ggml-turbo.bin')
 
     await this.downloadFile(modelUrl, modelPath, 'Whisper Turbo')
@@ -187,9 +225,8 @@ export class ModelDownloadService {
    * Download Moonshine Base model
    */
   private async downloadMoonshineBase(): Promise<void> {
-    const baseUrl = 'https://huggingface.co/UsefulSensors/moonshine/resolve/main/onnx/base.onnx'
-    const preprocessUrl =
-      'https://huggingface.co/UsefulSensors/moonshine/resolve/main/onnx/preprocess.onnx'
+    const [baseUrl, preprocessUrl] = ModelDownloadService.MODEL_URLS.asrFallback
+    if (!baseUrl || !preprocessUrl) throw new Error('Moonshine download URLs not configured')
 
     const basePath = path.join(this.modelsDir, 'moonshine-base.onnx')
     const preprocessPath = path.join(this.modelsDir, 'moonshine-preprocess.onnx')
@@ -241,6 +278,10 @@ export class ModelDownloadService {
         }
 
         if (response.statusCode !== 200) {
+          file.close()
+          if (fs.existsSync(destPath)) {
+            fs.unlinkSync(destPath)
+          }
           reject(new Error(`Failed to download: HTTP ${response.statusCode}`))
           return
         }
@@ -374,7 +415,7 @@ export class ModelDownloadService {
         )
       }
     } catch (error) {
-      console.error('Model verification failed:', error)
+      log.error('Model verification failed:', error)
       return false
     }
   }

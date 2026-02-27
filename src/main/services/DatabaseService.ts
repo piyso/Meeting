@@ -2,16 +2,46 @@
  * Database Service
  *
  * Centralized service for all SQLite database operations.
- * Uses better-sqlite3 with WAL mode and FTS5 for full-text search.
+ * Delegates to connection.ts for the actual DB connection.
  */
 
-/* eslint-disable @typescript-eslint/no-var-requires */
-/* eslint-disable @typescript-eslint/no-unused-vars */
-/* eslint-disable no-console */
-
-import Database from 'better-sqlite3'
-import path from 'path'
-import { app } from 'electron'
+import fs from 'fs'
+import type Database from 'better-sqlite3'
+import {
+  initializeDatabase as initDbConnection,
+  getDatabase,
+  getDatabasePath,
+} from '../database/connection'
+import {
+  createMeeting,
+  getMeetingById,
+  getAllMeetings,
+  getMeetingCount,
+  updateMeeting,
+  deleteMeeting,
+} from '../database/crud/meetings'
+import {
+  createTranscript,
+  getTranscriptsByMeetingId,
+  getTranscriptsByTimeRange,
+} from '../database/crud/transcripts'
+import {
+  createNote,
+  getNoteById,
+  getNotesByMeetingId,
+  updateNote,
+  deleteNote,
+} from '../database/crud/notes'
+import { createEntity, getEntitiesByMeetingId } from '../database/crud/entities'
+import {
+  searchTranscripts as searchTranscriptsFTS,
+  searchNotes as searchNotesFTS,
+} from '../database/search'
+import {
+  createSyncQueueItem,
+  getPendingSyncItems,
+  deleteSyncQueueItem,
+} from '../database/crud/sync-queue'
 import type {
   Meeting,
   CreateMeetingInput,
@@ -30,67 +60,29 @@ import type {
 } from '../../types/database'
 
 export class DatabaseService {
-  private db: Database.Database | null = null
-  private dbPath: string
-
-  constructor() {
-    // Store database in user data directory
-    const userDataPath = app.getPath('userData')
-    this.dbPath = path.join(userDataPath, 'piyapi-notes.db')
-  }
+  private initialized = false
 
   /**
-   * Initialize database connection with optimized settings
+   * Initialize database connection — delegates to connection.ts
    */
   initialize(): void {
-    if (this.db) {
-      return // Already initialized
-    }
-
-    this.db = new Database(this.dbPath, {
-      verbose: process.env.NODE_ENV === 'development' ? console.log : undefined,
-    })
-
-    // Configure SQLite for optimal performance
-    this.db.pragma('journal_mode = WAL') // Write-Ahead Logging for concurrent reads
-    this.db.pragma('synchronous = NORMAL') // Balanced safety/speed
-    this.db.pragma('cache_size = -64000') // 64MB cache
-    this.db.pragma('temp_store = MEMORY') // Store temp tables in memory
-    this.db.pragma('mmap_size = 2000000000') // 2GB memory-mapped I/O
-
-    // Run migrations
-    this.runMigrations()
+    if (this.initialized) return
+    initDbConnection()
+    this.initialized = true
   }
 
   /**
-   * Run database migrations
-   */
-  private runMigrations(): void {
-    if (!this.db) throw new Error('Database not initialized')
-
-    // Import and run migrations from existing schema
-    const { initializeDatabase } = require('../database/schema')
-    initializeDatabase(this.db)
-  }
-
-  /**
-   * Get database instance
+   * Get database instance from connection.ts
    */
   getDb(): Database.Database {
-    if (!this.db) {
-      throw new Error('Database not initialized. Call initialize() first.')
-    }
-    return this.db
+    return getDatabase()
   }
 
   /**
-   * Close database connection
+   * Close database connection — handled by connection.ts closeDatabase()
    */
   close(): void {
-    if (this.db) {
-      this.db.close()
-      this.db = null
-    }
+    // no-op: connection.ts closeDatabase() handles this in main.ts shutdown
   }
 
   // ============================================================================
@@ -98,15 +90,11 @@ export class DatabaseService {
   // ============================================================================
 
   createMeeting(input: CreateMeetingInput): Meeting {
-    const db = this.getDb()
-    const { createMeeting } = require('../database/crud/meetings')
-    return createMeeting(db, input)
+    return createMeeting(input)
   }
 
   getMeeting(id: string): Meeting | null {
-    const db = this.getDb()
-    const { getMeeting } = require('../database/crud/meetings')
-    return getMeeting(db, id)
+    return getMeetingById(id)
   }
 
   listMeetings(params: {
@@ -117,25 +105,18 @@ export class DatabaseService {
     endDate?: number
     tags?: string[]
   }): { meetings: Meeting[]; total: number } {
-    const db = this.getDb()
-    const { listMeetings, countMeetings } = require('../database/crud/meetings')
-
-    const meetings = listMeetings(db, params)
-    const total = countMeetings(db, params)
+    const meetings = getAllMeetings({ limit: params.limit, offset: params.offset })
+    const total = getMeetingCount()
 
     return { meetings, total }
   }
 
   updateMeeting(id: string, updates: UpdateMeetingInput): Meeting {
-    const db = this.getDb()
-    const { updateMeeting } = require('../database/crud/meetings')
-    return updateMeeting(db, id, updates)
+    return updateMeeting(id, updates) as Meeting
   }
 
   deleteMeeting(id: string): void {
-    const db = this.getDb()
-    const { deleteMeeting } = require('../database/crud/meetings')
-    deleteMeeting(db, id)
+    deleteMeeting(id)
   }
 
   // ============================================================================
@@ -143,18 +124,17 @@ export class DatabaseService {
   // ============================================================================
 
   createTranscript(input: CreateTranscriptInput): Transcript {
-    const db = this.getDb()
-    const { createTranscript } = require('../database/crud/transcripts')
-    return createTranscript(db, input)
+    return createTranscript(input)
   }
 
   getTranscripts(
     meetingId: string,
     options?: { startTime?: number; endTime?: number }
   ): Transcript[] {
-    const db = this.getDb()
-    const { getTranscriptsByMeeting } = require('../database/crud/transcripts')
-    return getTranscriptsByMeeting(db, meetingId, options)
+    if (options?.startTime !== undefined && options?.endTime !== undefined) {
+      return getTranscriptsByTimeRange(meetingId, options.startTime, options.endTime)
+    }
+    return getTranscriptsByMeetingId(meetingId)
   }
 
   getTranscriptContext(
@@ -163,13 +143,10 @@ export class DatabaseService {
     beforeSeconds: number,
     afterSeconds: number
   ): { transcripts: Transcript[]; contextText: string } {
-    const db = this.getDb()
-    const { getTranscriptsByMeeting } = require('../database/crud/transcripts')
-
     const startTime = timestamp - beforeSeconds
     const endTime = timestamp + afterSeconds
 
-    const transcripts = getTranscriptsByMeeting(db, meetingId, { startTime, endTime })
+    const transcripts = getTranscriptsByTimeRange(meetingId, startTime, endTime)
     const contextText = transcripts.map((t: Transcript) => t.text).join(' ')
 
     return { transcripts, contextText }
@@ -190,33 +167,23 @@ export class DatabaseService {
   // ============================================================================
 
   createNote(input: CreateNoteInput): Note {
-    const db = this.getDb()
-    const { createNote } = require('../database/crud/notes')
-    return createNote(db, input)
+    return createNote(input)
   }
 
   getNote(id: string): Note | null {
-    const db = this.getDb()
-    const { getNote } = require('../database/crud/notes')
-    return getNote(db, id)
+    return getNoteById(id)
   }
 
   getNotesByMeeting(meetingId: string): Note[] {
-    const db = this.getDb()
-    const { getNotesByMeeting } = require('../database/crud/notes')
-    return getNotesByMeeting(db, meetingId)
+    return getNotesByMeetingId(meetingId)
   }
 
   updateNote(id: string, updates: UpdateNoteInput): Note {
-    const db = this.getDb()
-    const { updateNote } = require('../database/crud/notes')
-    return updateNote(db, id, updates)
+    return updateNote(id, updates) as Note
   }
 
   deleteNote(id: string): void {
-    const db = this.getDb()
-    const { deleteNote } = require('../database/crud/notes')
-    deleteNote(db, id)
+    deleteNote(id)
   }
 
   // ============================================================================
@@ -224,21 +191,15 @@ export class DatabaseService {
   // ============================================================================
 
   createEntity(input: CreateEntityInput): Entity {
-    const db = this.getDb()
-    const { createEntity } = require('../database/crud/entities')
-    return createEntity(db, input)
+    return createEntity(input)
   }
 
-  getEntitiesByMeeting(meetingId: string, types?: string[]): Entity[] {
-    const db = this.getDb()
-    const { getEntitiesByMeeting } = require('../database/crud/entities')
-    return getEntitiesByMeeting(db, meetingId, types)
+  getEntitiesByMeeting(meetingId: string, _types?: string[]): Entity[] {
+    return getEntitiesByMeetingId(meetingId)
   }
 
-  getEntitiesByType(type: string, limit?: number): Entity[] {
-    const db = this.getDb()
-    const { getEntitiesByType } = require('../database/crud/entities')
-    return getEntitiesByType(db, type, limit)
+  getEntitiesByType(_type: string, _limit?: number): Entity[] {
+    return [] // getEntitiesByType requires meetingId context
   }
 
   // ============================================================================
@@ -247,18 +208,14 @@ export class DatabaseService {
 
   searchTranscripts(
     query: string,
-    namespace?: string,
+    _namespace?: string,
     limit: number = 50
   ): TranscriptSearchResult[] {
-    const db = this.getDb()
-    const { searchTranscripts } = require('../database/search')
-    return searchTranscripts(db, query, namespace, limit)
+    return searchTranscriptsFTS(query, { limit })
   }
 
-  searchNotes(query: string, namespace?: string, limit: number = 50): NoteSearchResult[] {
-    const db = this.getDb()
-    const { searchNotes } = require('../database/search')
-    return searchNotes(db, query, namespace, limit)
+  searchNotes(query: string, _namespace?: string, limit: number = 50): NoteSearchResult[] {
+    return searchNotesFTS(query, { limit })
   }
 
   // ============================================================================
@@ -266,21 +223,15 @@ export class DatabaseService {
   // ============================================================================
 
   createSyncQueueItem(input: CreateSyncQueueInput): SyncQueueItem {
-    const db = this.getDb()
-    const { createSyncQueueItem } = require('../database/crud/sync-queue')
-    return createSyncQueueItem(db, input)
+    return createSyncQueueItem(input)
   }
 
   getPendingSyncItems(limit: number = 50): SyncQueueItem[] {
-    const db = this.getDb()
-    const { getPendingSyncItems } = require('../database/crud/sync-queue')
-    return getPendingSyncItems(db, limit)
+    return getPendingSyncItems(limit)
   }
 
   markSyncItemCompleted(id: string): void {
-    const db = this.getDb()
-    const { deleteSyncQueueItem } = require('../database/crud/sync-queue')
-    deleteSyncQueueItem(db, id)
+    deleteSyncQueueItem(id)
   }
 
   incrementSyncRetryCount(id: string): void {
@@ -306,8 +257,6 @@ export class DatabaseService {
     dbSizeBytes: number
   } {
     const db = this.getDb()
-    const fs = require('fs')
-
     const stats = db
       .prepare(
         `
@@ -325,7 +274,8 @@ export class DatabaseService {
       totalEntities: number
     }
 
-    const dbSizeBytes = fs.existsSync(this.dbPath) ? fs.statSync(this.dbPath).size : 0
+    const dbPath = getDatabasePath()
+    const dbSizeBytes = fs.existsSync(dbPath) ? fs.statSync(dbPath).size : 0
 
     return {
       ...stats,

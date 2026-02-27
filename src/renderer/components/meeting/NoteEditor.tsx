@@ -21,8 +21,8 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({ meetingId }) => {
   useEffect(() => {
     // Generate isolated Y doc per meeting ID
     const ydoc = new Y.Doc()
-    const provider = new IndexeddbPersistence(`piyapi-notes-${meetingId}`, ydoc)
-    
+    const provider = new IndexeddbPersistence(`bluearkive-${meetingId}`, ydoc)
+
     provider.on('synced', () => {
       setProviderOrDoc(ydoc)
     })
@@ -37,20 +37,20 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({ meetingId }) => {
     const handleExpand = async () => {
       if (!providerOrDoc) return
       // We need the editor instance to exist
-      const e = document.querySelector('.ProseMirror') as any
+      const e = document.querySelector('.ProseMirror') as HTMLElement | null
       const currentNoteId = notes?.[0]?.id
 
       if (!currentNoteId) return // Cannot expand an empty not-yet-saved note right away securely without refactoring
-      
+
       // Dispatch custom event to let the user know
-      console.log('Expanding note...', currentNoteId)
-      
+      // Note expansion triggered
+
       try {
-        const res = await window.electronAPI.note.expand({ 
+        const res = await window.electronAPI.note.expand({
           noteId: currentNoteId,
           meetingId,
           timestamp: Math.floor(Date.now() / 1000),
-          text: e ? e.innerHTML : '' // Tiptap content or fallback
+          text: e ? e.innerHTML : '', // Tiptap content or fallback
         })
         if (res.success && res.data) {
           const expansionHtml = `
@@ -65,76 +65,82 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({ meetingId }) => {
             </div>
             <p></p>
           `
-          
+
           // To achieve single stroke Ctrl+Z, we dispatch a single transaction
           // Since we are not in the useEditor scope directly here (or we are, but without editor ref)
           // it's easier to handle this inside the NoteEditor component where `editor` is available
           window.dispatchEvent(new CustomEvent('insert-ai-text', { detail: expansionHtml }))
         }
       } catch (err) {
-        console.error('Failed to expand:', err)
+        // Expansion failed silently — user sees no change
       }
     }
 
     window.addEventListener('trigger-ai-expansion', handleExpand)
     return () => window.removeEventListener('trigger-ai-expansion', handleExpand)
-  }, [providerOrDoc, notes])
+  }, [providerOrDoc, notes, meetingId])
 
-  const editor = useEditor({
-    extensions: [
-      StarterKit.configure({
-        bulletList: false, // Disabling default to override
-      }),
-      BulletList,
-      Placeholder.configure({
-        placeholder: 'Start typing your notes... (Cmd+Enter to expand via AI)',
-        emptyNodeClass: 'my-custom-is-empty',
-      }),
-      ...(providerOrDoc ? [
-        Collaboration.configure({
-          document: providerOrDoc,
+  const editor = useEditor(
+    {
+      immediatelyRender: false, // Required for @tiptap/react v3 — prevents infinite re-render loop
+      extensions: [
+        StarterKit.configure({
+          bulletList: false, // Disabling default to override
         }),
-      ] : []),
-    ],
-    content: providerOrDoc ? undefined : '', // Content is managed by Yjs if active
-    editable: true,
-    editorProps: {
-      attributes: {
-        class: 'prose prose-invert max-w-none focus:outline-none min-h-[calc(100vh-200px)] px-[var(--space-16)] py-[var(--space-24)]',
+        BulletList,
+        Placeholder.configure({
+          placeholder: 'Start typing your notes... (Cmd+Enter to expand via AI)',
+          emptyNodeClass: 'my-custom-is-empty',
+        }),
+        ...(providerOrDoc
+          ? [
+              Collaboration.configure({
+                document: providerOrDoc,
+              }),
+            ]
+          : []),
+      ],
+      content: providerOrDoc ? undefined : '', // Content is managed by Yjs if active
+      editable: true,
+      editorProps: {
+        attributes: {
+          class: 'ui-note-editor-content',
+        },
+        handleKeyDown: (_, event) => {
+          // Intercept Command+Enter for AI expansion shell trigger
+          if ((event.metaKey || event.ctrlKey) && event.key === 'Enter') {
+            event.preventDefault()
+            window.dispatchEvent(new CustomEvent('trigger-ai-expansion'))
+            return true
+          }
+          return false
+        },
       },
-      handleKeyDown: (_, event) => {
-        // Intercept Command+Enter for AI expansion shell trigger
-        if ((event.metaKey || event.ctrlKey) && event.key === 'Enter') {
-          event.preventDefault()
-          window.dispatchEvent(new CustomEvent('trigger-ai-expansion'))
-          return true
+      onUpdate: ({ editor }) => {
+        if (saveTimeoutRef.current) {
+          clearTimeout(saveTimeoutRef.current)
         }
-        return false
-      }
+
+        saveTimeoutRef.current = setTimeout(async () => {
+          const text = editor.getHTML()
+          // Map to central note or create one if none exists
+          if (notes && notes.length > 0) {
+            updateNote.mutate({
+              noteId: notes[0]?.id ?? '',
+              updates: { original_text: text },
+            })
+          } else {
+            createNote.mutate({
+              meetingId,
+              timestamp: Math.floor(Date.now() / 1000),
+              text,
+            })
+          }
+        }, 1500)
+      },
     },
-    onUpdate: ({ editor }) => {
-      if (saveTimeoutRef.current) {
-        clearTimeout(saveTimeoutRef.current)
-      }
-      
-      saveTimeoutRef.current = setTimeout(async () => {
-        const text = editor.getHTML()
-        // Map to central note or create one if none exists
-        if (notes && notes.length > 0) {
-          updateNote.mutate({ 
-            noteId: notes[0]!.id, 
-            updates: { original_text: text } 
-          })
-        } else {
-          createNote.mutate({ 
-            meetingId, 
-            timestamp: Math.floor(Date.now() / 1000), 
-            text 
-          })
-        }
-      }, 1500)
-    }
-  }, [providerOrDoc, meetingId, notes, createNote, updateNote])
+    [providerOrDoc, meetingId, notes, createNote, updateNote]
+  )
 
   useEffect(() => {
     const handleInsert = (e: Event) => {
@@ -164,8 +170,10 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({ meetingId }) => {
   }
 
   return (
-    <div className="h-full w-full overflow-y-auto scrollbar-webkit">
-      <EditorContent editor={editor} className="h-full" />
+    <div className="ui-note-editor-panel">
+      <div className="ui-note-editor-scroll scrollbar-webkit">
+        <EditorContent editor={editor} className="h-full" />
+      </div>
     </div>
   )
 }

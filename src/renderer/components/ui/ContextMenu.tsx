@@ -21,16 +21,18 @@ interface ContextMenuProps {
 export const ContextMenu: React.FC<ContextMenuProps> = ({ x, y, items, onClose }) => {
   useEffect(() => {
     const handleClick = () => onClose()
-    const handleKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
-    
+    const handleKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose()
+    }
+
     // Slight delay to not fire onClose synchronously from the click that opened it
     const timer = setTimeout(() => {
       document.addEventListener('click', handleClick)
       document.addEventListener('contextmenu', handleClick)
     }, 0)
-    
+
     document.addEventListener('keydown', handleKey)
-    
+
     return () => {
       clearTimeout(timer)
       document.removeEventListener('click', handleClick)
@@ -54,7 +56,7 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({ x, y, items, onClose }
             key={`item-${idx}`}
             className={`ui-menu-item ${item.danger ? 'danger' : ''}`}
             disabled={item.disabled}
-            onClick={(e) => {
+            onClick={e => {
               e.stopPropagation()
               item.onClick()
               onClose()

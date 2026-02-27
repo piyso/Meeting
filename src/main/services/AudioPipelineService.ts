@@ -10,6 +10,9 @@
 import { EventEmitter } from 'events'
 import { getASRService } from './ASRService'
 import { getTranscriptService } from './TranscriptService'
+import { Logger } from './Logger'
+
+const log = Logger.create('AudioPipeline')
 
 interface PipelineConfig {
   sampleRate: number // 16000 (Whisper's expected rate)
@@ -51,13 +54,13 @@ export class AudioPipelineService extends EventEmitter {
     try {
       await getASRService().initialize()
     } catch (error) {
-      console.error('[AudioPipeline] ASR initialization failed:', error)
+      log.error('ASR initialization failed:', error)
       this.isCapturing = false
       throw error
     }
 
     this.emit('status', { meetingId, status: 'capturing' })
-    console.log(`[AudioPipeline] Started capture for meeting ${meetingId}`)
+    log.info(`Started capture for meeting ${meetingId}`)
   }
 
   /**
@@ -70,10 +73,7 @@ export class AudioPipelineService extends EventEmitter {
     this.audioBuffer.push(audioData)
 
     // Check if accumulated enough audio for a 30s chunk
-    const totalSamples = this.audioBuffer.reduce(
-      (sum, buf) => sum + buf.length,
-      0
-    )
+    const totalSamples = this.audioBuffer.reduce((sum, buf) => sum + buf.length, 0)
     const durationSec = totalSamples / this.config.sampleRate
 
     if (durationSec >= this.config.chunkDurationSec) {
@@ -88,10 +88,7 @@ export class AudioPipelineService extends EventEmitter {
     if (!this.currentMeetingId) return
 
     // Merge buffer into single Float32Array
-    const totalLength = this.audioBuffer.reduce(
-      (sum, buf) => sum + buf.length,
-      0
-    )
+    const totalLength = this.audioBuffer.reduce((sum, buf) => sum + buf.length, 0)
     const mergedAudio = new Float32Array(totalLength)
     let offset = 0
     for (const buf of this.audioBuffer) {
@@ -100,10 +97,8 @@ export class AudioPipelineService extends EventEmitter {
     }
 
     // Calculate chunk timing relative to meeting start
-    const chunkStart =
-      (this.chunkStartTime - this.meetingStartTime) / 1000
-    const chunkEnd =
-      chunkStart + totalLength / this.config.sampleRate
+    const chunkStart = (this.chunkStartTime - this.meetingStartTime) / 1000
+    const chunkEnd = chunkStart + totalLength / this.config.sampleRate
 
     // Reset buffer for next chunk
     this.audioBuffer = []
@@ -114,7 +109,7 @@ export class AudioPipelineService extends EventEmitter {
       const result = await getASRService().transcribe(mergedAudio)
 
       if (!result || !result.segments || result.segments.length === 0) {
-        console.log('[AudioPipeline] No speech detected in chunk')
+        log.debug('No speech detected in chunk')
         return
       }
 
@@ -137,11 +132,11 @@ export class AudioPipelineService extends EventEmitter {
         // useTranscriptStream picks it up automatically
       }
 
-      console.log(
-        `[AudioPipeline] Processed chunk ${chunkStart.toFixed(1)}s-${chunkEnd.toFixed(1)}s: ${result.segments.length} segments (total: ${this.segmentCounter})`
+      log.info(
+        `Processed chunk ${chunkStart.toFixed(1)}s-${chunkEnd.toFixed(1)}s: ${result.segments.length} segments (total: ${this.segmentCounter})`
       )
     } catch (error) {
-      console.error('[AudioPipeline] Transcription failed:', error)
+      log.error('Transcription failed:', error)
       this.emit('error', {
         meetingId: this.currentMeetingId,
         error: (error as Error).message,
@@ -172,8 +167,8 @@ export class AudioPipelineService extends EventEmitter {
       duration,
       segments,
     })
-    console.log(
-      `[AudioPipeline] Stopped capture for meeting ${this.currentMeetingId} — ${duration.toFixed(1)}s, ${segments} segments`
+    log.info(
+      `Stopped capture for meeting ${this.currentMeetingId} — ${duration.toFixed(1)}s, ${segments} segments`
     )
     this.currentMeetingId = null
 
@@ -188,12 +183,9 @@ export class AudioPipelineService extends EventEmitter {
       isCapturing: this.isCapturing,
       meetingId: this.currentMeetingId,
       bufferDuration:
-        this.audioBuffer.reduce((sum, buf) => sum + buf.length, 0) /
-        this.config.sampleRate,
+        this.audioBuffer.reduce((sum, buf) => sum + buf.length, 0) / this.config.sampleRate,
       totalSegments: this.segmentCounter,
-      elapsedTime: this.isCapturing
-        ? (Date.now() - this.meetingStartTime) / 1000
-        : 0,
+      elapsedTime: this.isCapturing ? (Date.now() - this.meetingStartTime) / 1000 : 0,
     }
   }
 
@@ -222,7 +214,7 @@ export class AudioPipelineService extends EventEmitter {
       }
       return []
     } catch (error) {
-      console.error('[AudioPipeline] Enumeration failed:', error)
+      log.error('Enumeration failed:', error)
       return []
     }
   }
@@ -232,7 +224,7 @@ export class AudioPipelineService extends EventEmitter {
    */
   handleDeviceSwitch(device: AudioDeviceInfo): void {
     if (!this.isCapturing) {
-      console.warn('[AudioPipeline] Cannot switch device: no active capture session')
+      log.warn('Cannot switch device: no active capture session')
       return
     }
 
@@ -244,7 +236,7 @@ export class AudioPipelineService extends EventEmitter {
     this.currentDevice = device.label
 
     this.emit('deviceSwitch', { device, history: this.deviceSwitchHistory })
-    console.log(`[AudioPipeline] Device switched to: ${device.label}`)
+    log.info(`Device switched to: ${device.label}`)
   }
 
   /**
@@ -294,11 +286,14 @@ export class AudioPipelineService extends EventEmitter {
   /**
    * Test if a specific audio device is available and working
    */
-  async testAudioDevice(
-    deviceId: string
-  ): Promise<{ success: boolean; deviceInfo: AudioDeviceInfo | null; latency?: number; error?: string }> {
+  async testAudioDevice(deviceId: string): Promise<{
+    success: boolean
+    deviceInfo: AudioDeviceInfo | null
+    latency?: number
+    error?: string
+  }> {
     const devices = await this.enumerateAudioSources()
-    const device = devices.find((d) => d.id === deviceId)
+    const device = devices.find(d => d.id === deviceId)
 
     if (!device) {
       return { success: false, deviceInfo: null, error: `Device not found: ${deviceId}` }
@@ -308,7 +303,8 @@ export class AudioPipelineService extends EventEmitter {
     let latency = 10
     if (device.connectionType === 'bluetooth') latency = 150
     else if (device.connectionType === 'usb') latency = 20
-    else if (device.connectionType === 'hdmi' || device.connectionType === 'displayport') latency = 30
+    else if (device.connectionType === 'hdmi' || device.connectionType === 'displayport')
+      latency = 30
 
     return { success: true, deviceInfo: device, latency }
   }
@@ -320,9 +316,10 @@ export class AudioPipelineService extends EventEmitter {
     if (process.platform !== 'darwin') return 'not-applicable'
 
     try {
-      const { systemPreferences } = require('electron')
+      const { systemPreferences } = require('electron') as typeof import('electron')
       return systemPreferences.getMediaAccessStatus('screen')
-    } catch {
+    } catch (err) {
+      log.debug('Device detection skipped', err)
       return 'unknown'
     }
   }
@@ -341,8 +338,20 @@ export class AudioPipelineService extends EventEmitter {
         'Right-click "Stereo Mix" → "Enable"',
         'Set as default recording device',
       ],
-      link: 'https://support.piyapi.com/stereo-mix',
+      link: 'https://support.bluearkive.com/stereo-mix',
     }
+  }
+
+  /**
+   * Reset service state. Used for test isolation.
+   */
+  reset(): void {
+    this.isCapturing = false
+    this.audioBuffer = []
+    this.currentMeetingId = null
+    this.segmentCounter = 0
+    this.deviceSwitchHistory = []
+    this.currentDevice = 'System Audio'
   }
 }
 
@@ -362,4 +371,12 @@ let instance: AudioPipelineService | null = null
 export function getAudioPipelineService(): AudioPipelineService {
   if (!instance) instance = new AudioPipelineService()
   return instance
+}
+
+/** Reset singleton — for test isolation */
+export function resetAudioPipelineService(): void {
+  if (instance) {
+    instance.reset()
+  }
+  instance = null
 }

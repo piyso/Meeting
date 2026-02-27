@@ -22,6 +22,8 @@ import * as ort from 'onnxruntime-node'
 import * as path from 'path'
 import * as fs from 'fs'
 import { app } from 'electron'
+import { Logger } from './Logger'
+const log = Logger.create('LocalEmbedding')
 
 export interface EmbeddingResult {
   embedding: number[]
@@ -34,7 +36,7 @@ export interface SearchResult {
   id: string
   score: number
   text: string
-  metadata?: Record<string, any>
+  metadata?: Record<string, unknown>
 }
 
 export class LocalEmbeddingService {
@@ -55,7 +57,7 @@ export class LocalEmbeddingService {
     const isDev = !app.isPackaged
     const basePath = isDev
       ? path.join(process.cwd(), 'resources', 'models')
-      : path.join(process.resourcesPath, 'models')
+      : path.join(app.getPath('userData'), 'models')
 
     this.modelPath = path.join(basePath, 'all-MiniLM-L6-v2.onnx')
     this.tokenizerPath = path.join(basePath, 'all-MiniLM-L6-v2-tokenizer.json')
@@ -97,19 +99,19 @@ export class LocalEmbeddingService {
       }
 
       // Load ONNX model
-      console.log('[LocalEmbeddingService] Loading ONNX model...')
+      log.info('[LocalEmbeddingService] Loading ONNX model...')
       this.session = await ort.InferenceSession.create(this.modelPath, {
         executionProviders: ['cpu'],
         graphOptimizationLevel: 'all',
       })
 
       // Parse tokenizer (not stored as class property since vocab is enough for simple tokenization)
-      console.log('[LocalEmbeddingService] Loading tokenizer...')
+      log.info('[LocalEmbeddingService] Loading tokenizer...')
       const tokenizerData = fs.readFileSync(this.tokenizerPath, 'utf-8')
       JSON.parse(tokenizerData)
 
       // Load vocabulary
-      console.log('[LocalEmbeddingService] Loading vocabulary...')
+      log.info('[LocalEmbeddingService] Loading vocabulary...')
       const vocabData = fs.readFileSync(this.vocabPath, 'utf-8')
       const vocabLines = vocabData.split('\n').filter(line => line.trim())
       vocabLines.forEach((token, index) => {
@@ -117,14 +119,14 @@ export class LocalEmbeddingService {
       })
 
       const loadTime = Date.now() - startTime
-      console.log(`[LocalEmbeddingService] Initialized in ${loadTime}ms`)
-      console.log(`[LocalEmbeddingService] Model: ${this.MODEL_NAME}`)
-      console.log(`[LocalEmbeddingService] Dimensions: ${this.EMBEDDING_DIMENSIONS}`)
-      console.log(`[LocalEmbeddingService] Vocabulary size: ${this.vocab.size}`)
+      log.info(`[LocalEmbeddingService] Initialized in ${loadTime}ms`)
+      log.info(`[LocalEmbeddingService] Model: ${this.MODEL_NAME}`)
+      log.info(`[LocalEmbeddingService] Dimensions: ${this.EMBEDDING_DIMENSIONS}`)
+      log.info(`[LocalEmbeddingService] Vocabulary size: ${this.vocab.size}`)
 
       this.isInitialized = true
     } catch (error) {
-      console.error('[LocalEmbeddingService] Initialization failed:', error)
+      log.error('[LocalEmbeddingService] Initialization failed:', error)
       throw error
     }
   }
@@ -140,19 +142,18 @@ export class LocalEmbeddingService {
     const startTime = Date.now()
 
     try {
-      // Tokenize text
-      const tokens = this.tokenize(text)
+      // Tokenize text using WordPiece
+      const { inputIds: tokenIds, attentionMask: mask } = this.tokenize(text)
 
       // Create input tensors
-      const inputIds = new ort.Tensor('int64', BigInt64Array.from(tokens.map(t => BigInt(t))), [
+      const inputIds = new ort.Tensor('int64', BigInt64Array.from(tokenIds.map(t => BigInt(t))), [
         1,
-        tokens.length,
+        tokenIds.length,
       ])
-      const attentionMask = new ort.Tensor(
-        'int64',
-        BigInt64Array.from(tokens.map(() => BigInt(1))),
-        [1, tokens.length]
-      )
+      const attentionMask = new ort.Tensor('int64', BigInt64Array.from(mask.map(m => BigInt(m))), [
+        1,
+        mask.length,
+      ])
 
       // Run inference
       const feeds = {
@@ -162,18 +163,18 @@ export class LocalEmbeddingService {
 
       const results = await this.session!.run(feeds)
       const output = results['last_hidden_state']
-      
+
       if (!output) {
         throw new Error('last_hidden_state missing from output')
       }
 
-      // Mean pooling
-      const embedding = this.meanPooling(output.data as Float32Array, tokens.length)
+      // Mean pooling (excludes padding tokens via attention mask)
+      const embedding = this.meanPooling(output.data as Float32Array, mask)
 
       // L2 normalization
       const normalizedEmbedding = this.normalize(embedding)
 
-      const generationTimeMs = Date.now() - startTime
+      const generationTimeMs = Math.max(1, Date.now() - startTime)
 
       return {
         embedding: normalizedEmbedding,
@@ -182,7 +183,7 @@ export class LocalEmbeddingService {
         generationTimeMs,
       }
     } catch (error) {
-      console.error('[LocalEmbeddingService] Embedding generation failed:', error)
+      log.error('[LocalEmbeddingService] Embedding generation failed:', error)
       throw error
     }
   }
@@ -233,7 +234,7 @@ export class LocalEmbeddingService {
       id: string
       text: string
       embedding?: number[]
-      metadata?: Record<string, any>
+      metadata?: Record<string, unknown>
     }>,
     topK: number = 10
   ): Promise<SearchResult[]> {
@@ -270,52 +271,102 @@ export class LocalEmbeddingService {
   }
 
   /**
-   * Tokenize text using vocabulary
+   * Tokenize text using WordPiece subword tokenization
+   * Properly splits unknown words into subword tokens (e.g., "unbelievable" → "un", "##believ", "##able")
    */
-  private tokenize(text: string): number[] {
-    // Simple whitespace tokenization + vocabulary lookup
-    // For production, use proper WordPiece tokenization
-    const tokens: number[] = []
+  private tokenize(text: string): { inputIds: number[]; attentionMask: number[] } {
+    const inputIds: number[] = []
+    const attentionMask: number[] = []
 
     // Add [CLS] token
-    tokens.push(this.vocab.get('[CLS]') || 101)
+    inputIds.push(this.vocab.get('[CLS]') || 101)
+    attentionMask.push(1)
 
-    // Tokenize text
-    const words = text.toLowerCase().split(/\s+/)
+    // Tokenize text using WordPiece
+    const words = text
+      .toLowerCase()
+      .replace(/[^\w\s]/g, ' ')
+      .split(/\s+/)
+      .filter(w => w.length > 0)
+
     for (const word of words) {
-      if (tokens.length >= this.MAX_SEQUENCE_LENGTH - 1) {
-        break
+      if (inputIds.length >= this.MAX_SEQUENCE_LENGTH - 1) break
+
+      // Try full word first
+      if (this.vocab.has(word)) {
+        inputIds.push(this.vocab.get(word)!)
+        attentionMask.push(1)
+        continue
       }
 
-      const tokenId = this.vocab.get(word) || this.vocab.get('[UNK]') || 100
-      tokens.push(tokenId)
+      // WordPiece: try to break into subwords
+      let remaining = word
+      let isFirst = true
+      while (remaining.length > 0 && inputIds.length < this.MAX_SEQUENCE_LENGTH - 1) {
+        let matched = false
+        for (let end = remaining.length; end > 0; end--) {
+          const subword = isFirst ? remaining.substring(0, end) : '##' + remaining.substring(0, end)
+          if (this.vocab.has(subword)) {
+            inputIds.push(this.vocab.get(subword)!)
+            attentionMask.push(1)
+            remaining = remaining.substring(end)
+            isFirst = false
+            matched = true
+            break
+          }
+        }
+        if (!matched) {
+          // Fall back to [UNK] for unrecognized character sequences
+          inputIds.push(this.vocab.get('[UNK]') || 100)
+          attentionMask.push(1)
+          break
+        }
+      }
     }
 
     // Add [SEP] token
-    tokens.push(this.vocab.get('[SEP]') || 102)
+    inputIds.push(this.vocab.get('[SEP]') || 102)
+    attentionMask.push(1)
 
-    // Pad to max length
-    while (tokens.length < this.MAX_SEQUENCE_LENGTH) {
-      tokens.push(0) // [PAD] token
+    // Pad to max length (padding tokens get attention mask = 0)
+    while (inputIds.length < this.MAX_SEQUENCE_LENGTH) {
+      inputIds.push(0) // [PAD] token
+      attentionMask.push(0) // Exclude from attention
     }
 
-    return tokens.slice(0, this.MAX_SEQUENCE_LENGTH)
+    return {
+      inputIds: inputIds.slice(0, this.MAX_SEQUENCE_LENGTH),
+      attentionMask: attentionMask.slice(0, this.MAX_SEQUENCE_LENGTH),
+    }
   }
 
   /**
-   * Mean pooling over token embeddings
+   * Mean pooling over token embeddings (excludes padding tokens)
    */
-  private meanPooling(data: Float32Array, seqLength: number): number[] {
+  private meanPooling(data: Float32Array, attentionMask: number[]): number[] {
     const embedding = new Array(this.EMBEDDING_DIMENSIONS).fill(0)
 
-    for (let i = 0; i < seqLength; i++) {
+    // Count only non-padding tokens for averaging
+    let activeTokenCount = 0
+    const maxTokens = Math.min(
+      attentionMask.length,
+      Math.floor(data.length / this.EMBEDDING_DIMENSIONS)
+    )
+
+    for (let i = 0; i < maxTokens; i++) {
+      if (attentionMask[i] !== 1) continue // Skip padding
+      activeTokenCount++
       for (let j = 0; j < this.EMBEDDING_DIMENSIONS; j++) {
-        embedding[j] += data[i * this.EMBEDDING_DIMENSIONS + j]
+        const val = data[i * this.EMBEDDING_DIMENSIONS + j]
+        if (val !== undefined && !isNaN(val)) {
+          embedding[j] += val
+        }
       }
     }
 
+    const divisor = activeTokenCount > 0 ? activeTokenCount : 1
     for (let j = 0; j < this.EMBEDDING_DIMENSIONS; j++) {
-      embedding[j] /= seqLength
+      embedding[j] /= divisor
     }
 
     return embedding

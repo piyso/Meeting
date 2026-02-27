@@ -10,6 +10,8 @@ import { app } from 'electron'
 import path from 'path'
 import fs from 'fs'
 import { INITIALIZE_SCHEMA, SCHEMA_VERSION } from './schema'
+import { Logger } from '../services/Logger'
+const log = Logger.create('Database')
 
 let db: Database.Database | null = null
 
@@ -37,7 +39,7 @@ export function getDatabasePath(): string {
     fs.mkdirSync(dbDir, { recursive: true })
   }
 
-  return path.join(dbDir, 'piyapi-notes.db')
+  return path.join(dbDir, 'bluearkive.db')
 }
 
 /**
@@ -50,7 +52,7 @@ export function initializeDatabase(config?: Partial<DatabaseConfig>): Database.D
 
   const dbPath = config?.filename || getDatabasePath()
 
-  console.log(`Initializing database at: ${dbPath}`)
+  log.info(`Initializing database at: ${dbPath}`)
 
   // Create database connection
   db = new Database(dbPath, {
@@ -64,6 +66,9 @@ export function initializeDatabase(config?: Partial<DatabaseConfig>): Database.D
   db.pragma('journal_mode = WAL')
 
   // Performance optimizations
+  // NOTE: synchronous=NORMAL with WAL can lose the last transaction on power failure.
+  // This is an acceptable tradeoff for desktop recording performance.
+  // If strict HIPAA durability is required, change to synchronous=FULL.
   db.pragma('synchronous = NORMAL') // Balanced safety/speed
   db.pragma('cache_size = -64000') // 64MB cache
   db.pragma('temp_store = MEMORY') // Store temp tables in memory
@@ -76,7 +81,7 @@ export function initializeDatabase(config?: Partial<DatabaseConfig>): Database.D
   // Initialize schema
   initializeSchema(db)
 
-  console.log('Database initialized successfully')
+  log.info('Database initialized successfully')
 
   return db
 }
@@ -108,7 +113,7 @@ function initializeSchema(database: Database.Database): void {
   const version = currentVersion?.version || 0
 
   if (version < SCHEMA_VERSION) {
-    console.log(`Applying schema version ${SCHEMA_VERSION}...`)
+    log.info(`Applying schema version ${SCHEMA_VERSION}...`)
 
     // Execute schema initialization
     database.exec(INITIALIZE_SCHEMA)
@@ -116,9 +121,9 @@ function initializeSchema(database: Database.Database): void {
     // Update schema version
     database.prepare('INSERT INTO schema_version (version) VALUES (?)').run(SCHEMA_VERSION)
 
-    console.log(`Schema version ${SCHEMA_VERSION} applied successfully`)
+    log.info(`Schema version ${SCHEMA_VERSION} applied successfully`)
   } else {
-    console.log(`Schema is up to date (version ${version})`)
+    log.info(`Schema is up to date (version ${version})`)
   }
 }
 
@@ -138,10 +143,10 @@ export function getDatabase(): Database.Database {
  */
 export function closeDatabase(): void {
   if (db) {
-    console.log('Closing database connection...')
+    log.info('Closing database connection...')
     db.close()
     db = null
-    console.log('Database connection closed')
+    log.info('Database connection closed')
   }
 }
 
@@ -195,7 +200,7 @@ export function checkDatabaseHealth(): {
 export function optimizeDatabase(): void {
   const database = getDatabase()
 
-  console.log('Optimizing database...')
+  log.info('Optimizing database...')
 
   // ANALYZE updates query planner statistics
   database.exec('ANALYZE')
@@ -206,11 +211,11 @@ export function optimizeDatabase(): void {
 
   // Only vacuum if more than 10% of pages are free
   if (freelistCount > pageCount * 0.1) {
-    console.log('Running VACUUM to reclaim space...')
+    log.info('Running VACUUM to reclaim space...')
     database.exec('VACUUM')
   }
 
-  console.log('Database optimization complete')
+  log.info('Database optimization complete')
 }
 
 /**
@@ -222,9 +227,9 @@ export function walCheckpoint(mode: 'TRUNCATE' | 'PASSIVE' = 'TRUNCATE'): void {
   const database = getDatabase()
   try {
     database.pragma(`wal_checkpoint(${mode})`)
-    console.log(`[DB] WAL checkpoint (${mode}) completed`)
+    log.info(`[DB] WAL checkpoint (${mode}) completed`)
   } catch (error) {
-    console.warn(`[DB] WAL checkpoint (${mode}) failed:`, error)
+    log.warn(`[DB] WAL checkpoint (${mode}) failed:`, error)
   }
 }
 
@@ -238,9 +243,7 @@ export async function walHealthCheck(dbPath: string): Promise<void> {
   try {
     const walSize = (await fs.stat(dbPath + '-wal')).size
     if (walSize > 500 * 1024 * 1024) {
-      console.warn(
-        `[DB] WAL file is ${(walSize / 1024 / 1024).toFixed(0)}MB — forcing checkpoint`
-      )
+      log.warn(`[DB] WAL file is ${(walSize / 1024 / 1024).toFixed(0)}MB — forcing checkpoint`)
       walCheckpoint('PASSIVE')
     }
   } catch {
@@ -254,7 +257,7 @@ export async function walHealthCheck(dbPath: string): Promise<void> {
 export function backupDatabase(backupPath: string): void {
   const database = getDatabase()
 
-  console.log(`Backing up database to: ${backupPath}`)
+  log.info(`Backing up database to: ${backupPath}`)
 
   // Ensure backup directory exists
   const backupDir = path.dirname(backupPath)
@@ -265,5 +268,5 @@ export function backupDatabase(backupPath: string): void {
   // Use SQLite backup API
   database.backup(backupPath)
 
-  console.log('Database backup complete')
+  log.info('Database backup complete')
 }

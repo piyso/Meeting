@@ -12,8 +12,11 @@
  * This is a CRITICAL step that CANNOT be skipped.
  */
 
-import React, { useState } from 'react'
+import React, { useState, useRef, useEffect } from 'react'
 import './RecoveryKeyExport.css'
+
+import { rendererLog } from '../utils/logger'
+const log = rendererLog.create('RecoveryExport')
 
 export interface RecoveryKeyExportProps {
   recoveryPhrase: string[] // 24 words
@@ -29,15 +32,24 @@ export const RecoveryKeyExport: React.FC<RecoveryKeyExportProps> = ({
   const [hasConfirmed, setHasConfirmed] = useState(false)
   const [copied, setCopied] = useState(false)
   const [saved, setSaved] = useState(false)
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  // Cleanup timer on unmount
+  useEffect(() => {
+    return () => {
+      if (timerRef.current) clearTimeout(timerRef.current)
+    }
+  }, [])
 
   const handleCopyToClipboard = async () => {
     const phrase = recoveryPhrase.join(' ')
     try {
       await navigator.clipboard.writeText(phrase)
       setCopied(true)
-      setTimeout(() => setCopied(false), 3000)
+      if (timerRef.current) clearTimeout(timerRef.current)
+      timerRef.current = setTimeout(() => setCopied(false), 3000)
     } catch (error) {
-      console.error('Failed to copy to clipboard:', error)
+      log.error('Failed to copy to clipboard:', error)
       alert('Failed to copy to clipboard. Please copy manually.')
     }
   }
@@ -45,9 +57,9 @@ export const RecoveryKeyExport: React.FC<RecoveryKeyExportProps> = ({
   const handleSaveAsFile = () => {
     const phrase = recoveryPhrase.join(' ')
     const timestamp = new Date().toISOString().replace(/[:.]/g, '-')
-    const filename = `piyapi-notes-recovery-key-${timestamp}.txt`
+    const filename = `bluearkive-recovery-key-${timestamp}.txt`
 
-    const content = `PiyAPI Notes Recovery Key
+    const content = `BlueArkive Recovery Key
 Generated: ${new Date().toISOString()}
 User ID: ${userId}
 
@@ -64,7 +76,7 @@ Instructions:
 4. Do not store this key digitally (email, cloud storage, etc.)
 
 To recover your account:
-1. Open PiyAPI Notes
+1. Open BlueArkive
 2. Click "Forgot Password"
 3. Enter this 24-word recovery key
 4. Set a new password

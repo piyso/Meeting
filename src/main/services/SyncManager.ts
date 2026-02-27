@@ -20,6 +20,7 @@ import { v4 as uuidv4 } from 'uuid'
 import { EncryptionService } from './EncryptionService'
 import { PiyAPIBackend } from './backend/PiyAPIBackend'
 import { KeyStorageService } from './KeyStorageService'
+import { Logger } from './Logger'
 import { config } from '../config/environment'
 import type { Memory } from './backend/IBackendProvider'
 import {
@@ -102,6 +103,7 @@ export class SyncManager {
   private syncInterval: NodeJS.Timeout | null = null
   private isSyncing: boolean = false
   private cachedPlanTier: string | null = null
+  private log = Logger.create('SyncManager')
 
   constructor(backend?: PiyAPIBackend) {
     this.backend = backend || new PiyAPIBackend()
@@ -130,11 +132,12 @@ export class SyncManager {
     try {
       const tier = await KeyStorageService.getPlanTier(userId)
       this.cachedPlanTier = tier || 'free'
-    } catch {
+    } catch (err) {
+      this.log.debug('Plan tier lookup failed, defaulting to free', err)
       this.cachedPlanTier = 'free'
     }
 
-    console.log(`[SyncManager] Initialized for user: ${userId}`)
+    this.log.info(`Initialized for user: ${userId}`)
   }
 
   /**
@@ -143,21 +146,21 @@ export class SyncManager {
    */
   public startAutoSync(): void {
     if (this.syncInterval) {
-      console.log('[SyncManager] Auto-sync already running')
+      this.log.debug('Auto-sync already running')
       return
     }
 
-    console.log('[SyncManager] Starting auto-sync (every 30 seconds)')
+    this.log.info('Starting auto-sync (every 30 seconds)')
 
     // Sync immediately on start
     this.syncPendingEvents().catch(error => {
-      console.error('[SyncManager] Initial sync failed:', error)
+      this.log.error('Initial sync failed:', error)
     })
 
     // Then sync every 30 seconds
     this.syncInterval = setInterval(() => {
       this.syncPendingEvents().catch(error => {
-        console.error('[SyncManager] Auto-sync failed:', error)
+        this.log.error('Auto-sync failed:', error)
       })
     }, 30000)
   }
@@ -169,7 +172,7 @@ export class SyncManager {
     if (this.syncInterval) {
       clearInterval(this.syncInterval)
       this.syncInterval = null
-      console.log('[SyncManager] Auto-sync stopped')
+      this.log.info('Auto-sync stopped')
     }
   }
 
@@ -202,7 +205,7 @@ export class SyncManager {
     }
 
     createSyncQueueItem(event)
-    console.log(`[SyncManager] Queued ${operation} event for ${table}:${recordId}`)
+    this.log.debug(`Queued ${operation} event for ${table}:${recordId}`)
   }
 
   /**
@@ -218,12 +221,12 @@ export class SyncManager {
    */
   public async syncPendingEvents(): Promise<SyncResult> {
     if (this.isSyncing) {
-      console.log('[SyncManager] Sync already in progress, skipping')
+      this.log.debug('Sync already in progress, skipping')
       return { success: true, syncedCount: 0, failedCount: 0, errors: [] }
     }
 
     if (!this.userId || !this.password) {
-      console.log('[SyncManager] Not initialized, skipping sync')
+      this.log.debug('Not initialized, skipping sync')
       return { success: false, syncedCount: 0, failedCount: 0, errors: ['Not initialized'] }
     }
 
@@ -234,11 +237,11 @@ export class SyncManager {
       const pendingEvents = getPendingSyncItems(MAX_BATCH_SIZE)
 
       if (pendingEvents.length === 0) {
-        console.log('[SyncManager] No pending events to sync')
+        this.log.debug('No pending events to sync')
         return { success: true, syncedCount: 0, failedCount: 0, errors: [] }
       }
 
-      console.log(`[SyncManager] Syncing ${pendingEvents.length} pending events`)
+      this.log.info(`Syncing ${pendingEvents.length} pending events`)
 
       const syncedIds: string[] = []
       const errors: string[] = []
@@ -256,32 +259,23 @@ export class SyncManager {
           for (const chunkPayload of chunkedPayloads) {
             // Generate local embeddings BEFORE encryption (Encrypted Search Paradox fix)
             const plaintextContent =
-              (chunkPayload as any).text ||
-              (chunkPayload as any).content ||
-              (chunkPayload as any).original_text ||
+              (typeof chunkPayload.text === 'string' ? chunkPayload.text : '') ||
+              (typeof chunkPayload.content === 'string' ? chunkPayload.content : '') ||
+              (typeof chunkPayload.original_text === 'string' ? chunkPayload.original_text : '') ||
               ''
             let embeddingData: number[] | undefined
-            if (
-              typeof plaintextContent === 'string' &&
-              plaintextContent.length > 0
-            ) {
+            if (typeof plaintextContent === 'string' && plaintextContent.length > 0) {
               try {
-                const { getLocalEmbeddingService } = await import(
-                  './LocalEmbeddingService'
-                )
-                const embeddingResult =
-                  await getLocalEmbeddingService().embed(plaintextContent)
+                const { getLocalEmbeddingService } = await import('./LocalEmbeddingService')
+                const embeddingResult = await getLocalEmbeddingService().embed(plaintextContent)
                 embeddingData = embeddingResult.embedding
               } catch (error) {
-                console.warn(
-                  '[SyncManager] Local embedding failed, continuing without:',
-                  error
-                )
+                this.log.warn('Local embedding failed, continuing without:', error)
               }
             }
 
             // Task 30.4: Encrypt payload before upload
-            const encryptedPayload = EncryptionService.encrypt(
+            const encryptedPayload = await EncryptionService.encrypt(
               JSON.stringify(chunkPayload),
               this.password!
             )
@@ -318,29 +312,53 @@ export class SyncManager {
             }
           }
 
-          // Task 30.6: Mark synced_at on success
-          this.markSynced(event.table_name, event.record_id)
+          // Task 30.6: Mark synced_at on success (atomic with queue deletion)
+          this.markSyncedAtomic(event.table_name, event.record_id, event.id)
 
-          syncedIds.push(event.id)
-          console.log(
-            `[SyncManager] Synced ${event.operation_type} ${event.table_name}:${event.record_id}`
-          )
-        } catch (error: any) {
-          // Task 30.7: Implement exponential backoff with infinite retries
+          this.log.info(`Synced ${event.operation_type} ${event.table_name}:${event.record_id}`)
+        } catch (error: unknown) {
+          const errorMsg = error instanceof Error ? error.message : String(error)
+          const statusCode =
+            ((error as Record<string, unknown>)?.status as number) ||
+            ((error as Record<string, unknown>)?.statusCode as number) ||
+            0
+
+          // Classify error: permanent (4xx / serialization) vs retryable (network / 5xx)
+          const isPermanent =
+            (statusCode >= 400 && statusCode < 500) ||
+            errorMsg.includes('JSON') ||
+            errorMsg.includes('Invalid') ||
+            errorMsg.includes('Forbidden')
+
+          if (isPermanent) {
+            // Dead-letter: log and remove from queue to stop infinite retries
+            this.log.error(
+              `Permanent sync failure for event ${event.id} — removing from queue:`,
+              errorMsg
+            )
+            try {
+              deleteSyncQueueItems([event.id])
+            } catch {
+              /* best effort */
+            }
+            continue
+          }
+
+          // Retryable error: exponential backoff
           const retryDelay = this.getBackoffDelay(event.retry_count)
-          console.error(
-            `[SyncManager] Failed to sync event ${event.id} (retry ${event.retry_count}):`,
-            (error as Error).message
+          this.log.error(
+            `Retryable sync failure for event ${event.id} (retry ${event.retry_count}):`,
+            errorMsg
           )
-          console.log(`[SyncManager] Will retry in ${retryDelay / 1000}s`)
+          this.log.info(`Will retry in ${retryDelay / 1000}s`)
 
           incrementSyncRetry(event.id)
-          errors.push(`${event.table_name}:${event.record_id} - ${(error as Error).message}`)
+          errors.push(`${event.table_name}:${event.record_id} - ${errorMsg}`)
 
           // Schedule retry with exponential backoff
           setTimeout(() => {
             this.syncPendingEvents().catch(err => {
-              console.error('[SyncManager] Retry sync failed:', err)
+              this.log.error('Retry sync failed:', err)
             })
           }, retryDelay)
         }
@@ -349,7 +367,7 @@ export class SyncManager {
       // Delete successfully synced events from queue
       if (syncedIds.length > 0) {
         deleteSyncQueueItems(syncedIds)
-        console.log(`[SyncManager] Deleted ${syncedIds.length} synced events from queue`)
+        this.log.debug(`Deleted ${syncedIds.length} synced events from queue`)
       }
 
       return {
@@ -377,7 +395,7 @@ export class SyncManager {
     maxAttempts: number = 10,
     intervalMs: number = 1000
   ): Promise<EmbeddingStatus> {
-    console.log(`[SyncManager] Polling embedding status for memory: ${memoryId}`)
+    this.log.debug(`Polling embedding status for memory: ${memoryId}`)
 
     for (let attempt = 0; attempt < maxAttempts; attempt++) {
       try {
@@ -386,13 +404,13 @@ export class SyncManager {
         const memory = memories.find(m => m.id === memoryId)
 
         if (!memory) {
-          console.error(`[SyncManager] Memory not found: ${memoryId}`)
+          this.log.error(`Memory not found: ${memoryId}`)
           return 'failed'
         }
 
         const embeddingStatus = (memory.metadata?.embedding_status as EmbeddingStatus) || 'pending'
 
-        console.log(`[SyncManager] Embedding status (attempt ${attempt + 1}): ${embeddingStatus}`)
+        this.log.debug(`Embedding status (attempt ${attempt + 1}): ${embeddingStatus}`)
 
         if (embeddingStatus === 'ready' || embeddingStatus === 'failed') {
           return embeddingStatus
@@ -401,12 +419,12 @@ export class SyncManager {
         // Wait before next poll
         await new Promise(resolve => setTimeout(resolve, intervalMs))
       } catch (error) {
-        console.error(`[SyncManager] Error polling embedding status:`, (error as Error).message)
+        this.log.error('Error polling embedding status:', (error as Error).message)
         return 'failed'
       }
     }
 
-    console.warn(`[SyncManager] Embedding status polling timed out after ${maxAttempts} attempts`)
+    this.log.warn(`Embedding status polling timed out after ${maxAttempts} attempts`)
     return 'pending'
   }
 
@@ -446,25 +464,43 @@ export class SyncManager {
   }
 
   /**
-   * Mark record as synced in database
+   * Mark record as synced in database AND delete queue item atomically
    * Task 30.6: Mark synced_at on success
    *
-   * @param table - Table name
+   * Runs both operations in a single SQLite transaction to prevent
+   * duplicate uploads if the app crashes between them.
+   *
+   * @param table - Table name (re-validated against ALLOWED_TABLES)
    * @param recordId - Record ID
+   * @param queueItemId - Sync queue item ID to delete
    */
-  private markSynced(table: string, recordId: string): void {
+  private markSyncedAtomic(table: string, recordId: string, queueItemId: string): void {
     const db = getDatabase()
     const now = Math.floor(Date.now() / 1000)
 
+    // Re-validate table against whitelist to prevent SQL injection
+    // even when called independently from queueEvent
+    if (!ALLOWED_TABLES.includes(table as (typeof ALLOWED_TABLES)[number])) {
+      this.log.error(`markSyncedAtomic: Blocked invalid table "${table}"`)
+      return
+    }
+
     try {
-      const stmt = db.prepare(`
-        UPDATE ${table}
-        SET synced_at = ?
-        WHERE id = ?
-      `)
-      stmt.run(now, recordId)
+      const txn = db.transaction(() => {
+        // 1. Mark the source record as synced
+        const stmt = db.prepare(`
+          UPDATE ${table}
+          SET synced_at = ?
+          WHERE id = ?
+        `)
+        stmt.run(now, recordId)
+
+        // 2. Remove from sync queue
+        db.prepare('DELETE FROM sync_queue WHERE id = ?').run(queueItemId)
+      })
+      txn()
     } catch (error) {
-      console.error(`[SyncManager] Failed to mark ${table}:${recordId} as synced:`, (error as Error).message)
+      this.log.error(`Failed atomic markSynced for ${table}:${recordId}:`, (error as Error).message)
     }
   }
 
@@ -478,22 +514,23 @@ export class SyncManager {
     while (Date.now() - start < maxWaitMs) {
       try {
         // Access token from backend internal state
-        const token = (this.backend as any).accessToken
+        const token = this.backend.getAccessToken?.()
         if (!token) return false
         const res = await fetch(
-          `${(this.backend as any).baseUrl || config.PIYAPI_BASE_URL}/api/v1/memories/${memoryId}`,
+          `${this.backend.getBaseUrl?.() || config.PIYAPI_BASE_URL}/api/v1/memories/${memoryId}`,
           { headers: { Authorization: `Bearer ${token}` } }
         )
         if (res.ok) {
           const memory = await res.json()
           if (memory?.embedding_status === 'ready') return true
         }
-      } catch {
+      } catch (err) {
+        this.log.debug('Embedding poll failed', err)
         return false
       }
-      await new Promise((resolve) => setTimeout(resolve, 1000))
+      await new Promise(resolve => setTimeout(resolve, 1000))
     }
-    console.warn(`[SyncManager] Embedding timeout for memory ${memoryId}`)
+    this.log.warn(`Embedding timeout for memory ${memoryId}`)
     return false
   }
 
@@ -525,8 +562,8 @@ export class SyncManager {
       return [payload]
     }
 
-    console.log(
-      `[SyncManager] Content exceeds ${planTier} plan limit (${contentLength} > ${sizeLimit}), chunking...`
+    this.log.info(
+      `Content exceeds ${planTier} plan limit (${contentLength} > ${sizeLimit}), chunking...`
     )
 
     // Chunk content into multiple payloads
@@ -550,7 +587,7 @@ export class SyncManager {
       })
     }
 
-    console.log(`[SyncManager] Split content into ${numChunks} chunks`)
+    this.log.debug(`Split content into ${numChunks} chunks`)
     return chunks
   }
 
@@ -571,7 +608,8 @@ export class SyncManager {
         return this.cachedPlanTier as keyof typeof CONTENT_SIZE_LIMITS
       }
       return 'free'
-    } catch {
+    } catch (err) {
+      this.log.debug('getPlanTier fallback to free', err)
       return 'free'
     }
   }

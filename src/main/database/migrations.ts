@@ -6,6 +6,9 @@
  */
 
 import Database from 'better-sqlite3'
+import { Logger } from '../services/Logger'
+
+const log = Logger.create('Migrations')
 
 /**
  * Migration definition
@@ -68,7 +71,7 @@ export function getPendingMigrations(db: Database.Database): Migration[] {
  * Apply a single migration
  */
 export function applyMigration(db: Database.Database, migration: Migration): void {
-  console.log(`Applying migration ${migration.version}: ${migration.name}`)
+  log.info(`Applying migration ${migration.version}: ${migration.name}`)
 
   const applyMigrationTxn = db.transaction(() => {
     // Execute migration SQL
@@ -79,30 +82,44 @@ export function applyMigration(db: Database.Database, migration: Migration): voi
     // Record migration in schema_version table
     db.prepare('INSERT INTO schema_version (version) VALUES (?)').run(migration.version)
 
-    console.log(`Migration ${migration.version} applied successfully`)
+    log.info(`Migration ${migration.version} applied successfully`)
   })
 
   applyMigrationTxn()
 }
 
 /**
- * Apply all pending migrations
+ * Apply all pending migrations (with automatic backup)
  */
 export function applyPendingMigrations(db: Database.Database): void {
   const pending = getPendingMigrations(db)
 
   if (pending.length === 0) {
-    console.log('No pending migrations')
+    log.info('No pending migrations')
     return
   }
 
-  console.log(`Applying ${pending.length} pending migration(s)...`)
+  // Safety: backup before schema changes
+  try {
+    const path = require('path')
+    const { app } = require('electron')
+    const userDataPath = app.getPath('userData')
+    const timestamp = new Date().toISOString().replace(/[:.]/g, '-')
+    const backupPath = path.join(userDataPath, 'backups', `pre-migration-${timestamp}.db`)
+    const { backupDatabase } = require('./connection')
+    backupDatabase(backupPath)
+    log.info(`Pre-migration backup created: ${backupPath}`)
+  } catch (err) {
+    log.warn('Pre-migration backup failed — proceeding with migration anyway', err)
+  }
+
+  log.info(`Applying ${pending.length} pending migration(s)...`)
 
   for (const migration of pending) {
     applyMigration(db, migration)
   }
 
-  console.log('All migrations applied successfully')
+  log.info('All migrations applied successfully')
 }
 
 /**
@@ -119,7 +136,7 @@ export function rollbackMigration(db: Database.Database, version: number): void 
     throw new Error(`Migration ${version} does not have a rollback defined`)
   }
 
-  console.log(`Rolling back migration ${version}: ${migration.name}`)
+  log.info(`Rolling back migration ${version}: ${migration.name}`)
 
   const rollbackTxn = db.transaction(() => {
     // Execute rollback SQL
@@ -128,7 +145,7 @@ export function rollbackMigration(db: Database.Database, version: number): void 
     // Remove migration record
     db.prepare('DELETE FROM schema_version WHERE version = ?').run(version)
 
-    console.log(`Migration ${version} rolled back successfully`)
+    log.info(`Migration ${version} rolled back successfully`)
   })
 
   rollbackTxn()
@@ -207,16 +224,16 @@ export function resetToVersion(db: Database.Database, targetVersion: number): vo
   }
 
   if (targetVersion === currentVersion) {
-    console.log(`Already at version ${targetVersion}`)
+    log.info(`Already at version ${targetVersion}`)
     return
   }
 
-  console.log(`Resetting database from version ${currentVersion} to ${targetVersion}...`)
+  log.info(`Resetting database from version ${currentVersion} to ${targetVersion}...`)
 
   // Rollback migrations in reverse order
   for (let v = currentVersion; v > targetVersion; v--) {
     rollbackMigration(db, v)
   }
 
-  console.log(`Database reset to version ${targetVersion}`)
+  log.info(`Database reset to version ${targetVersion}`)
 }

@@ -68,26 +68,26 @@ describe('TranscriptService', () => {
     })
 
     it('should emit transcript event when saving', () => {
-      return new Promise<void>((resolve) => {
+      return new Promise<void>(resolve => {
         const segment = {
-        text: 'Test transcript for event emission.',
-        start: 0.0,
-        end: 2.0,
-        confidence: 0.9,
-      }
+          text: 'Test transcript for event emission.',
+          start: 0.0,
+          end: 2.0,
+          confidence: 0.9,
+        }
 
-      service.once('transcript', event => {
-        expect(event.meetingId).toBe(testMeetingId)
-        expect(event.text).toBe(segment.text)
-        expect(event.startTime).toBe(segment.start)
-        expect(event.endTime).toBe(segment.end)
-        resolve()
-      })
+        service.once('transcript', event => {
+          expect(event.meetingId).toBe(testMeetingId)
+          expect(event.text).toBe(segment.text)
+          expect(event.startTime).toBe(segment.start)
+          expect(event.endTime).toBe(segment.end)
+          resolve()
+        })
 
-      service.saveTranscript({
-        meetingId: testMeetingId,
-        segment,
-      })
+        service.saveTranscript({
+          meetingId: testMeetingId,
+          segment,
+        })
       })
     })
 

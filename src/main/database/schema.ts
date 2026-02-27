@@ -1,5 +1,5 @@
 /**
- * Database Schema for PiyAPI Notes
+ * Database Schema for BlueArkive
  *
  * This file contains all SQL schema definitions for the SQLite database.
  * Includes tables, indexes, FTS5 full-text search, and triggers.
@@ -37,6 +37,7 @@ CREATE TABLE IF NOT EXISTS transcripts (
   speaker_id TEXT,
   speaker_name TEXT,
   words TEXT,
+  embedding TEXT,
   created_at INTEGER DEFAULT (strftime('%s', 'now')),
   synced_at INTEGER DEFAULT 0,
   FOREIGN KEY (meeting_id) REFERENCES meetings(id) ON DELETE CASCADE
@@ -146,6 +147,7 @@ export const CREATE_INDEXES = `
 -- Transcripts indexes
 CREATE INDEX IF NOT EXISTS idx_transcripts_meeting ON transcripts(meeting_id);
 CREATE INDEX IF NOT EXISTS idx_transcripts_time ON transcripts(meeting_id, start_time);
+CREATE INDEX IF NOT EXISTS idx_transcripts_embedding ON transcripts(id) WHERE embedding IS NOT NULL;
 
 -- Notes indexes
 CREATE INDEX IF NOT EXISTS idx_notes_meeting ON notes(meeting_id);

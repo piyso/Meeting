@@ -10,15 +10,19 @@ interface MiniWidgetProps {
 }
 
 export const MiniWidget: React.FC<MiniWidgetProps> = ({
-  isRecording, elapsedTime, lastTranscriptLine, onRestore, onStop
+  isRecording,
+  elapsedTime,
+  lastTranscriptLine,
+  onRestore,
+  onStop,
 }) => {
   // Phase 1 implementation visualizes this inside the app shell
   // Phase 2 will port this to an isolated Electron BrowserWindow
-  
+
   return (
-    <div 
-      className="fixed bottom-8 right-8 w-[280px] h-[72px] surface-glass-premium rounded-[var(--radius-full)] px-[var(--space-16)] py-[var(--space-12)] shadow-2xl z-[9999] opacity-90 hover:opacity-100 transition-opacity cursor-pointer flex flex-col justify-center border border-[var(--color-border-subtle)]"
-      onClick={(e) => {
+    <div
+      className="fixed bottom-0 right-0 w-[280px] h-[72px] rounded-[var(--radius-xl)] px-[var(--space-16)] py-[var(--space-12)] flex flex-col justify-center widget-draggable"
+      onClick={e => {
         // Prevent restore if clicking stop button
         if (!(e.target as HTMLElement).closest('button')) onRestore()
       }}
@@ -31,37 +35,45 @@ export const MiniWidget: React.FC<MiniWidgetProps> = ({
           ) : (
             <div className="w-2 h-2 rounded-full bg-[var(--color-emerald)]" />
           )}
-          <span className={`text-[10px] font-bold tracking-widest uppercase ${isRecording ? 'text-[var(--color-rose)]' : 'text-[var(--color-emerald)]'}`}>
+          <span
+            className={`text-[10px] font-bold tracking-widest uppercase ${isRecording ? 'text-[var(--color-rose)]' : 'text-[var(--color-emerald)]'}`}
+          >
             {isRecording ? 'Rec' : 'Idle'}
           </span>
           <span className="font-mono text-[var(--text-sm)] text-[var(--color-text-primary)] ml-1">
             {elapsedTime}
           </span>
         </div>
-        
+
         <div className="flex gap-1">
           {isRecording && (
-            <button 
-              onClick={(e) => { e.stopPropagation(); onStop(); }}
-              className="w-[22px] h-[22px] rounded bg-[var(--color-rose)] flex items-center justify-center text-[#000] hover:bg-white transition-colors drag-cancel"
+            <button
+              onClick={e => {
+                e.stopPropagation()
+                onStop()
+              }}
+              className="w-[22px] h-[22px] rounded bg-[var(--color-rose)] flex items-center justify-center text-[#000] hover:bg-white transition-colors widget-nodrag"
             >
               <Square size={10} fill="currentColor" />
             </button>
           )}
-          <button 
-            onClick={(e) => { e.stopPropagation(); onRestore(); }}
-            className="w-[22px] h-[22px] rounded bg-[rgba(255,255,255,0.1)] flex items-center justify-center text-[var(--color-text-secondary)] hover:text-white transition-colors transform rotate-90 drag-cancel"
+          <button
+            onClick={e => {
+              e.stopPropagation()
+              onRestore()
+            }}
+            className="w-[22px] h-[22px] rounded bg-[rgba(255,255,255,0.1)] flex items-center justify-center text-[var(--color-text-secondary)] hover:text-white transition-colors transform rotate-90 widget-nodrag"
             title="Restore Window"
           >
             <Maximize2 size={12} />
           </button>
         </div>
       </div>
-      
+
       {/* Row 2: Transcript Preview */}
       <div className="truncate text-[var(--text-xs)] text-[var(--color-text-secondary)]">
         <span className="text-[var(--color-violet)] font-medium">Alex: </span>
-        {lastTranscriptLine || "Waiting for speech..."}
+        {lastTranscriptLine || 'Waiting for speech...'}
       </div>
     </div>
   )

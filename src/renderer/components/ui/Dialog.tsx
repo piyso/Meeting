@@ -27,18 +27,20 @@ export const Dialog: React.FC<DialogProps> = ({ open, onClose, title, children, 
 
   return createPortal(
     <div className="ui-dialog-overlay" onClick={onClose}>
-      <div 
-        className="ui-dialog-content surface-glass-premium slide-up" 
-        style={{ width }} 
-        onClick={(e) => e.stopPropagation()}
+      <div
+        className="ui-dialog-content surface-glass-premium slide-up"
+        style={{ width }}
+        onClick={e => e.stopPropagation()}
         role="dialog"
         aria-modal="true"
         aria-labelledby={title ? titleId : undefined}
       >
-        {title && <div className="ui-dialog-header"><h2 id={titleId}>{title}</h2></div>}
-        <div className="ui-dialog-body">
-          {children}
-        </div>
+        {title && (
+          <div className="ui-dialog-header">
+            <h2 id={titleId}>{title}</h2>
+          </div>
+        )}
+        <div className="ui-dialog-body">{children}</div>
       </div>
     </div>,
     document.body

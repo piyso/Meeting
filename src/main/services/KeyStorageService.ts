@@ -6,15 +6,60 @@
  * - macOS: Keychain
  * - Linux: Secret Service API (libsecret)
  *
- * Uses keytar library for cross-platform keychain access.
+ * Uses keytar library for cross-platform keychain access (lazy-loaded).
+ * Falls back to in-memory storage if keytar is unavailable (dev/arch mismatch).
  */
 
-import keytar from 'keytar'
+import { Logger } from './Logger'
+const log = Logger.create('KeyStorage')
+
+// In-memory fallback when keytar native module is unavailable
+const memoryStore = new Map<string, Map<string, string>>()
+
+const memoryFallback = {
+  async setPassword(service: string, account: string, password: string) {
+    if (!memoryStore.has(service)) memoryStore.set(service, new Map())
+    memoryStore.get(service)?.set(account, password)
+  },
+  async getPassword(service: string, account: string) {
+    return memoryStore.get(service)?.get(account) ?? null
+  },
+  async deletePassword(service: string, account: string) {
+    return memoryStore.get(service)?.delete(account) ?? false
+  },
+  async findCredentials(service: string) {
+    const entries = memoryStore.get(service)
+    if (!entries) return []
+    return Array.from(entries.entries()).map(([account, password]) => ({ account, password }))
+  },
+}
+
+let _keytar: typeof memoryFallback | null = null
+
+async function getKeytar(): Promise<typeof memoryFallback> {
+  if (_keytar) return _keytar
+  try {
+    const mod = await import('keytar')
+    _keytar = mod.default || mod
+    return _keytar as typeof memoryFallback
+  } catch {
+    // keytar native module not available — use in-memory fallback
+    const isProduction = process.env.NODE_ENV === 'production' || !process.env.VITE_DEV_SERVER_URL
+    if (isProduction) {
+      log.error(
+        'WARNING: keytar unavailable — falling back to INSECURE in-memory storage. ' +
+          'Encryption keys will be lost on restart and are vulnerable to memory dumps.'
+      )
+    }
+    _keytar = memoryFallback
+    return _keytar
+  }
+}
 
 /**
  * Service name for keychain entries
  */
-const SERVICE_NAME = 'piyapi-notes'
+const SERVICE_NAME = 'bluearkive'
 
 /**
  * Key types stored in keychain
@@ -42,7 +87,8 @@ export class KeyStorageService {
    */
   public static async setKey(keyType: KeyType, userId: string, value: string): Promise<void> {
     const account = `${userId}:${keyType}`
-    await keytar.setPassword(SERVICE_NAME, account, value)
+    const kt = await getKeytar()
+    await kt.setPassword(SERVICE_NAME, account, value)
   }
 
   /**
@@ -54,7 +100,8 @@ export class KeyStorageService {
    */
   public static async getKey(keyType: KeyType, userId: string): Promise<string | null> {
     const account = `${userId}:${keyType}`
-    return await keytar.getPassword(SERVICE_NAME, account)
+    const kt = await getKeytar()
+    return await kt.getPassword(SERVICE_NAME, account)
   }
 
   /**
@@ -66,7 +113,8 @@ export class KeyStorageService {
    */
   public static async deleteKey(keyType: KeyType, userId: string): Promise<boolean> {
     const account = `${userId}:${keyType}`
-    return await keytar.deletePassword(SERVICE_NAME, account)
+    const kt = await getKeytar()
+    return await kt.deletePassword(SERVICE_NAME, account)
   }
 
   /**
@@ -211,8 +259,9 @@ export class KeyStorageService {
    * @returns Promise that resolves to array of account names
    */
   public static async listAccounts(): Promise<string[]> {
-    const credentials = await keytar.findCredentials(SERVICE_NAME)
-    return credentials.map(cred => cred.account)
+    const kt = await getKeytar()
+    const credentials = await kt.findCredentials(SERVICE_NAME)
+    return credentials.map((cred: { account: string; password: string }) => cred.account)
   }
 
   /**

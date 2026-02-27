@@ -1,4 +1,7 @@
 /**
+
+import { rendererLog } from './utils/logger'
+const log = rendererLog.create('AudioCapture')
  * Audio Capture Module (Renderer Process)
  *
  * Handles AudioContext and AudioWorklet setup for audio capture.
@@ -52,19 +55,19 @@ class AudioCaptureManager {
       if (isMacOS) {
         // macOS: Use getDisplayMedia with ScreenCaptureKit
         // This requires Screen Recording permission
-        console.log('macOS detected: Using getDisplayMedia for system audio capture')
+        log.info('macOS detected: Using getDisplayMedia for system audio capture')
         stream = await this.startMacOSSystemAudioCapture()
       } else {
         // Windows: Use desktopCapturer with WASAPI
-        console.log('Windows detected: Using desktopCapturer for system audio capture')
+        log.info('Windows detected: Using desktopCapturer for system audio capture')
         stream = await this.startWindowsSystemAudioCapture(deviceId)
       }
 
       await this.setupAudioPipeline(stream, sampleRate, channelCount)
 
-      console.log('System audio capture started')
+      log.info('System audio capture started')
     } catch (error) {
-      console.error('Failed to start system audio capture:', error)
+      log.error('Failed to start system audio capture:', error)
 
       // If fallback is enabled and error is permission-related, fall back to microphone
       if (fallbackToMicrophone && error instanceof Error) {
@@ -72,7 +75,7 @@ class AudioCaptureManager {
           error.name === 'NotAllowedError' ||
           error.message.includes('Screen Recording permission denied')
         ) {
-          console.log('Falling back to microphone capture due to permission denial')
+          log.info('Falling back to microphone capture due to permission denial')
           try {
             await this.startMicrophoneCapture(sampleRate, channelCount)
             // Notify user about fallback
@@ -84,7 +87,7 @@ class AudioCaptureManager {
             }
             return
           } catch (micError) {
-            console.error('Microphone fallback also failed:', micError)
+            log.error('Microphone fallback also failed:', micError)
             throw new Error(
               `System audio capture failed and microphone fallback failed: ${micError instanceof Error ? micError.message : 'Unknown error'}`
             )
@@ -125,7 +128,7 @@ class AudioCaptureManager {
       }
 
       const firstTrack = audioTracks[0]
-      console.log('macOS system audio stream obtained:', {
+      log.info('macOS system audio stream obtained:', {
         audioTracks: audioTracks.length,
         trackLabel: firstTrack?.label,
         trackSettings: firstTrack?.getSettings(),
@@ -171,11 +174,11 @@ class AudioCaptureManager {
         video: false,
       })
 
-      console.log('Windows system audio stream obtained')
+      log.info('Windows system audio stream obtained')
 
       return stream
     } catch (error) {
-      console.error('Failed to get Windows system audio stream:', error)
+      log.error('Failed to get Windows system audio stream:', error)
       throw error
     }
   }
@@ -209,9 +212,9 @@ class AudioCaptureManager {
 
       await this.setupAudioPipeline(stream, sampleRate, channelCount)
 
-      console.log('Microphone capture started')
+      log.info('Microphone capture started')
     } catch (error) {
-      console.error('Failed to start microphone capture:', error)
+      log.error('Failed to start microphone capture:', error)
       throw error
     }
   }
@@ -240,17 +243,19 @@ class AudioCaptureManager {
 
       // Verify the actual sample rate being used
       const actualSampleRate = this.audioContext.sampleRate
-      console.log(`AudioContext created:`)
-      console.log(`  Requested sample rate: ${sampleRate}Hz`)
-      console.log(`  Actual sample rate: ${actualSampleRate}Hz`)
+      log.info(`AudioContext created:`)
+      log.info(`  Requested sample rate: ${sampleRate}Hz`)
+      log.info(`  Actual sample rate: ${actualSampleRate}Hz`)
 
       if (actualSampleRate !== sampleRate) {
-        console.warn(
+        log.warn(
           `⚠️  AudioContext sample rate mismatch! Requested ${sampleRate}Hz but got ${actualSampleRate}Hz. ` +
             `Audio will be resampled by the browser.`
         )
       } else {
-        console.log(`✅ AudioContext configured for ${sampleRate}Hz (16kHz for Whisper)`)
+        log.info(
+          `✅ AudioContext configured for ${sampleRate}Hz (optimized for speech recognition)`
+        )
       }
 
       // Create source node from media stream
@@ -273,9 +278,9 @@ class AudioCaptureManager {
           this.handleAudioChunk(event.data)
         } else if (event.data.type === 'sampleRateInfo') {
           // Log sample rate verification from AudioWorklet
-          console.log(`✅ ${event.data.message}`)
+          log.info(`✅ ${event.data.message}`)
           if (event.data.sampleRate !== sampleRate) {
-            console.warn(
+            log.warn(
               `⚠️  Sample rate mismatch in AudioWorklet! Expected ${sampleRate}Hz but got ${event.data.sampleRate}Hz`
             )
           }
@@ -287,7 +292,7 @@ class AudioCaptureManager {
 
       this.isCapturing = true
 
-      console.log('Audio pipeline setup complete')
+      log.info('Audio pipeline setup complete')
     } catch (error) {
       this.cleanup()
       throw error
@@ -322,9 +327,9 @@ class AudioCaptureManager {
   public async stopCapture(): Promise<void> {
     try {
       this.cleanup()
-      console.log('Audio capture stopped')
+      log.info('Audio capture stopped')
     } catch (error) {
-      console.error('Failed to stop audio capture:', error)
+      log.error('Failed to stop audio capture:', error)
       throw error
     }
   }
@@ -394,7 +399,7 @@ if (typeof window !== 'undefined' && window.electronAPI?.ipcRenderer) {
           params.fallbackToMicrophone ?? true
         )
         .catch(error => {
-          console.error('Failed to start system audio capture:', error)
+          log.error('Failed to start system audio capture:', error)
         })
     }
   )
@@ -405,14 +410,14 @@ if (typeof window !== 'undefined' && window.electronAPI?.ipcRenderer) {
       audioCaptureManager
         .startMicrophoneCapture(params.sampleRate, params.channelCount)
         .catch(error => {
-          console.error('Failed to start microphone capture:', error)
+          log.error('Failed to start microphone capture:', error)
         })
     }
   )
 
   window.electronAPI.ipcRenderer.on('audio:stopCapture', () => {
     audioCaptureManager.stopCapture().catch(error => {
-      console.error('Failed to stop audio capture:', error)
+      log.error('Failed to stop audio capture:', error)
     })
   })
 }

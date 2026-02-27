@@ -12,6 +12,9 @@ import { PermissionRequestFlow } from './PermissionRequestFlow'
 import { ScreenRecordingPermissionDialog } from './ScreenRecordingPermissionDialog'
 import type { ScreenRecordingGuidance } from '../../types/ipc'
 
+import { rendererLog } from '../utils/logger'
+const log = rendererLog.create('AudioCapture')
+
 type PermissionStatus = 'not-determined' | 'denied' | 'granted' | 'not-applicable' | 'unknown'
 
 interface AudioCaptureWithPermissionsProps {
@@ -48,7 +51,7 @@ export const AudioCaptureWithPermissions: React.FC<AudioCaptureWithPermissionsPr
         }
       }
     } catch (error) {
-      console.error('Error checking permission:', error)
+      log.error('Error checking permission:', error)
     }
   }
 
@@ -89,7 +92,7 @@ export const AudioCaptureWithPermissions: React.FC<AudioCaptureWithPermissionsPr
         throw new Error(result.error?.message || 'Failed to start capture')
       }
     } catch (error) {
-      console.error('Error starting capture:', error)
+      log.error('Error starting capture:', error)
       setIsCapturing(false)
       onCaptureFailed(error instanceof Error ? error.message : 'Unknown error')
     }
@@ -127,7 +130,7 @@ export const AudioCaptureWithPermissions: React.FC<AudioCaptureWithPermissionsPr
         setIsCapturing(false)
       }
     } catch (error) {
-      console.error('Error stopping capture:', error)
+      log.error('Error stopping capture:', error)
     }
   }
 

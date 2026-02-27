@@ -8,13 +8,7 @@ import { describe, it, before, after } from 'node:test'
 import assert from 'node:assert'
 import fs from 'fs'
 import path from 'path'
-import {
-  initializeDatabase,
-  getDatabase,
-  closeDatabase,
-  checkDatabaseHealth,
-  
-} from '../connection'
+import { initializeDatabase, getDatabase, closeDatabase, checkDatabaseHealth } from '../connection'
 
 describe('Database Connection', () => {
   const testDbPath = path.join(__dirname, 'test-connection.db')

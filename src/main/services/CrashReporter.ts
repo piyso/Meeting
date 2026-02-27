@@ -1,5 +1,5 @@
 /**
- * Crash Reporter — Sentry integration for PiyAPI Notes
+ * Crash Reporter — Sentry integration for BlueArkive
  *
  * Conditionally initializes Sentry when SENTRY_DSN is set.
  * Graceful no-op in development (when DSN is empty).
@@ -17,6 +17,9 @@
 
 import { config } from '../config/environment'
 import { app } from 'electron'
+import { Logger } from './Logger'
+
+const log = Logger.create('CrashReporter')
 
 interface CrashContext {
   hardwareTier?: string
@@ -37,7 +40,7 @@ class CrashReporterService {
     if (this.initialized) return
 
     if (!config.SENTRY_DSN) {
-      console.log('[CrashReporter] No SENTRY_DSN set — crash reporting disabled')
+      log.info('No SENTRY_DSN set — crash reporting disabled')
       this.initialized = true
       return
     }
@@ -47,7 +50,7 @@ class CrashReporterService {
       // const Sentry = require('@sentry/electron')
       // Sentry.init({
       //   dsn: config.SENTRY_DSN,
-      //   release: `piyapi-notes@${app.getVersion()}`,
+      //   release: `bluearkive@${app.getVersion()}`,
       //   environment: config.IS_DEV ? 'development' : 'production',
       //   tracesSampleRate: 0.1,
       //   beforeSend(event) {
@@ -64,9 +67,9 @@ class CrashReporterService {
       this.setupNativeHandlers()
 
       this.initialized = true
-      console.log('[CrashReporter] Initialized successfully')
+      log.info('Initialized successfully')
     } catch (error) {
-      console.error('[CrashReporter] Failed to initialize:', error)
+      log.error('Failed to initialize:', error)
     }
   }
 
@@ -74,13 +77,13 @@ class CrashReporterService {
    * Set up native Node.js error handlers as baseline
    */
   private setupNativeHandlers(): void {
-    process.on('uncaughtException', (error) => {
-      console.error('[CrashReporter] Uncaught exception:', error)
+    process.on('uncaughtException', error => {
+      log.error('Uncaught exception:', error)
       this.captureException(error)
     })
 
-    process.on('unhandledRejection', (reason) => {
-      console.error('[CrashReporter] Unhandled rejection:', reason)
+    process.on('unhandledRejection', reason => {
+      log.error('Unhandled rejection:', reason)
       if (reason instanceof Error) {
         this.captureException(reason)
       } else {
@@ -113,7 +116,7 @@ class CrashReporterService {
     if (!this.initialized) return
 
     // Log locally
-    console.error(`[CrashReporter] Exception: ${error.message}`, {
+    log.error(`Exception: ${error.message}`, {
       stack: error.stack,
       context: this.context,
       ...extra,
@@ -130,7 +133,7 @@ class CrashReporterService {
   captureMessage(message: string, level: 'info' | 'warning' | 'error' = 'error'): void {
     if (!this.initialized) return
 
-    console.log(`[CrashReporter] Message (${level}): ${message}`)
+    log.info(`Message (${level}): ${message}`)
 
     // When Sentry is installed:
     // const Sentry = require('@sentry/electron')
@@ -140,7 +143,7 @@ class CrashReporterService {
   /**
    * Add a breadcrumb for debugging
    */
-  addBreadcrumb(category: string, message: string, data?: Record<string, unknown>): void {
+  addBreadcrumb(_category: string, _message: string, _data?: Record<string, unknown>): void {
     // When Sentry is installed:
     // const Sentry = require('@sentry/electron')
     // Sentry.addBreadcrumb({ category, message, data })

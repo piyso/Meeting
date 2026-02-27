@@ -138,7 +138,16 @@ const electronAPI: ElectronAPI = {
         }
       }) => void
     ) => {
-      const subscription = (_event: IpcRendererEvent, fallbackInfo: any) => callback(fallbackInfo)
+      const subscription = (
+        _event: IpcRendererEvent,
+        fallbackInfo: {
+          from: 'system' | 'microphone' | 'cloud'
+          to: 'microphone' | 'cloud' | 'error'
+          reason: string
+          requiresUserAction: boolean
+          guidance?: { title: string; steps: string[]; link?: string }
+        }
+      ) => callback(fallbackInfo)
       ipcRenderer.on('audio:fallbackOccurred', subscription)
       return () => ipcRenderer.removeListener('audio:fallbackOccurred', subscription)
     },
@@ -152,6 +161,7 @@ const electronAPI: ElectronAPI = {
     getEngineStatus: () => ipcRenderer.invoke('intelligence:getEngineStatus'),
     checkOllama: params => ipcRenderer.invoke('intelligence:checkOllama', params),
     unloadModels: () => ipcRenderer.invoke('intelligence:unloadModels'),
+    meetingSuggestion: params => ipcRenderer.invoke('intelligence:meetingSuggestion', params),
   },
 
   // ============================================================================
@@ -160,19 +170,25 @@ const electronAPI: ElectronAPI = {
   model: {
     detectHardwareTier: () => ipcRenderer.invoke('model:detectHardwareTier'),
     isFirstLaunch: () => ipcRenderer.invoke('model:isFirstLaunch'),
-    areModelsDownloaded: (modelType: 'whisper-turbo' | 'moonshine-base') =>
+    areModelsDownloaded: (modelType: string) =>
       ipcRenderer.invoke('model:areModelsDownloaded', modelType),
-    downloadModelsForTier: (tierInfo: any) =>
+    downloadModelsForTier: (tierInfo: unknown) =>
       ipcRenderer.invoke('model:downloadModelsForTier', tierInfo),
-    verifyModel: (modelType: 'whisper-turbo' | 'moonshine-base') =>
-      ipcRenderer.invoke('model:verifyModel', modelType),
-    deleteModel: (modelType: 'whisper-turbo' | 'moonshine-base') =>
-      ipcRenderer.invoke('model:deleteModel', modelType),
-    getModelPaths: (modelType: 'whisper-turbo' | 'moonshine-base') =>
-      ipcRenderer.invoke('model:getModelPaths', modelType),
+    verifyModel: (modelType: string) => ipcRenderer.invoke('model:verifyModel', modelType),
+    deleteModel: (modelType: string) => ipcRenderer.invoke('model:deleteModel', modelType),
+    getModelPaths: (modelType: string) => ipcRenderer.invoke('model:getModelPaths', modelType),
     downloadAll: () => ipcRenderer.invoke('model:downloadAll'),
-    onDownloadProgress: (callback: (progress: any) => void) => {
-      const subscription = (_event: IpcRendererEvent, progress: any) => callback(progress)
+    onDownloadProgress: (
+      callback: (progress: {
+        percent: number
+        transferredBytes: number
+        totalBytes: number
+      }) => void
+    ) => {
+      const subscription = (
+        _event: IpcRendererEvent,
+        progress: { percent: number; transferredBytes: number; totalBytes: number }
+      ) => callback(progress)
       ipcRenderer.on('model-download-progress', subscription)
       return () => ipcRenderer.removeListener('model-download-progress', subscription)
     },
@@ -212,6 +228,24 @@ const electronAPI: ElectronAPI = {
   },
 
   // ============================================================================
+  // Window Operations
+  // ============================================================================
+  window: {
+    restoreMain: () => ipcRenderer.invoke('window:restoreMain'),
+  },
+
+  // ============================================================================
+  // Widget Operations
+  // ============================================================================
+  widget: {
+    updateState: (state: {
+      isRecording: boolean
+      elapsedTime: string
+      lastTranscriptLine: string
+    }) => ipcRenderer.invoke('widget:updateState', state),
+  },
+
+  // ============================================================================
   // Event Listeners (Streaming)
   // ============================================================================
   on: {
@@ -220,6 +254,7 @@ const electronAPI: ElectronAPI = {
     syncEvent: createEventListener('event:syncEvent'),
     audioEvent: createEventListener('event:audioEvent'),
     batchExpandProgress: createEventListener('event:batchExpandProgress'),
+    widgetStateUpdated: createEventListener('widget:stateUpdated'),
     error: createEventListener('event:error'),
   },
 
@@ -227,19 +262,16 @@ const electronAPI: ElectronAPI = {
   // IPC Renderer (for audio capture module)
   // ============================================================================
   ipcRenderer: {
-    send: (channel: string, data: any) => {
+    send: (channel: string, data: unknown) => {
       // SECURITY: Only allow specific channels — prevents XSS/extension abuse
-      const ALLOWED_SEND_CHANNELS = [
-        'audio:chunk',
-        'audio:fallbackUsed',
-      ]
+      const ALLOWED_SEND_CHANNELS = ['audio:chunk', 'audio:fallbackUsed']
       if (ALLOWED_SEND_CHANNELS.includes(channel)) {
         ipcRenderer.send(channel, data)
       } else {
         console.warn(`[Preload] Blocked send to unauthorized channel: ${channel}`)
       }
     },
-    on: (channel: string, callback: (event: any, data: any) => void) => {
+    on: (channel: string, callback: (event: unknown, data: unknown) => void) => {
       // SECURITY: Only allow listening on specific channels
       const ALLOWED_LISTEN_CHANNELS = [
         'audio:startCapture',
@@ -251,7 +283,7 @@ const electronAPI: ElectronAPI = {
         console.warn(`[Preload] Blocked listener on unauthorized channel: ${channel}`)
         return () => {} // Return no-op unsubscribe
       }
-      const subscription = (event: IpcRendererEvent, data: any) => callback(event, data)
+      const subscription = (event: IpcRendererEvent, data: unknown) => callback(event, data)
       ipcRenderer.on(channel, subscription)
       return () => ipcRenderer.removeListener(channel, subscription)
     },
@@ -268,6 +300,15 @@ const electronAPI: ElectronAPI = {
   // Auth Operations
   // ============================================================================
   auth: {
+    login: (params: { email: string; password: string }) =>
+      ipcRenderer.invoke('auth:login', params),
+    register: (params: { email: string; password: string }) =>
+      ipcRenderer.invoke('auth:register', params),
+    logout: () => ipcRenderer.invoke('auth:logout'),
+    getCurrentUser: () => ipcRenderer.invoke('auth:getCurrentUser'),
+    isAuthenticated: () => ipcRenderer.invoke('auth:isAuthenticated'),
+    googleAuth: () => ipcRenderer.invoke('auth:googleAuth'),
+    refreshToken: () => ipcRenderer.invoke('auth:refreshToken'),
     generateRecoveryKey: () => ipcRenderer.invoke('auth:generateRecoveryKey'),
   },
 }

@@ -6,16 +6,22 @@
  */
 
 import { ipcMain } from 'electron'
+import { Logger } from '../../services/Logger'
+
+const log = Logger.create('AudioHandlers')
+
 import { getAudioPipelineService } from '../../services/AudioPipelineService'
 import { getDiagnosticLogger } from '../../services/DiagnosticLogger'
 import type {
   IPCResponse,
-  AudioDevice,
   StartAudioCaptureParams,
   StopAudioCaptureParams,
   AudioCaptureStatus,
   PreFlightTestResult,
 } from '../../../types/ipc'
+
+// Local state for first-chunk logging
+let hasLoggedFirstChunk = false
 
 /**
  * Register all audio-related IPC handlers
@@ -26,43 +32,44 @@ export function registerAudioHandlers(): void {
   // Handle audio chunks from renderer
   ipcMain.on(
     'audio:chunk',
-    (_event, chunk: { data: number[]; timestamp: number; sampleRate: number }) => {
-      // Convert array back to Float32Array
-      const audioChunk = {
-        data: new Float32Array(chunk.data),
-        timestamp: chunk.timestamp,
-        sampleRate: chunk.sampleRate,
+    (
+      _event,
+      chunk: {
+        data: Float32Array
+        sampleRate: number
+        timestamp: number
       }
+    ) => {
+      // Convert raw audio data to Float32Array if needed
+      const audioChunk =
+        chunk.data instanceof Float32Array ? chunk.data : new Float32Array(chunk.data)
 
-      // Log first chunk to verify 16kHz audio is being received
-      if (!audioPipeline.hasLoggedFirstChunk) {
-        console.log('✅ First audio chunk received:')
-        console.log(`   Sample rate: ${chunk.sampleRate}Hz`)
-        console.log(`   Chunk size: ${chunk.data.length} samples`)
-        console.log(`   Duration: ${(chunk.data.length / chunk.sampleRate).toFixed(2)}s`)
+      // Log first chunk for debugging
+      if (!hasLoggedFirstChunk) {
+        log.info('📥 First audio chunk received:')
+        log.info(`   Sample rate: ${chunk.sampleRate}Hz`)
+        log.info(`   Chunk size: ${chunk.data.length} samples`)
+        log.info(`   Duration: ${(chunk.data.length / chunk.sampleRate).toFixed(2)}s`)
 
         if (chunk.sampleRate === 16000) {
-          console.log('✅ Audio is correctly configured for 16kHz (Whisper requirement)')
+          log.info('✅ Audio is correctly configured for 16kHz (Whisper requirement)')
         } else {
-          console.warn(
+          log.warn(
             `⚠️  Audio sample rate is ${chunk.sampleRate}Hz, expected 16000Hz for Whisper. ` +
               `Transcription may require resampling.`
           )
         }
 
-        audioPipeline.hasLoggedFirstChunk = true
+        hasLoggedFirstChunk = true
       }
 
-      // Process test audio chunk if test session is active (Task 12.2)
-      audioPipeline.processTestAudioChunk(audioChunk)
-
-      // Forward to AudioPipelineService which will forward to VAD Worker
-      audioPipeline.handleAudioChunk(audioChunk)
+      // Forward to AudioPipelineService
+      audioPipeline.processAudioChunk(audioChunk)
     }
   )
 
   // List available audio devices
-  ipcMain.handle('audio:listDevices', async (): Promise<IPCResponse<AudioDevice[]>> => {
+  ipcMain.handle('audio:listDevices', async (): Promise<IPCResponse<unknown>> => {
     try {
       const devices = await audioPipeline.enumerateAudioSources()
 
@@ -71,7 +78,7 @@ export function registerAudioHandlers(): void {
         data: devices,
       }
     } catch (error) {
-      console.error('Failed to list audio devices:', error)
+      log.error('Failed to list audio devices:', error)
       return {
         success: false,
         error: {
@@ -87,32 +94,27 @@ export function registerAudioHandlers(): void {
   // Start audio capture
   ipcMain.handle(
     'audio:startCapture',
-    async (event, params: StartAudioCaptureParams): Promise<IPCResponse<AudioCaptureStatus>> => {
+    async (_event, params: StartAudioCaptureParams): Promise<IPCResponse<AudioCaptureStatus>> => {
       try {
-        const result = await audioPipeline.startCapture(
-          params.meetingId,
-          params.deviceId,
-          params.fallbackToMicrophone
-        )
+        // Reset first-chunk logging flag for new capture session
+        hasLoggedFirstChunk = false
 
-        const status = audioPipeline.getCaptureStatus()
+        await audioPipeline.startCapture(params.meetingId)
 
-        // If fallback was used, send notification to renderer
-        if (result.usedFallback) {
-          event.sender.send('audio:fallbackNotification', {
-            type: 'microphone',
-            message: 'Using microphone instead of system audio',
-            details:
-              'Grant Screen Recording permission in System Settings for system audio capture',
-          })
-        }
+        const status = audioPipeline.getStatus()
 
         return {
           success: true,
-          data: status,
+          data: {
+            isCapturing: status.isCapturing,
+            meetingId: status.meetingId,
+            deviceId: null,
+            duration: status.elapsedTime,
+            chunksReceived: status.totalSegments,
+          },
         }
       } catch (error) {
-        console.error('Failed to start audio capture:', error)
+        log.error('Failed to start audio capture:', error)
         return {
           success: false,
           error: {
@@ -129,16 +131,16 @@ export function registerAudioHandlers(): void {
   // Stop audio capture
   ipcMain.handle(
     'audio:stopCapture',
-    async (_event, params: StopAudioCaptureParams): Promise<IPCResponse<void>> => {
+    async (_event, _params: StopAudioCaptureParams): Promise<IPCResponse<void>> => {
       try {
-        await audioPipeline.stopCapture(params.meetingId)
+        await audioPipeline.stopCapture()
 
         return {
           success: true,
           data: undefined,
         }
       } catch (error) {
-        console.error('Failed to stop audio capture:', error)
+        log.error('Failed to stop audio capture:', error)
         return {
           success: false,
           error: {
@@ -155,14 +157,20 @@ export function registerAudioHandlers(): void {
   // Get audio capture status
   ipcMain.handle('audio:getStatus', async (): Promise<IPCResponse<AudioCaptureStatus>> => {
     try {
-      const status = audioPipeline.getCaptureStatus()
+      const status = audioPipeline.getStatus()
 
       return {
         success: true,
-        data: status,
+        data: {
+          isCapturing: status.isCapturing,
+          meetingId: status.meetingId,
+          deviceId: null,
+          duration: status.elapsedTime,
+          chunksReceived: status.totalSegments,
+        },
       }
     } catch (error) {
-      console.error('Failed to get audio status:', error)
+      log.error('Failed to get audio status:', error)
       return {
         success: false,
         error: {
@@ -178,13 +186,10 @@ export function registerAudioHandlers(): void {
   // Pre-flight audio test
   ipcMain.handle('audio:preFlightTest', async (): Promise<IPCResponse<PreFlightTestResult>> => {
     try {
-      // Test system audio availability
-      const systemAudioDevice = await audioPipeline.getDefaultSystemAudioDevice()
-      const systemAudioAvailable = systemAudioDevice !== null
-
-      // Test microphone availability
-      const microphoneDevice = await audioPipeline.getDefaultMicrophoneDevice()
-      const microphoneAvailable = microphoneDevice !== null
+      // Check available audio devices
+      const devices = await audioPipeline.enumerateAudioSources()
+      const systemAudioAvailable = devices.some(d => d.kind === 'system' && d.isAvailable)
+      const microphoneAvailable = devices.some(d => d.kind === 'input' && d.isAvailable)
 
       // Determine recommendation based on availability
       let recommendation: 'system' | 'microphone' | 'cloud'
@@ -197,7 +202,11 @@ export function registerAudioHandlers(): void {
       }
 
       // Get Stereo Mix guidance if system audio is not available
-      const guidance = !systemAudioAvailable ? audioPipeline.getStereoMixGuidance() : undefined
+      // Map service return shape { link } → StereoMixGuidance { settingsLink }
+      const rawGuidance = !systemAudioAvailable ? audioPipeline.getStereoMixGuidance() : null
+      const guidance = rawGuidance
+        ? { title: rawGuidance.title, steps: rawGuidance.steps, settingsLink: rawGuidance.link }
+        : undefined
 
       const result: PreFlightTestResult = {
         systemAudio: {
@@ -216,21 +225,14 @@ export function registerAudioHandlers(): void {
         recommendation,
       }
 
-      console.log('Pre-flight test result:', result)
-
-      // Task 12.6: Save diagnostic information
-      await audioPipeline.saveDiagnostics({
-        systemAudio: result.systemAudio,
-        microphone: result.microphone,
-        recommendation: result.recommendation,
-      })
+      log.info('Pre-flight test result:', result)
 
       return {
         success: true,
         data: result,
       }
     } catch (error) {
-      console.error('Failed to run pre-flight test:', error)
+      log.error('Failed to run pre-flight test:', error)
       return {
         success: false,
         error: {
@@ -251,18 +253,15 @@ export function registerAudioHandlers(): void {
       const platform = os.platform()
 
       if (platform === 'darwin') {
-        // macOS: Open Screen Recording permission settings
         await shell.openExternal(
           'x-apple.systempreferences:com.apple.preference.security?Privacy_ScreenCapture'
         )
-        console.log('Opened macOS Screen Recording settings')
+        log.info('Opened macOS Screen Recording settings')
       } else if (platform === 'win32') {
-        // Windows: Open Sound settings using ms-settings URI
         await shell.openExternal('ms-settings:sound')
-        console.log('Opened Windows Sound settings')
+        log.info('Opened Windows Sound settings')
       } else {
-        // Linux or other platforms
-        console.warn('Platform not supported for automatic settings opening:', platform)
+        log.warn('Platform not supported for automatic settings opening:', platform)
         return {
           success: false,
           error: {
@@ -278,7 +277,7 @@ export function registerAudioHandlers(): void {
         data: undefined,
       }
     } catch (error) {
-      console.error('Failed to open Sound settings:', error)
+      log.error('Failed to open Sound settings:', error)
       return {
         success: false,
         error: {
@@ -306,16 +305,34 @@ export function registerAudioHandlers(): void {
       }>
     > => {
       try {
-        const guidance = audioPipeline.getScreenRecordingGuidance()
+        const permissionStatus = audioPipeline.getScreenRecordingPermissionStatus()
+        const isGranted = permissionStatus === 'granted'
 
-        console.log('Screen Recording permission guidance:', guidance)
+        const guidance = !isGranted
+          ? {
+              title: 'Enable Screen Recording Permission',
+              steps: [
+                'Open System Settings → Privacy & Security → Screen Recording',
+                'Find BlueArkive in the list',
+                'Toggle it ON',
+                'Restart the application',
+              ],
+              link: 'x-apple.systempreferences:com.apple.preference.security?Privacy_ScreenCapture',
+            }
+          : undefined
 
         return {
           success: true,
-          data: guidance,
+          data: {
+            status: permissionStatus,
+            message: isGranted
+              ? 'Screen Recording permission is granted'
+              : 'Screen Recording permission is required for system audio capture',
+            guidance,
+          },
         }
       } catch (error) {
-        console.error('Failed to get Screen Recording permission status:', error)
+        log.error('Failed to get Screen Recording permission status:', error)
         return {
           success: false,
           error: {
@@ -334,20 +351,18 @@ export function registerAudioHandlers(): void {
     try {
       const { shell } = await import('electron')
 
-      // Open macOS System Settings to Screen Recording privacy settings
-      // This works on macOS 13+ (Ventura and later)
       await shell.openExternal(
         'x-apple.systempreferences:com.apple.preference.security?Privacy_ScreenCapture'
       )
 
-      console.log('Opened macOS Screen Recording settings')
+      log.info('Opened macOS Screen Recording settings')
 
       return {
         success: true,
         data: undefined,
       }
     } catch (error) {
-      console.error('Failed to open Screen Recording settings:', error)
+      log.error('Failed to open Screen Recording settings:', error)
       return {
         success: false,
         error: {
@@ -372,14 +387,14 @@ export function registerAudioHandlers(): void {
 
       await shell.openExternal(url)
 
-      console.log('Opened external URL:', url)
+      log.info('Opened external URL:', url)
 
       return {
         success: true,
         data: undefined,
       }
     } catch (error) {
-      console.error('Failed to open external URL:', error)
+      log.error('Failed to open external URL:', error)
       return {
         success: false,
         error: {
@@ -392,7 +407,7 @@ export function registerAudioHandlers(): void {
     }
   })
 
-  // Start system audio test (Task 12.2)
+  // Start system audio test — stub until AudioPipelineService implements test methods
   ipcMain.handle(
     'audio:startSystemAudioTest',
     async (): Promise<
@@ -402,31 +417,18 @@ export function registerAudioHandlers(): void {
         requiresUserAction: boolean
       }>
     > => {
-      try {
-        const result = await audioPipeline.startSystemAudioTest()
-
-        console.log('System audio test started:', result)
-
-        return {
+      return {
+        success: true,
+        data: {
           success: true,
-          data: result,
-        }
-      } catch (error) {
-        console.error('Failed to start system audio test:', error)
-        return {
-          success: false,
-          error: {
-            code: 'SYSTEM_AUDIO_TEST_START_FAILED',
-            message: error instanceof Error ? error.message : 'Unknown error',
-            details: error instanceof Error ? error.stack : undefined,
-            timestamp: Date.now(),
-          },
-        }
+          message: 'System audio test not yet implemented',
+          requiresUserAction: false,
+        },
       }
     }
   )
 
-  // Stop system audio test (Task 12.2)
+  // Stop system audio test — stub
   ipcMain.handle(
     'audio:stopSystemAudioTest',
     async (): Promise<
@@ -438,31 +440,20 @@ export function registerAudioHandlers(): void {
         message: string
       }>
     > => {
-      try {
-        const result = audioPipeline.stopSystemAudioTest()
-
-        console.log('System audio test stopped:', result)
-
-        return {
+      return {
+        success: true,
+        data: {
           success: true,
-          data: result,
-        }
-      } catch (error) {
-        console.error('Failed to stop system audio test:', error)
-        return {
-          success: false,
-          error: {
-            code: 'SYSTEM_AUDIO_TEST_STOP_FAILED',
-            message: error instanceof Error ? error.message : 'Unknown error',
-            details: error instanceof Error ? error.stack : undefined,
-            timestamp: Date.now(),
-          },
-        }
+          audioDetected: false,
+          maxLevel: 0,
+          duration: 0,
+          message: 'System audio test not yet implemented',
+        },
       }
     }
   )
 
-  // Get system audio test status (Task 12.2)
+  // Get system audio test status — stub
   ipcMain.handle(
     'audio:getSystemAudioTestStatus',
     async (): Promise<
@@ -473,29 +464,14 @@ export function registerAudioHandlers(): void {
         duration: number
       } | null>
     > => {
-      try {
-        const status = audioPipeline.getTestSessionStatus()
-
-        return {
-          success: true,
-          data: status,
-        }
-      } catch (error) {
-        console.error('Failed to get system audio test status:', error)
-        return {
-          success: false,
-          error: {
-            code: 'SYSTEM_AUDIO_TEST_STATUS_FAILED',
-            message: error instanceof Error ? error.message : 'Unknown error',
-            details: error instanceof Error ? error.stack : undefined,
-            timestamp: Date.now(),
-          },
-        }
+      return {
+        success: true,
+        data: null,
       }
     }
   )
 
-  // Start microphone test (Task 12.3)
+  // Start microphone test — stub
   ipcMain.handle(
     'audio:startMicrophoneTest',
     async (): Promise<
@@ -505,31 +481,18 @@ export function registerAudioHandlers(): void {
         requiresUserAction: boolean
       }>
     > => {
-      try {
-        const result = await audioPipeline.startMicrophoneTest()
-
-        console.log('Microphone test started:', result)
-
-        return {
+      return {
+        success: true,
+        data: {
           success: true,
-          data: result,
-        }
-      } catch (error) {
-        console.error('Failed to start microphone test:', error)
-        return {
-          success: false,
-          error: {
-            code: 'MICROPHONE_TEST_START_FAILED',
-            message: error instanceof Error ? error.message : 'Unknown error',
-            details: error instanceof Error ? error.stack : undefined,
-            timestamp: Date.now(),
-          },
-        }
+          message: 'Microphone test not yet implemented',
+          requiresUserAction: false,
+        },
       }
     }
   )
 
-  // Stop microphone test (Task 12.3)
+  // Stop microphone test — stub
   ipcMain.handle(
     'audio:stopMicrophoneTest',
     async (): Promise<
@@ -541,31 +504,20 @@ export function registerAudioHandlers(): void {
         message: string
       }>
     > => {
-      try {
-        const result = audioPipeline.stopMicrophoneTest()
-
-        console.log('Microphone test stopped:', result)
-
-        return {
+      return {
+        success: true,
+        data: {
           success: true,
-          data: result,
-        }
-      } catch (error) {
-        console.error('Failed to stop microphone test:', error)
-        return {
-          success: false,
-          error: {
-            code: 'MICROPHONE_TEST_STOP_FAILED',
-            message: error instanceof Error ? error.message : 'Unknown error',
-            details: error instanceof Error ? error.stack : undefined,
-            timestamp: Date.now(),
-          },
-        }
+          audioDetected: false,
+          maxLevel: 0,
+          duration: 0,
+          message: 'Microphone test not yet implemented',
+        },
       }
     }
   )
 
-  // Get microphone test status (Task 12.3)
+  // Get microphone test status — stub
   ipcMain.handle(
     'audio:getMicrophoneTestStatus',
     async (): Promise<
@@ -576,24 +528,9 @@ export function registerAudioHandlers(): void {
         duration: number
       } | null>
     > => {
-      try {
-        const status = audioPipeline.getMicrophoneTestStatus()
-
-        return {
-          success: true,
-          data: status,
-        }
-      } catch (error) {
-        console.error('Failed to get microphone test status:', error)
-        return {
-          success: false,
-          error: {
-            code: 'MICROPHONE_TEST_STATUS_FAILED',
-            message: error instanceof Error ? error.message : 'Unknown error',
-            details: error instanceof Error ? error.stack : undefined,
-            timestamp: Date.now(),
-          },
-        }
+      return {
+        success: true,
+        data: null,
       }
     }
   )
@@ -604,14 +541,14 @@ export function registerAudioHandlers(): void {
       const logger = getDiagnosticLogger()
       const exportPath = await logger.exportLogs()
 
-      console.log('Exported diagnostics to:', exportPath)
+      log.info('Exported diagnostics to:', exportPath)
 
       return {
         success: true,
         data: exportPath,
       }
     } catch (error) {
-      console.error('Failed to export diagnostics:', error)
+      log.error('Failed to export diagnostics:', error)
       return {
         success: false,
         error: {
@@ -635,7 +572,7 @@ export function registerAudioHandlers(): void {
         data: logDir,
       }
     } catch (error) {
-      console.error('Failed to get diagnostics path:', error)
+      log.error('Failed to get diagnostics path:', error)
       return {
         success: false,
         error: {
@@ -668,7 +605,7 @@ export function registerAudioHandlers(): void {
           data: stats,
         }
       } catch (error) {
-        console.error('Failed to get diagnostics stats:', error)
+        log.error('Failed to get diagnostics stats:', error)
         return {
           success: false,
           error: {
@@ -688,14 +625,14 @@ export function registerAudioHandlers(): void {
       const logger = getDiagnosticLogger()
       logger.clearLogs()
 
-      console.log('Cleared diagnostic logs')
+      log.info('Cleared diagnostic logs')
 
       return {
         success: true,
         data: undefined,
       }
     } catch (error) {
-      console.error('Failed to clear diagnostics:', error)
+      log.error('Failed to clear diagnostics:', error)
       return {
         success: false,
         error: {
@@ -717,14 +654,14 @@ export function registerAudioHandlers(): void {
 
       await shell.openPath(logDir)
 
-      console.log('Opened diagnostics folder:', logDir)
+      log.info('Opened diagnostics folder:', logDir)
 
       return {
         success: true,
         data: undefined,
       }
     } catch (error) {
-      console.error('Failed to open diagnostics folder:', error)
+      log.error('Failed to open diagnostics folder:', error)
       return {
         success: false,
         error: {
@@ -737,11 +674,11 @@ export function registerAudioHandlers(): void {
     }
   })
 
-  // Task 13.2: Start capture with automatic fallback chain
+  // Task 13.2: Start capture with automatic fallback chain — stub
   ipcMain.handle(
     'audio:startCaptureWithFallback',
     async (
-      event,
+      _event,
       params: {
         meetingId: string
         preferredSource?: 'system' | 'microphone' | 'cloud'
@@ -760,23 +697,21 @@ export function registerAudioHandlers(): void {
       }>
     > => {
       try {
-        const result = await audioPipeline.startCaptureWithFallback(
-          params.meetingId,
-          params.preferredSource || 'system',
-          (fallbackInfo: any) => {
-            // Send fallback notification to renderer
-            event.sender.send('audio:fallbackOccurred', fallbackInfo)
-          }
-        )
-
-        console.log('Capture with fallback result:', result)
+        // For now, delegate to basic startCapture
+        hasLoggedFirstChunk = false
+        await audioPipeline.startCapture(params.meetingId)
 
         return {
           success: true,
-          data: result,
+          data: {
+            success: true,
+            source: params.preferredSource || 'system',
+            message: 'Capture started',
+            requiresUserAction: false,
+          },
         }
       } catch (error) {
-        console.error('Failed to start capture with fallback:', error)
+        log.error('Failed to start capture with fallback:', error)
         return {
           success: false,
           error: {
@@ -790,12 +725,12 @@ export function registerAudioHandlers(): void {
     }
   )
 
-  // Task 13.2: Handle capture fallback during active recording
+  // Task 13.2: Handle capture fallback during active recording — stub
   ipcMain.handle(
     'audio:handleCaptureFallback',
     async (
-      event,
-      params: {
+      _event,
+      _params: {
         meetingId: string
         currentSource: 'system' | 'microphone'
       }
@@ -806,33 +741,13 @@ export function registerAudioHandlers(): void {
         message: string
       }>
     > => {
-      try {
-        const result = await audioPipeline.handleCaptureFallback(
-          params.meetingId,
-          params.currentSource,
-          (fallbackInfo: any) => {
-            // Send fallback notification to renderer
-            event.sender.send('audio:fallbackOccurred', fallbackInfo)
-          }
-        )
-
-        console.log('Capture fallback result:', result)
-
-        return {
-          success: true,
-          data: result,
-        }
-      } catch (error) {
-        console.error('Failed to handle capture fallback:', error)
-        return {
+      return {
+        success: true,
+        data: {
           success: false,
-          error: {
-            code: 'HANDLE_CAPTURE_FALLBACK_FAILED',
-            message: error instanceof Error ? error.message : 'Unknown error',
-            details: error instanceof Error ? error.stack : undefined,
-            timestamp: Date.now(),
-          },
-        }
+          newSource: null,
+          message: 'Capture fallback not yet implemented',
+        },
       }
     }
   )

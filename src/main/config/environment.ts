@@ -16,7 +16,7 @@ export const config = {
 
   // ─── Cloud Backend ─────────────────────────────────────────
   /** PiyAPI cloud backend */
-  PIYAPI_BASE_URL: process.env.PIYAPI_BASE_URL || 'https://api.piyapi.com/v1',
+  PIYAPI_BASE_URL: process.env.PIYAPI_BASE_URL || 'https://api.piyapi.cloud',
 
   /** Deepgram cloud transcription API */
   DEEPGRAM_API_URL: process.env.DEEPGRAM_API_URL || 'https://api.deepgram.com/v1',
@@ -30,8 +30,8 @@ export const config = {
   LOG_LEVEL: (process.env.LOG_LEVEL || 'info') as 'debug' | 'info' | 'warn' | 'error',
 
   // ─── Development ───────────────────────────────────────────
-  /** Whether running in development mode */
-  IS_DEV: process.env.NODE_ENV !== 'production',
+  /** Whether running in development mode (electron-builder doesn't set NODE_ENV) */
+  IS_DEV: !!process.env.VITE_DEV_SERVER_URL,
 } as const
 
 /** Type for the config object */

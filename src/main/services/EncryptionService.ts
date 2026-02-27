@@ -5,7 +5,7 @@
  * Used for encrypting meeting data before cloud sync.
  *
  * Security Features:
- * - PBKDF2 key derivation with 100,000 iterations
+ * - PBKDF2 key derivation with 100,000 iterations (ASYNC — does not block event loop)
  * - AES-256-GCM authenticated encryption
  * - Unique IV per encryption operation
  * - Random salt generation (32 bytes)
@@ -13,12 +13,17 @@
  */
 
 import crypto from 'crypto'
+import { promisify } from 'util'
 import { v4 as uuidv4 } from 'uuid'
 import {
   createEncryptionKey,
   getEncryptionKeyByUserId,
   hasEncryptionKey,
 } from '../database/crud/encryption-keys'
+import { Logger } from './Logger'
+
+const log = Logger.create('Encryption')
+const pbkdf2Async = promisify(crypto.pbkdf2)
 
 /**
  * Encrypted payload structure
@@ -57,12 +62,12 @@ export class EncryptionService {
    * @param salt - Salt (32 bytes). If not provided, generates new random salt
    * @returns Derived key and salt
    */
-  public static deriveKey(password: string, salt?: Buffer): DerivedKey {
+  public static async deriveKey(password: string, salt?: Buffer): Promise<DerivedKey> {
     // Generate random salt if not provided
     const actualSalt = salt || crypto.randomBytes(this.SALT_LENGTH)
 
-    // Derive key using PBKDF2 with 100,000 iterations
-    const key = crypto.pbkdf2Sync(
+    // Derive key using PBKDF2 with 100,000 iterations (async — does not block event loop)
+    const key = await pbkdf2Async(
       password,
       actualSalt,
       this.PBKDF2_ITERATIONS,
@@ -102,9 +107,13 @@ export class EncryptionService {
    * @param salt - Optional salt (if not provided, generates new salt)
    * @returns Encrypted payload with ciphertext, IV, salt, and auth tag
    */
-  public static encrypt(plaintext: string, password: string, salt?: Buffer): EncryptedPayload {
-    // Derive encryption key
-    const { key, salt: actualSalt } = this.deriveKey(password, salt)
+  public static async encrypt(
+    plaintext: string,
+    password: string,
+    salt?: Buffer
+  ): Promise<EncryptedPayload> {
+    // Derive encryption key (async — yields to event loop)
+    const { key, salt: actualSalt } = await this.deriveKey(password, salt)
 
     // Generate unique IV for this encryption
     const iv = this.generateIV()
@@ -136,14 +145,14 @@ export class EncryptionService {
    * @returns Decrypted plaintext
    * @throws Error if decryption fails (wrong password or corrupted data)
    */
-  public static decrypt(payload: EncryptedPayload, password: string): string {
+  public static async decrypt(payload: EncryptedPayload, password: string): Promise<string> {
     // Decode Base64 values
     const salt = Buffer.from(payload.salt, 'base64')
     const iv = Buffer.from(payload.iv, 'base64')
     const authTag = Buffer.from(payload.authTag, 'base64')
 
-    // Derive encryption key using same salt
-    const { key } = this.deriveKey(password, salt)
+    // Derive encryption key using same salt (async — yields to event loop)
+    const { key } = await this.deriveKey(password, salt)
 
     // Create decipher
     const decipher = crypto.createDecipheriv(this.CIPHER_ALGORITHM, key, iv)
@@ -182,8 +191,8 @@ export class EncryptionService {
     // Generate new salt
     const salt = this.generateSalt()
 
-    // Verify key derivation works
-    const { key } = this.deriveKey(password, salt)
+    // Verify key derivation works (async)
+    const { key } = await this.deriveKey(password, salt)
     if (key.length !== this.KEY_LENGTH) {
       throw new Error('Key derivation failed: invalid key length')
     }
@@ -218,13 +227,13 @@ export class EncryptionService {
    * @param password - Password to use
    * @returns True if round-trip successful
    */
-  public static testRoundTrip(testData: string, password: string): boolean {
+  public static async testRoundTrip(testData: string, password: string): Promise<boolean> {
     try {
-      const encrypted = this.encrypt(testData, password)
-      const decrypted = this.decrypt(encrypted, password)
+      const encrypted = await this.encrypt(testData, password)
+      const decrypted = await this.decrypt(encrypted, password)
       return decrypted === testData
     } catch (error) {
-      console.error('Encryption round-trip test failed:', error)
+      log.error('Encryption round-trip test failed:', error)
       return false
     }
   }

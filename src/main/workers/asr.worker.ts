@@ -17,13 +17,20 @@ import * as ort from 'onnxruntime-node'
 // Type definitions
 interface ASRWorkerMessage {
   type: 'init' | 'transcribe' | 'unload' | 'ping'
-  data?: any
+  data?: Record<string, unknown>
 }
 
 interface ASRWorkerResponse {
   type: 'ready' | 'transcript' | 'error' | 'unloaded' | 'pong'
-  data?: any
+  data?: Record<string, unknown>
   error?: string
+}
+
+/** Structured worker logging — uses console in worker thread context */
+const workerLog = {
+  info: (...args: unknown[]) => console.log('[ASR Worker]', ...args),
+  warn: (...args: unknown[]) => console.warn('[ASR Worker]', ...args),
+  error: (...args: unknown[]) => console.error('[ASR Worker]', ...args),
 }
 
 interface TranscriptSegment {
@@ -46,9 +53,10 @@ type ModelType = 'whisper-turbo' | 'moonshine-base'
 let currentModel: ModelType | null = null
 let modelLoaded: boolean = false
 let hardwareTier: HardwareTier | null = null
+let resolvedModelsDir: string = ''
 
 // Model instances (will be loaded dynamically)
-let whisperSession: any = null
+let whisperSession: ort.InferenceSession | null = null
 let moonshineSession: ort.InferenceSession | null = null
 let moonshinePreprocessor: ort.InferenceSession | null = null
 
@@ -82,7 +90,8 @@ function selectModel(tier: HardwareTier): ModelType {
  * Get model paths
  */
 function getModelPaths(modelType: ModelType): string[] {
-  const modelsDir = path.join(process.cwd(), 'resources', 'models')
+  if (!resolvedModelsDir) throw new Error('Models dir not set — call init first')
+  const modelsDir = resolvedModelsDir
 
   if (modelType === 'whisper-turbo') {
     return [path.join(modelsDir, 'ggml-turbo.bin')]
@@ -105,14 +114,21 @@ function verifyModelFiles(modelType: ModelType): boolean {
 /**
  * Initialize ASR model
  */
-async function initializeModel(): Promise<void> {
+async function initializeModel(data?: { modelsDir?: string }): Promise<void> {
   try {
+    // Set models directory from parent thread or fall back to cwd
+    if (data?.modelsDir) {
+      resolvedModelsDir = data.modelsDir
+    } else {
+      resolvedModelsDir = path.join(process.cwd(), 'resources', 'models')
+    }
+
     // Detect hardware tier
     hardwareTier = detectHardwareTier()
     currentModel = selectModel(hardwareTier)
 
-    console.log(`[ASR Worker] Hardware tier: ${hardwareTier}`)
-    console.log(`[ASR Worker] Selected model: ${currentModel}`)
+    workerLog.info(`Hardware tier: ${hardwareTier}`)
+    workerLog.info(`Selected model: ${currentModel}`)
 
     // Verify model files exist
     if (!verifyModelFiles(currentModel)) {
@@ -135,11 +151,11 @@ async function initializeModel(): Promise<void> {
         tier: hardwareTier,
       },
     })
-  } catch (error: any) {
-    console.error('[ASR Worker] Initialization failed:', error)
+  } catch (error: unknown) {
+    workerLog.error('Initialization failed:', error)
     sendResponse({
       type: 'error',
-      error: `Failed to initialize ASR model: ${error.message}`,
+      error: `Failed to initialize ASR model: ${error instanceof Error ? error.message : String(error)}`,
     })
   }
 }
@@ -148,44 +164,46 @@ async function initializeModel(): Promise<void> {
  * Load Whisper turbo model
  */
 async function loadWhisperTurbo(): Promise<void> {
-  console.warn('[ASR Worker] Whisper.cpp native binding not available — falling back to Moonshine Base')
-  console.log('[ASR Worker] Loading Moonshine Base as fallback for Whisper turbo...')
+  workerLog.warn('Whisper.cpp native binding not available — falling back to Moonshine Base')
+  workerLog.info('Loading Moonshine Base as fallback for Whisper turbo...')
 
   // Fall back to Moonshine Base (works on all hardware tiers)
   await loadMoonshineBase()
 
   // Override model type to indicate fallback
   currentModel = 'moonshine-base'
-  console.log('[ASR Worker] ✅ Moonshine Base loaded (Whisper turbo fallback)')
+  workerLog.info('✅ Moonshine Base loaded (Whisper turbo fallback)')
 }
 
 /**
  * Load Moonshine Base model
  */
 async function loadMoonshineBase(): Promise<void> {
-  console.log('[ASR Worker] Loading Moonshine Base model...')
+  workerLog.info('Loading Moonshine Base model...')
 
   try {
     const paths = getModelPaths('moonshine-base')
 
     // Load preprocessor model
-    console.log('[ASR Worker] Loading preprocessor...')
+    workerLog.info('Loading preprocessor...')
     moonshinePreprocessor = await ort.InferenceSession.create(paths[1]!, {
       executionProviders: ['cpu'],
       graphOptimizationLevel: 'all',
     })
 
     // Load main model
-    console.log('[ASR Worker] Loading main model...')
+    workerLog.info('Loading main model...')
     moonshineSession = await ort.InferenceSession.create(paths[0]!, {
       executionProviders: ['cpu'],
       graphOptimizationLevel: 'all',
     })
 
-    console.log('[ASR Worker] ✅ Moonshine Base model loaded')
-  } catch (error: any) {
-    console.error('[ASR Worker] Failed to load Moonshine:', error)
-    throw new Error(`Failed to load Moonshine Base: ${error.message}`)
+    workerLog.info('✅ Moonshine Base model loaded')
+  } catch (error: unknown) {
+    workerLog.error('Failed to load Moonshine:', error)
+    throw new Error(
+      `Failed to load Moonshine Base: ${error instanceof Error ? error.message : String(error)}`
+    )
   }
 }
 
@@ -203,9 +221,9 @@ async function transcribe(audioBuffer: Float32Array): Promise<TranscriptSegment[
     } else {
       return await transcribeWithMoonshine(audioBuffer)
     }
-  } catch (error: any) {
-    console.error('[ASR Worker] Transcription failed:', error)
-    throw error
+  } catch (error: unknown) {
+    workerLog.error('Transcription failed:', error)
+    throw error instanceof Error ? error : new Error(String(error))
   }
 }
 
@@ -214,7 +232,7 @@ async function transcribe(audioBuffer: Float32Array): Promise<TranscriptSegment[
  */
 async function transcribeWithWhisper(audioBuffer: Float32Array): Promise<TranscriptSegment[]> {
   // Whisper.cpp native binding not available — delegate to Moonshine Base
-  console.log('[ASR Worker] Using Moonshine Base for transcription (Whisper fallback mode)')
+  workerLog.info('Using Moonshine Base for transcription (Whisper fallback mode)')
   return await transcribeWithMoonshine(audioBuffer)
 }
 
@@ -245,8 +263,8 @@ async function transcribeWithMoonshine(audioBuffer: Float32Array): Promise<Trans
     const audioDuration = audioBuffer.length / 16000 // 16kHz sample rate
     const rtFactor = audioDuration / duration
 
-    console.log(
-      `[ASR Worker] Moonshine transcription: ${audioDuration.toFixed(1)}s audio in ${duration.toFixed(3)}s (${rtFactor.toFixed(1)}x RT)`
+    workerLog.info(
+      `Moonshine transcription: ${audioDuration.toFixed(1)}s audio in ${duration.toFixed(3)}s (${rtFactor.toFixed(1)}x RT)`
     )
 
     // Return transcript segment
@@ -258,9 +276,9 @@ async function transcribeWithMoonshine(audioBuffer: Float32Array): Promise<Trans
         confidence: 0.88,
       },
     ]
-  } catch (error: any) {
-    console.error('[ASR Worker] Moonshine transcription failed:', error)
-    throw error
+  } catch (error: unknown) {
+    workerLog.error('Moonshine transcription failed:', error)
+    throw error instanceof Error ? error : new Error(String(error))
   }
 }
 
@@ -328,16 +346,16 @@ async function unloadModel(): Promise<void> {
       global.gc()
     }
 
-    console.log('[ASR Worker] ✅ Model unloaded')
+    workerLog.info('✅ Model unloaded')
 
     sendResponse({
       type: 'unloaded',
     })
-  } catch (error: any) {
-    console.error('[ASR Worker] Unload failed:', error)
+  } catch (error: unknown) {
+    workerLog.error('Unload failed:', error)
     sendResponse({
       type: 'error',
-      error: `Failed to unload model: ${error.message}`,
+      error: `Failed to unload model: ${error instanceof Error ? error.message : String(error)}`,
     })
   }
 }
@@ -359,7 +377,7 @@ if (parentPort) {
     try {
       switch (message.type) {
         case 'init':
-          await initializeModel()
+          await initializeModel(message.data)
           break
 
         case 'transcribe': {
@@ -371,15 +389,20 @@ if (parentPort) {
             return
           }
 
-          const audioBuffer = new Float32Array(message.data.audioBuffer)
+          const audioData = message.data?.audioBuffer as ArrayBufferLike | undefined
+          if (!audioData) {
+            sendResponse({ type: 'error', error: 'No audio data provided' })
+            return
+          }
+          const audioBuffer = new Float32Array(audioData)
           const segments = await transcribe(audioBuffer)
 
           sendResponse({
             type: 'transcript',
             data: {
-               segments,
-               model: currentModel,
-               tier: hardwareTier,
+              segments,
+              model: currentModel,
+              tier: hardwareTier,
             },
           })
           break
@@ -399,14 +422,14 @@ if (parentPort) {
             error: `Unknown message type: ${message.type}`,
           })
       }
-    } catch (error: any) {
-      console.error('[ASR Worker] Error handling message:', error)
+    } catch (error: unknown) {
+      workerLog.error('Error handling message:', error)
       sendResponse({
         type: 'error',
-        error: error.message,
+        error: error instanceof Error ? error.message : String(error),
       })
     }
   })
 }
 
-console.log('[ASR Worker] Worker thread started')
+workerLog.info('Worker thread started')

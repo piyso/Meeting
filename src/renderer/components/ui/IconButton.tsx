@@ -10,22 +10,14 @@ interface IconButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> 
 
 export const IconButton = React.forwardRef<HTMLButtonElement, IconButtonProps>(
   ({ icon, size = 'md', tooltip, active, className = '', disabled, ...props }, ref) => {
-    const sizeMap = {
-      sm: 'w-[24px] h-[24px]',
-      md: 'w-[32px] h-[32px]',
-    }
-
-    const stateClasses = active
-      ? 'bg-[var(--color-bg-glass)] border-[var(--color-border-subtle)] text-white'
-      : 'bg-transparent text-[var(--color-text-secondary)] hover:text-white hover:bg-[var(--color-bg-glass-hover)]'
-
-    const baseStaticRawClasses = `ui-icon-btn ${sizeMap[size]} ${stateClasses}`
+    const activeClass = active ? 'active' : ''
+    const sizeClass = size === 'sm' ? 'ui-icon-btn-sm' : 'ui-icon-btn-md'
 
     const button = (
       <button
         ref={ref}
         disabled={disabled}
-        className={`${baseStaticRawClasses} ${className}`}
+        className={`ui-icon-btn ${sizeClass} ${activeClass} ${className}`}
         aria-label={props['aria-label'] || tooltip}
         {...props}
       >

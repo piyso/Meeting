@@ -19,13 +19,13 @@ export function useLLMStream(noteId: string | null) {
       if (tokenData.noteId !== noteId) return
 
       setIsGenerating(!tokenData.isComplete)
-      setTokens((prev) => [...prev, tokenData])
+      setTokens(prev => [...prev, tokenData])
     })
 
     return () => unsubscribe()
   }, [noteId])
 
-  const fullText = tokens.map((t) => t.token).join('')
+  const fullText = tokens.map(t => t.token).join('')
 
   return { tokens, fullText, isGenerating }
 }

@@ -5,7 +5,11 @@ import type { TranscriptChunk } from '../../../types/ipc'
 export function useTranscriptStream(meetingId: string | null) {
   const [streamedChunks, setStreamedChunks] = useState<TranscriptChunk[]>([])
 
-  const { data: historicalTranscripts = [], isLoading, error: queryError } = useQuery({
+  const {
+    data: historicalTranscripts = [],
+    isLoading,
+    error: queryError,
+  } = useQuery({
     queryKey: ['transcripts', meetingId],
     queryFn: async () => {
       if (!meetingId) return []
@@ -25,7 +29,7 @@ export function useTranscriptStream(meetingId: string | null) {
 
     const unsubscribe = window.electronAPI.on.transcriptChunk((chunk: TranscriptChunk) => {
       if (chunk.meetingId === meetingId) {
-        setStreamedChunks((prev) => {
+        setStreamedChunks(prev => {
           // If the chunk replaces an existing unfinalized chunk, we should probably update it.
           // In basic implementation, we just append or rely on transcriptId.
           const idx = prev.findIndex(c => c.transcriptId === chunk.transcriptId)
@@ -54,9 +58,9 @@ export function useTranscriptStream(meetingId: string | null) {
       transcriptId: t.id,
       startTime: t.start_time,
       endTime: t.end_time,
-      isFinal: true
+      isFinal: true,
     })),
-    ...streamedChunks
+    ...streamedChunks,
   ]
 
   // Sort them so they appear chronologically

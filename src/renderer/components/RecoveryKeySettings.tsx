@@ -1,12 +1,11 @@
-/**
- * Recovery Key Settings Component
- *
- * Allows users to view and export their recovery key from settings.
- * Requires password confirmation before displaying the recovery key.
- */
+import React, { useState, useRef, useEffect } from 'react'
+import { Key } from 'lucide-react'
+import { Button } from './ui/Button'
+import { Input } from './ui/Input'
+import { Badge } from './ui/Badge'
 
-import React, { useState } from 'react'
-import './RecoveryKeySettings.css'
+import { rendererLog } from '../utils/logger'
+const log = rendererLog.create('RecoveryKey')
 
 export interface RecoveryKeySettingsProps {
   userId: string
@@ -20,6 +19,15 @@ export const RecoveryKeySettings: React.FC<RecoveryKeySettingsProps> = ({ userId
   const [recoveryPhrase, setRecoveryPhrase] = useState<string[]>([])
   const [showRecoveryKey, setShowRecoveryKey] = useState(false)
   const [copied, setCopied] = useState(false)
+  const timerRefs = useRef<ReturnType<typeof setTimeout>[]>([])
+
+  // Cleanup all timers on unmount
+  useEffect(() => {
+    const timers = timerRefs.current
+    return () => {
+      timers.forEach(clearTimeout)
+    }
+  }, [])
 
   const handleExportClick = () => {
     setShowPasswordPrompt(true)
@@ -32,15 +40,14 @@ export const RecoveryKeySettings: React.FC<RecoveryKeySettingsProps> = ({ userId
     setIsVerifying(true)
 
     // In production, this would verify the password and retrieve the recovery phrase
-    // For now, simulate verification
-    setTimeout(() => {
+    const timer = setTimeout(() => {
       if (password.length < 8) {
         setError('Invalid password')
         setIsVerifying(false)
         return
       }
 
-      // Mock recovery phrase (in production, retrieve from keytar or regenerate)
+      // Mock recovery phrase
       const mockPhrase = [
         'abandon',
         'ability',
@@ -74,6 +81,7 @@ export const RecoveryKeySettings: React.FC<RecoveryKeySettingsProps> = ({ userId
       setPassword('')
       setIsVerifying(false)
     }, 1000)
+    timerRefs.current.push(timer)
   }
 
   const handleCopyToClipboard = async () => {
@@ -81,40 +89,19 @@ export const RecoveryKeySettings: React.FC<RecoveryKeySettingsProps> = ({ userId
     try {
       await navigator.clipboard.writeText(phrase)
       setCopied(true)
-      setTimeout(() => setCopied(false), 3000)
+      const timer = setTimeout(() => setCopied(false), 3000)
+      timerRefs.current.push(timer)
     } catch (error) {
-      console.error('Failed to copy to clipboard:', error)
-      alert('Failed to copy to clipboard. Please copy manually.')
+      log.error('Failed to copy to clipboard:', error)
     }
   }
 
   const handleSaveAsFile = () => {
     const phrase = recoveryPhrase.join(' ')
     const timestamp = new Date().toISOString().replace(/[:.]/g, '-')
-    const filename = `piyapi-notes-recovery-key-${timestamp}.txt`
+    const filename = `bluearkive-recovery-key-${timestamp}.txt`
 
-    const content = `PiyAPI Notes Recovery Key
-Generated: ${new Date().toISOString()}
-User ID: ${userId}
-
-⚠️ CRITICAL: Store this recovery key in a safe place!
-Without this key, your encrypted data is PERMANENTLY UNRECOVERABLE if you lose your password.
-
-Recovery Key:
-${phrase}
-
-Instructions:
-1. Write this recovery key on paper and store it securely
-2. Never share this key with anyone
-3. Keep multiple copies in different secure locations
-4. Do not store this key digitally (email, cloud storage, etc.)
-
-To recover your account:
-1. Open PiyAPI Notes
-2. Click "Forgot Password"
-3. Enter this 24-word recovery key
-4. Set a new password
-`
+    const content = `BlueArkive Recovery Key\nGenerated: ${new Date().toISOString()}\nUser ID: ${userId}\n\n⚠️ CRITICAL: Store this recovery key in a safe place!\nWithout this key, your encrypted data is PERMANENTLY UNRECOVERABLE if you lose your password.\n\nRecovery Key:\n${phrase}\n`
 
     const blob = new Blob([content], { type: 'text/plain' })
     const url = URL.createObjectURL(blob)
@@ -140,123 +127,143 @@ To recover your account:
     setError('')
   }
 
-  // Format words into 3 columns of 8 rows
-  const formatWords = () => {
-    const columns: string[][] = [[], [], []]
-    recoveryPhrase.forEach((word, index) => {
-      const col = Math.floor(index / 8)
-      columns[col]!.push(word)
-    })
-    return columns
-  }
-
   return (
-    <div className="recovery-key-settings">
+    <div className="w-full h-full flex flex-col pt-4">
       {!showPasswordPrompt && !showRecoveryKey && (
-        <div className="recovery-key-info">
-          <h3>Recovery Key</h3>
-          <p className="info-text">
-            Your recovery key is a 24-word phrase that can be used to recover your account if you
-            forget your password.
-          </p>
-          <div className="warning-box">
-            <span className="warning-icon">⚠️</span>
+        <div className="w-full max-w-[600px] surface-glass-premium p-8 rounded-[var(--radius-xl)] border border-[var(--color-border-subtle)] flex flex-col animate-slide-up shadow-2xl">
+          <div className="flex items-center gap-3 mb-6">
+            <Key size={28} className="text-[var(--color-text-primary)]" />
+            <div>
+              <h3 className="text-xl font-semibold tracking-wide text-[var(--color-text-primary)]">
+                Recovery Key
+              </h3>
+              <p className="text-sm text-[var(--color-text-secondary)] mt-1">
+                Your recovery key is a 24-word phrase used to recover your account if you forget
+                your password.
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-3 mb-8 p-3 rounded-lg bg-[rgba(251,191,36,0.1)] border border-[var(--color-amber)]/20 text-[var(--color-amber)] text-sm">
+            <span className="text-lg">⚠️</span>
             <span>
               Keep your recovery key safe. Anyone with access to it can recover your account.
             </span>
           </div>
-          <button className="export-button" onClick={handleExportClick}>
+
+          <Button variant="primary" onClick={handleExportClick} className="self-start">
             Export Recovery Key
-          </button>
+          </Button>
         </div>
       )}
 
       {showPasswordPrompt && (
-        <div className="password-prompt">
-          <h3>Confirm Your Password</h3>
-          <p className="prompt-text">Enter your password to view your recovery key</p>
+        <div className="w-full max-w-[480px] surface-glass-premium p-8 rounded-[var(--radius-xl)] border border-[var(--color-border-subtle)] flex flex-col animate-slide-up shadow-2xl">
+          <h3 className="text-xl font-semibold tracking-wide text-[var(--color-text-primary)] mb-2">
+            Confirm Your Password
+          </h3>
+          <p className="text-sm text-[var(--color-text-secondary)] mb-6">
+            Enter your password to view your recovery key.
+          </p>
 
-          <form onSubmit={handlePasswordSubmit}>
-            <div className="form-group">
-              <label htmlFor="password">Password</label>
-              <input
-                id="password"
-                type="password"
-                className="password-input"
-                value={password}
-                onChange={e => setPassword(e.target.value)}
-                placeholder="Enter your password"
-                autoFocus
-              />
-            </div>
+          <form onSubmit={handlePasswordSubmit} className="flex flex-col space-y-6">
+            <Input
+              type="password"
+              label="Password"
+              value={password}
+              onChange={e => setPassword(e.target.value)}
+              placeholder="Enter your password"
+              autoFocus
+            />
 
             {error && (
-              <div className="error-message">
-                <span className="error-icon">⚠️</span>
-                <span>{error}</span>
+              <div className="flex items-center gap-2 p-3 rounded-lg bg-rose-500/10 border border-rose-500/20 text-rose-400 text-sm">
+                <Badge variant="error" className="border-none bg-transparent px-0 w-4 h-4">
+                  !
+                </Badge>
+                {error}
               </div>
             )}
 
-            <div className="form-actions">
-              <button
+            <div className="flex gap-3 pt-2">
+              <Button
                 type="button"
-                className="cancel-button"
+                variant="secondary"
                 onClick={handleCancelPassword}
                 disabled={isVerifying}
+                className="flex-1 bg-white/5 border-white/10 hover:bg-white/10"
               >
                 Cancel
-              </button>
-              <button type="submit" className="confirm-button" disabled={!password || isVerifying}>
+              </Button>
+              <Button
+                type="submit"
+                variant="primary"
+                disabled={!password || isVerifying}
+                className="flex-1"
+              >
                 {isVerifying ? 'Verifying...' : 'Confirm'}
-              </button>
+              </Button>
             </div>
           </form>
         </div>
       )}
 
       {showRecoveryKey && recoveryPhrase.length > 0 && (
-        <div className="recovery-key-display">
-          <div className="display-header">
-            <h3>Your Recovery Key</h3>
-            <button className="close-button" onClick={handleClose}>
+        <div className="w-full max-w-[600px] surface-glass-premium p-8 rounded-[var(--radius-xl)] border border-[var(--color-border-subtle)] flex flex-col animate-slide-up shadow-2xl">
+          <div className="flex justify-between items-center mb-6">
+            <div className="flex items-center gap-3">
+              <Key size={28} className="text-[var(--color-amber)]" />
+              <h3 className="text-xl font-semibold tracking-wide text-[var(--color-text-primary)]">
+                Your Recovery Key
+              </h3>
+            </div>
+            <button
+              onClick={handleClose}
+              className="text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] transition-colors bg-white/5 p-2 rounded-md hover:bg-white/10"
+            >
               ✕
             </button>
           </div>
 
-          <div className="warning-banner">
-            <span className="warning-icon">⚠️</span>
-            <div className="warning-content">
-              <strong>Keep this safe!</strong>
-              <p>Anyone with this recovery key can access your encrypted data.</p>
+          <div className="flex items-center gap-3 mb-8 p-3 rounded-lg bg-[rgba(251,191,36,0.1)] border border-[var(--color-amber)]/20 text-[var(--color-amber)] text-sm leading-relaxed">
+            <span className="text-lg">⚠️</span>
+            <div>
+              <strong className="block mb-1">Keep this safe!</strong>
+              <span>Anyone with this recovery key can access your encrypted data.</span>
             </div>
           </div>
 
-          <div className="recovery-phrase-grid">
-            {formatWords().map((column, colIndex) => (
-              <div key={colIndex} className="recovery-column">
-                {column.map((word, rowIndex) => {
-                  const wordNumber = colIndex * 8 + rowIndex + 1
-                  return (
-                    <div key={wordNumber} className="recovery-word">
-                      <span className="word-number">{wordNumber}.</span>
-                      <span className="word-text">{word}</span>
-                    </div>
-                  )
-                })}
+          <div className="grid grid-cols-2 md:grid-cols-3 gap-2 mb-8 w-full">
+            {recoveryPhrase.map((word, i) => (
+              <div
+                key={i}
+                className="flex items-center gap-2 bg-white/5 border border-white/10 px-3 py-2 rounded-md font-mono text-sm shadow-sm"
+              >
+                <span className="text-slate-500 text-xs select-none">
+                  {(i + 1).toString().padStart(2, '0')}
+                </span>
+                <span className="text-slate-200 font-medium select-all space-x-0 tracking-wider mix-blend-screen">
+                  {word}
+                </span>
               </div>
             ))}
           </div>
 
-          <div className="recovery-actions">
-            <button
-              className={`action-button copy-button ${copied ? 'success' : ''}`}
+          <div className="flex gap-3 w-full">
+            <Button
+              variant="secondary"
+              className="flex-1 bg-white/5 border-white/10 hover:bg-white/10"
               onClick={handleCopyToClipboard}
             >
-              {copied ? '✓ Copied!' : '📋 Copy to Clipboard'}
-            </button>
-            <button className="action-button save-button" onClick={handleSaveAsFile}>
-              💾 Save as File
-            </button>
+              {copied ? '✓ Copied!' : 'Copy to Clipboard'}
+            </Button>
+            <Button
+              variant="secondary"
+              className="flex-1 bg-white/5 border-white/10 hover:bg-white/10"
+              onClick={handleSaveAsFile}
+            >
+              Save as File
+            </Button>
           </div>
         </div>
       )}

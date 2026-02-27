@@ -12,14 +12,14 @@ if command -v update-mime-database &> /dev/null; then
 fi
 
 # Register MIME type for .pnotes files
-MIME_FILE="/usr/share/mime/packages/piyapi-notes.xml"
+MIME_FILE="/usr/share/mime/packages/bluearkive.xml"
 cat > "$MIME_FILE" << 'EOF'
 <?xml version="1.0" encoding="UTF-8"?>
 <mime-info xmlns="http://www.freedesktop.org/standards/shared-mime-info">
-  <mime-type type="application/x-piyapi-notes">
-    <comment>PiyAPI Notes Meeting File</comment>
+  <mime-type type="application/x-bluearkive">
+    <comment>BlueArkive Meeting File</comment>
     <glob pattern="*.pnotes"/>
-    <icon name="piyapi-notes"/>
+    <icon name="bluearkive"/>
   </mime-type>
 </mime-info>
 EOF
@@ -29,4 +29,4 @@ if command -v gtk-update-icon-cache &> /dev/null; then
     gtk-update-icon-cache -f -t /usr/share/icons/hicolor
 fi
 
-echo "PiyAPI Notes installation complete!"
+echo "BlueArkive installation complete!"

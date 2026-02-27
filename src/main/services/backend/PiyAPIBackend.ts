@@ -130,8 +130,8 @@ export class PiyAPIBackend implements IBackendProvider {
         },
       })
     } catch (error) {
-      console.error('Logout request failed:', error)
       // Continue with local cleanup even if server request fails
+      void error
     }
 
     // Clear local tokens
@@ -253,7 +253,7 @@ export class PiyAPIBackend implements IBackendProvider {
   ): Promise<SearchResult[]> {
     await this.ensureAuthenticated()
 
-    const body: any = { query, limit }
+    const body: Record<string, unknown> = { query, limit }
     if (namespace) {
       body.namespace = namespace
     }
@@ -286,7 +286,7 @@ export class PiyAPIBackend implements IBackendProvider {
   ): Promise<SearchResult[]> {
     await this.ensureAuthenticated()
 
-    const body: any = { query, limit }
+    const body: Record<string, unknown> = { query, limit }
     if (namespace) {
       body.namespace = namespace
     }
@@ -315,7 +315,7 @@ export class PiyAPIBackend implements IBackendProvider {
   public async ask(query: string, namespace?: string): Promise<AskResponse> {
     await this.ensureAuthenticated()
 
-    const body: any = { query }
+    const body: Record<string, unknown> = { query }
     if (namespace) {
       body.namespace = namespace
     }
@@ -424,12 +424,12 @@ export class PiyAPIBackend implements IBackendProvider {
           message: `Backend returned ${response.status}`,
         }
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       const latency = Date.now() - start
       return {
         status: 'down',
         latency,
-        message: error.message || 'Backend unreachable',
+        message: error instanceof Error ? error.message : 'Backend unreachable',
       }
     }
   }
@@ -459,6 +459,13 @@ export class PiyAPIBackend implements IBackendProvider {
   public setAccessToken(token: string, userId: string): void {
     this.accessToken = token
     this.userId = userId
+  }
+
+  /**
+   * Get current access token (for internal use by SyncManager)
+   */
+  public getAccessToken(): string | null {
+    return this.accessToken
   }
 
   /**

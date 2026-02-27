@@ -24,7 +24,14 @@ export function useDigest(meetingId: string | null) {
         meetingId,
       })
       if (result?.success && result.data) {
-        setDigest(result.data as any)
+        setDigest(
+          result.data as unknown as {
+            summary?: string
+            actionItems?: string
+            decisions?: string
+            generatedAt?: string
+          }
+        )
       } else {
         setError(result?.error?.message || 'Failed to generate digest')
       }

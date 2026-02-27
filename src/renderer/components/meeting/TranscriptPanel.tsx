@@ -11,7 +11,11 @@ interface TranscriptPanelProps {
   isLoading?: boolean
 }
 
-export const TranscriptPanel: React.FC<TranscriptPanelProps> = ({ segments, isRecording, isLoading }) => {
+export const TranscriptPanel: React.FC<TranscriptPanelProps> = ({
+  segments,
+  isRecording,
+  isLoading,
+}) => {
   const parentRef = useRef<HTMLDivElement>(null)
   const [autoScroll, setAutoScroll] = useState(true)
 
@@ -52,7 +56,7 @@ export const TranscriptPanel: React.FC<TranscriptPanelProps> = ({ segments, isRe
 
   if (isLoading) {
     return (
-      <div className="h-full w-full p-[var(--space-16)] overflow-y-auto hidden-scrollbar">
+      <div className="ui-transcript-scroll loading hidden-scrollbar">
         <TranscriptSkeleton />
       </div>
     )
@@ -61,24 +65,24 @@ export const TranscriptPanel: React.FC<TranscriptPanelProps> = ({ segments, isRe
   if (segments.length === 0) {
     return (
       <div className="h-full w-full flex items-center justify-center">
-        <EmptyState 
-          icon={Mic} 
-          title="Waiting for audio" 
-          description={isRecording ? "Listening to the meeting..." : "Start recording to see live transcription."} 
+        <EmptyState
+          icon={Mic}
+          title="Waiting for audio"
+          description={
+            isRecording
+              ? 'Listening to the meeting...'
+              : 'Start recording to see live transcription.'
+          }
         />
       </div>
     )
   }
 
   return (
-    <div 
-      className="relative h-full w-full"
-      role="log"
-      aria-live={autoScroll ? "polite" : "off"}
-    >
-      <div 
+    <div className="ui-transcript-panel" role="log" aria-live={autoScroll ? 'polite' : 'off'}>
+      <div
         ref={parentRef}
-        className="h-full w-full overflow-y-auto px-[var(--space-16)] pb-24 scrollbar-webkit"
+        className="ui-transcript-scroll scrollbar-webkit"
         onScroll={handleScroll}
       >
         <div
@@ -88,8 +92,8 @@ export const TranscriptPanel: React.FC<TranscriptPanelProps> = ({ segments, isRe
             position: 'relative',
           }}
         >
-          {rowVirtualizer.getVirtualItems().map((virtualRow) => {
-            const segment = segments[virtualRow.index] as any
+          {rowVirtualizer.getVirtualItems().map(virtualRow => {
+            const segment = segments[virtualRow.index] as TranscriptSegmentProps
             return (
               <div
                 key={virtualRow.key}
@@ -111,12 +115,9 @@ export const TranscriptPanel: React.FC<TranscriptPanelProps> = ({ segments, isRe
       </div>
 
       {!autoScroll && segments.length > 5 && (
-        <button
-          onClick={jumpToLatest}
-          className="absolute bottom-[var(--space-16)] right-[var(--space-16)] surface-glass-premium shrink-0 rounded-full px-[var(--space-12)] py-[var(--space-8)] flex items-center gap-2 text-[var(--color-text-secondary)] hover:text-white transition-colors border border-[var(--color-border-subtle)] shadow-xl animate-slide-up"
-        >
+        <button onClick={jumpToLatest} className="ui-transcript-jump-btn animate-slide-up">
           <ArrowDown size={14} />
-          <span className="text-[var(--text-xs)] font-medium">Jump to latest</span>
+          <span className="ui-transcript-jump-text">Jump to latest</span>
         </button>
       )}
     </div>

@@ -440,6 +440,15 @@ export interface CheckOllamaResponse {
   downloadUrl?: string
 }
 
+export interface MeetingSuggestionParams {
+  meetingId: string
+  recentContext: string
+}
+
+export interface MeetingSuggestionResponse {
+  suggestion: string
+}
+
 // ============================================================================
 // Settings Operations
 // ============================================================================
@@ -482,6 +491,9 @@ export interface AppSettings {
   phiDetectionEnabled: boolean
   maskPHIBeforeSync: boolean
   auditLoggingEnabled: boolean
+
+  // Lifecycle
+  onboarding_completed: boolean
 }
 
 export interface UpdateSettingsParams {
@@ -490,7 +502,7 @@ export interface UpdateSettingsParams {
 }
 
 export interface GetSettingParams {
-  key: keyof AppSettings
+  key: keyof AppSettings | string
 }
 
 // ============================================================================
@@ -687,7 +699,17 @@ export interface ElectronAPI {
   entity: {
     get: (params: GetEntitiesParams) => Promise<IPCResponse<Entity[]>>
     getByType: (params: GetEntitiesByTypeParams) => Promise<IPCResponse<EntityAggregation[]>>
-    extract: (params: { text: string }) => Promise<IPCResponse<Array<{ text: string; type: string; confidence: number; startOffset: number; endOffset: number }>>>
+    extract: (params: { text: string }) => Promise<
+      IPCResponse<
+        Array<{
+          text: string
+          type: string
+          confidence: number
+          startOffset: number
+          endOffset: number
+        }>
+      >
+    >
   }
 
   // Search operations
@@ -782,9 +804,13 @@ export interface ElectronAPI {
     >
     clearDiagnostics: () => Promise<IPCResponse<void>>
     openDiagnosticsFolder: () => Promise<IPCResponse<void>>
-    onFallbackOccurred: (callback: (info: any) => void) => () => void
-    startCaptureWithFallback: (params: FallbackChainParams) => Promise<IPCResponse<FallbackChainResult>>
-    handleCaptureFallback: (params: CaptureFallbackParams) => Promise<IPCResponse<CaptureFallbackResult>>
+    onFallbackOccurred: (callback: (info: FallbackInfo) => void) => () => void
+    startCaptureWithFallback: (
+      params: FallbackChainParams
+    ) => Promise<IPCResponse<FallbackChainResult>>
+    handleCaptureFallback: (
+      params: CaptureFallbackParams
+    ) => Promise<IPCResponse<CaptureFallbackResult>>
   }
 
   // Shell operations
@@ -798,19 +824,24 @@ export interface ElectronAPI {
     getEngineStatus: () => Promise<IPCResponse<InferenceEngineStatus>>
     checkOllama: (params: CheckOllamaParams) => Promise<IPCResponse<CheckOllamaResponse>>
     unloadModels: () => Promise<IPCResponse<void>>
+    meetingSuggestion: (
+      params: MeetingSuggestionParams
+    ) => Promise<IPCResponse<MeetingSuggestionResponse>>
   }
 
   // Model operations
   model: {
     detectHardwareTier: () => Promise<IPCResponse<HardwareTierInfo>>
     isFirstLaunch: () => Promise<IPCResponse<boolean>>
-    areModelsDownloaded: (modelType: 'whisper-turbo' | 'moonshine-base') => Promise<IPCResponse<boolean>>
-    downloadModelsForTier: (tierInfo: any) => Promise<IPCResponse<void>>
+    areModelsDownloaded: (modelType: string) => Promise<IPCResponse<boolean>>
+    downloadModelsForTier: (tierInfo: HardwareTierInfo) => Promise<IPCResponse<void>>
     downloadAll: () => Promise<IPCResponse<void>>
-    verifyModel: (modelType: 'whisper-turbo' | 'moonshine-base') => Promise<IPCResponse<boolean>>
-    deleteModel: (modelType: 'whisper-turbo' | 'moonshine-base') => Promise<IPCResponse<void>>
-    getModelPaths: (modelType: 'whisper-turbo' | 'moonshine-base') => Promise<IPCResponse<string[]>>
-    onDownloadProgress: (callback: (data: any) => void) => () => void
+    verifyModel: (modelType: string) => Promise<IPCResponse<boolean>>
+    deleteModel: (modelType: string) => Promise<IPCResponse<void>>
+    getModelPaths: (modelType: string) => Promise<IPCResponse<string[]>>
+    onDownloadProgress: (
+      callback: (data: { percent: number; transferredBytes: number; totalBytes: number }) => void
+    ) => () => void
   }
 
   // Settings operations
@@ -833,6 +864,20 @@ export interface ElectronAPI {
     getLatest: () => Promise<IPCResponse<WeeklyDigest | null>>
   }
 
+  // Window operations
+  window: {
+    restoreMain: () => Promise<IPCResponse<void>>
+  }
+
+  // Widget operations
+  widget: {
+    updateState: (state: {
+      isRecording: boolean
+      elapsedTime: string
+      lastTranscriptLine: string
+    }) => Promise<IPCResponse<void>>
+  }
+
   // Event listeners (streaming)
   on: {
     transcriptChunk: (callback: (chunk: TranscriptChunk) => void) => () => void
@@ -840,13 +885,20 @@ export interface ElectronAPI {
     syncEvent: (callback: (event: SyncEvent) => void) => () => void
     audioEvent: (callback: (event: AudioEvent) => void) => () => void
     batchExpandProgress: (callback: (progress: BatchExpandNotesProgress) => void) => () => void
+    widgetStateUpdated: (
+      callback: (state: {
+        isRecording: boolean
+        elapsedTime: string
+        lastTranscriptLine: string
+      }) => void
+    ) => () => void
     error: (callback: (error: ErrorEvent) => void) => () => void
   }
 
   // IPC Renderer (for audio capture module)
   ipcRenderer: {
-    send: (channel: string, data: any) => void
-    on: (channel: string, callback: (event: any, data: any) => void) => () => void
+    send: (channel: string, data?: unknown) => void
+    on: (channel: string, callback: (event: unknown, data: unknown) => void) => () => void
   }
 
   // Power management
@@ -856,6 +908,23 @@ export interface ElectronAPI {
 
   // Auth operations
   auth: {
+    login: (params: {
+      email: string
+      password: string
+    }) => Promise<
+      IPCResponse<{ user: { id: string; email: string; tier: string }; expiresIn: number }>
+    >
+    register: (params: {
+      email: string
+      password: string
+    }) => Promise<
+      IPCResponse<{ user: { id: string; email: string; tier: string }; expiresIn: number }>
+    >
+    logout: () => Promise<IPCResponse<void>>
+    getCurrentUser: () => Promise<IPCResponse<{ id: string; email: string; tier: string } | null>>
+    isAuthenticated: () => Promise<IPCResponse<{ authenticated: boolean }>>
+    googleAuth: () => Promise<IPCResponse<void>>
+    refreshToken: () => Promise<IPCResponse<{ refreshed: boolean }>>
     generateRecoveryKey: () => Promise<IPCResponse<{ phrase: string[] }>>
   }
 }

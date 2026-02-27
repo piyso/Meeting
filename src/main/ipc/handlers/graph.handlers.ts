@@ -35,18 +35,17 @@ export function registerGraphHandlers(): void {
       }
 
       // Online — fetch from PiyAPI
-      const graph = await backend.getGraph(
-        params?.namespace || 'meetings',
-        params?.maxHops || 2
-      )
+      const graph = await backend.getGraph(params?.namespace || 'meetings', params?.maxHops || 2)
       return { success: true, data: graph }
     } catch (error) {
+      const { Logger } = await import('../../services/Logger')
+      Logger.create('GraphHandlers').error('Failed to fetch graph', error)
       return {
-        success: true,
-        data: {
-          nodes: [],
-          edges: [],
-          stats: { totalNodes: 0, totalEdges: 0 },
+        success: false,
+        error: {
+          code: 'GRAPH_FETCH_FAILED',
+          message: error instanceof Error ? error.message : 'Unknown error',
+          timestamp: Date.now(),
         },
       }
     }
@@ -62,15 +61,21 @@ export function registerGraphHandlers(): void {
         return { success: true, data: { contradictions: [] } }
       }
 
-      const graph = await backend.getGraph(
-        params?.namespace || 'meetings',
-        1
-      )
+      const graph = await backend.getGraph(params?.namespace || 'meetings', 1)
       const contradictions =
-        graph.edges?.filter((e: any) => e.type === 'contradicts') || []
+        graph.edges?.filter((e: { type: string }) => e.type === 'contradicts') || []
       return { success: true, data: { contradictions } }
-    } catch {
-      return { success: true, data: { contradictions: [] } }
+    } catch (err) {
+      const { Logger } = await import('../../services/Logger')
+      Logger.create('GraphHandlers').error('Contradiction check failed', err)
+      return {
+        success: false,
+        error: {
+          code: 'CONTRADICTIONS_FETCH_FAILED',
+          message: err instanceof Error ? err.message : 'Unknown error',
+          timestamp: Date.now(),
+        },
+      }
     }
   })
 }

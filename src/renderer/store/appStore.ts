@@ -10,8 +10,9 @@ export interface Toast {
 
 interface AppState {
   // ── Navigation ──
-  activeView: 'meeting-list' | 'meeting-detail' | 'settings'
+  activeView: 'meeting-list' | 'meeting-detail' | 'settings' | 'onboarding'
   selectedMeetingId: string | null
+  isAuthenticated: boolean
 
   // ── Recording ──
   recordingState: 'idle' | 'starting' | 'recording' | 'stopping' | 'processing'
@@ -39,12 +40,14 @@ interface AppState {
   removeToast: (id: string) => void
   setIsOnline: (isOnline: boolean) => void
   setSyncStatus: (status: AppState['syncStatus']) => void
+  setLastSyncTimestamp: (timestamp: number | null) => void
 }
 
 export const useAppStore = create<AppState>()(set => ({
   // Navigation
   activeView: 'meeting-list',
   selectedMeetingId: null,
+  isAuthenticated: false,
 
   // Recording
   recordingState: 'idle',
@@ -54,7 +57,10 @@ export const useAppStore = create<AppState>()(set => ({
   // Connectivity
   isOnline: navigator.onLine,
   syncStatus: 'idle',
-  lastSyncTimestamp: null,
+  lastSyncTimestamp: (() => {
+    const stored = localStorage.getItem('piynotes:lastSyncTimestamp')
+    return stored ? parseInt(stored, 10) : null
+  })(),
 
   // UI State
   focusMode: false,
@@ -83,4 +89,10 @@ export const useAppStore = create<AppState>()(set => ({
 
   setIsOnline: isOnline => set({ isOnline }),
   setSyncStatus: syncStatus => set({ syncStatus }),
+  setLastSyncTimestamp: timestamp => {
+    if (timestamp) {
+      localStorage.setItem('piynotes:lastSyncTimestamp', timestamp.toString())
+    }
+    set({ lastSyncTimestamp: timestamp })
+  },
 }))

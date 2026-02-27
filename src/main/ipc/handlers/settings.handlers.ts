@@ -6,10 +6,11 @@ export function registerSettingsHandlers(): void {
   ipcMain.handle('settings:getAll', async () => {
     try {
       const db = getDatabase()
-      const settings = db
-        .prepare('SELECT key, value FROM settings')
-        .all() as Array<{ key: string; value: string }>
-      const result: Record<string, any> = {}
+      const settings = db.prepare('SELECT key, value FROM settings').all() as Array<{
+        key: string
+        value: string
+      }>
+      const result: Record<string, unknown> = {}
       for (const row of settings) {
         try {
           result[row.key] = JSON.parse(row.value)
@@ -34,12 +35,15 @@ export function registerSettingsHandlers(): void {
   ipcMain.handle('settings:get', async (_, params) => {
     try {
       if (!params?.key) {
-        return { success: false, error: { code: 'INVALID_PARAMS', message: 'key is required', timestamp: Date.now() } }
+        return {
+          success: false,
+          error: { code: 'INVALID_PARAMS', message: 'key is required', timestamp: Date.now() },
+        }
       }
       const db = getDatabase()
-      const row = db
-        .prepare('SELECT value FROM settings WHERE key = ?')
-        .get(params.key) as { value: string } | undefined
+      const row = db.prepare('SELECT value FROM settings WHERE key = ?').get(params.key) as
+        | { value: string }
+        | undefined
       if (!row) return { success: true, data: null }
       try {
         return { success: true, data: JSON.parse(row.value) }
@@ -62,13 +66,22 @@ export function registerSettingsHandlers(): void {
   ipcMain.handle('settings:update', async (_, params) => {
     try {
       if (!params?.key || params?.value === undefined) {
-        return { success: false, error: { code: 'INVALID_PARAMS', message: 'key and value are required', timestamp: Date.now() } }
+        return {
+          success: false,
+          error: {
+            code: 'INVALID_PARAMS',
+            message: 'key and value are required',
+            timestamp: Date.now(),
+          },
+        }
       }
       const db = getDatabase()
       const now = Math.floor(Date.now() / 1000)
-      db.prepare(
-        'INSERT OR REPLACE INTO settings (key, value, updated_at) VALUES (?, ?, ?)'
-      ).run(params.key, JSON.stringify(params.value), now)
+      db.prepare('INSERT OR REPLACE INTO settings (key, value, updated_at) VALUES (?, ?, ?)').run(
+        params.key,
+        JSON.stringify(params.value),
+        now
+      )
       return { success: true }
     } catch (error) {
       return {

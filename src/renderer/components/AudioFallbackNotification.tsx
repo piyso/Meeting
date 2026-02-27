@@ -8,6 +8,9 @@
 import React, { useEffect, useState } from 'react'
 import './AudioFallbackNotification.css'
 
+import { rendererLog } from '../utils/logger'
+const log = rendererLog.create('AudioFallback')
+
 interface FallbackInfo {
   from: 'system' | 'microphone' | 'cloud'
   to: 'microphone' | 'cloud' | 'error'
@@ -28,7 +31,7 @@ export const AudioFallbackNotification: React.FC = () => {
     // Listen for fallback notifications from main process (Task 13.2)
     if (window.electronAPI?.audio?.onFallbackOccurred) {
       window.electronAPI.audio.onFallbackOccurred((info: FallbackInfo) => {
-        console.log('Received fallback notification:', info)
+        log.info('Received fallback notification:', info)
         setFallbackInfo(info)
         setIsVisible(true)
 
@@ -48,7 +51,7 @@ export const AudioFallbackNotification: React.FC = () => {
           _event: unknown,
           data: { type: 'microphone' | 'cloud'; message: string; details: string }
         ) => {
-          console.log('Received legacy fallback notification:', data)
+          log.info('Received legacy fallback notification:', data)
           // Convert legacy format to new format
           setFallbackInfo({
             from: 'system',
@@ -88,7 +91,7 @@ export const AudioFallbackNotification: React.FC = () => {
         await window.electronAPI.audio.openSoundSettings()
       }
     } catch (error) {
-      console.error('Failed to open settings:', error)
+      log.error('Failed to open settings:', error)
     }
   }
 

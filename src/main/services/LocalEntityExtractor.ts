@@ -18,14 +18,11 @@ export interface ExtractedEntity {
 export class LocalEntityExtractor {
   // Regex patterns for real-time extraction (Blueprint §2.9)
   private patterns: Record<string, RegExp> = {
-    PERSON:
-      /\b(?:Mr|Mrs|Ms|Dr|Prof)\.?\s+[A-Z][a-z]+(?:\s+[A-Z][a-z]+)?\b/g,
+    PERSON: /\b(?:Mr|Mrs|Ms|Dr|Prof)\.?\s+[A-Z][a-z]+(?:\s+[A-Z][a-z]+)?\b/g,
     DATE: /\b(?:\d{1,2}\/\d{1,2}\/\d{2,4}|\w+ \d{1,2}(?:st|nd|rd|th)?(?:,? \d{4})?)\b/g,
     AMOUNT: /\$[\d,]+(?:\.\d{2})?[KMB]?\b/g,
-    EMAIL:
-      /\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b/g,
-    ACTION_ITEM:
-      /\b(?:TODO|ACTION|TASK|need to|should|must|will)\b.*?[.!?\n]/gi,
+    EMAIL: /\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b/g,
+    ACTION_ITEM: /\b(?:TODO|ACTION|TASK|need to|should|must|will)\b.*?[.!?\n]/gi,
   }
 
   /**
@@ -64,9 +61,7 @@ export class LocalEntityExtractor {
   /**
    * Extract entities from multiple transcript segments (batch)
    */
-  extractBatch(
-    texts: Array<{ id: string; text: string }>
-  ): Map<string, ExtractedEntity[]> {
+  extractBatch(texts: Array<{ id: string; text: string }>): Map<string, ExtractedEntity[]> {
     const results = new Map<string, ExtractedEntity[]>()
     for (const item of texts) {
       results.set(item.id, this.extract(item.text))
@@ -88,7 +83,7 @@ export class LocalEntityExtractor {
 
   private deduplicate(entities: ExtractedEntity[]): ExtractedEntity[] {
     const seen = new Set<string>()
-    return entities.filter((entity) => {
+    return entities.filter(entity => {
       const key = `${entity.type}:${entity.text.toLowerCase()}`
       if (seen.has(key)) return false
       seen.add(key)

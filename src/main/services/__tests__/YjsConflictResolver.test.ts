@@ -344,7 +344,7 @@ describe('YjsConflictResolver', () => {
 
   describe('subscribeToChanges', () => {
     it('should call callback on document changes', () => {
-      return new Promise<void>((resolve) => {
+      return new Promise<void>(resolve => {
         const doc = resolver.createDocument('note-1', 'Initial')
         const text = doc.getText('content')
 
@@ -374,7 +374,7 @@ describe('YjsConflictResolver', () => {
     })
 
     it('should stop calling callback after unsubscribe', () => {
-      return new Promise<void>((resolve) => {
+      return new Promise<void>(resolve => {
         const doc = resolver.createDocument('note-1', 'Test')
         const text = doc.getText('content')
 

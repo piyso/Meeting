@@ -9,9 +9,9 @@ export const ToastContainer: React.FC = () => {
 
   return (
     <div className="ui-toast-region" aria-live="polite">
-      {toasts.map((toast) => (
-        <div 
-          key={toast.id} 
+      {toasts.map(toast => (
+        <div
+          key={toast.id}
           className={`ui-toast toast-${toast.type} surface-glass-premium stagger-child`}
           onClick={() => removeToast(toast.id)}
         >

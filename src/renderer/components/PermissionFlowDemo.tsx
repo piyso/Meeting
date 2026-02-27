@@ -26,7 +26,7 @@ export const PermissionFlowDemo: React.FC = () => {
     steps: [
       'Click "Open System Settings" below',
       'Navigate to Privacy & Security → Screen Recording',
-      'Find "PiyAPI Notes" in the list',
+      'Find "BlueArkive" in the list',
       'Toggle the switch to ON',
       'Return to this app and click "Check Again"',
       'You may need to restart the app for changes to take effect',

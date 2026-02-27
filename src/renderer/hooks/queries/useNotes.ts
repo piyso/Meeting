@@ -25,7 +25,7 @@ export function useNotes(meetingId: string | null) {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['notes', meetingId] })
-    }
+    },
   })
 
   const updateNote = useMutation({
@@ -36,7 +36,7 @@ export function useNotes(meetingId: string | null) {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['notes', meetingId] })
-    }
+    },
   })
 
   const deleteNote = useMutation({
@@ -46,7 +46,7 @@ export function useNotes(meetingId: string | null) {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['notes', meetingId] })
-    }
+    },
   })
 
   return {

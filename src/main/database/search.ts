@@ -5,6 +5,10 @@
  */
 
 import { getDatabase } from './connection'
+import { Logger } from '../services/Logger'
+
+const log = Logger.create('Search')
+
 import type {
   TranscriptSearchResult,
   NoteSearchResult,
@@ -277,7 +281,7 @@ export function countSearchResults(
 export function rebuildSearchIndexes(): void {
   const db = getDatabase()
 
-  console.log('Rebuilding FTS5 indexes...')
+  log.info('Rebuilding FTS5 indexes...')
 
   // Rebuild transcripts index
   db.exec("INSERT INTO transcripts_fts(transcripts_fts) VALUES('rebuild')")
@@ -285,7 +289,7 @@ export function rebuildSearchIndexes(): void {
   // Rebuild notes index
   db.exec("INSERT INTO notes_fts(notes_fts) VALUES('rebuild')")
 
-  console.log('FTS5 indexes rebuilt successfully')
+  log.info('FTS5 indexes rebuilt successfully')
 }
 
 /**
@@ -295,7 +299,7 @@ export function rebuildSearchIndexes(): void {
 export function optimizeSearchIndexes(): void {
   const db = getDatabase()
 
-  console.log('Optimizing FTS5 indexes...')
+  log.info('Optimizing FTS5 indexes...')
 
   // Optimize transcripts index
   db.exec("INSERT INTO transcripts_fts(transcripts_fts) VALUES('optimize')")
@@ -303,5 +307,5 @@ export function optimizeSearchIndexes(): void {
   // Optimize notes index
   db.exec("INSERT INTO notes_fts(notes_fts) VALUES('optimize')")
 
-  console.log('FTS5 indexes optimized successfully')
+  log.info('FTS5 indexes optimized successfully')
 }

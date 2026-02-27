@@ -12,6 +12,9 @@ import React from 'react'
 import type { ScreenRecordingGuidance } from '../../types/ipc'
 import './ScreenRecordingPermissionDialog.css'
 
+import { rendererLog } from '../utils/logger'
+const log = rendererLog.create('ScreenRecPerm')
+
 interface ScreenRecordingPermissionDialogProps {
   guidance: ScreenRecordingGuidance
   onClose: () => void
@@ -29,12 +32,12 @@ export const ScreenRecordingPermissionDialog: React.FC<ScreenRecordingPermission
     try {
       const result = await window.electronAPI.audio.openScreenRecordingSettings()
       if (result.success) {
-        console.log('Opened macOS System Settings for Screen Recording')
+        log.info('Opened macOS System Settings for Screen Recording')
       } else {
-        console.error('Failed to open System Settings:', result.error)
+        log.error('Failed to open System Settings:', result.error)
       }
     } catch (error) {
-      console.error('Error opening System Settings:', error)
+      log.error('Error opening System Settings:', error)
     }
   }
 
@@ -52,7 +55,7 @@ export const ScreenRecordingPermissionDialog: React.FC<ScreenRecordingPermission
         {/* Error Message */}
         <div className="dialog-content">
           <p className="error-message">
-            PiyAPI Notes needs Screen Recording permission to capture system audio from your
+            BlueArkive needs Screen Recording permission to capture system audio from your
             meetings (Zoom, Teams, Google Meet, etc.). This permission allows the app to record
             audio from your computer's output, not your screen visuals.
           </p>
@@ -110,7 +113,7 @@ export const ScreenRecordingPermissionDialog: React.FC<ScreenRecordingPermission
             <h3>Why This Permission?</h3>
             <p>
               macOS requires Screen Recording permission for apps to capture system audio. This is a
-              security feature to protect your privacy. PiyAPI Notes only captures audio, not screen
+              security feature to protect your privacy. BlueArkive only captures audio, not screen
               visuals, and all data stays on your device unless you enable cloud sync.
             </p>
           </div>
@@ -123,7 +126,7 @@ export const ScreenRecordingPermissionDialog: React.FC<ScreenRecordingPermission
                 className="resource-link"
                 onClick={() => {
                   window.electronAPI.shell?.openExternal(
-                    'https://docs.piyapi.com/macos-screen-recording-permission'
+                    'https://docs.bluearkive.com/macos-screen-recording-permission'
                   )
                 }}
               >

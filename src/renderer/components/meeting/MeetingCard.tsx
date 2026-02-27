@@ -27,7 +27,7 @@ export const MeetingCard: React.FC<MeetingCardProps> = ({
   index,
 }) => {
   const durationMins = Math.round(duration / 60)
-  
+
   const handleMouseEnter = () => {
     // Phase 2: Prefetch meeting details for instant local load
     window.dispatchEvent(new CustomEvent('prefetch-meeting', { detail: { id } }))
@@ -38,8 +38,17 @@ export const MeetingCard: React.FC<MeetingCardProps> = ({
       className="ui-meeting-card stagger-child premium-hover"
       style={{ animationDelay: `${Math.min(index * 40, 480)}ms` }}
       onClick={() => onClick(id)}
-      onContextMenu={(e) => onContextMenu(e, id)}
+      onContextMenu={e => onContextMenu(e, id)}
       onMouseEnter={handleMouseEnter}
+      role="button"
+      tabIndex={0}
+      aria-label={`${title}, ${durationMins} minutes, ${participantCount} participants`}
+      onKeyDown={e => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault()
+          onClick(id)
+        }
+      }}
     >
       <h3 className="ui-meeting-card-title" title={title}>
         {title}
@@ -48,8 +57,16 @@ export const MeetingCard: React.FC<MeetingCardProps> = ({
         {durationMins} min · {participantCount} people
       </div>
       <div className="ui-meeting-card-badges">
-        {hasTranscript && <Badge variant="default" className="bg-[var(--color-glow-violet)] text-[#A78BFA] border-none">Transcribed</Badge>}
-        {hasNotes && <Badge variant="default" className="bg-[rgba(255,255,255,0.05)] text-white border-none">Notes</Badge>}
+        {hasTranscript && (
+          <Badge variant="default" className="ui-meeting-card-badge-transcribed">
+            Transcribed
+          </Badge>
+        )}
+        {hasNotes && (
+          <Badge variant="default" className="ui-meeting-card-badge-notes">
+            Notes
+          </Badge>
+        )}
       </div>
     </div>
   )

@@ -22,24 +22,23 @@ export function useSilentPrompter(
     const now = transcripts[transcripts.length - 1]?.startTime || 0
     const fiveMinAgo = now - 300
     const recentText = transcripts
-      .filter((t) => t.startTime >= fiveMinAgo)
-      .map((t) => t.text)
+      .filter(t => t.startTime >= fiveMinAgo)
+      .map(t => t.text)
       .join(' ')
 
     if (recentText.length < 50) return // Not enough context
 
     try {
       // Call Ollama via intelligence IPC
-      const result = await window.electronAPI?.note?.expand?.({
+      const result = await window.electronAPI?.intelligence?.meetingSuggestion?.({
         meetingId,
-        timestamp: now,
-        text: `Given this conversation, suggest one short question the user should consider asking: ${recentText.slice(0, 1000)}`,
+        recentContext: recentText.slice(0, 1000), // pass context cleanly
       })
 
-      if (result?.success && result.data?.expandedText) {
-        const text = result.data.expandedText
+      if (result?.success && result.data?.suggestion) {
+        const text = result.data.suggestion
         // Don't show error messages as suggestions
-        if (!text.startsWith('⚠️')) {
+        if (!text.startsWith('⚠️') && !text.toLowerCase().includes('error')) {
           setSuggestion(text)
         }
       }

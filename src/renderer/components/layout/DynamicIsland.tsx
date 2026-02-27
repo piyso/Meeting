@@ -1,8 +1,14 @@
 import React from 'react'
 import { ChevronLeft, Square } from 'lucide-react'
 import { IconButton } from '../ui/IconButton'
-import { Badge } from '../ui/Badge'
 import { AudioIndicator } from '../meeting/AudioIndicator'
+import type { ElectronAPI } from '../../../types/ipc'
+
+declare global {
+  interface Window {
+    electronAPI: ElectronAPI
+  }
+}
 
 interface DynamicIslandProps {
   recordingState: 'idle' | 'starting' | 'recording' | 'stopping' | 'processing'
@@ -29,67 +35,102 @@ export const DynamicIsland: React.FC<DynamicIslandProps> = ({
 }) => {
   const isRecording = recordingState === 'recording'
 
+  // Broadcast our active state to the native floating widget
+  React.useEffect(() => {
+    // We only broadcast when there's an active recording session or processing state
+    if (recordingState !== 'idle') {
+      window.electronAPI.widget.updateState({
+        isRecording,
+        elapsedTime: elapsedTime || '00:00:00',
+        lastTranscriptLine:
+          recordingState === 'processing' ? 'Processing transcript...' : 'Listening...',
+      })
+    } else {
+      // Ensure widget hides immediately when idle
+      window.electronAPI.widget.updateState({
+        isRecording: false,
+        elapsedTime: '00:00:00',
+        lastTranscriptLine: '',
+      })
+    }
+  }, [recordingState, isRecording, elapsedTime])
+
   // Sync dot calculation
-  let syncDotBg = 'bg-[var(--color-emerald)]'
+  let syncDotClass = 'ui-dynamic-island-sync-online'
   let syncTitle = 'Synced'
   if (!isOnline || syncStatus === 'error') {
-    syncDotBg = 'bg-[var(--color-rose)]'
+    syncDotClass = 'ui-dynamic-island-sync-offline'
     syncTitle = 'Offline'
   } else if (syncStatus === 'syncing') {
-    syncDotBg = 'bg-[var(--color-amber)] animate-pulse'
+    syncDotClass = 'ui-dynamic-island-sync-syncing animate-pulse'
     syncTitle = 'Syncing'
   }
 
   return (
     <div
-      className="fixed top-[var(--space-8)] h-[var(--h-xl)] right-[var(--space-16)] 
-                 surface-glass-premium gpu-promoted rounded-full z-40
-                 flex items-center px-[var(--space-16)] justify-between drag-region
-                 transition-all duration-300 ease-[var(--ease-fluid)]"
+      className="ui-dynamic-island surface-glass-premium gpu-promoted drag-region"
+      role="banner"
+      aria-label="Meeting status bar"
       style={{ left: document.body.classList.contains('focus-mode') ? 'var(--space-16)' : '72px' }}
     >
       {/* Left Section */}
-      <div className="flex items-center gap-[var(--space-8)] no-drag">
-        {onBack && (
-          <IconButton
-            icon={<ChevronLeft size={18} />}
-            onClick={onBack}
-            size="sm"
-          />
-        )}
+      <div className="ui-dynamic-island-left no-drag">
+        {onBack && <IconButton icon={<ChevronLeft size={18} />} onClick={onBack} size="sm" />}
         {meetingTitle !== undefined && (
           <input
-            className="bg-transparent border-none text-[var(--text-sm)] font-medium text-[var(--color-text-primary)] outline-none w-[200px]"
+            className="ui-dynamic-island-title-input"
             value={meetingTitle}
-            onChange={(e) => onTitleChange?.(e.target.value)}
+            onChange={e => onTitleChange?.(e.target.value)}
             placeholder="Untitled Meeting"
+            aria-label="Meeting title"
           />
         )}
       </div>
 
       {/* Center Section */}
-      <div className="flex items-center gap-[var(--space-12)] no-drag absolute left-1/2 -translate-x-1/2">
-        {isRecording ? (
-          <div className="flex items-center gap-[var(--space-8)] bg-[rgba(251,113,133,0.1)] py-1 px-3 rounded-full border border-[rgba(251,113,133,0.2)]">
-            <div className="w-2 h-2 rounded-full bg-[var(--color-rose)] animate-pulse" />
-            <span className="text-[10px] tracking-widest text-[var(--color-rose)] font-bold uppercase">Rec</span>
-            <span className="font-mono text-[var(--text-sm)] text-[var(--color-rose)] ml-1 mr-2">{elapsedTime || '00:00:00'}</span>
-            <AudioIndicator audioLevel={audioLevel || 0} isRecording={true} />
-            <button 
-              onClick={onStopRecording}
-              className="ml-2 w-6 h-6 flex items-center justify-center rounded bg-[var(--color-rose)] text-[#000] hover:bg-white transition-colors"
+      <div className="ui-dynamic-island-center no-drag">
+        {
+          isRecording ? (
+            <div
+              className="ui-dynamic-island-recording"
+              role="status"
+              aria-live="assertive"
+              aria-label={`Recording: ${elapsedTime || '00:00:00'}`}
             >
-              <Square size={12} fill="currentColor" />
-            </button>
-          </div>
-        ) : (
-          <Badge variant="outline" className="opacity-50">⚡ Performance mode</Badge>
-        )}
+              <div className="ui-dynamic-island-rec-dot animate-pulse" aria-hidden="true" />
+              <span className="ui-dynamic-island-rec-label">Rec</span>
+              <span className="ui-dynamic-island-rec-time">{elapsedTime || '00:00:00'}</span>
+              <AudioIndicator audioLevel={audioLevel || 0} isRecording={true} />
+              <button
+                onClick={onStopRecording}
+                className="ui-dynamic-island-stop-btn"
+                aria-label="Stop recording"
+              >
+                <Square size={12} fill="currentColor" />
+              </button>
+            </div>
+          ) : recordingState === 'processing' ? (
+            <div
+              className="ui-dynamic-island-processing flex items-center gap-2 px-3 py-1 bg-[rgba(167,139,250,0.1)] rounded-full border border-[var(--color-violet)] shadow-[0_0_12px_rgba(167,139,250,0.3)]"
+              role="status"
+              aria-label="Processing meeting"
+            >
+              <div className="w-2 h-2 rounded-full bg-[var(--color-violet)] animate-pulse" />
+              <span className="text-[11px] font-medium text-[var(--color-violet)] tracking-wide uppercase">
+                Thinking...
+              </span>
+            </div>
+          ) : null /* Extreme minimalism: Idle state shows nothing */
+        }
       </div>
 
-      {/* Right Section */}
-      <div className="flex items-center no-drag" title={syncTitle}>
-        <div className={`w-2 h-2 rounded-full ${syncDotBg}`} />
+      {/* Right Section (Only show when not in default 'Synced' state) */}
+      <div
+        className="ui-dynamic-island-right no-drag"
+        title={syncTitle}
+        aria-label={`Connectivity: ${syncTitle}`}
+      >
+        {syncTitle !== 'Synced' && <div className={`ui-dynamic-island-sync-dot ${syncDotClass}`} />}
       </div>
     </div>
   )

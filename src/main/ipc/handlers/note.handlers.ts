@@ -1,12 +1,10 @@
 import { ipcMain } from 'electron'
 import { config } from '../../config/environment'
+import { Logger } from '../../services/Logger'
+
+const log = Logger.create('NoteHandlers')
 import { v4 as uuidv4 } from 'uuid'
-import {
-  createNote,
-  getNotesByMeetingId,
-  updateNote,
-  deleteNote,
-} from '../../database/crud/notes'
+import { createNote, getNotesByMeetingId, updateNote, deleteNote } from '../../database/crud/notes'
 import { getTranscriptService } from '../../services/TranscriptService'
 
 export function registerNoteHandlers(): void {
@@ -14,7 +12,14 @@ export function registerNoteHandlers(): void {
   ipcMain.handle('note:create', async (_, params) => {
     try {
       if (!params?.meetingId || !params?.text) {
-        return { success: false, error: { code: 'INVALID_PARAMS', message: 'meetingId and text are required', timestamp: Date.now() } }
+        return {
+          success: false,
+          error: {
+            code: 'INVALID_PARAMS',
+            message: 'meetingId and text are required',
+            timestamp: Date.now(),
+          },
+        }
       }
       const note = createNote({
         id: uuidv4(),
@@ -39,7 +44,14 @@ export function registerNoteHandlers(): void {
   ipcMain.handle('note:get', async (_, params) => {
     try {
       if (!params?.meetingId) {
-        return { success: false, error: { code: 'INVALID_PARAMS', message: 'meetingId is required', timestamp: Date.now() } }
+        return {
+          success: false,
+          error: {
+            code: 'INVALID_PARAMS',
+            message: 'meetingId is required',
+            timestamp: Date.now(),
+          },
+        }
       }
       const notes = getNotesByMeetingId(params.meetingId)
       return { success: true, data: notes }
@@ -59,7 +71,10 @@ export function registerNoteHandlers(): void {
   ipcMain.handle('note:update', async (_, params) => {
     try {
       if (!params?.noteId) {
-        return { success: false, error: { code: 'INVALID_PARAMS', message: 'noteId is required', timestamp: Date.now() } }
+        return {
+          success: false,
+          error: { code: 'INVALID_PARAMS', message: 'noteId is required', timestamp: Date.now() },
+        }
       }
       const note = updateNote(params.noteId, params.updates)
       return { success: true, data: note }
@@ -79,7 +94,10 @@ export function registerNoteHandlers(): void {
   ipcMain.handle('note:delete', async (_, params) => {
     try {
       if (!params?.noteId) {
-        return { success: false, error: { code: 'INVALID_PARAMS', message: 'noteId is required', timestamp: Date.now() } }
+        return {
+          success: false,
+          error: { code: 'INVALID_PARAMS', message: 'noteId is required', timestamp: Date.now() },
+        }
       }
       deleteNote(params.noteId)
       return { success: true }
@@ -99,30 +117,26 @@ export function registerNoteHandlers(): void {
   ipcMain.handle('note:expand', async (_, params) => {
     try {
       if (!params?.meetingId || !params?.text) {
-        return { success: false, error: { code: 'INVALID_PARAMS', message: 'meetingId and text are required', timestamp: Date.now() } }
+        return {
+          success: false,
+          error: {
+            code: 'INVALID_PARAMS',
+            message: 'meetingId and text are required',
+            timestamp: Date.now(),
+          },
+        }
       }
       // Feature gate: check if AI expansion is available for this user
       const { getCloudAccessManager } = await import('../../services/CloudAccessManager')
       const cam = getCloudAccessManager()
       const features = await cam.getFeatureAccess()
 
-      if (!features.cloudAI) {
-        // Free tier: skip cloud path but still allow local Ollama expansion below
-        // Only block if feature is explicitly blocked AND there's no local fallback
-        const status = await cam.getCloudAccessStatus()
-        if (status.tier === 'free') {
-          // Free tier still gets local AI — fall through to Ollama path below
-        }
-      }
+      // Note: all tiers get local AI expansion via Ollama
+      // cloudAI check only gates the PiyAPI Context Sessions path below
 
       // 1. Get transcript context around timestamp (±60s before, +10s after)
       const transcriptService = getTranscriptService()
-      const context = transcriptService.getContext(
-        params.meetingId,
-        params.timestamp,
-        60,
-        10
-      )
+      const context = transcriptService.getContext(params.meetingId, params.timestamp, 60, 10)
 
       // 2. Dual-path: Pro+online → PiyAPI Context Sessions, otherwise → local Ollama
       const cloudStatus = await cam.getCloudAccessStatus()
@@ -134,7 +148,9 @@ export function registerNoteHandlers(): void {
 
         if (quota.exhausted) {
           // Quota exhausted — fall through to local Ollama path silently (Blueprint §5.1)
-          console.log(`[note:expand] Starter quota exhausted (${quota.used}/${quota.limit}), falling back to local`)
+          log.info(
+            `[note:expand] Starter quota exhausted (${quota.used}/${quota.limit}), falling back to local`
+          )
         } else {
           // PRO PATH: PiyAPI Context Sessions API (token-budgeted retrieval)
           try {
@@ -175,12 +191,13 @@ export function registerNoteHandlers(): void {
               success: true,
               data: {
                 expandedText: result.answer,
-                sourceSegments: context.transcripts.map((t: any) => t.id),
+                sourceSegments: context.transcripts.map((t: { id: string }) => t.id),
                 source: 'cloud',
               },
             }
-          } catch {
+          } catch (err) {
             // Fall through to local Ollama if cloud fails
+            log.debug('Cloud expand failed, falling back to Ollama', err)
           }
         }
       }
@@ -224,12 +241,15 @@ EXPANDED NOTE:`
           },
         }),
       })
+      if (!response.ok) {
+        throw new Error(`Ollama returned HTTP ${response.status}`)
+      }
       const data = await response.json()
       return {
         success: true,
         data: {
           expandedText: data.response?.trim() || '',
-          sourceSegments: context.transcripts.map((t: any) => t.id),
+          sourceSegments: context.transcripts.map((t: { id: string }) => t.id),
           source: 'local',
         },
       }
@@ -238,7 +258,8 @@ EXPANDED NOTE:`
         success: false,
         error: {
           code: 'NOTE_EXPAND_FAILED',
-          message: 'AI expansion unavailable — Ollama may not be running. Start it with: ollama serve',
+          message:
+            'AI expansion unavailable — Ollama may not be running. Start it with: ollama serve',
           timestamp: Date.now(),
         },
       }
@@ -251,7 +272,11 @@ EXPANDED NOTE:`
       if (!params?.noteIds || !Array.isArray(params.noteIds) || !params.meetingId) {
         return {
           success: false,
-          error: { code: 'INVALID_PARAMS', message: 'meetingId and noteIds[] are required', timestamp: Date.now() },
+          error: {
+            code: 'INVALID_PARAMS',
+            message: 'meetingId and noteIds[] are required',
+            timestamp: Date.now(),
+          },
         }
       }
 
@@ -262,13 +287,13 @@ EXPANDED NOTE:`
       const transcriptService = getTranscriptService()
       const results: Array<{ noteId: string; expandedText: string; error?: string }> = []
 
+      const { getNotesByMeetingId } = await import('../../database/crud/notes')
+      const allNotes = getNotesByMeetingId(params.meetingId)
+
       // Process sequentially to prevent GPU overload (Blueprint §2.4)
       for (const noteId of params.noteIds) {
         try {
-          // Get the note text from DB
-          const { getNotesByMeetingId } = await import('../../database/crud/notes')
-          const notes = getNotesByMeetingId(params.meetingId)
-          const note = notes.find((n: any) => n.id === noteId)
+          const note = allNotes.find((n: { id: string }) => n.id === noteId)
           if (!note) {
             results.push({ noteId, expandedText: '', error: 'Note not found' })
             continue
@@ -276,12 +301,12 @@ EXPANDED NOTE:`
 
           const context = transcriptService.getContext(
             params.meetingId,
-            (note as any).timestamp || 0,
+            (note as { timestamp?: number }).timestamp ?? 0,
             60,
             10
           )
 
-          const prompt = `You are an executive assistant helping write meeting notes.\n\nCONTEXT:\n${context.contextText}\n\nUSER'S BRIEF NOTE:\n${(note as any).original_text}\n\nINSTRUCTIONS:\n1. Expand into 1-2 professional sentences\n2. Include specific details from context\n3. Third person, max 50 words\n4. Do not fabricate information\n\nEXPANDED NOTE:`
+          const prompt = `You are an executive assistant helping write meeting notes.\n\nCONTEXT:\n${context.contextText}\n\nUSER'S BRIEF NOTE:\n${(note as { original_text?: string }).original_text ?? ''}\n\nINSTRUCTIONS:\n1. Expand into 1-2 professional sentences\n2. Include specific details from context\n3. Third person, max 50 words\n4. Do not fabricate information\n\nEXPANDED NOTE:`
 
           const response = await fetch(`${config.OLLAMA_BASE_URL}/api/generate`, {
             method: 'POST',
@@ -302,12 +327,20 @@ EXPANDED NOTE:`
 
       return {
         success: true,
-        data: { expanded: results.filter(r => r.expandedText).length, total: params.noteIds.length, results },
+        data: {
+          expanded: results.filter(r => r.expandedText).length,
+          total: params.noteIds.length,
+          results,
+        },
       }
     } catch (error) {
       return {
         success: false,
-        error: { code: 'BATCH_EXPAND_FAILED', message: (error as Error).message, timestamp: Date.now() },
+        error: {
+          code: 'BATCH_EXPAND_FAILED',
+          message: (error as Error).message,
+          timestamp: Date.now(),
+        },
       }
     }
   })

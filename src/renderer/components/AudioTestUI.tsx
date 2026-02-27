@@ -15,6 +15,9 @@ import { SystemAudioTest } from './SystemAudioTest'
 import { MicrophoneTest } from './MicrophoneTest'
 import './AudioTestUI.css'
 
+import { rendererLog } from '../utils/logger'
+const log = rendererLog.create('AudioTest')
+
 interface AudioTestUIProps {
   onTestComplete?: (result: PreFlightTestResult) => void
   showInSettings?: boolean
@@ -88,7 +91,7 @@ export const AudioTestUI: React.FC<AudioTestUIProps> = ({
         setTestPhase('idle')
       }
     } catch (err) {
-      console.error('Error running audio test:', err)
+      log.error('Error running audio test:', err)
       setError(err instanceof Error ? err.message : 'Unknown error occurred')
       setTestPhase('idle')
     } finally {
@@ -301,7 +304,7 @@ export const AudioTestUI: React.FC<AudioTestUIProps> = ({
                       alert('Failed to export diagnostics')
                     }
                   } catch (err) {
-                    console.error('Failed to export diagnostics:', err)
+                    log.error('Failed to export diagnostics:', err)
                     alert('Failed to export diagnostics')
                   }
                 }}
@@ -314,7 +317,7 @@ export const AudioTestUI: React.FC<AudioTestUIProps> = ({
                   try {
                     await window.electronAPI.audio.openDiagnosticsFolder()
                   } catch (err) {
-                    console.error('Failed to open diagnostics folder:', err)
+                    log.error('Failed to open diagnostics folder:', err)
                   }
                 }}
               >
@@ -345,7 +348,7 @@ export const AudioTestUI: React.FC<AudioTestUIProps> = ({
                       try {
                         await window.electronAPI.audio.openSoundSettings()
                       } catch (err) {
-                        console.error('Failed to open settings:', err)
+                        log.error('Failed to open settings:', err)
                       }
                     }}
                   >
@@ -400,7 +403,7 @@ export const AudioTestUI: React.FC<AudioTestUIProps> = ({
             </button>
             <SystemAudioTest
               onTestComplete={result => {
-                console.log('System audio test complete:', result)
+                log.info('System audio test complete:', result)
                 if (result.success) {
                   // Update test result to show system audio is working
                   if (testResult) {
@@ -437,7 +440,7 @@ export const AudioTestUI: React.FC<AudioTestUIProps> = ({
             </button>
             <MicrophoneTest
               onTestComplete={result => {
-                console.log('Microphone test complete:', result)
+                log.info('Microphone test complete:', result)
                 if (result.success) {
                   // Update test result to show microphone is working
                   if (testResult) {

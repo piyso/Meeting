@@ -10,7 +10,9 @@ import assert from 'node:assert'
 import crypto from 'crypto'
 import { EncryptionService } from '../EncryptionService'
 import { initializeDatabase, closeDatabase } from '../../database/connection'
-import { hasEncryptionKey, /* getEncryptionKeyByUserId */ } from '../../database/crud/encryption-keys'
+import {
+  hasEncryptionKey /* getEncryptionKeyByUserId */,
+} from '../../database/crud/encryption-keys'
 
 describe('EncryptionService', () => {
   before(() => {

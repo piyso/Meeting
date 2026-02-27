@@ -12,12 +12,14 @@
  * - v1 < v2 (v2 dominates): All timestamps in v2 >= v1, at least one >
  * - v1 || v2 (concurrent): Neither dominates (CONFLICT)
  */
+import { Logger } from './Logger'
+const log = Logger.create('VectorClock')
 
 export interface VectorClock {
   [deviceId: string]: number
 }
 
-export type ClockComparison = 'local_newer' | 'remote_newer' | 'concurrent'
+export type ClockComparison = 'equal' | 'local_newer' | 'remote_newer' | 'concurrent'
 
 export class VectorClockManager {
   /**
@@ -78,8 +80,8 @@ export class VectorClockManager {
     } else if (localNewer && remoteNewer) {
       return 'concurrent' // CONFLICT
     } else {
-      // Equal clocks - treat as local_newer (no change needed)
-      return 'local_newer'
+      // Equal clocks
+      return 'equal'
     }
   }
 
@@ -167,7 +169,7 @@ export class VectorClockManager {
     try {
       return JSON.parse(serialized)
     } catch (error) {
-      console.error('[VectorClockManager] Failed to deserialize clock:', error)
+      log.error('[VectorClockManager] Failed to deserialize clock:', error)
       return {}
     }
   }

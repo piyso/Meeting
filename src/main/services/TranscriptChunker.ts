@@ -131,10 +131,27 @@ export class TranscriptChunker {
     const chunkCount = Math.ceil(totalSize / effectiveLimit)
     const chunks: TranscriptChunk[] = []
 
-    // Split content into chunks
+    // Split content into chunks at sentence/word boundaries
     for (let i = 0; i < chunkCount; i++) {
-      const start = i * effectiveLimit
-      const end = Math.min(start + effectiveLimit, totalSize)
+      const start = i === 0 ? 0 : chunks.reduce((acc, c) => acc + c.content.length, 0)
+      let end = Math.min(start + effectiveLimit, totalSize)
+
+      // For all chunks except the last, find the nearest sentence/word boundary
+      if (end < totalSize) {
+        // Try to find a sentence boundary (. ! ? followed by space or newline)
+        const searchRegion = content.substring(Math.max(start, end - 200), end)
+        const sentenceMatch = searchRegion.match(/.*[.!?\n]\s/)
+        if (sentenceMatch && sentenceMatch.index !== undefined) {
+          end = Math.max(start, end - 200) + sentenceMatch.index + sentenceMatch[0].length
+        } else {
+          // Fall back to nearest whitespace
+          const lastSpace = content.lastIndexOf(' ', end)
+          if (lastSpace > start) {
+            end = lastSpace + 1
+          }
+        }
+      }
+
       const chunkContent = content.substring(start, end)
 
       chunks.push({

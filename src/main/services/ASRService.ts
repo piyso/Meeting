@@ -7,16 +7,20 @@
 
 import { Worker } from 'worker_threads'
 import * as path from 'path'
+import { app } from 'electron'
 import { EventEmitter } from 'events'
+import { Logger } from './Logger'
+
+const log = Logger.create('ASRService')
 
 interface ASRWorkerMessage {
   type: 'init' | 'transcribe' | 'unload' | 'ping'
-  data?: any
+  data?: Record<string, unknown>
 }
 
 interface ASRWorkerResponse {
   type: 'ready' | 'transcript' | 'error' | 'unloaded' | 'pong'
-  data?: any
+  data?: Record<string, unknown>
   error?: string
 }
 
@@ -43,7 +47,13 @@ export class ASRService extends EventEmitter {
   private worker: Worker | null = null
   private isReady: boolean = false
   private isInitializing: boolean = false
-  private pendingRequests: Map<number, { resolve: Function; reject: Function }> = new Map()
+  private pendingRequests: Map<
+    number,
+    {
+      resolve: (value: TranscriptResult | PromiseLike<TranscriptResult>) => void
+      reject: (reason?: unknown) => void
+    }
+  > = new Map()
   private requestId: number = 0
   private lastUsedTime: number = 0
   private unloadTimeout: NodeJS.Timeout | null = null
@@ -58,12 +68,12 @@ export class ASRService extends EventEmitter {
    */
   async initialize(): Promise<void> {
     if (this.isReady) {
-      console.log('[ASR Service] Already initialized')
+      log.debug('Already initialized')
       return
     }
 
     if (this.isInitializing) {
-      console.log('[ASR Service] Already initializing, waiting...')
+      log.debug('Already initializing, waiting...')
       return new Promise((resolve, reject) => {
         this.once('ready', resolve)
         this.once('error', reject)
@@ -73,10 +83,10 @@ export class ASRService extends EventEmitter {
     this.isInitializing = true
 
     try {
-      console.log('[ASR Service] Starting ASR worker...')
+      log.info('Starting ASR worker...')
 
-      // Create worker
-      const workerPath = path.join(__dirname, '../workers/asr.worker.js')
+      // Worker path: in production, workers are in dist-electron/workers/
+      const workerPath = path.join(__dirname, 'workers', 'asr.worker.js')
       this.worker = new Worker(workerPath)
 
       // Set up message handler
@@ -86,19 +96,22 @@ export class ASRService extends EventEmitter {
 
       // Set up error handler
       this.worker.on('error', (error: Error) => {
-        console.error('[ASR Service] Worker error:', error)
+        log.error('[ASR Service] Worker error:', error)
         this.emit('error', error)
       })
 
       // Set up exit handler
       this.worker.on('exit', (code: number) => {
-        console.log(`[ASR Service] Worker exited with code ${code}`)
+        log.warn(`Worker exited with code ${code}`)
         this.isReady = false
         this.worker = null
       })
 
-      // Send init message
-      this.sendMessage({ type: 'init' })
+      // Send init message with resolved models directory
+      const modelsDir = app.isPackaged
+        ? path.join(app.getPath('userData'), 'models')
+        : path.join(process.cwd(), 'resources', 'models')
+      this.sendMessage({ type: 'init', data: { modelsDir } })
 
       // Wait for ready
       await new Promise<void>((resolve, reject) => {
@@ -119,11 +132,11 @@ export class ASRService extends EventEmitter {
 
       this.isReady = true
       this.isInitializing = false
-      console.log('[ASR Service] ✅ ASR service ready')
-    } catch (error: any) {
+      log.info('✅ ASR service ready')
+    } catch (error: unknown) {
       this.isInitializing = false
-      console.error('[ASR Service] Initialization failed:', error)
-      throw error
+      log.error('[ASR Service] Initialization failed:', error)
+      throw error instanceof Error ? error : new Error(String(error))
     }
   }
 
@@ -169,7 +182,7 @@ export class ASRService extends EventEmitter {
       return
     }
 
-    console.log('[ASR Service] Unloading model...')
+    log.info('Unloading model...')
 
     return new Promise((resolve, reject) => {
       const timeout = setTimeout(() => {
@@ -226,26 +239,27 @@ export class ASRService extends EventEmitter {
   private handleWorkerMessage(response: ASRWorkerResponse): void {
     switch (response.type) {
       case 'ready':
-        console.log('[ASR Service] Worker ready:', response.data)
+        log.info('Worker ready:', response.data)
         this.emit('ready', response.data)
         break
 
-      case 'transcript':
-        const id = response.data?.id
+      case 'transcript': {
+        const id = typeof response.data?.id === 'number' ? response.data.id : undefined
         if (id !== undefined && this.pendingRequests.has(id)) {
-          const { resolve } = this.pendingRequests.get(id)!
+          const pending = this.pendingRequests.get(id)
           this.pendingRequests.delete(id)
-          resolve(response.data)
+          pending?.resolve(response.data as unknown as TranscriptResult)
         }
         break
+      }
 
       case 'error':
-        console.error('[ASR Service] Worker error:', response.error)
+        log.error('[ASR Service] Worker error:', response.error)
         this.emit('error', new Error(response.error))
         break
 
       case 'unloaded':
-        console.log('[ASR Service] Model unloaded')
+        log.info('Model unloaded')
         this.emit('unloaded')
         break
 
@@ -254,7 +268,7 @@ export class ASRService extends EventEmitter {
         break
 
       default:
-        console.warn('[ASR Service] Unknown response type:', response.type)
+        log.warn('[ASR Service] Unknown response type:', response.type)
     }
   }
 
@@ -269,11 +283,11 @@ export class ASRService extends EventEmitter {
     this.unloadTimeout = setTimeout(async () => {
       const idleTime = Date.now() - this.lastUsedTime
       if (idleTime >= this.IDLE_TIMEOUT) {
-        console.log('[ASR Service] Idle timeout reached, unloading model...')
+        log.info('Idle timeout reached, unloading model...')
         try {
           await this.unload()
         } catch (error) {
-          console.error('[ASR Service] Failed to unload model:', error)
+          log.error('[ASR Service] Failed to unload model:', error)
         }
       }
     }, this.IDLE_TIMEOUT)

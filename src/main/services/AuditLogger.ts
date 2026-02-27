@@ -29,7 +29,7 @@ export interface AuditLogEntry {
   recordId?: string
   oldValue?: string
   newValue?: string
-  metadata?: Record<string, any>
+  metadata?: Record<string, unknown>
   ipAddress?: string
   userAgent?: string
   timestamp: string
@@ -61,10 +61,38 @@ export interface AuditLogQuery {
   userId?: string
   operation?: AuditOperation
   table?: string
+  tableName?: string
+  recordId?: string
   startDate?: string
   endDate?: string
   limit?: number
   offset?: number
+  sortOrder?: 'asc' | 'desc'
+}
+
+/**
+ * Row returned from query() and used in exports.
+ * Includes both snake_case (DB columns) and camelCase (app convention) fields.
+ */
+export interface AuditLogRow {
+  id: string
+  user_id: string
+  userId: string
+  operation: AuditOperation
+  table_name: string
+  table: string
+  record_id?: string
+  recordId?: string
+  old_value?: string
+  oldValue?: string
+  new_value?: string
+  newValue?: string
+  metadata?: Record<string, unknown>
+  ip_address?: string
+  ipAddress?: string
+  user_agent?: string
+  userAgent?: string
+  timestamp: string
 }
 
 export class AuditLogger {
@@ -118,8 +146,8 @@ export class AuditLogger {
     userId: string,
     table: string,
     recordId: string,
-    newValue: any,
-    metadata?: Record<string, any>
+    newValue: unknown,
+    metadata?: Record<string, unknown>
   ): Promise<AuditLogEntry> {
     return this.log({
       userId,
@@ -146,9 +174,9 @@ export class AuditLogger {
     userId: string,
     table: string,
     recordId: string,
-    oldValue: any,
-    newValue: any,
-    metadata?: Record<string, any>
+    oldValue: unknown,
+    newValue: unknown,
+    metadata?: Record<string, unknown>
   ): Promise<AuditLogEntry> {
     return this.log({
       userId,
@@ -175,8 +203,8 @@ export class AuditLogger {
     userId: string,
     table: string,
     recordId: string,
-    oldValue: any,
-    metadata?: Record<string, any>
+    oldValue: unknown,
+    metadata?: Record<string, unknown>
   ): Promise<AuditLogEntry> {
     return this.log({
       userId,
@@ -201,12 +229,12 @@ export class AuditLogger {
     userId: string,
     ipAddress?: string,
     userAgent?: string,
-    metadata?: Record<string, any>
+    metadata?: Record<string, unknown>
   ): Promise<AuditLogEntry> {
     return this.log({
       userId,
       operation: 'login',
-      table: 'users',
+      table: 'auth',
       ipAddress,
       userAgent,
       metadata,
@@ -220,11 +248,18 @@ export class AuditLogger {
    * @param metadata - Additional metadata
    * @returns Audit log entry
    */
-  public async logLogout(userId: string, metadata?: Record<string, any>): Promise<AuditLogEntry> {
+  public async logLogout(
+    userId: string,
+    ipAddress?: string,
+    userAgent?: string,
+    metadata?: Record<string, unknown>
+  ): Promise<AuditLogEntry> {
     return this.log({
       userId,
       operation: 'logout',
-      table: 'users',
+      table: 'auth',
+      ipAddress,
+      userAgent,
       metadata,
     })
   }
@@ -242,7 +277,7 @@ export class AuditLogger {
     userId: string,
     operation: string,
     deviceId: string,
-    metadata?: Record<string, any>
+    metadata?: Record<string, unknown>
   ): Promise<AuditLogEntry> {
     return this.log({
       userId,
@@ -263,7 +298,7 @@ export class AuditLogger {
     const db = getDatabaseService().getDb()
 
     let sql = 'SELECT * FROM audit_logs WHERE 1=1'
-    const params: any[] = []
+    const params: (string | number)[] = []
 
     if (query.userId) {
       sql += ' AND user_id = ?'
@@ -275,9 +310,15 @@ export class AuditLogger {
       params.push(query.operation)
     }
 
-    if (query.table) {
+    const tableName = query.table ?? query.tableName
+    if (tableName) {
       sql += ' AND table_name = ?'
-      params.push(query.table)
+      params.push(tableName)
+    }
+
+    if (query.recordId) {
+      sql += ' AND record_id = ?'
+      params.push(query.recordId)
     }
 
     if (query.startDate) {
@@ -290,7 +331,7 @@ export class AuditLogger {
       params.push(query.endDate)
     }
 
-    sql += ' ORDER BY timestamp DESC'
+    sql += ` ORDER BY timestamp ${query.sortOrder === 'desc' ? 'DESC' : 'ASC'}`
 
     if (query.limit) {
       sql += ' LIMIT ?'
@@ -302,21 +343,35 @@ export class AuditLogger {
       params.push(query.offset)
     }
 
-    const rows = db.prepare(sql).all(...params) as any[]
+    const rows = db.prepare(sql).all(...params) as Record<string, unknown>[]
 
-    return rows.map(row => ({
-      id: row.id,
-      userId: row.user_id,
-      operation: row.operation,
-      table: row.table_name,
-      recordId: row.record_id,
-      oldValue: row.old_value,
-      newValue: row.new_value,
-      metadata: row.metadata ? JSON.parse(row.metadata) : undefined,
-      ipAddress: row.ip_address,
-      userAgent: row.user_agent,
-      timestamp: row.timestamp,
-    }))
+    return rows.map(row => {
+      // NOTE: metadata is returned as-is from DB (JSON string).
+      // Callers should JSON.parse() if needed. This preserves the API contract
+      // where query() returns raw DB rows and callers handle deserialization.
+      const metadata = row.metadata || undefined
+
+      return {
+        id: row.id,
+        user_id: row.user_id,
+        userId: row.user_id,
+        operation: row.operation,
+        table_name: row.table_name,
+        table: row.table_name,
+        record_id: row.record_id,
+        recordId: row.record_id,
+        old_value: row.old_value,
+        oldValue: row.old_value,
+        new_value: row.new_value,
+        newValue: row.new_value,
+        metadata: metadata,
+        ip_address: row.ip_address,
+        ipAddress: row.ip_address,
+        user_agent: row.user_agent,
+        userAgent: row.user_agent,
+        timestamp: row.timestamp,
+      } as AuditLogRow
+    })
   }
 
   /**
@@ -395,7 +450,7 @@ export class AuditLogger {
     const db = getDatabaseService().getDb()
 
     let sql = 'SELECT COUNT(*) as count FROM audit_logs WHERE 1=1'
-    const params: any[] = []
+    const params: (string | number)[] = []
 
     if (query.userId) {
       sql += ' AND user_id = ?'
@@ -445,45 +500,42 @@ export class AuditLogger {
    * @returns CSV string of audit logs
    */
   public async exportToCSV(query: AuditLogQuery): Promise<string> {
-    const logs = await this.query(query)
+    const logs = (await this.query(query)) as AuditLogRow[]
 
     if (logs.length === 0) {
       return ''
     }
 
     // CSV header
-    const header = [
-      'ID',
-      'User ID',
-      'Operation',
-      'Table',
-      'Record ID',
-      'Old Value',
-      'New Value',
-      'Metadata',
-      'IP Address',
-      'User Agent',
-      'Timestamp',
-    ].join(',')
+    const header =
+      'id,user_id,operation,table_name,record_id,old_value,new_value,metadata,ip_address,user_agent,timestamp'
 
-    // CSV rows
-    const rows = logs.map(log =>
-      [
+    const rows = logs.map(log => {
+      const metadataStr = log.metadata
+        ? typeof log.metadata === 'string'
+          ? log.metadata
+          : JSON.stringify(log.metadata)
+        : ''
+
+      return [
         log.id,
-        log.userId,
+        log.user_id,
         log.operation,
-        log.table,
-        log.recordId || '',
-        log.oldValue || '',
-        log.newValue || '',
-        log.metadata ? JSON.stringify(log.metadata) : '',
-        log.ipAddress || '',
-        log.userAgent || '',
+        log.table_name,
+        log.record_id || '',
+        log.old_value || '',
+        log.new_value || '',
+        metadataStr,
+        log.ip_address || '',
+        log.user_agent || '',
         log.timestamp,
       ]
-        .map(value => `"${String(value).replace(/"/g, '""')}"`)
+        .map(value => {
+          const str = String(value).replace(/\\"/g, '"')
+          return `"${str.replace(/"/g, '""')}"`
+        })
         .join(',')
-    )
+    })
 
     return [header, ...rows].join('\n')
   }
@@ -499,6 +551,8 @@ export class AuditLogger {
     operationCounts: Record<string, number>
     tableCounts: Record<string, number>
     recentActivity: AuditLogEntry[]
+    firstLogDate: string
+    lastLogDate: string
   }> {
     const db = getDatabaseService().getDb()
 
@@ -537,11 +591,31 @@ export class AuditLogger {
     // Recent activity
     const recentActivity = await this.query({ userId, limit: 10 })
 
+    // Date range — query first and last timestamps directly
+    const firstDateQuery = userId
+      ? 'SELECT timestamp FROM audit_logs WHERE user_id = ? ORDER BY timestamp ASC LIMIT 1'
+      : 'SELECT timestamp FROM audit_logs ORDER BY timestamp ASC LIMIT 1'
+    const lastDateQuery = userId
+      ? 'SELECT timestamp FROM audit_logs WHERE user_id = ? ORDER BY timestamp DESC LIMIT 1'
+      : 'SELECT timestamp FROM audit_logs ORDER BY timestamp DESC LIMIT 1'
+
+    const firstRow = userId
+      ? (db.prepare(firstDateQuery).get(userId) as { timestamp: string } | undefined)
+      : (db.prepare(firstDateQuery).get() as { timestamp: string } | undefined)
+    const lastRow = userId
+      ? (db.prepare(lastDateQuery).get(userId) as { timestamp: string } | undefined)
+      : (db.prepare(lastDateQuery).get() as { timestamp: string } | undefined)
+
+    const firstLogDate = firstRow?.timestamp || ''
+    const lastLogDate = lastRow?.timestamp || ''
+
     return {
       totalLogs: totalResult.count,
       operationCounts,
       tableCounts,
       recentActivity,
+      firstLogDate,
+      lastLogDate,
     }
   }
 }

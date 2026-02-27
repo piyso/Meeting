@@ -12,6 +12,9 @@
 import React, { useState, useEffect, useRef } from 'react'
 import './SystemAudioTest.css'
 
+import { rendererLog } from '../utils/logger'
+const log = rendererLog.create('SysAudioTest')
+
 interface SystemAudioTestProps {
   onTestComplete?: (result: { success: boolean; audioDetected: boolean; maxLevel: number }) => void
 }
@@ -69,7 +72,7 @@ export const SystemAudioTest: React.FC<SystemAudioTestProps> = ({ onTestComplete
       // Start monitoring audio levels
       monitorAudioLevels()
     } catch (err) {
-      console.error('Error starting system audio test:', err)
+      log.error('Error starting system audio test:', err)
       setError(err instanceof Error ? err.message : 'Unknown error occurred')
       setTestPhase('error')
     }
@@ -100,9 +103,9 @@ export const SystemAudioTest: React.FC<SystemAudioTestProps> = ({ onTestComplete
       audioContextRef.current = audioContext
       analyserRef.current = analyser
 
-      console.log('✅ System audio capture started')
+      log.info('✅ System audio capture started')
     } catch (err) {
-      console.error('Failed to start audio capture:', err)
+      log.error('Failed to start audio capture:', err)
       throw new Error(
         'Failed to capture system audio. Please ensure Screen Recording permission is granted (macOS) or Stereo Mix is enabled (Windows).'
       )
@@ -136,7 +139,7 @@ export const SystemAudioTest: React.FC<SystemAudioTestProps> = ({ onTestComplete
       // Detect audio (threshold: 1%)
       if (rms > 0.01 && !audioDetected) {
         setAudioDetected(true)
-        console.log('✅ Audio detected! Level:', Math.round(rms * 100) + '%')
+        log.info('✅ Audio detected! Level:', Math.round(rms * 100) + '%')
       }
 
       // Update duration
@@ -176,7 +179,7 @@ export const SystemAudioTest: React.FC<SystemAudioTestProps> = ({ onTestComplete
       const result = await window.electronAPI.audio.stopSystemAudioTest()
 
       if (result.success && result.data) {
-        console.log('System audio test stopped:', result.data)
+        log.info('System audio test stopped:', result.data)
 
         setTestPhase('complete')
 
@@ -189,7 +192,7 @@ export const SystemAudioTest: React.FC<SystemAudioTestProps> = ({ onTestComplete
         }
       }
     } catch (err) {
-      console.error('Error stopping system audio test:', err)
+      log.error('Error stopping system audio test:', err)
     }
   }
 

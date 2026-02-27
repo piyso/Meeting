@@ -24,6 +24,17 @@ export class ErrorBoundary extends Component<Props, State> {
 
   public componentDidCatch(error: Error, errorInfo: ErrorInfo) {
     console.error('ErrorBoundary caught:', error, errorInfo)
+    try {
+      // Report to main process crash handler/logger
+      window.electronAPI?.ipcRenderer?.send('error', {
+        source: 'ErrorBoundary',
+        message: error.message,
+        stack: error.stack,
+        componentStack: errorInfo.componentStack,
+      })
+    } catch {
+      // Ignore IPC send fail
+    }
   }
 
   private handleRetry = () => {
@@ -35,15 +46,13 @@ export class ErrorBoundary extends Component<Props, State> {
       if (this.props.fallback) return this.props.fallback
 
       return (
-        <div className="bg-[rgba(251,191,36,0.05)] border border-[rgba(251,191,36,0.2)] rounded-[var(--radius-md)] p-[var(--space-16)] flex flex-col items-start gap-4">
-          <div className="flex items-center gap-3 text-[var(--color-amber)]">
+        <div className="ui-error-boundary-card">
+          <div className="ui-error-boundary-header">
             <AlertTriangle size={24} />
-            <h3 className="text-[var(--text-sm)] font-medium text-white">Something went wrong</h3>
+            <h3 className="ui-error-boundary-title">Something went wrong</h3>
           </div>
           {this.state.error && (
-            <p className="text-[var(--text-xs)] text-[var(--color-text-tertiary)] max-w-md font-mono break-all bg-black/50 p-2 rounded">
-              {this.state.error.message}
-            </p>
+            <p className="ui-error-boundary-message">{this.state.error.message}</p>
           )}
           <Button variant="secondary" size="sm" onClick={this.handleRetry}>
             Retry View

@@ -108,14 +108,15 @@ export class PHIDetectionService {
    * @returns PHI detection result
    */
   public static detectPHI(text: string): PHIDetectionResult {
-    const detectedIdentifiers: PHIIdentifier[] = []
+    const allMatches: PHIIdentifier[] = []
 
     // Check each pattern
     for (const [type, pattern] of Object.entries(this.PATTERNS)) {
-      const matches = text.matchAll(pattern)
-      for (const match of matches) {
+      const regex = new RegExp(pattern.source, pattern.flags)
+      let match: RegExpExecArray | null
+      while ((match = regex.exec(text)) !== null) {
         if (match.index !== undefined) {
-          detectedIdentifiers.push({
+          allMatches.push({
             type: type.toLowerCase() as PHIType,
             value: match[0],
             startIndex: match.index,
@@ -125,6 +126,24 @@ export class PHIDetectionService {
         }
       }
     }
+
+    // Deduplicate overlapping matches: prefer more specific types
+    // Priority: account_number > ssn, credit_card > ssn, mrn > ssn, phone > ssn
+    const specificTypes = ['account_number', 'credit_card', 'mrn', 'phone']
+    const genericTypes = ['ssn']
+    const detectedIdentifiers = allMatches.filter(match => {
+      if (genericTypes.includes(match.type)) {
+        // Check if a more specific match overlaps this range (partial or full)
+        const hasOverlap = allMatches.some(
+          other =>
+            specificTypes.includes(other.type) &&
+            other.startIndex < match.endIndex &&
+            other.endIndex > match.startIndex
+        )
+        return !hasOverlap
+      }
+      return true
+    })
 
     // Calculate risk level
     const riskLevel = this.calculateRiskLevel(detectedIdentifiers)
@@ -223,10 +242,30 @@ export class PHIDetectionService {
   public static maskPHI(text: string, identifiers: PHIIdentifier[]): string {
     let maskedText = text
 
-    // Sort identifiers by start index (descending) to avoid index shifting
-    const sortedIdentifiers = [...identifiers].sort((a, b) => b.startIndex - a.startIndex)
+    // Deduplicate overlapping matches: sort by start ascending, then merge overlaps
+    // Higher-confidence match wins when spans overlap
+    const sorted = [...identifiers].sort((a, b) =>
+      a.startIndex !== b.startIndex ? a.startIndex - b.startIndex : b.confidence - a.confidence
+    )
 
-    for (const identifier of sortedIdentifiers) {
+    const deduped: PHIIdentifier[] = []
+    for (const ident of sorted) {
+      const last = deduped[deduped.length - 1]
+      if (last && ident.startIndex < last.endIndex) {
+        // Overlap detected — keep the higher-confidence match
+        if (ident.confidence > last.confidence) {
+          deduped[deduped.length - 1] = ident
+        }
+        // Otherwise skip this overlapping match
+      } else {
+        deduped.push(ident)
+      }
+    }
+
+    // Sort by start index descending to avoid index shifting during replacement
+    const descending = [...deduped].sort((a, b) => b.startIndex - a.startIndex)
+
+    for (const identifier of descending) {
       const maskLength = identifier.value.length
       const mask = this.getMaskForType(identifier.type, maskLength)
       maskedText =

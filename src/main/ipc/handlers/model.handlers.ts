@@ -5,7 +5,7 @@
  */
 
 import { ipcMain } from 'electron'
-import { getModelDownloadService } from '../../services/ModelDownloadService'
+import { getModelDownloadService, type ModelType } from '../../services/ModelDownloadService'
 
 export function registerModelHandlers() {
   const modelService = getModelDownloadService()
@@ -17,8 +17,8 @@ export function registerModelHandlers() {
     try {
       const tierInfo = modelService.detectHardwareTier()
       return { success: true, data: tierInfo }
-    } catch (error: any) {
-      return { success: false, error: error.message }
+    } catch (error: unknown) {
+      return { success: false, error: (error as Error).message }
     }
   })
 
@@ -29,25 +29,22 @@ export function registerModelHandlers() {
     try {
       const isFirstLaunch = modelService.isFirstLaunch()
       return { success: true, data: isFirstLaunch }
-    } catch (error: any) {
-      return { success: false, error: error.message }
+    } catch (error: unknown) {
+      return { success: false, error: (error as Error).message }
     }
   })
 
   /**
    * Check if models are downloaded
    */
-  ipcMain.handle(
-    'model:areModelsDownloaded',
-    async (_event, modelType: 'whisper-turbo' | 'moonshine-base') => {
-      try {
-        const downloaded = modelService.areModelsDownloaded(modelType)
-        return { success: true, data: downloaded }
-      } catch (error: any) {
-        return { success: false, error: error.message }
-      }
+  ipcMain.handle('model:areModelsDownloaded', async (_event, modelType: string) => {
+    try {
+      const downloaded = modelService.areModelsDownloaded(modelType as ModelType)
+      return { success: true, data: downloaded }
+    } catch (error: unknown) {
+      return { success: false, error: (error as Error).message }
     }
-  )
+  })
 
   /**
    * Download models for hardware tier
@@ -56,53 +53,57 @@ export function registerModelHandlers() {
     try {
       await modelService.downloadModelsForTier(tierInfo)
       return { success: true }
-    } catch (error: any) {
-      return { success: false, error: error.message }
+    } catch (error: unknown) {
+      return { success: false, error: (error as Error).message }
     }
   })
 
   /**
    * Verify model integrity
    */
-  ipcMain.handle(
-    'model:verifyModel',
-    async (_event, modelType: 'whisper-turbo' | 'moonshine-base') => {
-      try {
-        const valid = await modelService.verifyModel(modelType)
-        return { success: true, data: valid }
-      } catch (error: any) {
-        return { success: false, error: error.message }
-      }
+  ipcMain.handle('model:verifyModel', async (_event, modelType: string) => {
+    try {
+      const valid = await modelService.verifyModel(modelType as ModelType)
+      return { success: true, data: valid }
+    } catch (error: unknown) {
+      return { success: false, error: (error as Error).message }
     }
-  )
+  })
 
   /**
    * Delete model (for re-download)
    */
-  ipcMain.handle(
-    'model:deleteModel',
-    async (_event, modelType: 'whisper-turbo' | 'moonshine-base') => {
-      try {
-        modelService.deleteModel(modelType)
-        return { success: true }
-      } catch (error: any) {
-        return { success: false, error: error.message }
-      }
+  ipcMain.handle('model:deleteModel', async (_event, modelType: string) => {
+    try {
+      modelService.deleteModel(modelType as ModelType)
+      return { success: true }
+    } catch (error: unknown) {
+      return { success: false, error: (error as Error).message }
     }
-  )
+  })
 
   /**
    * Get model file paths
    */
-  ipcMain.handle(
-    'model:getModelPaths',
-    async (_event, modelType: 'whisper-turbo' | 'moonshine-base') => {
-      try {
-        const paths = modelService.getModelPaths(modelType)
-        return { success: true, data: paths }
-      } catch (error: any) {
-        return { success: false, error: error.message }
-      }
+  ipcMain.handle('model:getModelPaths', async (_event, modelType: string) => {
+    try {
+      const paths = modelService.getModelPaths(modelType as ModelType)
+      return { success: true, data: paths }
+    } catch (error: unknown) {
+      return { success: false, error: (error as Error).message }
     }
-  )
+  })
+
+  /**
+   * Download all models for detected hardware tier
+   */
+  ipcMain.handle('model:downloadAll', async () => {
+    try {
+      const tierInfo = modelService.detectHardwareTier()
+      await modelService.downloadModelsForTier(tierInfo)
+      return { success: true, data: tierInfo }
+    } catch (error: unknown) {
+      return { success: false, error: (error as Error).message }
+    }
+  })
 }

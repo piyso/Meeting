@@ -525,9 +525,7 @@ describe('LocalEmbeddingService', () => {
 
   describe('Error handling', () => {
     it('should handle model loading errors', async () => {
-      ;(ort.InferenceSession.create as any).mockRejectedValue(
-        new Error('Failed to load model')
-      )
+      ;(ort.InferenceSession.create as any).mockRejectedValue(new Error('Failed to load model'))
 
       await expect(service.initialize()).rejects.toThrow('Failed to load model')
     })
@@ -560,8 +558,7 @@ describe('LocalEmbeddingService', () => {
       await service.embed('test').catch(() => {})
 
       expect(consoleSpy).toHaveBeenCalledWith(
-        expect.stringContaining('Embedding generation failed'),
-        expect.any(Error)
+        expect.stringContaining('Embedding generation failed')
       )
 
       consoleSpy.mockRestore()

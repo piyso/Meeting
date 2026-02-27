@@ -11,6 +11,9 @@
 import React, { useState, useEffect } from 'react'
 import './PermissionRequestFlow.css'
 
+import { rendererLog } from '../utils/logger'
+const log = rendererLog.create('PermFlow')
+
 type PermissionStatus = 'not-determined' | 'denied' | 'granted' | 'not-applicable' | 'unknown'
 
 interface PermissionRequestFlowProps {
@@ -46,7 +49,7 @@ export const PermissionRequestFlow: React.FC<PermissionRequestFlowProps> = ({
         setStatus('unknown')
       }
     } catch (err) {
-      console.error('Error checking permission:', err)
+      log.error('Error checking permission:', err)
       setError('Failed to check permission status')
       setStatus('unknown')
     } finally {
@@ -66,7 +69,7 @@ export const PermissionRequestFlow: React.FC<PermissionRequestFlowProps> = ({
         setError(result.error?.message || 'Failed to open System Settings')
       }
     } catch (err) {
-      console.error('Error opening settings:', err)
+      log.error('Error opening settings:', err)
       setError('Failed to open System Settings')
     }
   }
@@ -160,7 +163,7 @@ export const PermissionRequestFlow: React.FC<PermissionRequestFlowProps> = ({
           <div className="explanation-section">
             <h3>Why This Permission?</h3>
             <p>
-              PiyAPI Notes needs Screen Recording permission to capture system audio from your
+              BlueArkive needs Screen Recording permission to capture system audio from your
               meetings (Zoom, Teams, Google Meet, etc.). This allows the app to:
             </p>
             <ul className="benefits-list">
@@ -190,7 +193,7 @@ export const PermissionRequestFlow: React.FC<PermissionRequestFlowProps> = ({
               <ol className="steps-list">
                 <li>Click "Grant Permission" below</li>
                 <li>macOS will open System Settings</li>
-                <li>Find "PiyAPI Notes" in the list</li>
+                <li>Find "BlueArkive" in the list</li>
                 <li>Toggle the switch to enable Screen Recording</li>
                 <li>Return to this app and click "Check Again"</li>
               </ol>
@@ -203,7 +206,7 @@ export const PermissionRequestFlow: React.FC<PermissionRequestFlowProps> = ({
               <ol className="steps-list">
                 <li>Click "Open System Settings" below</li>
                 <li>Navigate to Privacy & Security → Screen Recording</li>
-                <li>Find "PiyAPI Notes" in the list</li>
+                <li>Find "BlueArkive" in the list</li>
                 <li>Toggle the switch to ON</li>
                 <li>Return to this app and click "Check Again"</li>
                 <li>You may need to restart the app for changes to take effect</li>
@@ -262,7 +265,7 @@ export const PermissionRequestFlow: React.FC<PermissionRequestFlowProps> = ({
                 className="help-link"
                 onClick={() => {
                   window.electronAPI.shell?.openExternal(
-                    'https://docs.piyapi.com/macos-screen-recording-permission'
+                    'https://docs.bluearkive.com/macos-screen-recording-permission'
                   )
                 }}
               >

@@ -20,6 +20,8 @@
 import { VectorClockManager, VectorClock, ClockComparison } from './VectorClockManager'
 import { YjsConflictResolver } from './YjsConflictResolver'
 import { getDatabaseService } from './DatabaseService'
+import { Logger } from './Logger'
+const log = Logger.create('ConflictResolver')
 
 export interface ConflictInfo {
   noteId: string
@@ -131,7 +133,7 @@ export class ConflictResolver {
         strategy: 'auto_merge',
       }
     } catch (error) {
-      console.error('[ConflictResolver] Auto-resolve failed:', error)
+      log.error('[ConflictResolver] Auto-resolve failed:', error)
       return null
     }
   }
@@ -201,11 +203,11 @@ export class ConflictResolver {
       const clockJson = this.vectorClockManager.serialize(resolution.resolvedClock)
       db.prepare('UPDATE notes SET vector_clock = ? WHERE id = ?').run(clockJson, resolution.noteId)
 
-      console.log(`[ConflictResolver] Applied resolution for note ${resolution.noteId}`)
+      log.info(`[ConflictResolver] Applied resolution for note ${resolution.noteId}`)
 
       return true
     } catch (error) {
-      console.error('[ConflictResolver] Failed to apply resolution:', error)
+      log.error('[ConflictResolver] Failed to apply resolution:', error)
       return false
     }
   }

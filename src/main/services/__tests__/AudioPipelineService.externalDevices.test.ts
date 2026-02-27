@@ -3,8 +3,26 @@
  * Task 9.6: Test external monitor and Bluetooth audio device handling
  */
 
-import { describe, it, expect, beforeEach } from 'vitest'
-import { getAudioPipelineService } from '../AudioPipelineService'
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
+import { getAudioPipelineService, resetAudioPipelineService } from '../AudioPipelineService'
+import type { AudioDeviceInfo } from '../AudioPipelineService'
+
+// Mock ASRService to prevent real Worker thread instantiation
+vi.mock('../ASRService', () => ({
+  getASRService: vi.fn(() => ({
+    initialize: vi.fn().mockResolvedValue(undefined),
+    transcribe: vi.fn().mockResolvedValue({ segments: [] }),
+    terminate: vi.fn(),
+    isInitialized: vi.fn().mockReturnValue(true),
+  })),
+}))
+
+// Mock TranscriptService since it depends on database
+vi.mock('../TranscriptService', () => ({
+  getTranscriptService: vi.fn(() => ({
+    saveTranscript: vi.fn(),
+  })),
+}))
 
 describe('AudioPipelineService - External Devices (Task 9.6)', () => {
   let audioService: ReturnType<typeof getAudioPipelineService>
@@ -86,7 +104,7 @@ describe('AudioPipelineService - External Devices (Task 9.6)', () => {
     it('should include device type and connection type', async () => {
       const devices = await audioService.enumerateAudioSources()
 
-      devices.forEach((device: any) => {
+      devices.forEach((device: AudioDeviceInfo) => {
         expect(device).toHaveProperty('id')
         expect(device).toHaveProperty('label')
         expect(device).toHaveProperty('kind')
@@ -99,6 +117,18 @@ describe('AudioPipelineService - External Devices (Task 9.6)', () => {
   })
 
   describe('Device Switching', () => {
+    afterEach(async () => {
+      // Ensure capture is stopped and state is clean
+      try {
+        await audioService.stopCapture()
+      } catch {
+        /* ignore */
+      }
+      // Use public reset method for clean test isolation
+      resetAudioPipelineService()
+      audioService = getAudioPipelineService()
+    })
+
     it('should track device switches during recording', async () => {
       const meetingId = 'test-meeting-123'
 
@@ -206,11 +236,11 @@ describe('AudioPipelineService - External Devices (Task 9.6)', () => {
       expect(info.recommendations.length).toBeGreaterThan(0)
 
       if (process.platform === 'darwin') {
-        expect(info.recommendations.some((r: any) => r.includes('macOS'))).toBe(true)
-        expect(info.recommendations.some((r: any) => r.includes('Screen Recording'))).toBe(true)
+        expect(info.recommendations.some((r: string) => r.includes('macOS'))).toBe(true)
+        expect(info.recommendations.some((r: string) => r.includes('Screen Recording'))).toBe(true)
       } else if (process.platform === 'win32') {
-        expect(info.recommendations.some((r: any) => r.includes('Windows'))).toBe(true)
-        expect(info.recommendations.some((r: any) => r.includes('Stereo Mix'))).toBe(true)
+        expect(info.recommendations.some((r: string) => r.includes('Windows'))).toBe(true)
+        expect(info.recommendations.some((r: string) => r.includes('Stereo Mix'))).toBe(true)
       }
     })
 
@@ -218,8 +248,8 @@ describe('AudioPipelineService - External Devices (Task 9.6)', () => {
       const info = await audioService.getDetailedDeviceInfo()
 
       // Check if recommendations are contextual
-      const hasBluetoothRec = info.recommendations.some((r: any) => r.includes('Bluetooth'))
-      const hasMonitorRec = info.recommendations.some((r: any) => r.includes('monitor'))
+      const hasBluetoothRec = info.recommendations.some((r: string) => r.includes('Bluetooth'))
+      const hasMonitorRec = info.recommendations.some((r: string) => r.includes('monitor'))
 
       // At least one type of recommendation should be present
       expect(hasBluetoothRec || hasMonitorRec || info.recommendations.length > 0).toBe(true)
@@ -255,7 +285,7 @@ describe('AudioPipelineService - External Devices (Task 9.6)', () => {
 
     it('should estimate latency for Bluetooth devices', async () => {
       // Create a mock Bluetooth device
-      const bluetoothDevice = {
+      const _bluetoothDevice = {
         id: 'test-bluetooth',
         label: 'AirPods Pro',
         kind: 'system' as const,

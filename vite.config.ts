@@ -6,10 +6,7 @@ import path from 'path'
 import { builtinModules } from 'module'
 
 // All native Node.js built-in modules (with and without node: prefix)
-const nodeBuiltins = [
-  ...builtinModules,
-  ...builtinModules.map((m) => `node:${m}`),
-]
+const nodeBuiltins = [...builtinModules, ...builtinModules.map(m => `node:${m}`)]
 
 // Native addons and packages that must not be bundled
 const nativeModules = [
@@ -37,7 +34,10 @@ export default defineConfig({
             rollupOptions: {
               external: allExternals,
               output: {
+                format: 'cjs',
                 inlineDynamicImports: true,
+                esModule: false,
+                entryFileNames: '[name].js',
               },
             },
           },
@@ -59,6 +59,25 @@ export default defineConfig({
           },
         },
       },
+      {
+        // Worker threads (ASR + VAD) — must be compiled separately
+        entry: {
+          'workers/asr.worker': 'src/main/workers/asr.worker.ts',
+          'workers/vad.worker': 'src/main/workers/vad.worker.ts',
+        },
+        vite: {
+          build: {
+            outDir: 'dist-electron',
+            rollupOptions: {
+              external: allExternals,
+              output: {
+                format: 'cjs',
+                entryFileNames: '[name].js',
+              },
+            },
+          },
+        },
+      },
     ]),
     renderer(),
   ],
@@ -66,6 +85,10 @@ export default defineConfig({
     alias: {
       '@': path.resolve(__dirname, './src'),
     },
+    // CRITICAL: Prevent duplicate React instances.
+    // vite-plugin-electron-renderer + @tanstack/react-query can each pull
+    // in their own copy of React, leading to "Invalid hook call" crashes.
+    dedupe: ['react', 'react-dom'],
   },
   server: {
     port: 5173,

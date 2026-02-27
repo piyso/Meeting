@@ -70,15 +70,15 @@ describe('RecoveryPhraseService', () => {
   describe('deriveKeyFromPhrase', () => {
     it('should derive a 32-byte key from phrase', () => {
       const phrase = RecoveryPhraseService.generateRecoveryPhrase()
-      const key = RecoveryPhraseService.deriveKeyFromPhrase(phrase.phrase)
+      const { key } = RecoveryPhraseService.deriveKeyFromPhrase(phrase.phrase)
 
       expect(key).toHaveLength(32) // 256 bits = 32 bytes
     })
 
     it('should derive same key from same phrase', () => {
       const phrase = RecoveryPhraseService.generateRecoveryPhrase()
-      const key1 = RecoveryPhraseService.deriveKeyFromPhrase(phrase.phrase)
-      const key2 = RecoveryPhraseService.deriveKeyFromPhrase(phrase.phrase)
+      const { key: key1, salt } = RecoveryPhraseService.deriveKeyFromPhrase(phrase.phrase)
+      const { key: key2 } = RecoveryPhraseService.deriveKeyFromPhrase(phrase.phrase, '', salt)
 
       expect(key1.toString('hex')).toBe(key2.toString('hex'))
     })
@@ -86,16 +86,23 @@ describe('RecoveryPhraseService', () => {
     it('should derive different keys from different phrases', () => {
       const phrase1 = RecoveryPhraseService.generateRecoveryPhrase()
       const phrase2 = RecoveryPhraseService.generateRecoveryPhrase()
-      const key1 = RecoveryPhraseService.deriveKeyFromPhrase(phrase1.phrase)
-      const key2 = RecoveryPhraseService.deriveKeyFromPhrase(phrase2.phrase)
+      const { key: key1, salt } = RecoveryPhraseService.deriveKeyFromPhrase(phrase1.phrase)
+      const { key: key2 } = RecoveryPhraseService.deriveKeyFromPhrase(phrase2.phrase, '', salt)
 
       expect(key1.toString('hex')).not.toBe(key2.toString('hex'))
     })
 
     it('should support optional password parameter', () => {
       const phrase = RecoveryPhraseService.generateRecoveryPhrase()
-      const key1 = RecoveryPhraseService.deriveKeyFromPhrase(phrase.phrase, 'password123')
-      const key2 = RecoveryPhraseService.deriveKeyFromPhrase(phrase.phrase, 'different')
+      const { key: key1, salt } = RecoveryPhraseService.deriveKeyFromPhrase(
+        phrase.phrase,
+        'password123'
+      )
+      const { key: key2 } = RecoveryPhraseService.deriveKeyFromPhrase(
+        phrase.phrase,
+        'different',
+        salt
+      )
 
       expect(key1.toString('hex')).not.toBe(key2.toString('hex'))
     })
@@ -214,7 +221,7 @@ describe('RecoveryPhraseService', () => {
       const userId = 'test-user-123'
       const content = RecoveryPhraseService.exportToFile(phrase.phrase, userId)
 
-      expect(content).toContain('PiyAPI Notes Recovery Key')
+      expect(content).toContain('BlueArkive Recovery Key')
       expect(content).toContain(userId)
       expect(content).toContain(phrase.phrase)
       expect(content).toContain('CRITICAL')

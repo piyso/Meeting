@@ -18,6 +18,8 @@
  */
 
 import { KeyStorageService } from './KeyStorageService'
+import { Logger } from './Logger'
+const log = Logger.create('CloudAccess')
 
 export type PlanTier = 'free' | 'starter' | 'pro' | 'team' | 'enterprise'
 
@@ -95,7 +97,7 @@ export class CloudAccessManager {
       const { net } = await import('electron')
       isOnline = net.isOnline()
     } catch {
-      // If net module unavailable (e.g. test env), assume online
+      // net module unavailable (test env) — assume online
       isOnline = true
     }
 
@@ -334,7 +336,7 @@ export class CloudAccessManager {
       // Return first user (single-user app for now)
       return users[0] || null
     } catch (error) {
-      console.error('[CloudAccessManager] Failed to get current user:', error)
+      log.error('[CloudAccessManager] Failed to get current user:', error)
       return null
     }
   }
@@ -347,7 +349,7 @@ export class CloudAccessManager {
       const tier = await KeyStorageService.getPlanTier(userId)
       return (tier as PlanTier) || 'free'
     } catch (error) {
-      console.error('[CloudAccessManager] Failed to get user tier:', error)
+      log.error('[CloudAccessManager] Failed to get user tier:', error)
       return 'free'
     }
   }
@@ -360,7 +362,7 @@ export class CloudAccessManager {
       const token = await KeyStorageService.getAccessToken(userId)
       return token !== null && token.length > 0
     } catch (error) {
-      console.error('[CloudAccessManager] Failed to check access token:', error)
+      log.error('[CloudAccessManager] Failed to check access token:', error)
       return false
     }
   }

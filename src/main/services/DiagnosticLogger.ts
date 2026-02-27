@@ -16,12 +16,14 @@ import * as fs from 'fs'
 import * as path from 'path'
 import { app } from 'electron'
 import * as os from 'os'
+import { Logger } from './Logger'
+const log = Logger.create('DiagnosticLogger')
 
 interface DiagnosticLogEntry {
   timestamp: string
   type: 'test_result' | 'error' | 'info' | 'device_info'
   platform: string
-  data: any
+  data: unknown
 }
 
 interface AudioTestDiagnostic {
@@ -38,13 +40,13 @@ interface AudioTestDiagnostic {
     available: boolean
     tested: boolean
     error?: string
-    deviceInfo?: any
+    deviceInfo?: Record<string, unknown>
   }
   microphone: {
     available: boolean
     tested: boolean
     error?: string
-    deviceInfo?: any
+    deviceInfo?: Record<string, unknown>
   }
   recommendation: string
   audioLevels?: {
@@ -88,7 +90,7 @@ class DiagnosticLogger {
   private ensureLogDirectory(): void {
     if (!fs.existsSync(this.logDir)) {
       fs.mkdirSync(this.logDir, { recursive: true })
-      console.log(`[DiagnosticLogger] Created log directory: ${this.logDir}`)
+      log.info(`[DiagnosticLogger] Created log directory: ${this.logDir}`)
     }
   }
 
@@ -103,7 +105,7 @@ class DiagnosticLogger {
         this.rotateLogs()
       }
     } catch (error) {
-      console.error('[DiagnosticLogger] Failed to check log size:', error)
+      log.error('[DiagnosticLogger] Failed to check log size:', error)
     }
   }
 
@@ -122,7 +124,7 @@ class DiagnosticLogger {
         filesToDelete.forEach(file => {
           const filePath = path.join(this.logDir, file)
           fs.unlinkSync(filePath)
-          console.log(`[DiagnosticLogger] Deleted old log file: ${file}`)
+          log.info(`[DiagnosticLogger] Deleted old log file: ${file}`)
         })
       }
 
@@ -130,9 +132,9 @@ class DiagnosticLogger {
       const timestamp = new Date().toISOString().replace(/[:.]/g, '-')
       const rotatedFile = path.join(this.logDir, `diagnostics-${timestamp}.log`)
       fs.renameSync(this.currentLogFile, rotatedFile)
-      console.log(`[DiagnosticLogger] Rotated log file to: ${rotatedFile}`)
+      log.info(`[DiagnosticLogger] Rotated log file to: ${rotatedFile}`)
     } catch (error) {
-      console.error('[DiagnosticLogger] Failed to rotate logs:', error)
+      log.error('[DiagnosticLogger] Failed to rotate logs:', error)
     }
   }
 
@@ -143,7 +145,7 @@ class DiagnosticLogger {
       const logLine = JSON.stringify(entry) + '\n'
       fs.appendFileSync(this.currentLogFile, logLine, 'utf8')
     } catch (error) {
-      console.error('[DiagnosticLogger] Failed to write log:', error)
+      log.error('[DiagnosticLogger] Failed to write log:', error)
     }
   }
 
@@ -159,7 +161,7 @@ class DiagnosticLogger {
     }
 
     this.writeLog(entry)
-    console.log('[DiagnosticLogger] Logged audio test result')
+    log.info('[DiagnosticLogger] Logged audio test result')
   }
 
   /**
@@ -178,13 +180,13 @@ class DiagnosticLogger {
     }
 
     this.writeLog(entry)
-    console.log('[DiagnosticLogger] Logged error:', error.message)
+    log.info('[DiagnosticLogger] Logged error:', error.message)
   }
 
   /**
    * Log general information
    */
-  public logInfo(message: string, data?: any): void {
+  public logInfo(message: string, data?: Record<string, unknown>): void {
     const entry: DiagnosticLogEntry = {
       timestamp: new Date().toISOString(),
       type: 'info',
@@ -201,7 +203,7 @@ class DiagnosticLogger {
   /**
    * Log device information
    */
-  public logDeviceInfo(devices: any[]): void {
+  public logDeviceInfo(devices: unknown[]): void {
     const entry: DiagnosticLogEntry = {
       timestamp: new Date().toISOString(),
       type: 'device_info',
@@ -213,13 +215,13 @@ class DiagnosticLogger {
     }
 
     this.writeLog(entry)
-    console.log('[DiagnosticLogger] Logged device information')
+    log.info('[DiagnosticLogger] Logged device information')
   }
 
   /**
    * Get system information for diagnostics
    */
-  private getSystemInfo(): any {
+  private getSystemInfo(): Record<string, string | number> {
     return {
       os: os.platform(),
       osVersion: os.release(),
@@ -275,7 +277,7 @@ class DiagnosticLogger {
             const entry = JSON.parse(line)
             allLogs.push(entry)
           } catch (error) {
-            console.error('[DiagnosticLogger] Failed to parse log line:', error)
+            log.error('[DiagnosticLogger] Failed to parse log line:', error)
           }
         }
       }
@@ -289,11 +291,11 @@ class DiagnosticLogger {
       }
 
       fs.writeFileSync(exportFile, JSON.stringify(exportData, null, 2), 'utf8')
-      console.log(`[DiagnosticLogger] Exported logs to: ${exportFile}`)
+      log.info(`[DiagnosticLogger] Exported logs to: ${exportFile}`)
 
       return exportFile
     } catch (error) {
-      console.error('[DiagnosticLogger] Failed to export logs:', error)
+      log.error('[DiagnosticLogger] Failed to export logs:', error)
       throw error
     }
   }
@@ -312,9 +314,9 @@ class DiagnosticLogger {
         fs.unlinkSync(filePath)
       }
 
-      console.log('[DiagnosticLogger] Cleared all logs')
+      log.info('[DiagnosticLogger] Cleared all logs')
     } catch (error) {
-      console.error('[DiagnosticLogger] Failed to clear logs:', error)
+      log.error('[DiagnosticLogger] Failed to clear logs:', error)
       throw error
     }
   }
@@ -352,7 +354,7 @@ class DiagnosticLogger {
         newestLog: newestTime !== 0 ? new Date(newestTime).toISOString() : null,
       }
     } catch (error) {
-      console.error('[DiagnosticLogger] Failed to get log stats:', error)
+      log.error('[DiagnosticLogger] Failed to get log stats:', error)
       return {
         totalFiles: 0,
         totalSize: '0 MB',

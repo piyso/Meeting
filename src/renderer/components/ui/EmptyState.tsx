@@ -8,7 +8,12 @@ interface EmptyStateProps {
   action?: React.ReactNode
 }
 
-export const EmptyState: React.FC<EmptyStateProps> = ({ icon: Icon, title, description, action }) => {
+export const EmptyState: React.FC<EmptyStateProps> = ({
+  icon: Icon,
+  title,
+  description,
+  action,
+}) => {
   return (
     <div className="ui-empty-state stagger-child" role="status">
       <div className="ui-empty-icon-wrapper">

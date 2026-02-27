@@ -4,7 +4,7 @@
  * Tests for secure key storage using OS keychain.
  */
 
-import { describe, it, expect,  afterEach } from 'vitest'
+import { describe, it, expect, afterEach } from 'vitest'
 import { KeyStorageService, KeyType } from '../KeyStorageService'
 
 describe('KeyStorageService', () => {

@@ -14,6 +14,8 @@ import {
   getTranscriptContext,
 } from '../database/crud/transcripts'
 import type { CreateTranscriptInput, Transcript, Word } from '../../types/database'
+import { Logger } from './Logger'
+const log = Logger.create('TranscriptService')
 
 interface TranscriptSegment {
   text: string
@@ -77,11 +79,36 @@ export class TranscriptService extends EventEmitter {
       speakerName: transcript.speaker_name,
     })
 
-    console.log(
+    log.info(
       `[Transcript Service] Saved transcript: ${transcript.text.substring(0, 50)}... (${transcript.start_time.toFixed(1)}s - ${transcript.end_time.toFixed(1)}s)`
     )
 
+    // Generate embedding asynchronously (fire-and-forget, non-blocking)
+    this.generateEmbeddingAsync(transcript.id, transcript.text)
+
     return transcript
+  }
+
+  /**
+   * Generate and store embedding for a transcript (non-blocking)
+   */
+  private async generateEmbeddingAsync(transcriptId: string, text: string): Promise<void> {
+    try {
+      const { getLocalEmbeddingService } = await import('./LocalEmbeddingService')
+      const embeddingService = getLocalEmbeddingService()
+
+      const result = await embeddingService.embed(text)
+      const { getDatabase } = await import('../database/connection')
+      const db = getDatabase()
+      db.prepare('UPDATE transcripts SET embedding = ? WHERE id = ?').run(
+        JSON.stringify(result.embedding),
+        transcriptId
+      )
+
+      log.debug(`Embedding generated for transcript ${transcriptId}`)
+    } catch {
+      // Non-critical — embeddings will be generated on next search if missing
+    }
   }
 
   /**
@@ -118,7 +145,7 @@ export class TranscriptService extends EventEmitter {
       })
     })
 
-    console.log(
+    log.info(
       `[Transcript Service] Saved ${transcripts.length} transcripts for meeting ${meetingId}`
     )
 
@@ -181,7 +208,7 @@ export class TranscriptService extends EventEmitter {
     try {
       return JSON.parse(wordsJson)
     } catch (error) {
-      console.error('[Transcript Service] Failed to parse words JSON:', error)
+      log.error('[Transcript Service] Failed to parse words JSON:', error)
       return undefined
     }
   }

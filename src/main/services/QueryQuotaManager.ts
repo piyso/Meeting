@@ -25,9 +25,7 @@ export class QueryQuotaManager {
    * Check if user can make a cloud AI query.
    * Returns quota status and whether the query is allowed.
    */
-  async checkQuota(
-    tier: 'free' | 'starter' | 'pro' | 'team' | 'enterprise'
-  ): Promise<QuotaStatus> {
+  async checkQuota(tier: 'free' | 'starter' | 'pro' | 'team' | 'enterprise'): Promise<QuotaStatus> {
     // Free tier: no cloud AI access at all
     if (tier === 'free') {
       return {
@@ -69,9 +67,7 @@ export class QueryQuotaManager {
   recordUsage(): void {
     const db = getDatabase()
     const now = Math.floor(Date.now() / 1000)
-    db.prepare(
-      `INSERT INTO query_usage (timestamp, type) VALUES (?, 'cloud_ai')`
-    ).run(now)
+    db.prepare(`INSERT INTO query_usage (timestamp, type) VALUES (?, 'cloud_ai')`).run(now)
   }
 
   /**
@@ -120,9 +116,7 @@ export class QueryQuotaManager {
         type TEXT NOT NULL DEFAULT 'cloud_ai'
       )
     `)
-    db.exec(
-      `CREATE INDEX IF NOT EXISTS idx_query_usage_timestamp ON query_usage(timestamp)`
-    )
+    db.exec(`CREATE INDEX IF NOT EXISTS idx_query_usage_timestamp ON query_usage(timestamp)`)
   }
 }
 

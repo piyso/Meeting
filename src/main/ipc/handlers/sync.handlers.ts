@@ -58,8 +58,16 @@ export function registerSyncHandlers(): void {
   // sync:login — Initialize sync with credentials
   ipcMain.handle('sync:login', async (_, params) => {
     try {
-      if (!params?.userId || !params?.password) {
-        return { success: false, error: { code: 'INVALID_PARAMS', message: 'userId and password are required', timestamp: Date.now() } }
+      const userId = params?.userId || params?.email
+      if (!userId || !params?.password) {
+        return {
+          success: false,
+          error: {
+            code: 'INVALID_PARAMS',
+            message: 'Email and password are required',
+            timestamp: Date.now(),
+          },
+        }
       }
       const backend = new PiyAPIBackend()
       // Stop old SyncManager to prevent orphaned auto-sync intervals
@@ -67,9 +75,9 @@ export function registerSyncHandlers(): void {
         syncManager.stopAutoSync()
       }
       syncManager = new SyncManager(backend)
-      await syncManager.initialize(params.userId, params.password)
+      await syncManager.initialize(userId, params.password)
       syncManager.startAutoSync()
-      return { success: true, data: { userId: params.userId } }
+      return { success: true, data: { userId } }
     } catch (error) {
       return {
         success: false,
@@ -113,7 +121,7 @@ export function registerSyncHandlers(): void {
       const oauthUrl = `${backend.getBaseUrl()}/auth/google`
       await shell.openExternal(oauthUrl)
 
-      // The callback will be handled via deep link (piyapi-notes://oauth/callback)
+      // The callback will be handled via deep link (bluearkive://oauth/callback)
       // For now, return pending status — the actual token exchange happens via
       // a deep link handler registered in main.ts
       return {

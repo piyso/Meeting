@@ -1,18 +1,8 @@
-/**
- * Recover Account Component
- *
- * Allows users to recover their account using a 24-word recovery phrase.
- * This is used when a user forgets their password.
- *
- * Flow:
- * 1. User enters 24-word recovery phrase
- * 2. System validates the phrase
- * 3. User sets a new password
- * 4. System derives master key from phrase and re-encrypts with new password
- */
-
-import React, { useState } from 'react'
-import './RecoverAccount.css'
+import React, { useState, useRef, useEffect } from 'react'
+import { Button } from './ui/Button'
+import { Input } from './ui/Input'
+import { Badge } from './ui/Badge'
+import { KeyRound, ShieldCheck } from 'lucide-react'
 
 export interface RecoverAccountProps {
   onRecoveryComplete: () => void
@@ -26,6 +16,15 @@ export const RecoverAccount: React.FC<RecoverAccountProps> = ({ onRecoveryComple
   const [confirmPassword, setConfirmPassword] = useState('')
   const [error, setError] = useState('')
   const [isValidating, setIsValidating] = useState(false)
+  const timerRefs = useRef<ReturnType<typeof setTimeout>[]>([])
+
+  // Cleanup all timers on unmount
+  useEffect(() => {
+    const timers = timerRefs.current
+    return () => {
+      timers.forEach(clearTimeout)
+    }
+  }, [])
 
   const handlePhraseSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -41,11 +40,11 @@ export const RecoverAccount: React.FC<RecoverAccountProps> = ({ onRecoveryComple
     }
 
     // In production, this would call RecoveryPhraseService.verifyRecoveryPhrase()
-    // For now, simulate validation
-    setTimeout(() => {
+    const timer = setTimeout(() => {
       setIsValidating(false)
       setStep('password')
     }, 1000)
+    timerRefs.current.push(timer)
   }
 
   const handlePasswordSubmit = async (e: React.FormEvent) => {
@@ -65,12 +64,12 @@ export const RecoverAccount: React.FC<RecoverAccountProps> = ({ onRecoveryComple
     }
 
     // In production, this would call RecoveryPhraseService.recoverAccount()
-    // For now, simulate recovery
     setIsValidating(true)
-    setTimeout(() => {
+    const timer = setTimeout(() => {
       setIsValidating(false)
       onRecoveryComplete()
     }, 1500)
+    timerRefs.current.push(timer)
   }
 
   const handlePhraseChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
@@ -84,132 +83,147 @@ export const RecoverAccount: React.FC<RecoverAccountProps> = ({ onRecoveryComple
     .filter(w => w.length > 0).length
 
   return (
-    <div className="recover-account">
-      <div className="recover-header">
-        <h2>Recover Your Account</h2>
-        <p className="recover-subtitle">Enter your 24-word recovery key to reset your password</p>
-      </div>
+    <div className="w-full flex justify-center py-10 px-4">
+      <div className="w-full max-w-[500px] surface-glass-premium p-8 rounded-[var(--radius-xl)] border border-[var(--color-border-subtle)] flex flex-col shadow-2xl animate-slide-up">
+        <div className="flex flex-col items-center mb-8">
+          <div className="w-12 h-12 rounded-xl bg-[var(--color-bg-glass)] border border-[var(--color-border-subtle)] flex items-center justify-center mb-4">
+            {step === 'phrase' ? (
+              <KeyRound size={24} className="text-[var(--color-text-primary)]" />
+            ) : (
+              <ShieldCheck size={24} className="text-[var(--color-emerald)]" />
+            )}
+          </div>
+          <h2 className="text-2xl font-semibold tracking-wide text-[var(--color-text-primary)]">
+            Recover Your Account
+          </h2>
+          <p className="text-sm text-[var(--color-text-secondary)] mt-2 text-center">
+            {step === 'phrase'
+              ? 'Enter your 24-word recovery key to reset your password.'
+              : 'Securely encrypted. Set a strong new password.'}
+          </p>
+        </div>
 
-      {step === 'phrase' && (
-        <form onSubmit={handlePhraseSubmit} className="recover-form">
-          <div className="form-section">
-            <label htmlFor="recovery-phrase" className="form-label">
-              Recovery Key (24 words)
-            </label>
-            <textarea
-              id="recovery-phrase"
-              className="recovery-phrase-input"
-              value={recoveryPhrase}
-              onChange={handlePhraseChange}
-              placeholder="Enter your 24-word recovery key separated by spaces..."
-              rows={6}
-              autoFocus
-            />
-            <div className="word-counter">
-              <span className={wordCount === 24 ? 'valid' : wordCount > 24 ? 'error' : ''}>
-                {wordCount} / 24 words
-              </span>
+        {step === 'phrase' && (
+          <form onSubmit={handlePhraseSubmit} className="flex flex-col space-y-6">
+            <div className="flex flex-col space-y-2">
+              <div className="flex justify-between items-center px-1">
+                <label
+                  htmlFor="recovery-phrase"
+                  className="text-sm font-medium text-[var(--color-text-secondary)]"
+                >
+                  Recovery Key (24 words)
+                </label>
+                <div
+                  className={`text-xs font-mono font-medium ${wordCount === 24 ? 'text-[var(--color-emerald)]' : wordCount > 24 ? 'text-rose-400' : 'text-slate-500'}`}
+                >
+                  {wordCount} / 24
+                </div>
+              </div>
+              <textarea
+                id="recovery-phrase"
+                className="w-full bg-slate-950/50 border border-[var(--color-border-subtle)] rounded-xl p-4 text-[var(--color-text-primary)] text-sm font-mono leading-relaxed focus:outline-none focus:ring-1 focus:ring-[var(--color-violet)]/50 focus:border-[var(--color-violet)] transition-all resize-none shadow-inner"
+                value={recoveryPhrase}
+                onChange={handlePhraseChange}
+                placeholder="abandon ability able about above absent absorb abstract absurd abuse access accident..."
+                rows={6}
+                autoFocus
+              />
             </div>
-          </div>
 
-          {error && (
-            <div className="error-message">
-              <span className="error-icon">⚠️</span>
-              <span>{error}</span>
+            {error && (
+              <div className="flex items-center gap-2 p-3 rounded-lg bg-rose-500/10 border border-rose-500/20 text-rose-400 text-sm">
+                <Badge variant="error" className="border-none bg-transparent px-0 w-4 h-4">
+                  !
+                </Badge>
+                {error}
+              </div>
+            )}
+
+            <div className="flex gap-3 pt-2">
+              <Button
+                type="button"
+                variant="secondary"
+                onClick={onCancel}
+                disabled={isValidating}
+                className="flex-1"
+              >
+                Cancel
+              </Button>
+              <Button
+                type="submit"
+                variant="primary"
+                disabled={wordCount !== 24 || isValidating}
+                className="flex-1"
+              >
+                {isValidating ? 'Validating...' : 'Continue'}
+              </Button>
             </div>
-          )}
+          </form>
+        )}
 
-          <div className="form-actions">
-            <button
-              type="button"
-              className="secondary-button"
-              onClick={onCancel}
-              disabled={isValidating}
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              className="primary-button"
-              disabled={wordCount !== 24 || isValidating}
-            >
-              {isValidating ? 'Validating...' : 'Continue'}
-            </button>
-          </div>
-        </form>
-      )}
+        {step === 'password' && (
+          <form onSubmit={handlePasswordSubmit} className="flex flex-col space-y-6">
+            <div className="flex items-center gap-3 p-4 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-sm font-medium mb-2">
+              <span>✓</span>
+              <span>Recovery key validated successfully</span>
+            </div>
 
-      {step === 'password' && (
-        <form onSubmit={handlePasswordSubmit} className="recover-form">
-          <div className="success-message">
-            <span className="success-icon">✓</span>
-            <span>Recovery key validated successfully</span>
-          </div>
-
-          <div className="form-section">
-            <label htmlFor="new-password" className="form-label">
-              New Password
-            </label>
-            <input
-              id="new-password"
+            <Input
               type="password"
-              className="password-input"
+              label="New Password"
               value={newPassword}
               onChange={e => setNewPassword(e.target.value)}
-              placeholder="Enter new password (min 8 characters)"
+              placeholder="Min 8 characters"
               autoFocus
             />
-          </div>
 
-          <div className="form-section">
-            <label htmlFor="confirm-password" className="form-label">
-              Confirm Password
-            </label>
-            <input
-              id="confirm-password"
+            <Input
               type="password"
-              className="password-input"
+              label="Confirm Password"
               value={confirmPassword}
               onChange={e => setConfirmPassword(e.target.value)}
               placeholder="Re-enter new password"
             />
-          </div>
 
-          {error && (
-            <div className="error-message">
-              <span className="error-icon">⚠️</span>
-              <span>{error}</span>
+            {error && (
+              <div className="flex items-center gap-2 p-3 rounded-lg bg-rose-500/10 border border-rose-500/20 text-rose-400 text-sm">
+                <Badge variant="error" className="border-none bg-transparent px-0 w-4 h-4">
+                  !
+                </Badge>
+                {error}
+              </div>
+            )}
+
+            <div className="flex gap-3 pt-4">
+              <Button
+                type="button"
+                variant="secondary"
+                onClick={() => setStep('phrase')}
+                disabled={isValidating}
+                className="flex-1"
+              >
+                Back
+              </Button>
+              <Button
+                type="submit"
+                variant="primary"
+                disabled={!newPassword || !confirmPassword || isValidating}
+                className="flex-[2]"
+              >
+                {isValidating ? 'Recovering...' : 'Reset Password'}
+              </Button>
             </div>
-          )}
+          </form>
+        )}
 
-          <div className="form-actions">
-            <button
-              type="button"
-              className="secondary-button"
-              onClick={() => setStep('phrase')}
-              disabled={isValidating}
-            >
-              Back
-            </button>
-            <button
-              type="submit"
-              className="primary-button"
-              disabled={!newPassword || !confirmPassword || isValidating}
-            >
-              {isValidating ? 'Recovering...' : 'Reset Password'}
-            </button>
-          </div>
-        </form>
-      )}
-
-      <div className="recover-help">
-        <h4>Need Help?</h4>
-        <ul>
-          <li>Your recovery key is the 24-word phrase you saved during account setup</li>
-          <li>Make sure to enter all 24 words in the correct order</li>
-          <li>Words should be separated by spaces</li>
-          <li>If you've lost your recovery key, your encrypted data cannot be recovered</li>
-        </ul>
+        <div className="mt-8 pt-6 border-t border-[var(--color-border-subtle)] text-xs text-[var(--color-text-tertiary)] flex flex-col gap-2">
+          <p className="font-medium text-[var(--color-text-secondary)]">Security Note</p>
+          <ul className="list-disc pl-4 space-y-1">
+            <li>Your recovery key is the ONLY way to access encrypted data.</li>
+            <li>Maintain exact spacing between the 24 words.</li>
+            <li>Lost keys cannot be recovered under any circumstances.</li>
+          </ul>
+        </div>
       </div>
     </div>
   )

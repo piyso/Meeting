@@ -9,6 +9,8 @@
 
 import * as os from 'os'
 import { getDatabaseService } from './DatabaseService'
+import { Logger } from './Logger'
+const log = Logger.create('HardwareTier')
 
 export type HardwareTier = 'high' | 'mid' | 'low'
 export type ModelType = 'whisper-turbo' | 'moonshine-base'
@@ -45,7 +47,7 @@ export class HardwareTierService {
     await db.setSetting('asr_model', info.asrModel)
     await db.setSetting('llm_model', info.llmModel)
 
-    console.log('[Hardware Tier] Detected:', info)
+    log.info('[Hardware Tier] Detected:', info)
 
     return info
   }
@@ -204,7 +206,7 @@ export class HardwareTierService {
     await db.setSetting('llm_model', llmModel)
     await db.setSetting('ram_budget', ramBudget.toString())
 
-    console.log('[Hardware Tier] Override to:', tier)
+    log.info('[Hardware Tier] Override to:', tier)
   }
 
   /**

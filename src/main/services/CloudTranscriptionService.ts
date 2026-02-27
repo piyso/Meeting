@@ -3,11 +3,16 @@
  *
  * Provides cloud-based transcription using Deepgram API.
  * Used as fallback for low-tier hardware or when local transcription fails.
+ *
+ * Security: API key is stored in OS keychain via KeyStorageService (not plaintext SQLite).
  */
 
 import { EventEmitter } from 'events'
 import { getDatabaseService } from './DatabaseService'
+import { KeyStorageService as _KeyStorageService } from './KeyStorageService'
 import { config } from '../config/environment'
+import { Logger } from './Logger'
+const log = Logger.create('CloudTranscription')
 
 interface TranscriptSegment {
   text: string
@@ -36,10 +41,14 @@ interface UsageStats {
   tier: 'free' | 'starter' | 'pro'
 }
 
+/** Keychain account used for Deepgram API key */
+const DEEPGRAM_KEYCHAIN_ACCOUNT = 'deepgram-api-key'
+
 export class CloudTranscriptionService extends EventEmitter {
   private apiKey: string | null = null
   private enabled: boolean = false
   private ws: WebSocket | null = null
+  private configLoaded: boolean = false
   private usageStats: UsageStats = {
     totalSeconds: 0,
     monthlyLimit: 36000, // 10 hours for free tier
@@ -48,18 +57,35 @@ export class CloudTranscriptionService extends EventEmitter {
 
   constructor() {
     super()
-    this.loadConfig()
+    // Config is loaded lazily on first use (avoids async-in-constructor antipattern)
   }
 
   /**
-   * Load configuration from database
+   * Ensure configuration is loaded (lazy initialization)
+   */
+  private async ensureConfigLoaded(): Promise<void> {
+    if (this.configLoaded) return
+    await this.loadConfig()
+    this.configLoaded = true
+  }
+
+  /**
+   * Load configuration from database + keychain
    */
   private async loadConfig(): Promise<void> {
     const db = getDatabaseService()
-    this.enabled = (await db.getSetting('cloud_transcription_enabled')) === 'true'
-    this.apiKey = await db.getSetting('deepgram_api_key')
+    this.enabled = db.getSetting('cloud_transcription_enabled') === 'true'
 
-    const tier = (await db.getSetting('subscription_tier')) || 'free'
+    // Load API key from OS keychain (secure storage)
+    try {
+      const keytar = await import('keytar')
+      this.apiKey = await keytar.default.getPassword('bluearkive', DEEPGRAM_KEYCHAIN_ACCOUNT)
+    } catch (err) {
+      log.warn('[Cloud Transcription] Failed to read API key from keychain', err)
+      this.apiKey = null
+    }
+
+    const tier = db.getSetting('subscription_tier') || 'free'
     this.usageStats.tier = tier as 'free' | 'starter' | 'pro'
 
     // Set monthly limits based on tier
@@ -76,7 +102,7 @@ export class CloudTranscriptionService extends EventEmitter {
     }
 
     // Load usage stats
-    const usage = await db.getSetting('cloud_transcription_usage')
+    const usage = db.getSetting('cloud_transcription_usage')
     if (usage) {
       this.usageStats.totalSeconds = parseInt(usage, 10)
     }
@@ -90,10 +116,18 @@ export class CloudTranscriptionService extends EventEmitter {
     this.enabled = true
 
     const db = getDatabaseService()
-    await db.setSetting('cloud_transcription_enabled', 'true')
-    await db.setSetting('deepgram_api_key', apiKey)
+    db.setSetting('cloud_transcription_enabled', 'true')
 
-    console.log('[Cloud Transcription] Enabled')
+    // Store API key in OS keychain (secure), not in SQLite
+    try {
+      const keytar = await import('keytar')
+      await keytar.default.setPassword('bluearkive', DEEPGRAM_KEYCHAIN_ACCOUNT, apiKey)
+    } catch (err) {
+      log.error('[Cloud Transcription] Failed to store API key in keychain', err)
+    }
+
+    this.configLoaded = true
+    log.info('[Cloud Transcription] Enabled')
   }
 
   /**
@@ -105,7 +139,7 @@ export class CloudTranscriptionService extends EventEmitter {
     const db = getDatabaseService()
     await db.setSetting('cloud_transcription_enabled', 'false')
 
-    console.log('[Cloud Transcription] Disabled')
+    log.info('[Cloud Transcription] Disabled')
   }
 
   /**
@@ -133,6 +167,8 @@ export class CloudTranscriptionService extends EventEmitter {
    * Transcribe audio using Deepgram API
    */
   async transcribe(audioBuffer: Float32Array): Promise<TranscriptSegment[]> {
+    await this.ensureConfigLoaded()
+
     if (!this.enabled || !this.apiKey) {
       throw new Error('Cloud transcription not enabled')
     }
@@ -152,7 +188,7 @@ export class CloudTranscriptionService extends EventEmitter {
           Authorization: `Token ${this.apiKey}`,
           'Content-Type': 'audio/wav',
         },
-        body: wavBuffer as any,
+        body: wavBuffer as unknown as BodyInit,
       })
 
       if (!response.ok) {
@@ -171,14 +207,14 @@ export class CloudTranscriptionService extends EventEmitter {
       const db = getDatabaseService()
       await db.setSetting('cloud_transcription_usage', this.usageStats.totalSeconds.toString())
 
-      console.log(
+      log.info(
         `[Cloud Transcription] Transcribed ${audioDuration.toFixed(1)}s (${this.usageStats.totalSeconds}/${this.usageStats.monthlyLimit}s used)`
       )
 
       return segments
-    } catch (error: any) {
-      console.error('[Cloud Transcription] Error:', error)
-      throw error
+    } catch (error: unknown) {
+      log.error('[Cloud Transcription] Error:', error)
+      throw error instanceof Error ? error : new Error(String(error))
     }
   }
 
@@ -186,24 +222,32 @@ export class CloudTranscriptionService extends EventEmitter {
    * Start streaming transcription
    */
   async startStreaming(_config: CloudTranscriptionConfig): Promise<void> {
+    await this.ensureConfigLoaded()
+
     if (!this.enabled || !this.apiKey) {
       throw new Error('Cloud transcription not enabled')
     }
 
     const wsUrl = `wss://api.deepgram.com/v1/listen?punctuate=true&diarize=false&model=nova-2`
 
-    this.ws = new WebSocket(wsUrl, {
+    // Node.js WebSocket (ws) accepts options with headers, but browser WebSocket doesn't.
+    // In Electron main process, this uses the ws library which supports headers.
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    this.ws = new (WebSocket as any)(wsUrl, {
       headers: {
         Authorization: `Token ${this.apiKey}`,
       },
-    } as any)
+    })
 
-    this.ws.addEventListener('open', () => {
-      console.log('[Cloud Transcription] Streaming connection opened')
+    const ws = this.ws
+    if (!ws) return
+
+    ws.addEventListener('open', () => {
+      log.info('[Cloud Transcription] Streaming connection opened')
       this.emit('connected')
     })
 
-    this.ws.addEventListener('message', (event: any) => {
+    ws.addEventListener('message', (event: MessageEvent) => {
       try {
         const result = JSON.parse(event.data.toString())
         if (result.channel?.alternatives?.[0]?.transcript) {
@@ -211,17 +255,17 @@ export class CloudTranscriptionService extends EventEmitter {
           this.emit('transcript', transcript)
         }
       } catch (error) {
-        console.error('[Cloud Transcription] Parse error:', error)
+        log.error('[Cloud Transcription] Parse error:', error)
       }
     })
 
-    this.ws.addEventListener('error', (event: any) => {
-      console.error('[Cloud Transcription] WebSocket error:', event.error)
-      this.emit('error', event.error)
+    ws.addEventListener('error', (event: Event) => {
+      log.error('[Cloud Transcription] WebSocket error:', event)
+      this.emit('error', event)
     })
 
-    this.ws.addEventListener('close', () => {
-      console.log('[Cloud Transcription] Streaming connection closed')
+    ws.addEventListener('close', () => {
+      log.info('[Cloud Transcription] Streaming connection closed')
       this.emit('disconnected')
     })
   }
@@ -252,24 +296,28 @@ export class CloudTranscriptionService extends EventEmitter {
   /**
    * Parse Deepgram API response
    */
-  private parseDeepgramResponse(result: any): TranscriptSegment[] {
+  private parseDeepgramResponse(result: Record<string, unknown>): TranscriptSegment[] {
     const segments: TranscriptSegment[] = []
 
-    if (result.results?.channels?.[0]?.alternatives?.[0]) {
-      const alternative = result.results.channels[0].alternatives[0]
-      const words = alternative.words || []
+    const results = result.results as Record<string, unknown> | undefined
+    const channels = results?.channels as Array<Record<string, unknown>> | undefined
+    const alternative = channels?.[0]?.alternatives as Array<Record<string, unknown>> | undefined
+    const alt = alternative?.[0]
+
+    if (alt) {
+      const words = (alt.words || []) as Array<Record<string, unknown>>
 
       if (words.length > 0) {
         segments.push({
-          text: alternative.transcript,
-          start: words[0].start,
-          end: words[words.length - 1].end,
-          confidence: alternative.confidence,
-          words: words.map((w: any) => ({
-            word: w.word,
-            start: w.start,
-            end: w.end,
-            confidence: w.confidence,
+          text: alt.transcript as string,
+          start: words[0]!.start as number,
+          end: words[words.length - 1]!.end as number,
+          confidence: alt.confidence as number,
+          words: words.map((w: Record<string, unknown>) => ({
+            word: w.word as string,
+            start: w.start as number,
+            end: w.end as number,
+            confidence: w.confidence as number,
           })),
         })
       }
@@ -331,7 +379,7 @@ export class CloudTranscriptionService extends EventEmitter {
     const db = getDatabaseService()
     await db.setSetting('cloud_transcription_usage', '0')
 
-    console.log('[Cloud Transcription] Monthly usage reset')
+    log.info('[Cloud Transcription] Monthly usage reset')
   }
 }
 

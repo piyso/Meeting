@@ -25,7 +25,7 @@ export const SplitPane: React.FC<SplitPaneProps> = ({
 
   // Load saved ratio on mount
   useEffect(() => {
-    const saved = localStorage.getItem('piyapi-split-ratio')
+    const saved = localStorage.getItem('bluearkive-split-ratio')
     if (saved) {
       const parsed = parseFloat(saved)
       if (!isNaN(parsed) && parsed > 0.1 && parsed < 0.9) {
@@ -50,33 +50,36 @@ export const SplitPane: React.FC<SplitPaneProps> = ({
       // Sync React state and save
       const finalRatio = dragState.current.currentRatio
       setRatio(finalRatio)
-      localStorage.setItem('piyapi-split-ratio', finalRatio.toString())
+      localStorage.setItem('bluearkive-split-ratio', finalRatio.toString())
     }
   }, [])
 
-  const handlePointerMove = useCallback((e: PointerEvent) => {
-    if (!dragState.current.isDragging || !containerRef.current) return
+  const handlePointerMove = useCallback(
+    (e: PointerEvent) => {
+      if (!dragState.current.isDragging || !containerRef.current) return
 
-    const rect = containerRef.current.getBoundingClientRect()
-    let newRatio = (e.clientY - rect.top) / rect.height
+      const rect = containerRef.current.getBoundingClientRect()
+      let newRatio = (e.clientY - rect.top) / rect.height
 
-    const topPx = newRatio * rect.height
-    const bottomPx = (1 - newRatio) * rect.height
+      const topPx = newRatio * rect.height
+      const bottomPx = (1 - newRatio) * rect.height
 
-    if (topPx < minTopHeight) {
-      newRatio = minTopHeight / rect.height
-    } else if (bottomPx < minBottomHeight) {
-      newRatio = 1 - (minBottomHeight / rect.height)
-    }
+      if (topPx < minTopHeight) {
+        newRatio = minTopHeight / rect.height
+      } else if (bottomPx < minBottomHeight) {
+        newRatio = 1 - minBottomHeight / rect.height
+      }
 
-    dragState.current.currentRatio = newRatio
+      dragState.current.currentRatio = newRatio
 
-    // Direct DOM mutation for 60fps
-    if (topRef.current && bottomRef.current) {
-      topRef.current.style.height = `${newRatio * 100}%`
-      bottomRef.current.style.height = `${(1 - newRatio) * 100}%`
-    }
-  }, [minTopHeight, minBottomHeight])
+      // Direct DOM mutation for 60fps
+      if (topRef.current && bottomRef.current) {
+        topRef.current.style.height = `${newRatio * 100}%`
+        bottomRef.current.style.height = `${(1 - newRatio) * 100}%`
+      }
+    },
+    [minTopHeight, minBottomHeight]
+  )
 
   useEffect(() => {
     window.addEventListener('pointerup', handlePointerUp)
@@ -96,11 +99,8 @@ export const SplitPane: React.FC<SplitPaneProps> = ({
       <div ref={topRef} className="ui-split-pane top-pane" style={topStyle}>
         {top}
       </div>
-      
-      <div 
-        className="ui-split-divider"
-        onPointerDown={handlePointerDown}
-      >
+
+      <div className="ui-split-divider" onPointerDown={handlePointerDown}>
         <div className="ui-split-handle" />
       </div>
 

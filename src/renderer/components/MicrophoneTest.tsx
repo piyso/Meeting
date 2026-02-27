@@ -12,6 +12,9 @@
 import React, { useState, useEffect, useRef } from 'react'
 import './MicrophoneTest.css'
 
+import { rendererLog } from '../utils/logger'
+const log = rendererLog.create('MicTest')
+
 interface MicrophoneTestProps {
   onTestComplete?: (result: { success: boolean; audioDetected: boolean; maxLevel: number }) => void
 }
@@ -69,7 +72,7 @@ export const MicrophoneTest: React.FC<MicrophoneTestProps> = ({ onTestComplete }
       // Start monitoring audio levels
       monitorAudioLevels()
     } catch (err) {
-      console.error('Error starting microphone test:', err)
+      log.error('Error starting microphone test:', err)
       setError(err instanceof Error ? err.message : 'Unknown error occurred')
       setTestPhase('error')
     }
@@ -103,9 +106,9 @@ export const MicrophoneTest: React.FC<MicrophoneTestProps> = ({ onTestComplete }
       audioContextRef.current = audioContext
       analyserRef.current = analyser
 
-      console.log('✅ Microphone capture started')
+      log.info('✅ Microphone capture started')
     } catch (err) {
-      console.error('Failed to start microphone capture:', err)
+      log.error('Failed to start microphone capture:', err)
       throw new Error(
         'Failed to access microphone. Please ensure microphone permission is granted.'
       )
@@ -139,7 +142,7 @@ export const MicrophoneTest: React.FC<MicrophoneTestProps> = ({ onTestComplete }
       // Detect audio (threshold: 1%)
       if (rms > 0.01 && !audioDetected) {
         setAudioDetected(true)
-        console.log('✅ Audio detected! Level:', Math.round(rms * 100) + '%')
+        log.info('✅ Audio detected! Level:', Math.round(rms * 100) + '%')
       }
 
       // Update duration
@@ -179,7 +182,7 @@ export const MicrophoneTest: React.FC<MicrophoneTestProps> = ({ onTestComplete }
       const result = await window.electronAPI.audio.stopMicrophoneTest()
 
       if (result.success && result.data) {
-        console.log('Microphone test stopped:', result.data)
+        log.info('Microphone test stopped:', result.data)
 
         setTestPhase('complete')
 
@@ -192,7 +195,7 @@ export const MicrophoneTest: React.FC<MicrophoneTestProps> = ({ onTestComplete }
         }
       }
     } catch (err) {
-      console.error('Error stopping microphone test:', err)
+      log.error('Error stopping microphone test:', err)
     }
   }
 

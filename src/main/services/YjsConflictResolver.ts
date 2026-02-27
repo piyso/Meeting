@@ -20,6 +20,8 @@
  */
 
 import * as Y from 'yjs'
+import { Logger } from './Logger'
+const log = Logger.create('YjsConflictResolver')
 
 export interface YjsDocument {
   doc: Y.Doc
@@ -67,7 +69,7 @@ export class YjsConflictResolver {
     // Store document
     this.documents.set(noteId, doc)
 
-    console.log(`[YjsConflictResolver] Created document for note ${noteId}`)
+    log.info(`[YjsConflictResolver] Created document for note ${noteId}`)
 
     return doc
   }
@@ -102,11 +104,11 @@ export class YjsConflictResolver {
       // Apply update (Yjs handles conflict resolution automatically)
       Y.applyUpdate(doc, update)
 
-      console.log(`[YjsConflictResolver] Applied update to note ${noteId}`)
+      log.info(`[YjsConflictResolver] Applied update to note ${noteId}`)
 
       return true
     } catch (error) {
-      console.error(`[YjsConflictResolver] Failed to apply update to note ${noteId}:`, error)
+      log.error(`[YjsConflictResolver] Failed to apply update to note ${noteId}:`, error)
       return false
     }
   }
@@ -190,7 +192,7 @@ export class YjsConflictResolver {
       const sourceDoc = this.documents.get(sourceNoteId)
 
       if (!targetDoc || !sourceDoc) {
-        console.error('[YjsConflictResolver] Cannot merge: document not found')
+        log.error('[YjsConflictResolver] Cannot merge: document not found')
         return false
       }
 
@@ -200,11 +202,11 @@ export class YjsConflictResolver {
       // Apply to target
       Y.applyUpdate(targetDoc, sourceState)
 
-      console.log(`[YjsConflictResolver] Merged ${sourceNoteId} into ${targetNoteId}`)
+      log.info(`[YjsConflictResolver] Merged ${sourceNoteId} into ${targetNoteId}`)
 
       return true
     } catch (error) {
-      console.error('[YjsConflictResolver] Merge failed:', error)
+      log.error('[YjsConflictResolver] Merge failed:', error)
       return false
     }
   }
@@ -227,7 +229,7 @@ export class YjsConflictResolver {
     // Remove from map
     this.documents.delete(noteId)
 
-    console.log(`[YjsConflictResolver] Deleted document for note ${noteId}`)
+    log.info(`[YjsConflictResolver] Deleted document for note ${noteId}`)
 
     return true
   }
@@ -258,7 +260,7 @@ export class YjsConflictResolver {
       doc.destroy()
     }
     this.documents.clear()
-    console.log('[YjsConflictResolver] Cleared all documents')
+    log.info('[YjsConflictResolver] Cleared all documents')
   }
 
   /**
@@ -317,7 +319,7 @@ export class YjsConflictResolver {
    * @param noteId - Note ID
    * @returns JSON representation
    */
-  public exportToJSON(noteId: string): any {
+  public exportToJSON(noteId: string): Record<string, unknown> | null {
     const doc = this.documents.get(noteId)
     if (!doc) {
       return null
@@ -333,7 +335,7 @@ export class YjsConflictResolver {
    * @param json - JSON representation
    * @returns True if loaded successfully
    */
-  public loadFromJSON(noteId: string, json: any): boolean {
+  public loadFromJSON(noteId: string, json: Record<string, unknown>): boolean {
     try {
       const doc = this.createDocument(noteId)
       const text = doc.getText('content')
@@ -342,13 +344,13 @@ export class YjsConflictResolver {
       text.delete(0, text.length)
 
       // Insert JSON content
-      if (json.content) {
+      if (typeof json.content === 'string') {
         text.insert(0, json.content)
       }
 
       return true
     } catch (error) {
-      console.error('[YjsConflictResolver] Failed to load from JSON:', error)
+      log.error('[YjsConflictResolver] Failed to load from JSON:', error)
       return false
     }
   }

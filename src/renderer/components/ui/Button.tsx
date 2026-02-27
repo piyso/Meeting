@@ -8,57 +8,68 @@ interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
 }
 
 export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
-  ({ variant = 'primary', size = 'md', icon, loading, className = '', children, disabled, ...props }, ref) => {
-    // Determine base classes
-    const sizeClasses = {
-      sm: 'h-[var(--h-sm)] px-[var(--space-8)] text-[var(--text-xs)]',
-      md: 'h-[var(--h-md)] px-[var(--space-12)] text-[var(--text-sm)]',
-      lg: 'h-[var(--h-lg)] px-[var(--space-16)] text-[var(--text-base)]',
-    }
+  (
+    {
+      variant = 'primary',
+      size = 'md',
+      icon,
+      loading,
+      className = '',
+      children,
+      disabled,
+      ...props
+    },
+    ref
+  ) => {
+    const variantClass = variant ? `ui-btn-${variant}` : ''
+    const sizeClass = size ? `ui-btn-${size}` : ''
 
-    const variantClasses = {
-      primary: 'bg-[var(--color-violet)] text-[#FFFFFF] shadow-sm',
-      secondary: 'bg-[var(--color-bg-glass)] border border-[var(--color-border-subtle)] text-[var(--color-text-primary)]',
-      ghost: 'bg-transparent text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-bg-glass-hover)]',
-      danger: 'bg-transparent text-[var(--color-rose)] hover:bg-[rgba(251,113,133,0.1)]',
-    }
-
-    const baseClasses = `
-      inline-flex items-center justify-center font-body font-medium rounded-[var(--radius-sm)]
-      transition-all duration-300 ease-[var(--ease-fluid)] premium-hover
-      disabled:opacity-50 disabled:cursor-not-allowed disabled:pointer-events-none
-    `.trim()
-
-    // Loading overlay
-    const contentOpacity = loading ? 'opacity-0' : 'opacity-100'
+    // Loading overlay handled in span directly
 
     return (
       <button
         ref={ref}
         disabled={disabled || loading}
-        className={`${baseClasses} ${variantClasses[variant]} ${sizeClasses[size]} ${className} relative`}
-        style={
-          {
-            // Inject Tailwind arbitrary values manually since we aren't using Tailwind here yet,
-            // or simply use native inline styles mapping to our CSS custom properties if preferred.
-            // Since we aren't using Tailwind, let's write raw CSS mapped classes:
-          }
-        }
+        className={`ui-btn ${variantClass} ${sizeClass} premium-hover ${className}`}
         {...props}
       >
-        <span className={`inline-flex items-center gap-[var(--space-4)] ${contentOpacity}`}>
-          {icon && <span className="flex-shrink-0">{icon}</span>}
+        <span
+          style={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: 'var(--space-4)',
+            opacity: loading ? 0 : 1,
+            transition: 'opacity 0.2s',
+          }}
+        >
+          {icon && <span style={{ flexShrink: 0 }}>{icon}</span>}
           {children}
         </span>
         {loading && (
-          <span className="absolute inset-0 flex items-center justify-center animate-pulse">
+          <span
+            style={{
+              position: 'absolute',
+              inset: 0,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+          >
             <svg
-              className="w-4 h-4 text-current animate-spin"
+              className="ui-btn-loading-spinner"
+              style={{ width: '16px', height: '16px', color: 'currentColor' }}
               xmlns="http://www.w3.org/2000/svg"
               fill="none"
               viewBox="0 0 24 24"
             >
-              <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+              <circle
+                className="opacity-25"
+                cx="12"
+                cy="12"
+                r="10"
+                stroke="currentColor"
+                strokeWidth="4"
+              ></circle>
               <path
                 className="opacity-75"
                 fill="currentColor"

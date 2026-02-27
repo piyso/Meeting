@@ -11,6 +11,9 @@
 import React from 'react'
 import type { StereoMixGuidance } from '../../types/ipc'
 
+import { rendererLog } from '../utils/logger'
+const log = rendererLog.create('StereoMix')
+
 interface StereoMixErrorDialogProps {
   guidance: StereoMixGuidance
   onClose: () => void
@@ -28,12 +31,12 @@ export const StereoMixErrorDialog: React.FC<StereoMixErrorDialogProps> = ({
     try {
       const result = await window.electronAPI.audio.openSoundSettings()
       if (result.success) {
-        console.log('Opened Windows Sound settings')
+        log.info('Opened Windows Sound settings')
       } else {
-        console.error('Failed to open Sound settings:', result.error)
+        log.error('Failed to open Sound settings:', result.error)
       }
     } catch (error) {
-      console.error('Error opening Sound settings:', error)
+      log.error('Error opening Sound settings:', error)
     }
   }
 
@@ -108,7 +111,7 @@ export const StereoMixErrorDialog: React.FC<StereoMixErrorDialogProps> = ({
                 onClick={() => {
                   // Open the comprehensive documentation
                   window.electronAPI.shell?.openExternal(
-                    'https://docs.piyapi.com/enable-stereo-mix'
+                    'https://docs.bluearkive.com/enable-stereo-mix'
                   )
                 }}
               >

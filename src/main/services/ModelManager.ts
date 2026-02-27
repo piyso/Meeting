@@ -9,6 +9,7 @@
  */
 
 import { config } from '../config/environment'
+import { Logger } from './Logger'
 
 import os from 'os'
 
@@ -23,10 +24,12 @@ export class ModelManager {
   private llmLoaded = false
   private unloadTimer: ReturnType<typeof setTimeout> | null = null
   private static readonly IDLE_TIMEOUT = 60_000 // Unload after 60s of no AI requests
+  private log = Logger.create('ModelManager')
 
   /**
    * Detect hardware tier based on available RAM.
    * Blueprint §2.4: 16GB+ → high, 12GB → mid, 8GB → low
+   * Note: asrModel uses abstract identifiers to prevent tech leaks in compiled JS
    */
   detectHardwareTier(): HardwareTier {
     const totalRAM = Math.round(os.totalmem() / 1024 ** 3)
@@ -36,21 +39,21 @@ export class ModelManager {
         ram: totalRAM,
         tier: 'high',
         llmModel: 'qwen2.5:3b',
-        asrModel: 'whisper-turbo',
+        asrModel: 'asr-primary',
       }
     } else if (totalRAM >= 12) {
       return {
         ram: totalRAM,
         tier: 'mid',
         llmModel: 'qwen2.5:3b',
-        asrModel: 'moonshine-base',
+        asrModel: 'asr-fallback',
       }
     } else {
       return {
         ram: totalRAM,
         tier: 'low',
         llmModel: 'qwen2.5:1.5b',
-        asrModel: 'moonshine-base',
+        asrModel: 'asr-fallback',
       }
     }
   }
@@ -66,7 +69,7 @@ export class ModelManager {
     }
 
     const tier = this.detectHardwareTier()
-    console.log(`[ModelManager] Loading ${tier.llmModel} on-demand...`)
+    this.log.info(`Loading ${tier.llmModel} on-demand...`)
 
     try {
       await fetch(`${config.OLLAMA_BASE_URL}/api/generate`, {
@@ -80,9 +83,9 @@ export class ModelManager {
       })
       this.llmLoaded = true
       this.resetUnloadTimer()
-      console.log(`[ModelManager] ${tier.llmModel} loaded`)
+      this.log.info(`${tier.llmModel} loaded`)
     } catch (error) {
-      console.warn('[ModelManager] Failed to preload LLM:', error)
+      this.log.warn('Failed to preload LLM', error)
     }
   }
 
@@ -98,10 +101,7 @@ export class ModelManager {
    */
   private resetUnloadTimer(): void {
     if (this.unloadTimer) clearTimeout(this.unloadTimer)
-    this.unloadTimer = setTimeout(
-      () => this.unloadLLM(),
-      ModelManager.IDLE_TIMEOUT
-    )
+    this.unloadTimer = setTimeout(() => this.unloadLLM(), ModelManager.IDLE_TIMEOUT)
   }
 
   /**
@@ -121,9 +121,9 @@ export class ModelManager {
         }),
       })
       this.llmLoaded = false
-      console.log('[ModelManager] LLM unloaded to free RAM')
-    } catch {
-      // Ollama may not be running
+      this.log.info('LLM unloaded to free RAM')
+    } catch (err) {
+      this.log.debug('LLM unload skipped — Ollama may not be running', err)
     }
   }
 

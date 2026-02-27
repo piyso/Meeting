@@ -3,6 +3,9 @@
  */
 
 import { ipcMain, BrowserWindow } from 'electron'
+import { Logger } from '../../services/Logger'
+const log = Logger.create('TranscriptHandlers')
+
 import { getTranscriptService } from '../../services/TranscriptService'
 import type {
   IPCResponse,
@@ -50,7 +53,7 @@ export function registerTranscriptHandlers(): void {
         }
       } catch (error: unknown) {
         const errorMessage = error instanceof Error ? error.message : 'Unknown error'
-        console.error('[IPC] transcript:get error:', error)
+        log.error('[IPC] transcript:get error:', error)
         return {
           success: false,
           error: {
@@ -88,7 +91,7 @@ export function registerTranscriptHandlers(): void {
         }
       } catch (error: unknown) {
         const errorMessage = error instanceof Error ? error.message : 'Unknown error'
-        console.error('[IPC] transcript:getContext error:', error)
+        log.error('[IPC] transcript:getContext error:', error)
         return {
           success: false,
           error: {
@@ -126,7 +129,7 @@ export function registerTranscriptHandlers(): void {
         }
       } catch (error: unknown) {
         const errorMessage = error instanceof Error ? error.message : 'Unknown error'
-        console.error('[IPC] transcript:updateSpeaker error:', error)
+        log.error('[IPC] transcript:updateSpeaker error:', error)
         return {
           success: false,
           error: {
@@ -139,7 +142,7 @@ export function registerTranscriptHandlers(): void {
     }
   )
 
-  console.log('[IPC] Transcript handlers registered')
+  log.info('[IPC] Transcript handlers registered')
 }
 
 /**
@@ -162,10 +165,9 @@ function setupTranscriptEventForwarding(
     }) => {
       // Get main window via Electron API (no circular imports)
       const windows = BrowserWindow.getAllWindows()
-      const mainWindow: BrowserWindow | null = windows.length > 0 ? windows[0]! : null
+      const mainWindow: BrowserWindow | null = windows.length > 0 ? (windows[0] ?? null) : null
 
       if (!mainWindow || mainWindow.isDestroyed()) {
-        console.warn('[IPC] Cannot send transcript event: main window not available')
         return
       }
 
@@ -183,10 +185,6 @@ function setupTranscriptEventForwarding(
 
       // Send to renderer via IPC event
       mainWindow.webContents.send('event:transcriptChunk', chunk)
-
-      console.log(`[IPC] Forwarded transcript event to renderer: ${chunk.text.substring(0, 30)}...`)
     }
   )
-
-  console.log('[IPC] Transcript event forwarding setup complete')
 }

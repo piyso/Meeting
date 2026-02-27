@@ -14,9 +14,11 @@ export const AudioIndicator: React.FC<AudioIndicatorProps> = ({ audioLevel, isRe
     if (!canvas) return
 
     // Instantiate worker
-    const worker = new Worker(new URL('../../workers/audio-indicator.worker.ts', import.meta.url), { type: 'module' })
+    const worker = new Worker(new URL('../../workers/audio-indicator.worker.ts', import.meta.url), {
+      type: 'module',
+    })
     const offscreen = canvas.transferControlToOffscreen()
-    
+
     worker.postMessage({ type: 'init', canvas: offscreen }, [offscreen])
     workerRef.current = worker
 
@@ -31,18 +33,18 @@ export const AudioIndicator: React.FC<AudioIndicatorProps> = ({ audioLevel, isRe
       workerRef.current.postMessage({
         type: 'update',
         isRecording,
-        audioLevel
+        audioLevel,
       })
     }
   }, [audioLevel, isRecording])
 
   return (
-    <canvas 
-      ref={canvasRef} 
-      width={60} 
-      height={32} 
+    <canvas
+      ref={canvasRef}
+      width={60}
+      height={32}
       className="shrink-0"
-      style={{ width: '60px', height: '32px' }} 
+      style={{ width: '60px', height: '32px' }}
     />
   )
 }

@@ -1,5 +1,5 @@
 /**
- * Logger Service — Structured logging for PiyAPI Notes
+ * Logger Service — Structured logging for BlueArkive
  *
  * Features:
  * - Log levels: debug, info, warn, error
@@ -48,7 +48,7 @@ class LoggerInstance {
       if (!fs.existsSync(logDir)) {
         fs.mkdirSync(logDir, { recursive: true })
       }
-      LoggerInstance.logFilePath = path.join(logDir, 'piyapi-notes.log')
+      LoggerInstance.logFilePath = path.join(logDir, 'bluearkive.log')
 
       // Rotate if too large
       if (

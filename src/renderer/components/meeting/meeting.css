@@ -20,8 +20,8 @@
 
 .ui-meeting-card-title {
   font-size: var(--text-lg);
-  font-weight: 500;
-  letter-spacing: var(--tracking-tight);
+  font-weight: 600; /* Increased from 500 */
+  letter-spacing: -0.03em; /* Tightened tracking */
   color: var(--color-text-primary);
   margin-bottom: var(--space-8);
   white-space: nowrap;
@@ -40,4 +40,348 @@
   justify-content: flex-end;
   gap: var(--space-8);
   margin-top: var(--space-16);
+}
+
+.ui-meeting-card-badge-transcribed {
+  background: var(--color-glow-violet);
+  color: var(--color-violet);
+  border: none;
+}
+
+.ui-meeting-card-badge-notes {
+  background: rgba(255, 255, 255, 0.05);
+  color: #ffffff;
+  border: none;
+}
+
+/* NewMeetingDialog */
+.ui-new-meeting-content {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-24);
+}
+.ui-new-meeting-label {
+  font-size: var(--text-xs);
+  color: var(--color-text-secondary);
+  margin-bottom: var(--space-8);
+  display: block;
+  font-weight: 500;
+}
+.ui-new-meeting-templates {
+  display: flex;
+  gap: var(--space-12);
+  overflow-x: auto;
+  padding-bottom: var(--space-8);
+}
+.ui-new-meeting-template-btn {
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 88px;
+  height: 72px;
+  border-radius: var(--radius-md);
+  transition: all 200ms var(--ease-snappy);
+  border: 1px solid var(--color-border-subtle);
+  background: transparent;
+  cursor: pointer;
+}
+.ui-new-meeting-template-btn:hover {
+  background: var(--color-bg-glass-hover);
+}
+.ui-new-meeting-template-btn.active {
+  border-color: var(--color-violet);
+  background: rgba(167, 139, 250, 0.05);
+  box-shadow: 0 0 12px rgba(167, 139, 250, 0.15);
+}
+.ui-new-meeting-template-icon {
+  font-size: 20px;
+  margin-bottom: var(--space-4);
+}
+.ui-new-meeting-template-label {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--color-text-secondary);
+}
+.ui-new-meeting-template-btn.active .ui-new-meeting-template-label {
+  color: var(--color-violet);
+}
+.ui-new-meeting-dropzone {
+  border: 2px dashed var(--color-border-subtle);
+  border-radius: var(--radius-md);
+  padding: var(--space-24);
+  text-align: center;
+  transition: all var(--transition-base);
+  background: var(--color-bg-glass);
+}
+.ui-new-meeting-dropzone.dragging {
+  border-color: var(--color-violet);
+  background: rgba(167, 139, 250, 0.05);
+}
+.ui-new-meeting-dropzone-text {
+  font-size: var(--text-sm);
+  color: var(--color-text-secondary);
+}
+.ui-new-meeting-files {
+  margin-top: var(--space-12);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-8);
+}
+.ui-new-meeting-file {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: var(--text-xs);
+  color: var(--color-text-primary);
+  background: var(--color-bg-glass);
+  padding: var(--space-8) var(--space-12);
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--color-border-subtle);
+}
+.ui-new-meeting-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-12);
+  padding-top: var(--space-16);
+  border-top: 1px solid var(--color-border-subtle);
+}
+
+/* PostMeetingDigest */
+.ui-digest-container {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  background: var(--color-bg-panel);
+  overflow: hidden;
+}
+.ui-digest-header {
+  padding: var(--space-24) var(--space-20) var(--space-16);
+  border-bottom: 1px solid var(--color-border-subtle);
+}
+.ui-digest-meta {
+  display: flex;
+  align-items: center;
+  gap: var(--space-8);
+  margin-bottom: var(--space-16);
+  color: var(--color-text-secondary);
+  font-size: var(--text-sm);
+}
+.ui-digest-tabs {
+  display: flex;
+  gap: var(--space-24);
+  border-bottom: 1px solid var(--color-bg-glass);
+}
+.ui-digest-tab {
+  padding-bottom: var(--space-12);
+  font-size: var(--text-sm);
+  font-weight: 500;
+  transition: color var(--transition-base);
+  position: relative;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  color: var(--color-text-tertiary);
+}
+.ui-digest-tab:hover {
+  color: var(--color-text-secondary);
+}
+.ui-digest-tab.active {
+  color: var(--color-text-primary);
+}
+.ui-digest-content {
+  flex: 1;
+  overflow-y: auto;
+  padding: var(--space-24);
+}
+.ui-digest-section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-24);
+}
+.ui-digest-section-title {
+  font-size: var(--text-sm);
+  font-weight: 600;
+  margin-bottom: var(--space-8);
+  margin-top: 0;
+}
+.ui-digest-text {
+  font-size: var(--text-base);
+  color: var(--color-text-primary);
+  line-height: 1.6;
+  margin: 0;
+}
+.ui-digest-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-12);
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+.ui-digest-list-item {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-12);
+  font-size: var(--text-sm);
+}
+.ui-digest-list-item.changed {
+  padding-left: var(--space-12);
+  border-left: 2px solid var(--color-amber);
+}
+.ui-digest-list-bullet {
+  color: var(--color-text-tertiary);
+  margin-top: 4px;
+}
+.ui-digest-list-content {
+  display: flex;
+  flex-direction: column;
+}
+.ui-digest-action-card {
+  display: flex;
+  gap: var(--space-12);
+  align-items: flex-start;
+  padding: var(--space-12);
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--color-border-subtle);
+  background: var(--color-bg-glass);
+}
+.ui-digest-action-content {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.ui-digest-action-text {
+  font-size: var(--text-sm);
+  line-height: 1.2;
+}
+.ui-digest-action-assignee {
+  font-weight: 600;
+  color: var(--color-violet);
+}
+.ui-digest-action-due {
+  font-size: var(--text-xs);
+  color: var(--color-text-tertiary);
+}
+.ui-digest-pinned-moment {
+  display: flex;
+  gap: var(--space-12);
+  align-items: flex-start;
+  font-size: var(--text-sm);
+  cursor: pointer;
+  padding: var(--space-8);
+  margin: 0 -8px;
+  border-radius: var(--radius-sm);
+  transition: background var(--transition-fast);
+}
+.ui-digest-pinned-moment:hover {
+  background: var(--color-bg-glass);
+}
+.ui-digest-pinned-text {
+  color: var(--color-text-primary);
+  line-height: 1.2;
+}
+.ui-digest-footer {
+  padding: var(--space-16);
+  border-top: 1px solid var(--color-border-subtle);
+  background: rgba(0, 0, 0, 0.2);
+}
+.ui-digest-footer-label {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-wide);
+  color: var(--color-text-tertiary);
+  font-weight: 600;
+  margin-bottom: var(--space-8);
+  display: block;
+}
+.ui-digest-footer-actions {
+  display: flex;
+  gap: var(--space-8);
+}
+.ui-digest-footer-btn {
+  flex: 1;
+  font-family: var(--font-mono);
+  font-size: 12px;
+}
+
+/* TranscriptPanel */
+.ui-transcript-panel,
+.ui-note-editor-panel {
+  height: 100%;
+  width: 100%;
+  position: relative;
+}
+.ui-transcript-scroll,
+.ui-note-editor-scroll {
+  height: 100%;
+  width: 100%;
+  overflow-y: auto;
+  padding: 0 var(--space-16);
+}
+.ui-transcript-scroll.loading {
+  padding: var(--space-16);
+}
+.ui-transcript-jump-btn {
+  position: absolute;
+  bottom: var(--space-16);
+  right: var(--space-16);
+  flex-shrink: 0;
+  border-radius: var(--radius-full);
+  padding: var(--space-8) var(--space-12);
+  display: flex;
+  align-items: center;
+  gap: var(--space-8);
+  color: var(--color-text-secondary);
+  transition: color var(--transition-base);
+  border: 1px solid var(--color-border-subtle);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+  background: var(--color-bg-panel);
+  cursor: pointer;
+}
+.ui-transcript-jump-btn:hover {
+  color: #ffffff;
+}
+.ui-transcript-jump-text {
+  font-size: var(--text-xs);
+  font-weight: 500;
+}
+
+/* NoteEditor */
+/* Editor typography overrides based on ui/ux.md instructions for notes */
+.ui-note-editor-content {
+  max-width: none;
+  outline: none;
+  min-height: calc(100vh - 200px);
+  padding: var(--space-24) var(--space-16);
+  color: var(--color-text-primary);
+  font-size: var(--text-base);
+  line-height: 1.6;
+}
+.ui-note-editor-content h1,
+.ui-note-editor-content h2,
+.ui-note-editor-content h3 {
+  color: #ffffff;
+  margin-top: var(--space-24);
+  margin-bottom: var(--space-12);
+  font-weight: 600;
+}
+.ui-note-editor-content p {
+  margin-bottom: var(--space-16);
+}
+.ui-note-editor-content ul {
+  list-style-type: disc;
+  padding-left: var(--space-24);
+  margin-bottom: var(--space-16);
+}
+.ui-note-editor-content li {
+  margin-bottom: var(--space-4);
+}
+.ui-note-editor-content .is-editor-empty:first-child::before {
+  content: attr(data-placeholder);
+  float: left;
+  color: var(--color-text-tertiary);
+  pointer-events: none;
+  height: 0;
 }

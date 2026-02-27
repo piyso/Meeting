@@ -6,6 +6,9 @@
 
 import { ipcMain } from 'electron'
 import { v4 as uuidv4 } from 'uuid'
+import { Logger } from '../../services/Logger'
+
+const log = Logger.create('MeetingHandlers')
 import { getDatabaseService } from '../../services/DatabaseService'
 import type {
   IPCResponse,
@@ -45,32 +48,55 @@ export function registerMeetingHandlers(): void {
         })
 
         // Get available audio devices via IPC (audio:listDevices handler)
-        let audioDevices: any[] = []
+        const audioDevices: Array<{
+          id: string
+          label: string
+          kind: 'system' | 'microphone'
+          isDefault: boolean
+          isAvailable: boolean
+        }> = []
         try {
           const { systemPreferences } = await import('electron')
           // Check for audio input devices (microphone)
           const hasMic = systemPreferences.getMediaAccessStatus('microphone') === 'granted'
           if (hasMic) {
-            audioDevices.push({ type: 'microphone', available: true })
+            audioDevices.push({
+              id: 'microphone-default',
+              label: 'Default Microphone',
+              kind: 'microphone',
+              isDefault: true,
+              isAvailable: true,
+            })
           }
           // Check for screen recording (system audio)
           const hasScreen = systemPreferences.getMediaAccessStatus('screen') === 'granted'
           if (hasScreen) {
-            audioDevices.push({ type: 'system-audio', available: true })
+            audioDevices.push({
+              id: 'system-default',
+              label: 'System Audio',
+              kind: 'system',
+              isDefault: !hasMic,
+              isAvailable: true,
+            })
           }
-        } catch {
-          // Permission check failed — non-critical
+        } catch (err) {
+          log.debug('Permission check failed', err)
         }
 
         // Start passive WAL checkpoint every 10 minutes during recording
         // Blueprint §2.5: prevents multi-GB WAL files during long meetings
         if (walCheckpointInterval) clearInterval(walCheckpointInterval)
-        walCheckpointInterval = setInterval(async () => {
-          try {
-            const { walCheckpoint } = await import('../../database/connection')
-            walCheckpoint('PASSIVE')
-          } catch { /* non-critical */ }
-        }, 10 * 60 * 1000)
+        walCheckpointInterval = setInterval(
+          async () => {
+            try {
+              const { walCheckpoint } = await import('../../database/connection')
+              walCheckpoint('PASSIVE')
+            } catch (err) {
+              log.debug('WAL passive checkpoint skipped', err)
+            }
+          },
+          10 * 60 * 1000
+        )
 
         return {
           success: true,
@@ -80,7 +106,7 @@ export function registerMeetingHandlers(): void {
           },
         }
       } catch (error) {
-        console.error('Failed to start meeting:', error)
+        log.error('Failed to start meeting:', error)
         return {
           success: false,
           error: {
@@ -119,7 +145,7 @@ export function registerMeetingHandlers(): void {
           const { getAudioPipelineService } = await import('../../services/AudioPipelineService')
           await getAudioPipelineService().stopCapture()
         } catch (audioErr) {
-          console.warn('[meeting:stop] Audio stop failed (may not have been recording):', audioErr)
+          log.warn('[meeting:stop] Audio stop failed (may not have been recording):', audioErr)
         }
 
         // Stop passive WAL checkpoint interval
@@ -132,15 +158,15 @@ export function registerMeetingHandlers(): void {
         try {
           const { walCheckpoint } = await import('../../database/connection')
           walCheckpoint('TRUNCATE')
-        } catch {
-          // Non-critical — WAL will auto-checkpoint eventually
+        } catch (err) {
+          log.debug('WAL truncate checkpoint skipped', err)
         }
 
         return {
           success: true,
         }
       } catch (error) {
-        console.error('Failed to stop meeting:', error)
+        log.error('Failed to stop meeting:', error)
         return {
           success: false,
           error: {
@@ -171,7 +197,7 @@ export function registerMeetingHandlers(): void {
           data: meeting,
         }
       } catch (error) {
-        console.error('Failed to get meeting:', error)
+        log.error('Failed to get meeting:', error)
         return {
           success: false,
           error: {
@@ -217,7 +243,7 @@ export function registerMeetingHandlers(): void {
           },
         }
       } catch (error) {
-        console.error('Failed to list meetings:', error)
+        log.error('Failed to list meetings:', error)
         return {
           success: false,
           error: {
@@ -244,7 +270,7 @@ export function registerMeetingHandlers(): void {
           data: meeting,
         }
       } catch (error) {
-        console.error('Failed to update meeting:', error)
+        log.error('Failed to update meeting:', error)
         return {
           success: false,
           error: {
@@ -270,7 +296,7 @@ export function registerMeetingHandlers(): void {
           success: true,
         }
       } catch (error) {
-        console.error('Failed to delete meeting:', error)
+        log.error('Failed to delete meeting:', error)
         return {
           success: false,
           error: {
@@ -297,15 +323,28 @@ export function registerMeetingHandlers(): void {
         }
 
         // Get all meeting data
-        const transcripts = db.getDb()
+        const transcripts = db
+          .getDb()
           .prepare('SELECT * FROM transcripts WHERE meeting_id = ? ORDER BY start_time ASC')
-          .all(params.meetingId) as Array<{ text: string; start_time: number; end_time: number; speaker_name: string; confidence: number }>
+          .all(params.meetingId) as Array<{
+          text: string
+          start_time: number
+          end_time: number
+          speaker_name: string
+          confidence: number
+        }>
 
-        const notes = db.getDb()
+        const notes = db
+          .getDb()
           .prepare('SELECT * FROM notes WHERE meeting_id = ? ORDER BY timestamp ASC')
-          .all(params.meetingId) as Array<{ original_text: string; augmented_text: string; timestamp: number }>
+          .all(params.meetingId) as Array<{
+          original_text: string
+          augmented_text: string
+          timestamp: number
+        }>
 
-        const entities = db.getDb()
+        const entities = db
+          .getDb()
           .prepare('SELECT * FROM entities WHERE meeting_id = ?')
           .all(params.meetingId) as Array<{ type: string; text: string; confidence: number }>
 
@@ -318,15 +357,18 @@ export function registerMeetingHandlers(): void {
             `**Duration:** ${meeting.duration ? Math.round(meeting.duration / 60) + ' minutes' : 'N/A'}`,
             '',
             '## Transcript',
-            ...transcripts.map(t =>
-              `**${t.speaker_name || 'Speaker'}** (${new Date(t.start_time * 1000).toLocaleTimeString()}): ${t.text}`
+            ...transcripts.map(
+              t =>
+                `**${t.speaker_name || 'Speaker'}** (${new Date(t.start_time * 1000).toLocaleTimeString()}): ${t.text}`
             ),
             '',
             '## Notes',
             ...notes.map(n => `- ${n.augmented_text || n.original_text}`),
             '',
             '## Entities',
-            ...entities.map(e => `- **${e.type}**: ${e.text} (${Math.round((e.confidence || 0) * 100)}%)`),
+            ...entities.map(
+              e => `- **${e.type}**: ${e.text} (${Math.round((e.confidence || 0) * 100)}%)`
+            ),
           ].join('\n')
 
           return {
@@ -357,7 +399,7 @@ export function registerMeetingHandlers(): void {
           },
         }
       } catch (error) {
-        console.error('Failed to export meeting:', error)
+        log.error('Failed to export meeting:', error)
         return {
           success: false,
           error: {

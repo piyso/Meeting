@@ -1,13 +1,23 @@
 import { ipcMain } from 'electron'
 import { getDatabase } from '../../database/connection'
 import { config } from '../../config/environment'
+import { Logger } from '../../services/Logger'
+
+const log = Logger.create('DigestHandlers')
 
 export function registerDigestHandlers(): void {
   // digest:generate — Generate meeting digest via Ollama
   ipcMain.handle('digest:generate', async (_, params) => {
     try {
       if (!params?.meetingId) {
-        return { success: false, error: { code: 'INVALID_PARAMS', message: 'meetingId is required', timestamp: Date.now() } }
+        return {
+          success: false,
+          error: {
+            code: 'INVALID_PARAMS',
+            message: 'meetingId is required',
+            timestamp: Date.now(),
+          },
+        }
       }
       // Get meeting transcripts from database
       const db = getDatabase()
@@ -31,9 +41,7 @@ export function registerDigestHandlers(): void {
       }
 
       // Format transcript for LLM
-      const transcriptText = transcripts
-        .map((t) => `${t.speaker}: ${t.text}`)
-        .join('\n')
+      const transcriptText = transcripts.map(t => `${t.speaker}: ${t.text}`).join('\n')
 
       // Call Ollama sequentially — parallel calls overwhelm single-GPU machines
       const summary = await callOllama(
@@ -55,7 +63,8 @@ export function registerDigestHandlers(): void {
           generatedAt: new Date().toISOString(),
         },
       }
-    } catch {
+    } catch (err) {
+      log.warn('Digest generation failed', err)
       return {
         success: false,
         error: {
@@ -97,7 +106,8 @@ async function callOllama(prompt: string): Promise<string> {
     })
     const data = await response.json()
     return data.response?.trim() || ''
-  } catch {
+  } catch (err) {
+    log.debug('Ollama call failed', err)
     return '⚠️ AI unavailable — Ollama not running'
   }
 }

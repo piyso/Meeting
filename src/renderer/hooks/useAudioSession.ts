@@ -1,7 +1,15 @@
 import { useState, useCallback } from 'react'
 
+import { rendererLog } from '../utils/logger'
+const log = rendererLog.create('AudioSession')
+
 export type CaptureMode = 'system' | 'microphone' | 'cloud'
-export type PermissionStatus = 'not-determined' | 'denied' | 'granted' | 'not-applicable' | 'unknown'
+export type PermissionStatus =
+  | 'not-determined'
+  | 'denied'
+  | 'granted'
+  | 'not-applicable'
+  | 'unknown'
 
 export function useAudioSession(meetingId: string | null) {
   const [isCapturing, setIsCapturing] = useState(false)
@@ -20,45 +28,48 @@ export function useAudioSession(meetingId: string | null) {
         return result.data.status
       }
     } catch (error) {
-      console.error('Error checking permission:', error)
+      log.error('Error checking permission:', error)
     }
     return 'unknown'
   }, [])
 
-  const startCapture = useCallback(async (mode: CaptureMode = 'system'): Promise<boolean> => {
-    if (!meetingId) return false
-    
-    // Check permission for system mode on Mac
-    if (mode === 'system') {
-      const isMacOS = window.electronAPI?.platform === 'darwin'
-      if (isMacOS) {
-        const status = await checkPermissionStatus()
-        if (status === 'not-determined' || status === 'denied') {
-          return false // Flow will be handled by UI observing permissionStatus
+  const startCapture = useCallback(
+    async (mode: CaptureMode = 'system'): Promise<boolean> => {
+      if (!meetingId) return false
+
+      // Check permission for system mode on Mac
+      if (mode === 'system') {
+        const isMacOS = window.electronAPI?.platform === 'darwin'
+        if (isMacOS) {
+          const status = await checkPermissionStatus()
+          if (status === 'not-determined' || status === 'denied') {
+            return false // Flow will be handled by UI observing permissionStatus
+          }
         }
       }
-    }
 
-    try {
-      setIsCapturing(true)
-      setCaptureMode(mode)
+      try {
+        setIsCapturing(true)
+        setCaptureMode(mode)
 
-      const result = await window.electronAPI.audio.startCapture({
-        meetingId,
-        fallbackToMicrophone: mode === 'microphone',
-      })
+        const result = await window.electronAPI.audio.startCapture({
+          meetingId,
+          fallbackToMicrophone: mode === 'microphone',
+        })
 
-      if (!result.success) {
+        if (!result.success) {
+          setIsCapturing(false)
+          throw new Error(result.error?.message || 'Failed to start capture')
+        }
+        return true
+      } catch (error) {
+        log.error('Error starting capture:', error)
         setIsCapturing(false)
-        throw new Error(result.error?.message || 'Failed to start capture')
+        throw error
       }
-      return true
-    } catch (error) {
-      console.error('Error starting capture:', error)
-      setIsCapturing(false)
-      throw error
-    }
-  }, [meetingId, checkPermissionStatus])
+    },
+    [meetingId, checkPermissionStatus]
+  )
 
   const stopCapture = useCallback(async () => {
     if (!meetingId) return
@@ -68,7 +79,7 @@ export function useAudioSession(meetingId: string | null) {
         setIsCapturing(false)
       }
     } catch (error) {
-      console.error('Error stopping capture:', error)
+      log.error('Error stopping capture:', error)
     }
   }, [meetingId])
 
@@ -80,6 +91,6 @@ export function useAudioSession(meetingId: string | null) {
     checkPermissionStatus,
     startCapture,
     stopCapture,
-    setPermissionStatus // To override from UI
+    setPermissionStatus, // To override from UI
   }
 }

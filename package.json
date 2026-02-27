@@ -1,9 +1,9 @@
 {
-  "name": "piyapi-notes",
+  "name": "bluearkive",
   "version": "0.1.0",
   "description": "Local-first meeting transcription application with AI-powered note expansion",
   "main": "dist-electron/main.js",
-  "author": "PiyAPI",
+  "author": "BlueArkive",
   "license": "MIT",
   "private": true,
   "scripts": {
@@ -44,6 +44,7 @@
     "@tiptap/react": "^3.20.0",
     "@tiptap/starter-kit": "^3.20.0",
     "better-sqlite3": "^12.6.2",
+    "framer-motion": "^12.34.3",
     "keytar": "^7.9.0",
     "lucide-react": "^0.575.0",
     "ollama": "^0.6.3",
@@ -63,8 +64,9 @@
     "@typescript-eslint/eslint-plugin": "^6.14.0",
     "@typescript-eslint/parser": "^6.14.0",
     "@vitejs/plugin-react": "^4.2.1",
+    "autoprefixer": "^10.4.27",
     "concurrently": "^8.2.2",
-    "electron": "^40.6.1",
+    "electron": "^33.4.11",
     "electron-builder": "^25.1.8",
     "electron-squirrel-startup": "^1.0.1",
     "eslint": "^8.55.0",
@@ -72,7 +74,9 @@
     "eslint-plugin-prettier": "^5.5.5",
     "eslint-plugin-react-hooks": "^4.6.0",
     "eslint-plugin-react-refresh": "^0.4.5",
+    "postcss": "^8.5.6",
     "prettier": "^3.8.1",
+    "tailwindcss": "^3.4.19",
     "typescript": "^5.3.3",
     "vite": "^5.0.8",
     "vite-plugin-electron": "^0.28.0",
@@ -81,34 +85,59 @@
     "wait-on": "^7.2.0"
   },
   "build": {
-    "appId": "com.piyapi.notes",
-    "productName": "PiyAPI Notes",
-    "copyright": "Copyright © 2024 PiyAPI",
+    "appId": "com.bluearkive.app",
+    "productName": "BlueArkive",
+    "copyright": "Copyright © 2024 BlueArkive",
     "directories": {
       "output": "release",
       "buildResources": "build"
     },
     "files": [
-      "dist/**/*",
-      "dist-electron/**/*",
+      {
+        "from": "dist",
+        "to": "dist",
+        "filter": [
+          "**/*"
+        ]
+      },
+      {
+        "from": "dist-electron",
+        "to": "dist-electron",
+        "filter": [
+          "**/*"
+        ]
+      },
+      "!src/**",
+      "!electron/**",
+      "!resources/**",
+      "!build/**",
       "!**/*.map",
+      "!**/*.ts",
+      "!**/*.tsx",
+      "!**/.git/**",
       "!**/node_modules/*/{CHANGELOG.md,README.md,README,readme.md,readme}",
       "!**/node_modules/*/{test,__tests__,tests,powered-test,example,examples}",
       "!**/node_modules/*.d.ts",
-      "!**/node_modules/.bin"
+      "!**/node_modules/.bin",
+      "!**/node_modules/**/@types/**",
+      "!**/node_modules/**/node-gyp/**",
+      "!{.eslintrc*,.prettierrc*,tsconfig*,vite.config*,.gitignore,.editorconfig}",
+      "!{docs,coverage,.github,.vscode}/**"
     ],
     "extraResources": [
       {
         "from": "resources/models",
         "to": "models",
         "filter": [
-          "**/*"
+          "silero_vad.onnx",
+          "all-MiniLM-L6-v2*"
         ]
       }
     ],
     "publish": {
-      "provider": "generic",
-      "url": "https://updates.piyapi.cloud"
+      "provider": "github",
+      "owner": "piyso",
+      "repo": "piynoteskiro"
     },
     "mac": {
       "category": "public.app-category.productivity",
@@ -139,8 +168,8 @@
       "minimumSystemVersion": "11.0",
       "darkModeSupport": true,
       "extendInfo": {
-        "NSMicrophoneUsageDescription": "PiyAPI Notes needs microphone access to record meeting audio for transcription.",
-        "NSScreenCaptureDescription": "PiyAPI Notes needs screen recording permission to capture system audio during meetings.",
+        "NSMicrophoneUsageDescription": "BlueArkive needs microphone access to record meeting audio for transcription.",
+        "NSScreenCaptureDescription": "BlueArkive needs screen recording permission to capture system audio during meetings.",
         "LSMinimumSystemVersion": "11.0"
       }
     },
@@ -183,14 +212,14 @@
         }
       ],
       "icon": "build/icon.ico",
-      "publisherName": "PiyAPI",
+      "publisherName": "BlueArkive",
       "verifyUpdateCodeSignature": false,
       "requestedExecutionLevel": "asInvoker",
       "fileAssociations": [
         {
           "ext": "pnotes",
-          "name": "PiyAPI Notes Meeting",
-          "description": "PiyAPI Notes Meeting File",
+          "name": "BlueArkive Meeting",
+          "description": "BlueArkive Meeting File",
           "icon": "build/file-icon.ico",
           "role": "Editor"
         }
@@ -242,19 +271,19 @@
       "icon": "build/icons",
       "category": "Office;AudioVideo;Recorder",
       "synopsis": "Local-first meeting transcription with AI-powered notes",
-      "description": "PiyAPI Notes is a local-first meeting transcription application that provides real-time audio transcription, AI-powered note expansion, and intelligent meeting analysis.",
+      "description": "BlueArkive is a local-first meeting transcription application that provides real-time audio transcription, AI-powered note expansion, and intelligent meeting analysis.",
       "desktop": {
-        "Name": "PiyAPI Notes",
+        "Name": "BlueArkive",
         "Comment": "Meeting transcription and AI notes",
-        "Keywords": "meeting;transcription;notes;ai;whisper;productivity",
-        "StartupWMClass": "piyapi-notes"
+        "Keywords": "meeting;transcription;notes;ai;productivity",
+        "StartupWMClass": "bluearkive"
       },
       "fileAssociations": [
         {
           "ext": "pnotes",
-          "name": "PiyAPI Notes Meeting",
-          "description": "PiyAPI Notes Meeting File",
-          "mimeType": "application/x-piyapi-notes"
+          "name": "BlueArkive Meeting",
+          "description": "BlueArkive Meeting File",
+          "mimeType": "application/x-bluearkive"
         }
       ]
     },
@@ -290,9 +319,9 @@
     },
     "protocols": [
       {
-        "name": "piyapi-notes",
+        "name": "bluearkive",
         "schemes": [
-          "piyapi-notes"
+          "bluearkive"
         ],
         "role": "Editor"
       }

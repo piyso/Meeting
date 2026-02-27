@@ -2,6 +2,9 @@ import { ipcMain } from 'electron'
 import { config } from '../../config/environment'
 import { getASRService } from '../../services/ASRService'
 import { getHardwareTierService } from '../../services/HardwareTierService'
+import { Logger } from '../../services/Logger'
+
+const log = Logger.create('IntelligenceHandlers')
 
 export function registerIntelligenceHandlers(): void {
   // intelligence:getHardwareTier — Detect hardware capabilities
@@ -30,8 +33,8 @@ export function registerIntelligenceHandlers(): void {
       try {
         const res = await fetch(`${config.OLLAMA_BASE_URL}/api/tags`)
         ollamaAvailable = res.ok
-      } catch {
-        // Ollama not running
+      } catch (err) {
+        log.debug('Ollama not reachable', err)
       }
       return {
         success: true,
@@ -61,7 +64,8 @@ export function registerIntelligenceHandlers(): void {
         success: true,
         data: { available: true, models: data.models || [] },
       }
-    } catch {
+    } catch (err) {
+      log.debug('Ollama check failed', err)
       return {
         success: true,
         data: { available: false, models: [] },

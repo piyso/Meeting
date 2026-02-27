@@ -21,32 +21,43 @@
 import { getDatabaseService } from './DatabaseService'
 import { KeyStorageService } from './KeyStorageService'
 import { AuditLogger } from './AuditLogger'
+import { Logger } from './Logger'
 import * as os from 'os'
+import * as crypto from 'crypto'
 import { app } from 'electron'
+import { v4 as uuidv4 } from 'uuid'
 
 export interface Device {
   id: string
-  userId: string
-  deviceName: string
+  user_id: string
+  device_name: string
   platform: string // 'darwin', 'win32', 'linux'
   hostname: string
-  appVersion: string
-  isActive: boolean
-  lastSyncAt: string
-  createdAt: string
-  updatedAt: string
+  app_version: string
+  is_active: boolean
+  last_sync_at: string
+  created_at: string
+  updated_at: string
 }
 
 export interface DeviceRegistrationResult {
-  device: Device
+  success: boolean
+  device?: Device
   isNewDevice: boolean
   limitReached: boolean
   currentDeviceCount: number
   maxDevices: number
+  message?: string
+}
+
+export interface DeviceReactivationResult {
+  success: boolean
+  limitReached: boolean
 }
 
 export class DeviceManager {
   private auditLogger: AuditLogger
+  private log = Logger.create('DeviceManager')
 
   constructor() {
     this.auditLogger = new AuditLogger()
@@ -54,9 +65,6 @@ export class DeviceManager {
 
   /**
    * Get device limits by plan tier
-   *
-   * @param planTier - Plan tier
-   * @returns Maximum number of devices allowed
    */
   private getDeviceLimit(planTier: string): number {
     switch (planTier) {
@@ -74,133 +82,111 @@ export class DeviceManager {
   }
 
   /**
-   * Generate unique device ID
-   * Uses machine ID + hostname for consistency across app restarts
-   *
-   * @returns Device ID
+   * Get upgrade suggestion for plan tier
+   */
+  private getUpgradeSuggestion(planTier: string): string {
+    switch (planTier) {
+      case 'free':
+        return 'Upgrade to Starter'
+      case 'starter':
+        return 'Upgrade to Pro'
+      default:
+        return 'Upgrade your plan'
+    }
+  }
+
+  /**
+   * Generate unique device ID for current machine
    */
   private generateDeviceId(): string {
     const hostname = os.hostname()
     const platform = os.platform()
     const arch = os.arch()
-
-    // Create deterministic ID based on machine characteristics
     const machineId = `${hostname}-${platform}-${arch}`
-    const hash = Buffer.from(machineId)
-      .toString('base64')
-      .replace(/[^a-zA-Z0-9]/g, '')
-
+    const hash = crypto.createHash('sha256').update(machineId).digest('hex')
     return `device-${hash.substring(0, 16)}`
   }
 
   /**
    * Get device name
-   * Uses hostname or custom name
-   *
-   * @returns Device name
    */
   private getDeviceName(): string {
     const hostname = os.hostname()
     const platform = os.platform()
-
-    // Format: "MacBook Pro (macOS)" or "DESKTOP-ABC (Windows)"
     const platformName =
       platform === 'darwin' ? 'macOS' : platform === 'win32' ? 'Windows' : 'Linux'
-
     return `${hostname} (${platformName})`
   }
 
   /**
    * Register device for user
-   * Checks device limits and creates device record
-   *
-   * @param userId - User ID
-   * @param customDeviceName - Optional custom device name
-   * @returns Device registration result
    */
   public async registerDevice(
     userId: string,
-    customDeviceName?: string
+    customDeviceName?: string,
+    planTierOverride?: string
   ): Promise<DeviceRegistrationResult> {
     const db = getDatabaseService().getDb()
-
-    // Get plan tier
-    const planTier = (await KeyStorageService.getPlanTier(userId)) || 'free'
+    const planTier = planTierOverride || (await KeyStorageService.getPlanTier(userId)) || 'free'
     const maxDevices = this.getDeviceLimit(planTier)
 
-    // Generate device ID
-    const deviceId = this.generateDeviceId()
+    // Generate unique device ID per registration
+    const deviceId = uuidv4()
 
-    // Check if device already exists
+    // Get current device count (needed for both dedup return and limit check)
+    const currentDeviceCount = await this.getDeviceCount(userId)
+
+    // Check if this physical machine already has a registered device with the same name (deduplication).
+    // Only dedup when device_name matches too — allows registering multiple distinct named devices.
+    const resolvedDeviceName = customDeviceName || this.getDeviceName()
     const existingDevice = db
-      .prepare('SELECT * FROM devices WHERE id = ? AND user_id = ?')
-      .get(deviceId, userId) as Device | undefined
+      .prepare(
+        'SELECT * FROM devices WHERE user_id = ? AND hostname = ? AND platform = ? AND device_name = ?'
+      )
+      .get(userId, os.hostname(), os.platform(), resolvedDeviceName) as Device | undefined
 
     if (existingDevice) {
-      // Device already registered - update last sync time
-      db.prepare('UPDATE devices SET last_sync_at = ?, updated_at = ? WHERE id = ?').run(
-        new Date().toISOString(),
-        new Date().toISOString(),
-        deviceId
-      )
-
-      // Log device login
-      await this.auditLogger.log({
-        userId,
-        operation: 'device_login',
-        table: 'devices',
-        recordId: deviceId,
-        metadata: {
-          deviceName: existingDevice.deviceName,
-          platform: existingDevice.platform,
-        },
-      })
-
+      // Reactivate existing device instead of creating a duplicate
+      if (!existingDevice.is_active) {
+        db.prepare(
+          'UPDATE devices SET is_active = ?, updated_at = ?, app_version = ? WHERE id = ?'
+        ).run(1, new Date().toISOString(), app.getVersion(), existingDevice.id)
+      }
       return {
-        device: existingDevice,
+        success: true,
+        device: { ...existingDevice, is_active: true, app_version: app.getVersion() },
         isNewDevice: false,
         limitReached: false,
-        currentDeviceCount: await this.getDeviceCount(userId),
-        maxDevices,
-      }
-    }
-
-    // Check device limit
-    const currentDeviceCount = await this.getDeviceCount(userId)
-    if (currentDeviceCount >= maxDevices) {
-      // Limit reached - return error
-      return {
-        device: {
-          id: deviceId,
-          userId,
-          deviceName: customDeviceName || this.getDeviceName(),
-          platform: os.platform(),
-          hostname: os.hostname(),
-          appVersion: app.getVersion(),
-          isActive: false,
-          lastSyncAt: new Date().toISOString(),
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-        },
-        isNewDevice: true,
-        limitReached: true,
         currentDeviceCount,
         maxDevices,
       }
     }
 
-    // Create new device
+    // Check device limit
+    if (currentDeviceCount >= maxDevices) {
+      return {
+        success: false,
+        device: undefined,
+        isNewDevice: true,
+        limitReached: true,
+        currentDeviceCount,
+        maxDevices,
+        message: `Device limit reached for ${planTier} tier (${maxDevices} device${maxDevices > 1 ? 's' : ''}). ${this.getUpgradeSuggestion(planTier)} for more devices.`,
+      }
+    }
+
+    const now = new Date().toISOString()
     const device: Device = {
       id: deviceId,
-      userId,
-      deviceName: customDeviceName || this.getDeviceName(),
+      user_id: userId,
+      device_name: customDeviceName || this.getDeviceName(),
       platform: os.platform(),
       hostname: os.hostname(),
-      appVersion: app.getVersion(),
-      isActive: true,
-      lastSyncAt: new Date().toISOString(),
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
+      app_version: app.getVersion(),
+      is_active: true,
+      last_sync_at: now,
+      created_at: now,
+      updated_at: now,
     }
 
     // Insert device
@@ -209,33 +195,36 @@ export class DeviceManager {
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
     ).run(
       device.id,
-      device.userId,
-      device.deviceName,
+      device.user_id,
+      device.device_name,
       device.platform,
       device.hostname,
-      device.appVersion,
-      device.isActive ? 1 : 0,
-      device.lastSyncAt,
-      device.createdAt,
-      device.updatedAt
+      device.app_version,
+      device.is_active ? 1 : 0,
+      device.last_sync_at,
+      device.created_at,
+      device.updated_at
     )
 
     // Log device registration
-    await this.auditLogger.log({
-      userId,
-      operation: 'device_register',
-      table: 'devices',
-      recordId: deviceId,
-      metadata: {
-        deviceName: device.deviceName,
-        platform: device.platform,
-        planTier,
-      },
-    })
-
-    console.log(`[DeviceManager] Registered device ${deviceId} for user ${userId}`)
+    try {
+      await this.auditLogger.log({
+        userId,
+        operation: 'device_register',
+        table: 'devices',
+        recordId: deviceId,
+        metadata: {
+          deviceName: device.device_name,
+          platform: device.platform,
+          planTier,
+        },
+      })
+    } catch (err) {
+      this.log.warn('Audit log failed for device registration', { deviceId, err })
+    }
 
     return {
+      success: true,
       device,
       isNewDevice: true,
       limitReached: false,
@@ -246,193 +235,213 @@ export class DeviceManager {
 
   /**
    * Get all devices for user
-   *
-   * @param userId - User ID
-   * @returns Array of devices
    */
-  public async getDevices(userId: string): Promise<Device[]> {
+  public async getDevices(userId: string, activeOnly: boolean = true): Promise<Device[]> {
     const db = getDatabaseService().getDb()
 
-    const devices = db
-      .prepare('SELECT * FROM devices WHERE user_id = ? ORDER BY last_sync_at DESC')
-      .all(userId) as any[]
+    type DeviceRow = Record<string, unknown>
+    let devices: DeviceRow[]
+    if (activeOnly) {
+      devices = db
+        .prepare('SELECT * FROM devices WHERE user_id = ? AND is_active = ?')
+        .all(userId, 1) as DeviceRow[]
+    } else {
+      devices = db.prepare('SELECT * FROM devices WHERE user_id = ?').all(userId) as DeviceRow[]
+    }
 
     return devices.map(d => ({
-      ...d,
-      isActive: d.is_active === 1,
+      id: d.id as string,
+      user_id: d.user_id as string,
+      device_name: d.device_name as string,
+      platform: d.platform as string,
+      hostname: d.hostname as string,
+      app_version: d.app_version as string,
+      is_active: d.is_active === 1 || d.is_active === true,
+      last_sync_at: d.last_sync_at as string,
+      created_at: d.created_at as string,
+      updated_at: d.updated_at as string,
     }))
   }
 
   /**
-   * Get device count for user
-   *
-   * @param userId - User ID
-   * @returns Number of active devices
+   * Get device count for user (active devices only)
    */
   public async getDeviceCount(userId: string): Promise<number> {
     const db = getDatabaseService().getDb()
-
     const result = db
-      .prepare('SELECT COUNT(*) as count FROM devices WHERE user_id = ? AND is_active = 1')
-      .get(userId) as { count: number }
-
+      .prepare('SELECT COUNT(*) as count FROM devices WHERE user_id = ? AND is_active = ?')
+      .get(userId, 1) as { count: number }
     return result.count
   }
 
   /**
    * Check if device limit reached
-   *
-   * @param userId - User ID
-   * @returns True if limit reached
    */
   public async checkDeviceLimit(userId: string): Promise<boolean> {
     const planTier = (await KeyStorageService.getPlanTier(userId)) || 'free'
     const maxDevices = this.getDeviceLimit(planTier)
     const currentCount = await this.getDeviceCount(userId)
-
     return currentCount >= maxDevices
   }
 
   /**
    * Deactivate device
-   * Marks device as inactive and revokes sync credentials
-   *
-   * @param deviceId - Device ID
-   * @param userId - User ID
-   * @returns True if device was deactivated
    */
   public async deactivateDevice(deviceId: string, userId: string): Promise<boolean> {
     const db = getDatabaseService().getDb()
 
-    // Check if device exists
     const device = db
       .prepare('SELECT * FROM devices WHERE id = ? AND user_id = ?')
       .get(deviceId, userId) as Device | undefined
 
-    if (!device) {
-      return false
-    }
+    if (!device) return false
 
-    // Deactivate device
-    db.prepare('UPDATE devices SET is_active = 0, updated_at = ? WHERE id = ?').run(
+    db.prepare('UPDATE devices SET is_active = ?, updated_at = ? WHERE id = ? AND user_id = ?').run(
+      0,
       new Date().toISOString(),
-      deviceId
+      deviceId,
+      userId
     )
 
-    // Log device deactivation
-    await this.auditLogger.log({
-      userId,
-      operation: 'device_deactivate',
-      table: 'devices',
-      recordId: deviceId,
-      metadata: {
-        deviceName: device.deviceName,
-        platform: device.platform,
-      },
-    })
-
-    console.log(`[DeviceManager] Deactivated device ${deviceId} for user ${userId}`)
+    try {
+      await this.auditLogger.log({
+        userId,
+        operation: 'device_deactivate',
+        table: 'devices',
+        recordId: deviceId,
+        metadata: {
+          deviceName: device.device_name,
+          platform: device.platform,
+        },
+      })
+    } catch (err) {
+      this.log.warn('Audit log failed for device deactivation', { deviceId, err })
+    }
 
     return true
   }
 
   /**
    * Reactivate device
-   *
-   * @param deviceId - Device ID
-   * @param userId - User ID
-   * @returns True if device was reactivated
    */
-  public async reactivateDevice(deviceId: string, userId: string): Promise<boolean> {
+  public async reactivateDevice(
+    deviceId: string,
+    userId: string
+  ): Promise<DeviceReactivationResult> {
     const db = getDatabaseService().getDb()
 
-    // Check device limit
-    const limitReached = await this.checkDeviceLimit(userId)
-    if (limitReached) {
-      return false
-    }
-
-    // Reactivate device
-    db.prepare('UPDATE devices SET is_active = 1, updated_at = ? WHERE id = ? AND user_id = ?').run(
-      new Date().toISOString(),
-      deviceId,
-      userId
-    )
-
-    // Log device reactivation
-    await this.auditLogger.log({
-      userId,
-      operation: 'device_reactivate',
-      table: 'devices',
-      recordId: deviceId,
-    })
-
-    console.log(`[DeviceManager] Reactivated device ${deviceId} for user ${userId}`)
-
-    return true
-  }
-
-  /**
-   * Delete device permanently
-   *
-   * @param deviceId - Device ID
-   * @param userId - User ID
-   * @returns True if device was deleted
-   */
-  public async deleteDevice(deviceId: string, userId: string): Promise<boolean> {
-    const db = getDatabaseService().getDb()
-
-    // Check if device exists
+    // Verify device exists and belongs to user
     const device = db
       .prepare('SELECT * FROM devices WHERE id = ? AND user_id = ?')
       .get(deviceId, userId) as Device | undefined
 
     if (!device) {
-      return false
+      return { success: false, limitReached: false }
     }
 
-    // Delete device
-    db.prepare('DELETE FROM devices WHERE id = ?').run(deviceId)
+    const limitReached = await this.checkDeviceLimit(userId)
+    if (limitReached) {
+      return { success: false, limitReached: true }
+    }
 
-    // Log device deletion
-    await this.auditLogger.log({
-      userId,
-      operation: 'device_delete',
-      table: 'devices',
-      recordId: deviceId,
-      metadata: {
-        deviceName: device.deviceName,
-        platform: device.platform,
-      },
-    })
+    db.prepare('UPDATE devices SET is_active = ?, updated_at = ? WHERE id = ? AND user_id = ?').run(
+      1,
+      new Date().toISOString(),
+      deviceId,
+      userId
+    )
 
-    console.log(`[DeviceManager] Deleted device ${deviceId} for user ${userId}`)
+    try {
+      await this.auditLogger.log({
+        userId,
+        operation: 'device_reactivate',
+        table: 'devices',
+        recordId: deviceId,
+      })
+    } catch (err) {
+      this.log.warn('Audit log failed for device reactivation', { deviceId, err })
+    }
+
+    return { success: true, limitReached: false }
+  }
+
+  /**
+   * Delete device permanently
+   */
+  public async deleteDevice(deviceId: string, userId: string): Promise<boolean> {
+    const db = getDatabaseService().getDb()
+
+    const device = db
+      .prepare('SELECT * FROM devices WHERE id = ? AND user_id = ?')
+      .get(deviceId, userId) as Device | undefined
+
+    if (!device) return false
+
+    db.prepare('DELETE FROM devices WHERE id = ? AND user_id = ?').run(deviceId, userId)
+
+    try {
+      await this.auditLogger.log({
+        userId,
+        operation: 'device_delete',
+        table: 'devices',
+        recordId: deviceId,
+        metadata: {
+          deviceName: device.device_name,
+          platform: device.platform,
+        },
+      })
+    } catch (err) {
+      this.log.warn('Audit log failed for device deletion', { deviceId, err })
+    }
 
     return true
   }
 
   /**
    * Update device last sync time
-   *
-   * @param deviceId - Device ID
-   * @returns True if updated successfully
    */
-  public async updateLastSync(deviceId: string): Promise<boolean> {
+  public async updateLastSync(deviceId: string, userId?: string): Promise<boolean> {
     const db = getDatabaseService().getDb()
-
-    db.prepare('UPDATE devices SET last_sync_at = ?, updated_at = ? WHERE id = ?').run(
-      new Date().toISOString(),
-      new Date().toISOString(),
-      deviceId
-    )
-
+    const now = new Date().toISOString()
+    if (userId) {
+      db.prepare(
+        'UPDATE devices SET last_sync_at = ?, updated_at = ? WHERE id = ? AND user_id = ?'
+      ).run(now, now, deviceId, userId)
+    } else {
+      db.prepare('UPDATE devices SET last_sync_at = ?, updated_at = ? WHERE id = ?').run(
+        now,
+        now,
+        deviceId
+      )
+    }
     return true
   }
 
   /**
+   * Get a specific device by ID and user
+   */
+  public async getCurrentDevice(deviceId: string, userId: string): Promise<Device | undefined> {
+    const db = getDatabaseService().getDb()
+    const d = db
+      .prepare('SELECT * FROM devices WHERE id = ? AND user_id = ?')
+      .get(deviceId, userId) as Record<string, unknown> | undefined
+    if (!d) return undefined
+    return {
+      id: d.id as string,
+      user_id: d.user_id as string,
+      device_name: d.device_name as string,
+      platform: d.platform as string,
+      hostname: d.hostname as string,
+      app_version: d.app_version as string,
+      is_active: d.is_active === 1 || d.is_active === true,
+      last_sync_at: d.last_sync_at as string,
+      created_at: d.created_at as string,
+      updated_at: d.updated_at as string,
+    }
+  }
+
+  /**
    * Get current device ID
-   *
-   * @returns Device ID
    */
   public getCurrentDeviceId(): string {
     return this.generateDeviceId()
@@ -440,8 +449,6 @@ export class DeviceManager {
 
   /**
    * Get current device info
-   *
-   * @returns Device info
    */
   public getCurrentDeviceInfo(): {
     deviceId: string
@@ -461,29 +468,34 @@ export class DeviceManager {
 
   /**
    * Rename device
-   *
-   * @param deviceId - Device ID
-   * @param userId - User ID
-   * @param newName - New device name
-   * @returns True if renamed successfully
    */
   public async renameDevice(deviceId: string, userId: string, newName: string): Promise<boolean> {
+    if (!newName || !newName.trim()) return false
+
     const db = getDatabaseService().getDb()
+
+    // Verify device exists and belongs to user
+    const device = db
+      .prepare('SELECT * FROM devices WHERE id = ? AND user_id = ?')
+      .get(deviceId, userId) as Device | undefined
+
+    if (!device) return false
 
     db.prepare(
       'UPDATE devices SET device_name = ?, updated_at = ? WHERE id = ? AND user_id = ?'
     ).run(newName, new Date().toISOString(), deviceId, userId)
 
-    // Log device rename
-    await this.auditLogger.log({
-      userId,
-      operation: 'device_rename',
-      table: 'devices',
-      recordId: deviceId,
-      metadata: {
-        newName,
-      },
-    })
+    try {
+      await this.auditLogger.log({
+        userId,
+        operation: 'device_rename',
+        table: 'devices',
+        recordId: deviceId,
+        metadata: { oldName: device.device_name, newName },
+      })
+    } catch (err) {
+      this.log.warn('Audit log failed for device rename', { deviceId, err })
+    }
 
     return true
   }
@@ -497,4 +509,9 @@ export function getDeviceManager(): DeviceManager {
     instance = new DeviceManager()
   }
   return instance
+}
+
+/** Reset singleton — for test isolation */
+export function resetDeviceManager(): void {
+  instance = null
 }

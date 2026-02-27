@@ -10,12 +10,7 @@ export const Toggle = React.forwardRef<HTMLInputElement, ToggleProps>(
     return (
       <label className={`ui-toggle-wrapper ${className}`}>
         <div className="ui-toggle">
-          <input
-            type="checkbox"
-            className="ui-toggle-input sr-only"
-            ref={ref}
-            {...props}
-          />
+          <input type="checkbox" className="ui-toggle-input sr-only" ref={ref} {...props} />
           <div className="ui-toggle-bg"></div>
           <div className="ui-toggle-thumb"></div>
         </div>

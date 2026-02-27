@@ -11,6 +11,9 @@ import { StereoMixErrorDialog } from './StereoMixErrorDialog'
 import type { PreFlightTestResult } from '../../types/ipc'
 import './StereoMixErrorDialog.css'
 
+import { rendererLog } from '../utils/logger'
+const log = rendererLog.create('AudioSetup')
+
 export const AudioSetup: React.FC = () => {
   const [testResult, setTestResult] = useState<PreFlightTestResult | null>(null)
   const [showDialog, setShowDialog] = useState(false)
@@ -33,36 +36,36 @@ export const AudioSetup: React.FC = () => {
           setShowDialog(true)
         }
       } else {
-        console.error('Pre-flight test failed:', result.error)
+        log.error('Pre-flight test failed:', result.error)
       }
     } catch (error) {
-      console.error('Error running pre-flight test:', error)
+      log.error('Error running pre-flight test:', error)
     } finally {
       setIsLoading(false)
     }
   }
 
   const handleUseMicrophone = async () => {
-    console.log('User chose to use microphone')
+    log.info('User chose to use microphone')
     setShowDialog(false)
     // Update app settings to use microphone as audio source
     try {
       await window.electronAPI.settings.update({ key: 'audioSource', value: 'microphone' })
       await window.electronAPI.settings.update({ key: 'systemAudioFallback', value: 'microphone' })
     } catch (err) {
-      console.warn('Failed to save audio source setting:', err)
+      log.warn('Failed to save audio source setting:', err)
     }
   }
 
   const handleUseCloud = async () => {
-    console.log('User chose to use cloud transcription')
+    log.info('User chose to use cloud transcription')
     setShowDialog(false)
     // Update app settings to use cloud transcription as fallback
     try {
       await window.electronAPI.settings.update({ key: 'audioSource', value: 'cloud' })
       await window.electronAPI.settings.update({ key: 'systemAudioFallback', value: 'cloud' })
     } catch (err) {
-      console.warn('Failed to save audio source setting:', err)
+      log.warn('Failed to save audio source setting:', err)
     }
   }
 

@@ -17,11 +17,7 @@ export const Input = React.forwardRef<HTMLInputElement, InputProps>(
         {label && <label className="ui-input-label">{label}</label>}
         <div className="ui-input-wrapper">
           {icon && <span className="ui-input-icon">{icon}</span>}
-          <input
-            ref={ref}
-            className={`ui-input ${hasIconClass} ${hasErrorClass}`}
-            {...props}
-          />
+          <input ref={ref} className={`ui-input ${hasIconClass} ${hasErrorClass}`} {...props} />
         </div>
         {error && <span className="ui-input-error">{error}</span>}
       </div>

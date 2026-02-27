@@ -8,10 +8,7 @@ import { describe, it, before, after } from 'node:test'
 import assert from 'node:assert'
 import { SyncManager } from '../SyncManager'
 import { PiyAPIBackend } from '../backend/PiyAPIBackend'
-import {
-  getPendingSyncItems,
-  clearSyncQueue,
-} from '../../database/crud/sync-queue'
+import { getPendingSyncItems, clearSyncQueue } from '../../database/crud/sync-queue'
 import { getDatabase, initializeDatabase, closeDatabase } from '../../database/connection'
 import { v4 as uuidv4 } from 'uuid'
 

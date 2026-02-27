@@ -8,6 +8,20 @@ import { CrashReporter } from '../src/main/services/CrashReporter'
 
 const log = Logger.create('Main')
 
+// ─── Auto-updater (checks GitHub Releases) ───────────────
+let autoUpdater: { checkForUpdatesAndNotify: () => void } | null = null
+try {
+  // electron-updater is optional — skip in dev or if not installed
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const { autoUpdater: updater } = require('electron-updater')
+  autoUpdater = updater
+  updater.logger = log
+  updater.autoDownload = true
+  updater.autoInstallOnAppQuit = true
+} catch {
+  // Not installed or in development, skip
+}
+
 // Handle creating/removing shortcuts on Windows when installing/uninstalling
 try {
   if (require('electron-squirrel-startup')) {
@@ -16,6 +30,25 @@ try {
 } catch (e) {
   // Ignore in development or if package is missing
 }
+
+// ─── Single instance lock ────────────────────────────────
+const gotLock = app.requestSingleInstanceLock()
+if (!gotLock) {
+  app.quit()
+}
+
+// Focus existing window when a second instance is launched (or deep link received)
+app.on('second-instance', (_event, argv) => {
+  if (mainWindow) {
+    if (mainWindow.isMinimized()) mainWindow.restore()
+    mainWindow.focus()
+  }
+  // Handle deep link on Windows/Linux (argv contains the URL)
+  const deepLink = argv.find(arg => arg.startsWith('bluearkive://'))
+  if (deepLink && mainWindow) {
+    mainWindow.webContents.send('deep-link', deepLink)
+  }
+})
 
 let mainWindow: BrowserWindow | null = null
 let widgetWindow: BrowserWindow | null = null
@@ -150,6 +183,26 @@ app.whenReady().then(() => {
       log.info('Re-created windows from dock activation')
     }
   })
+
+  // Register deep-link protocol (bluearkive://)
+  if (!app.isDefaultProtocolClient('bluearkive')) {
+    app.setAsDefaultProtocolClient('bluearkive')
+  }
+
+  // macOS: handle deep links via open-url event
+  app.on('open-url', (_event, url) => {
+    if (mainWindow) {
+      mainWindow.webContents.send('deep-link', url)
+    }
+  })
+
+  // Check for updates (10s after launch — non-blocking)
+  if (autoUpdater) {
+    setTimeout(() => {
+      autoUpdater?.checkForUpdatesAndNotify()
+      log.info('Auto-update check initiated')
+    }, 10_000)
+  }
 })
 
 // Quit when all windows are closed, except on macOS

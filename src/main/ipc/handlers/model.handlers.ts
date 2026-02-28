@@ -51,7 +51,10 @@ export function registerModelHandlers() {
    */
   ipcMain.handle('model:downloadModelsForTier', async (_event, tierInfo) => {
     try {
+      // Download ASR model
       await modelService.downloadModelsForTier(tierInfo)
+      // Download LLM GGUF model (auto-download on first launch)
+      await modelService.downloadLLMForTier(tierInfo)
       return { success: true }
     } catch (error: unknown) {
       return { success: false, error: (error as Error).message }
@@ -100,7 +103,10 @@ export function registerModelHandlers() {
   ipcMain.handle('model:downloadAll', async () => {
     try {
       const tierInfo = modelService.detectHardwareTier()
+      // Download ASR model
       await modelService.downloadModelsForTier(tierInfo)
+      // Download LLM GGUF model
+      await modelService.downloadLLMForTier(tierInfo)
       return { success: true, data: tierInfo }
     } catch (error: unknown) {
       return { success: false, error: (error as Error).message }

@@ -6,14 +6,10 @@
  *
  * Usage:
  *   import { config } from '../config/environment'
- *   fetch(`${config.OLLAMA_BASE_URL}/api/generate`, ...)
+ *   fetch(`${config.PIYAPI_BASE_URL}/...`, ...)
  */
 
 export const config = {
-  // ─── AI / LLM ──────────────────────────────────────────────
-  /** Ollama local server URL */
-  OLLAMA_BASE_URL: process.env.OLLAMA_BASE_URL || 'http://localhost:11434',
-
   // ─── Cloud Backend ─────────────────────────────────────────
   /** PiyAPI cloud backend */
   PIYAPI_BASE_URL: process.env.PIYAPI_BASE_URL || 'https://api.piyapi.cloud',

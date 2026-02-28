@@ -50,7 +50,6 @@
     "keytar": "^7.9.0",
     "lucide-react": "^0.575.0",
     "node-llama-cpp": "^3.16.2",
-    "ollama": "^0.6.3",
     "onnxruntime-node": "^1.24.2",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",

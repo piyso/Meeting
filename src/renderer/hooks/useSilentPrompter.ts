@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback, useRef } from 'react'
  * Hook that generates AI suggestions every 2 minutes during recording.
  * Drives the SilentPrompter component.
  *
- * Every 2 minutes, sends last 5 minutes of transcript context to Ollama
+ * Every 2 minutes, sends last 5 minutes of transcript context to the local AI engine
  * and gets a suggested question for the user.
  */
 export function useSilentPrompter(
@@ -29,7 +29,7 @@ export function useSilentPrompter(
     if (recentText.length < 50) return // Not enough context
 
     try {
-      // Call Ollama via intelligence IPC
+      // Call local AI engine via intelligence IPC
       const result = await window.electronAPI?.intelligence?.meetingSuggestion?.({
         meetingId,
         recentContext: recentText.slice(0, 1000), // pass context cleanly

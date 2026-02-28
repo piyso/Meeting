@@ -47,10 +47,8 @@ export const AudioFallbackNotification: React.FC = () => {
     if (window.electronAPI?.ipcRenderer) {
       const unsubscribe = window.electronAPI.ipcRenderer.on(
         'audio:fallbackNotification',
-        (
-          _event: unknown,
-          data: { type: 'microphone' | 'cloud'; message: string; details: string }
-        ) => {
+        (_event: unknown, rawData: unknown) => {
+          const data = rawData as { type: 'microphone' | 'cloud'; message: string; details: string }
           log.info('Received legacy fallback notification:', data)
           // Convert legacy format to new format
           setFallbackInfo({

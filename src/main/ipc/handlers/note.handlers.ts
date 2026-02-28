@@ -1,5 +1,4 @@
 import { ipcMain } from 'electron'
-import { config } from '../../config/environment'
 import { Logger } from '../../services/Logger'
 
 const log = Logger.create('NoteHandlers')
@@ -113,7 +112,7 @@ export function registerNoteHandlers(): void {
     }
   })
 
-  // note:expand — AI expansion via Ollama (gated by CloudAccessManager)
+  // note:expand — AI expansion via node-llama-cpp (gated by CloudAccessManager)
   ipcMain.handle('note:expand', async (_, params) => {
     try {
       if (!params?.meetingId || !params?.text) {
@@ -131,14 +130,14 @@ export function registerNoteHandlers(): void {
       const cam = getCloudAccessManager()
       const features = await cam.getFeatureAccess()
 
-      // Note: all tiers get local AI expansion via Ollama
+      // Note: all tiers get local AI expansion via node-llama-cpp
       // cloudAI check only gates the PiyAPI Context Sessions path below
 
       // 1. Get transcript context around timestamp (±60s before, +10s after)
       const transcriptService = getTranscriptService()
       const context = transcriptService.getContext(params.meetingId, params.timestamp, 60, 10)
 
-      // 2. Dual-path: Pro+online → PiyAPI Context Sessions, otherwise → local Ollama
+      // 2. Dual-path: Pro+online → PiyAPI Context Sessions, otherwise → local node-llama-cpp
       const cloudStatus = await cam.getCloudAccessStatus()
       if (cloudStatus.hasAccess && features.contextSessions) {
         // Check quota for Starter tier (50 queries/month)
@@ -147,7 +146,7 @@ export function registerNoteHandlers(): void {
         const quota = await quotaManager.checkQuota(cloudStatus.tier)
 
         if (quota.exhausted) {
-          // Quota exhausted — fall through to local Ollama path silently (Blueprint §5.1)
+          // Quota exhausted — fall through to local AI path silently (Blueprint §5.1)
           log.info(
             `[note:expand] Starter quota exhausted (${quota.used}/${quota.limit}), falling back to local`
           )
@@ -191,22 +190,24 @@ export function registerNoteHandlers(): void {
               success: true,
               data: {
                 expandedText: result.answer,
+                context: cloudContext,
+                tokensUsed: 0,
+                inferenceTime: 0,
                 sourceSegments: context.transcripts.map((t: { id: string }) => t.id),
                 source: 'cloud',
               },
             }
           } catch (err) {
-            // Fall through to local Ollama if cloud fails
-            log.debug('Cloud expand failed, falling back to Ollama', err)
+            // Fall through to local AI if cloud fails
+            log.debug('Cloud expand failed, falling back to local AI', err)
           }
         }
       }
 
-      // LOCAL PATH: Ollama (Qwen 2.5) — Blueprint §2.4 prompt engineering
-      // Preload LLM via ModelManager (handles idle unloading)
+      // LOCAL PATH: node-llama-cpp (Qwen 2.5) — Blueprint §2.4 prompt engineering
       const { getModelManager } = await import('../../services/ModelManager')
       const modelManager = getModelManager()
-      await modelManager.ensureLLMLoaded()
+      const localStartTime = Date.now()
 
       const prompt = `You are an executive assistant helping write meeting notes.
 
@@ -225,30 +226,22 @@ INSTRUCTIONS:
 
 EXPANDED NOTE:`
 
-      const response = await fetch(`${config.OLLAMA_BASE_URL}/api/generate`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          model: modelManager.getLLMModel(),
-          prompt,
-          stream: false,
-          options: {
-            temperature: 0.1,
-            top_p: 0.9,
-            top_k: 40,
-            num_predict: 100,
-            stop: ['\n\n', 'USER'],
-          },
-        }),
+      const expandedText = await modelManager.generate({
+        prompt,
+        temperature: 0.1,
+        topP: 0.9,
+        topK: 40,
+        maxTokens: 100,
+        stop: ['\n\n', 'USER'],
       })
-      if (!response.ok) {
-        throw new Error(`Ollama returned HTTP ${response.status}`)
-      }
-      const data = await response.json()
+      const inferenceTime = Date.now() - localStartTime
       return {
         success: true,
         data: {
-          expandedText: data.response?.trim() || '',
+          expandedText,
+          context: context.contextText,
+          tokensUsed: Math.ceil(expandedText.length / 4),
+          inferenceTime,
           sourceSegments: context.transcripts.map((t: { id: string }) => t.id),
           source: 'local',
         },
@@ -258,8 +251,7 @@ EXPANDED NOTE:`
         success: false,
         error: {
           code: 'NOTE_EXPAND_FAILED',
-          message:
-            'AI expansion unavailable — Ollama may not be running. Start it with: ollama serve',
+          message: 'AI expansion unavailable — AI engine may still be loading. Please try again.',
           timestamp: Date.now(),
         },
       }
@@ -291,7 +283,8 @@ EXPANDED NOTE:`
       const allNotes = getNotesByMeetingId(params.meetingId)
 
       // Process sequentially to prevent GPU overload (Blueprint §2.4)
-      for (const noteId of params.noteIds) {
+      for (let i = 0; i < params.noteIds.length; i++) {
+        const noteId = params.noteIds[i]
         try {
           const note = allNotes.find((n: { id: string }) => n.id === noteId)
           if (!note) {
@@ -308,18 +301,24 @@ EXPANDED NOTE:`
 
           const prompt = `You are an executive assistant helping write meeting notes.\n\nCONTEXT:\n${context.contextText}\n\nUSER'S BRIEF NOTE:\n${(note as { original_text?: string }).original_text ?? ''}\n\nINSTRUCTIONS:\n1. Expand into 1-2 professional sentences\n2. Include specific details from context\n3. Third person, max 50 words\n4. Do not fabricate information\n\nEXPANDED NOTE:`
 
-          const response = await fetch(`${config.OLLAMA_BASE_URL}/api/generate`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              model: modelManager.getLLMModel(),
-              prompt,
-              stream: false,
-              options: { temperature: 0.1, num_predict: 100 },
-            }),
+          const expandedText = await modelManager.generate({
+            prompt,
+            temperature: 0.1,
+            maxTokens: 100,
           })
-          const data = await response.json()
-          results.push({ noteId, expandedText: data.response?.trim() || '' })
+          results.push({ noteId, expandedText })
+
+          // Emit progress event to renderer
+          const { BrowserWindow } = await import('electron')
+          const win = BrowserWindow.getAllWindows()[0]
+          if (win) {
+            win.webContents.send('event:batchExpandProgress', {
+              total: params.noteIds.length,
+              completed: i + 1,
+              current: noteId,
+              note,
+            })
+          }
         } catch (err) {
           results.push({ noteId, expandedText: '', error: (err as Error).message })
         }

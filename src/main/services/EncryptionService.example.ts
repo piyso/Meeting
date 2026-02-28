@@ -10,12 +10,12 @@ import { EncryptionService } from './EncryptionService'
 /**
  * Example 1: Basic Encryption/Decryption
  */
-function basicEncryptionExample() {
+async function basicEncryptionExample() {
   const plaintext = 'This is a confidential meeting transcript.'
   const password = 'user-secure-password'
 
   // Encrypt data
-  const encrypted = EncryptionService.encrypt(plaintext, password)
+  const encrypted = await EncryptionService.encrypt(plaintext, password)
   console.log('Encrypted:', {
     ciphertext: encrypted.ciphertext.slice(0, 20) + '...',
     iv: encrypted.iv,
@@ -25,7 +25,7 @@ function basicEncryptionExample() {
   })
 
   // Decrypt data
-  const decrypted = EncryptionService.decrypt(encrypted, password)
+  const decrypted = await EncryptionService.decrypt(encrypted, password)
   console.log('Decrypted:', decrypted)
   console.log('Match:', decrypted === plaintext)
 }
@@ -33,7 +33,7 @@ function basicEncryptionExample() {
 /**
  * Example 2: Encrypting Meeting Data
  */
-function encryptMeetingData() {
+async function encryptMeetingData() {
   const meetingData = {
     id: 'meeting-123',
     title: 'Q1 Planning Meeting',
@@ -46,10 +46,10 @@ function encryptMeetingData() {
   const plaintext = JSON.stringify(meetingData)
 
   // Encrypt before sending to cloud
-  const encrypted = EncryptionService.encrypt(plaintext, password)
+  const encrypted = await EncryptionService.encrypt(plaintext, password)
 
   // Later, decrypt after downloading from cloud
-  const decrypted = EncryptionService.decrypt(encrypted, password)
+  const decrypted = await EncryptionService.decrypt(encrypted, password)
   const recovered = JSON.parse(decrypted)
 
   console.log('Original meeting ID:', meetingData.id)
@@ -76,23 +76,23 @@ async function usingSaltFromDatabase() {
 
   // Encrypt using stored salt
   const plaintext = 'Meeting data to sync'
-  const encrypted = EncryptionService.encrypt(plaintext, password, storedSalt)
+  const encrypted = await EncryptionService.encrypt(plaintext, password, storedSalt)
 
   // Decrypt
-  const decrypted = EncryptionService.decrypt(encrypted, password)
+  const decrypted = await EncryptionService.decrypt(encrypted, password)
   console.log('Round-trip successful:', decrypted === plaintext)
 }
 
 /**
  * Example 4: Key Derivation
  */
-function keyDerivationExample() {
+async function keyDerivationExample() {
   const password = 'user-password'
   const salt = EncryptionService.generateSalt()
 
   console.log('Deriving key with PBKDF2...')
   const startTime = Date.now()
-  const { key } = EncryptionService.deriveKey(password, salt)
+  const { key } = await EncryptionService.deriveKey(password, salt)
   const duration = Date.now() - startTime
 
   console.log('Key derived:', {
@@ -107,28 +107,28 @@ function keyDerivationExample() {
 /**
  * Example 5: Testing Round-Trip
  */
-function testRoundTrip() {
+async function testRoundTrip() {
   const testData = 'Important meeting notes'
   const password = 'test-password'
 
-  const success = EncryptionService.testRoundTrip(testData, password)
+  const success = await EncryptionService.testRoundTrip(testData, password)
   console.log('Round-trip test:', success ? 'PASSED ✓' : 'FAILED ✗')
 }
 
 /**
  * Example 6: Handling Encryption Errors
  */
-function errorHandlingExample() {
+async function errorHandlingExample() {
   const plaintext = 'Secret data'
   const correctPassword = 'correct-password'
   const wrongPassword = 'wrong-password'
 
   // Encrypt with correct password
-  const encrypted = EncryptionService.encrypt(plaintext, correctPassword)
+  const encrypted = await EncryptionService.encrypt(plaintext, correctPassword)
 
   // Try to decrypt with wrong password
   try {
-    EncryptionService.decrypt(encrypted, wrongPassword)
+    await EncryptionService.decrypt(encrypted, wrongPassword)
     console.log('ERROR: Should have thrown!')
   } catch (error) {
     console.log('Correctly rejected wrong password:', (error as Error).message)
@@ -136,7 +136,7 @@ function errorHandlingExample() {
 
   // Decrypt with correct password
   try {
-    const decrypted = EncryptionService.decrypt(encrypted, correctPassword)
+    const decrypted = await EncryptionService.decrypt(encrypted, correctPassword)
     console.log('Successfully decrypted with correct password:', decrypted.substring(0, 10))
   } catch (error) {
     console.log('ERROR: Should not have thrown!', error)
@@ -168,7 +168,7 @@ async function syncWorkflowExample() {
 
   // Step 4: Encrypt before upload
   const plaintext = JSON.stringify(meetingData)
-  const encrypted = EncryptionService.encrypt(plaintext, password, salt)
+  const encrypted = await EncryptionService.encrypt(plaintext, password, salt)
 
   // Step 5: Upload to cloud (simulated)
   console.log('Uploading encrypted data to cloud...')
@@ -183,7 +183,7 @@ async function syncWorkflowExample() {
   const downloadedPayload = uploadPayload
 
   // Step 7: Decrypt after download
-  const decrypted = EncryptionService.decrypt(downloadedPayload.encryptedData, password)
+  const decrypted = await EncryptionService.decrypt(downloadedPayload.encryptedData, password)
   const recoveredData = JSON.parse(decrypted)
 
   console.log('Sync workflow complete:', {
@@ -196,7 +196,7 @@ async function syncWorkflowExample() {
 /**
  * Example 8: Performance Benchmarking
  */
-function performanceBenchmark() {
+async function performanceBenchmark() {
   const password = 'test-password'
   const testSizes = [
     { name: '1KB', size: 1024 },
@@ -213,12 +213,12 @@ function performanceBenchmark() {
 
     // Measure encryption
     const encryptStart = Date.now()
-    const encrypted = EncryptionService.encrypt(plaintext, password)
+    const encrypted = await EncryptionService.encrypt(plaintext, password)
     const encryptDuration = Date.now() - encryptStart
 
     // Measure decryption
     const decryptStart = Date.now()
-    EncryptionService.decrypt(encrypted, password)
+    await EncryptionService.decrypt(encrypted, password)
     const decryptDuration = Date.now() - decryptStart
 
     console.log(`${test.name}:`)

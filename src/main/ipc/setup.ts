@@ -136,6 +136,7 @@ export function cleanupIPC(): void {
     'model:deleteModel',
     'model:getModelPaths',
     'model:downloadAll',
+    'model:getResourceUsage',
     // Settings
     'settings:get',
     'settings:getAll',

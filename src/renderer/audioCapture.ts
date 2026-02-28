@@ -1,7 +1,4 @@
 /**
-
-import { rendererLog } from './utils/logger'
-const log = rendererLog.create('AudioCapture')
  * Audio Capture Module (Renderer Process)
  *
  * Handles AudioContext and AudioWorklet setup for audio capture.
@@ -13,6 +10,9 @@ const log = rendererLog.create('AudioCapture')
  * - Captures audio from desktopCapturer or getUserMedia
  * - Forwards audio chunks to main process for VAD processing
  */
+
+import { rendererLog } from './utils/logger'
+const log = rendererLog.create('AudioCapture')
 
 /**
  * Audio capture manager
@@ -380,33 +380,29 @@ const audioCaptureManager = new AudioCaptureManager()
 
 // Listen for IPC messages from main process
 if (typeof window !== 'undefined' && window.electronAPI?.ipcRenderer) {
-  window.electronAPI.ipcRenderer.on(
-    'audio:startCapture',
-    (
-      _event: unknown,
-      params: {
-        deviceId: string
-        sampleRate: number
-        channelCount: number
-        fallbackToMicrophone?: boolean
-      }
-    ) => {
-      audioCaptureManager
-        .startSystemAudioCapture(
-          params.deviceId,
-          params.sampleRate,
-          params.channelCount,
-          params.fallbackToMicrophone ?? true
-        )
-        .catch(error => {
-          log.error('Failed to start system audio capture:', error)
-        })
+  window.electronAPI.ipcRenderer.on('audio:startCapture', (_event: unknown, data: unknown) => {
+    const params = data as {
+      deviceId: string
+      sampleRate: number
+      channelCount: number
+      fallbackToMicrophone?: boolean
     }
-  )
+    audioCaptureManager
+      .startSystemAudioCapture(
+        params.deviceId,
+        params.sampleRate,
+        params.channelCount,
+        params.fallbackToMicrophone ?? true
+      )
+      .catch(error => {
+        log.error('Failed to start system audio capture:', error)
+      })
+  })
 
   window.electronAPI.ipcRenderer.on(
     'audio:startMicrophoneCapture',
-    (_event: unknown, params: { sampleRate: number; channelCount: number }) => {
+    (_event: unknown, data: unknown) => {
+      const params = data as { sampleRate: number; channelCount: number }
       audioCaptureManager
         .startMicrophoneCapture(params.sampleRate, params.channelCount)
         .catch(error => {

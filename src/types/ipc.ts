@@ -122,11 +122,12 @@ export interface ExpandNoteParams {
 }
 
 export interface ExpandNoteResponse {
-  note: Note
   expandedText: string
   context: string
   tokensUsed: number
   inferenceTime: number
+  sourceSegments?: string[]
+  source?: 'local' | 'cloud'
 }
 
 export interface GetNotesParams {
@@ -423,16 +424,18 @@ export interface ModelStatus {
 }
 
 export interface InferenceEngineStatus {
-  engine: 'mlx' | 'ollama'
+  engine: 'local' | 'mlx'
   tokensPerSecond: number
   models: ModelStatus[]
 }
 
 export interface CheckOllamaParams {
+  /** @deprecated Ollama replaced by node-llama-cpp. Kept for backward compat. */
   autoInstall?: boolean
 }
 
 export interface CheckOllamaResponse {
+  /** @deprecated Field names kept for renderer compat but now backed by node-llama-cpp */
   isInstalled: boolean
   isRunning: boolean
   version: string | null
@@ -466,7 +469,7 @@ export interface AppSettings {
   cloudTranscriptionUsage: number // hours used this month
 
   // Intelligence
-  llmEngine: 'mlx' | 'ollama'
+  llmEngine: 'local' | 'mlx'
   llmIdleTimeout: number // seconds
   maxTokensPerExpansion: number
 
@@ -840,7 +843,14 @@ export interface ElectronAPI {
     deleteModel: (modelType: string) => Promise<IPCResponse<void>>
     getModelPaths: (modelType: string) => Promise<IPCResponse<string[]>>
     onDownloadProgress: (
-      callback: (data: { percent: number; transferredBytes: number; totalBytes: number }) => void
+      callback: (data: {
+        modelName: string
+        percent: number
+        downloadedMB: number
+        totalMB: number
+        status: 'downloading' | 'verifying' | 'complete' | 'error'
+        error?: string
+      }) => void
     ) => () => void
   }
 

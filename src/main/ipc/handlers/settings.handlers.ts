@@ -95,11 +95,21 @@ export function registerSettingsHandlers(): void {
     }
   })
 
-  // settings:reset — Clear all settings
+  // settings:reset — Clear user-configurable settings (preserves critical system keys)
   ipcMain.handle('settings:reset', async () => {
     try {
       const db = getDatabase()
-      db.prepare('DELETE FROM settings').run()
+      // Preserve keys that would trigger re-onboarding or re-download if deleted
+      const PRESERVED_KEYS = [
+        'hardware_tier',
+        'total_ram',
+        'ram_budget',
+        'asr_model',
+        'llm_model',
+        'onboarding_completed',
+      ]
+      const placeholders = PRESERVED_KEYS.map(() => '?').join(', ')
+      db.prepare(`DELETE FROM settings WHERE key NOT IN (${placeholders})`).run(...PRESERVED_KEYS)
       return { success: true }
     } catch (error) {
       return {

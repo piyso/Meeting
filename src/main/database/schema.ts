@@ -138,6 +138,12 @@ CREATE TABLE IF NOT EXISTS audit_logs (
   user_agent TEXT,
   timestamp TEXT NOT NULL
 );
+
+-- Schema version tracking (for migrations)
+CREATE TABLE IF NOT EXISTS schema_version (
+  version INTEGER PRIMARY KEY,
+  applied_at INTEGER DEFAULT (strftime('%s', 'now'))
+);
 `
 
 /**

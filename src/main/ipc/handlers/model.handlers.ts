@@ -106,4 +106,17 @@ export function registerModelHandlers() {
       return { success: false, error: (error as Error).message }
     }
   })
+
+  /**
+   * Get live resource usage stats
+   */
+  ipcMain.handle('model:getResourceUsage', async () => {
+    try {
+      const { getModelManager } = await import('../../services/ModelManager')
+      const stats = getModelManager().getResourceUsage()
+      return { success: true, data: stats }
+    } catch (error: unknown) {
+      return { success: false, error: (error as Error).message }
+    }
+  })
 }

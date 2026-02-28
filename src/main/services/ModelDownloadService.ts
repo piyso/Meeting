@@ -46,6 +46,10 @@ export class ModelDownloadService {
       'https://huggingface.co/UsefulSensors/moonshine/resolve/main/onnx/base.onnx',
       'https://huggingface.co/UsefulSensors/moonshine/resolve/main/onnx/preprocess.onnx',
     ],
+    llmPrimary:
+      'https://huggingface.co/Qwen/Qwen2.5-3B-Instruct-GGUF/resolve/main/qwen2.5-3b-instruct-q4_k_m.gguf',
+    llmFallback:
+      'https://huggingface.co/Qwen/Qwen2.5-1.5B-Instruct-GGUF/resolve/main/qwen2.5-1.5b-instruct-q4_k_m.gguf',
   }
 
   constructor() {
@@ -146,6 +150,16 @@ export class ModelDownloadService {
   }
 
   /**
+   * Check if LLM GGUF model is downloaded
+   */
+  isLLMDownloaded(tierInfo?: HardwareTierInfo): boolean {
+    const info = tierInfo || this.detectHardwareTier()
+    const filename =
+      info.tier === 'low' ? 'qwen2.5-1.5b-instruct-q4_k_m.gguf' : 'qwen2.5-3b-instruct-q4_k_m.gguf'
+    return fs.existsSync(path.join(this.modelsDir, filename))
+  }
+
+  /**
    * Check if first launch (no models downloaded)
    */
   isFirstLaunch(): boolean {
@@ -194,6 +208,60 @@ export class ModelDownloadService {
 
     // All retries failed
     throw new Error(`Failed to download models after ${maxRetries} attempts: ${lastError?.message}`)
+  }
+
+  /**
+   * Download LLM GGUF model for detected hardware tier with retry logic
+   */
+  async downloadLLMForTier(tierInfo: HardwareTierInfo, maxRetries: number = 3): Promise<void> {
+    if (this.isLLMDownloaded(tierInfo)) {
+      log.info('LLM model already downloaded')
+      return
+    }
+
+    log.info(`Downloading AI model for ${tierInfo.tier} tier...`)
+
+    let lastError: Error | null = null
+
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      try {
+        await this.downloadLLMModel(tierInfo)
+        log.info(`✅ AI model downloaded successfully on attempt ${attempt}`)
+        return
+      } catch (error: unknown) {
+        lastError = error as Error
+        log.error(`LLM download attempt ${attempt}/${maxRetries} failed:`, (error as Error).message)
+
+        if (attempt < maxRetries) {
+          const backoffMs = 5000 * Math.pow(2, attempt - 1)
+          log.info(`Retrying in ${backoffMs / 1000} seconds...`)
+          await new Promise(resolve => setTimeout(resolve, backoffMs))
+        }
+      }
+    }
+
+    throw new Error(
+      `Failed to download AI model after ${maxRetries} attempts: ${lastError?.message}`
+    )
+  }
+
+  /**
+   * Download LLM GGUF model
+   */
+  private async downloadLLMModel(tierInfo: HardwareTierInfo): Promise<void> {
+    const isLow = tierInfo.tier === 'low'
+    const url = isLow
+      ? ModelDownloadService.MODEL_URLS.llmFallback
+      : ModelDownloadService.MODEL_URLS.llmPrimary
+    const filename = isLow ? 'qwen2.5-1.5b-instruct-q4_k_m.gguf' : 'qwen2.5-3b-instruct-q4_k_m.gguf'
+    const modelPath = path.join(this.modelsDir, filename)
+
+    await this.downloadFile(url, modelPath, 'AI Engine')
+
+    // Verify checksum
+    const checksum = await this.calculateChecksum(modelPath)
+    const checksumPath = path.join(this.modelsDir, 'llm-checksums.json')
+    fs.writeFileSync(checksumPath, JSON.stringify({ [filename]: checksum }, null, 2))
   }
 
   /**

@@ -50,7 +50,7 @@ const DEFAULT_SETTINGS: SettingsState = {
   useCloudTranscription: false,
   language: 'en',
   autoExpandNotes: false,
-  llmEngine: 'ollama',
+  llmEngine: 'local',
   maxTokensPerExpansion: 512,
   syncEnabled: false,
   encryptionEnabled: true,
@@ -69,6 +69,8 @@ export const SettingsView: React.FC = () => {
   const [loading, setLoading] = useState(true)
   const [modelStatus, setModelStatus] = useState<string>('Checking...')
   const [userInfo, setUserInfo] = useState<{ email: string; tier: string } | null>(null)
+  const [localMeetingCount, setLocalMeetingCount] = useState<number>(0)
+  const [syncedMeetingCount, setSyncedMeetingCount] = useState<number>(0)
 
   // Load all settings from DB on mount
   useEffect(() => {
@@ -115,7 +117,23 @@ export const SettingsView: React.FC = () => {
 
       setLoading(false)
     }
+
+    // Load meeting counts for Data Locality Report
+    const loadMeetingCounts = async () => {
+      try {
+        const res = await window.electronAPI?.meeting?.list({ limit: 999 })
+        if (res?.success && res.data) {
+          const meetings = (res.data as { items: Array<{ synced_at?: number }> }).items || []
+          setLocalMeetingCount(meetings.length)
+          setSyncedMeetingCount(meetings.filter(m => (m.synced_at ?? 0) > 0).length)
+        }
+      } catch {
+        // Ignore
+      }
+    }
+
     loadSettings()
+    loadMeetingCounts()
   }, [])
 
   // Persist a setting change to DB with rollback on failure
@@ -148,8 +166,17 @@ export const SettingsView: React.FC = () => {
 
   const handleExportData = async () => {
     try {
-      // GDPR data export placeholder — will be available once export handler is added
-      // For now, notify user
+      const res = await window.electronAPI?.meeting?.list({ limit: 999 })
+      if (res?.success && res.data) {
+        const meetings = (res.data as { items: unknown[] }).items || []
+        const blob = new Blob([JSON.stringify(meetings, null, 2)], { type: 'application/json' })
+        const url = URL.createObjectURL(blob)
+        const a = document.createElement('a')
+        a.href = url
+        a.download = `bluearkive-export-${new Date().toISOString().split('T')[0]}.json`
+        a.click()
+        URL.revokeObjectURL(url)
+      }
     } catch (err) {
       log.error('Data export failed:', err)
     }
@@ -258,7 +285,7 @@ export const SettingsView: React.FC = () => {
                 value={settings.llmEngine}
                 onChange={e => updateSetting('llmEngine', e.target.value)}
                 options={[
-                  { label: 'Local Runtime', value: 'ollama' },
+                  { label: 'Local Runtime (node-llama-cpp)', value: 'local' },
                   { label: 'Accelerated (Apple Silicon)', value: 'mlx' },
                 ]}
               />
@@ -290,11 +317,15 @@ export const SettingsView: React.FC = () => {
               <div className="space-y-2">
                 <div className="flex justify-between items-center text-[var(--text-sm)]">
                   <span className="text-[var(--color-text-secondary)]">Local meetings</span>
-                  <span className="font-mono text-[var(--color-text-primary)]">--</span>
+                  <span className="font-mono text-[var(--color-text-primary)]">
+                    {localMeetingCount}
+                  </span>
                 </div>
                 <div className="flex justify-between items-center text-[var(--text-sm)]">
                   <span className="text-[var(--color-text-secondary)]">Synced (Encrypted)</span>
-                  <span className="font-mono text-[var(--color-text-primary)]">--</span>
+                  <span className="font-mono text-[var(--color-text-primary)]">
+                    {syncedMeetingCount}
+                  </span>
                 </div>
                 <div className="flex justify-between items-center text-[var(--text-sm)]">
                   <span className="text-[var(--color-text-secondary)]">Data to 3rd parties</span>
@@ -501,7 +532,7 @@ export const SettingsView: React.FC = () => {
       ))}
 
       <div className="text-center text-[var(--text-xs)] text-[var(--color-text-tertiary)] pt-[var(--space-16)] font-mono tracking-wide opacity-80">
-        BlueArkive v0.1.0 · Sovereign Memory Fabric
+        BlueArkive · Phase 0 · Sovereign Memory Fabric
       </div>
     </div>
   )

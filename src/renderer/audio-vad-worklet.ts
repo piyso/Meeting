@@ -23,6 +23,20 @@
  * - Requirement 1.8: Support 16kHz sample rate
  */
 
+// AudioWorklet ambient types — these globals are provided by the AudioWorklet scope
+declare class AudioWorkletProcessor {
+  readonly port: MessagePort
+  constructor()
+}
+
+declare function registerProcessor(
+  name: string,
+  processorCtor: new () => AudioWorkletProcessor
+): void
+
+declare const currentTime: number
+declare const sampleRate: number
+
 /**
  * VAD Worklet Processor
  *
@@ -67,14 +81,14 @@ class VADWorkletProcessor extends AudioWorkletProcessor {
    * This method MUST be fast and non-blocking to prevent audio glitches.
    *
    * @param inputs - Input audio data [channel][sample]
-   * @param outputs - Output audio data (unused)
-   * @param parameters - Audio parameters (unused)
+   * @param _outputs - Output audio data (unused)
+   * @param _parameters - Audio parameters (unused)
    * @returns true to keep processor alive
    */
   process(
     inputs: Float32Array[][],
-    outputs: Float32Array[][],
-    parameters: Record<string, Float32Array>
+    _outputs: Float32Array[][],
+    _parameters: Record<string, Float32Array>
   ): boolean {
     // Get the first input channel (mono)
     const input = inputs[0]
@@ -93,7 +107,7 @@ class VADWorkletProcessor extends AudioWorkletProcessor {
     // Add samples to buffer
     // Note: We accumulate samples until we have enough for a chunk
     for (let i = 0; i < channelData.length; i++) {
-      this.buffer.push(channelData[i])
+      this.buffer.push(channelData[i] ?? 0)
     }
 
     // Check if we've accumulated enough samples for a chunk

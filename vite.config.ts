@@ -14,6 +14,7 @@ const nativeModules = [
   'better-sqlite3',
   'onnxruntime-node',
   'ollama',
+  'node-llama-cpp',
   'keytar',
   'electron-squirrel-startup',
 ]

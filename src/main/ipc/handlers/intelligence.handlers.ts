@@ -1,5 +1,4 @@
 import { ipcMain } from 'electron'
-import { config } from '../../config/environment'
 import { getASRService } from '../../services/ASRService'
 import { getHardwareTierService } from '../../services/HardwareTierService'
 import { Logger } from '../../services/Logger'
@@ -12,6 +11,17 @@ export function registerIntelligenceHandlers(): void {
     try {
       const tierService = getHardwareTierService()
       const info = await tierService.detectAndStore()
+
+      // Populate CrashReporter context so crash reports include device info
+      try {
+        const { CrashReporter } = await import('../../services/CrashReporter')
+        CrashReporter.setContext({
+          hardwareTier: info.tier,
+        })
+      } catch {
+        // CrashReporter may not be initialized yet — non-critical
+      }
+
       return { success: true, data: info }
     } catch (error) {
       return {
@@ -25,22 +35,23 @@ export function registerIntelligenceHandlers(): void {
     }
   })
 
-  // intelligence:getEngineStatus — Check ASR + Ollama readiness
+  // intelligence:getEngineStatus — Check ASR + AI engine readiness
   ipcMain.handle('intelligence:getEngineStatus', async () => {
     try {
       const asr = getASRService()
-      let ollamaAvailable = false
-      try {
-        const res = await fetch(`${config.OLLAMA_BASE_URL}/api/tags`)
-        ollamaAvailable = res.ok
-      } catch (err) {
-        log.debug('Ollama not reachable', err)
-      }
+
+      // Check if local AI engine (node-llama-cpp) is available
+      const { getModelManager } = await import('../../services/ModelManager')
+      const modelManager = getModelManager()
+      const aiAvailable = modelManager.isAvailable()
+      const aiModelExists = modelManager.isModelDownloaded()
+
       return {
         success: true,
         data: {
           asrReady: asr.isServiceReady(),
-          ollamaAvailable,
+          aiAvailable: aiAvailable,
+          aiModelDownloaded: aiModelExists,
         },
       }
     } catch (error) {
@@ -55,17 +66,21 @@ export function registerIntelligenceHandlers(): void {
     }
   })
 
-  // intelligence:checkOllama — Check if Ollama is running and list models
+  // intelligence:checkOllama — Check if AI engine is available (renamed internally)
   ipcMain.handle('intelligence:checkOllama', async () => {
     try {
-      const response = await fetch(`${config.OLLAMA_BASE_URL}/api/tags`)
-      const data = await response.json()
+      const { getModelManager } = await import('../../services/ModelManager')
+      const modelManager = getModelManager()
+
       return {
         success: true,
-        data: { available: true, models: data.models || [] },
+        data: {
+          available: modelManager.isModelDownloaded(),
+          models: [{ name: modelManager.getLLMModel() }],
+        },
       }
     } catch (err) {
-      log.debug('Ollama check failed', err)
+      log.debug('AI engine check failed', err)
       return {
         success: true,
         data: { available: false, models: [] },
@@ -92,6 +107,39 @@ export function registerIntelligenceHandlers(): void {
           message: (error as Error).message,
           timestamp: Date.now(),
         },
+      }
+    }
+  })
+
+  // intelligence:meetingSuggestion — Generate meeting title suggestions via local AI
+  ipcMain.handle('intelligence:meetingSuggestion', async (_, params) => {
+    try {
+      if (!params?.meetingId || !params?.recentContext) {
+        return {
+          success: false,
+          error: {
+            code: 'INVALID_PARAMS',
+            message: 'meetingId and recentContext are required',
+            timestamp: Date.now(),
+          },
+        }
+      }
+
+      const { getModelManager } = await import('../../services/ModelManager')
+      const modelManager = getModelManager()
+
+      const suggestion = await modelManager.generate({
+        prompt: `Suggest a concise meeting title (3-6 words) based on this discussion:\n\n${params.recentContext}\n\nMEETING TITLE:`,
+        temperature: 0.3,
+        maxTokens: 20,
+      })
+
+      return { success: true, data: { suggestion: suggestion.trim() } }
+    } catch (error) {
+      log.debug('Meeting suggestion failed', error)
+      return {
+        success: true,
+        data: { suggestion: '' },
       }
     }
   })

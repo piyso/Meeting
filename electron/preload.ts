@@ -180,14 +180,24 @@ const electronAPI: ElectronAPI = {
     downloadAll: () => ipcRenderer.invoke('model:downloadAll'),
     onDownloadProgress: (
       callback: (progress: {
+        modelName: string
         percent: number
-        transferredBytes: number
-        totalBytes: number
+        downloadedMB: number
+        totalMB: number
+        status: 'downloading' | 'verifying' | 'complete' | 'error'
+        error?: string
       }) => void
     ) => {
       const subscription = (
         _event: IpcRendererEvent,
-        progress: { percent: number; transferredBytes: number; totalBytes: number }
+        progress: {
+          modelName: string
+          percent: number
+          downloadedMB: number
+          totalMB: number
+          status: 'downloading' | 'verifying' | 'complete' | 'error'
+          error?: string
+        }
       ) => callback(progress)
       ipcRenderer.on('model-download-progress', subscription)
       return () => ipcRenderer.removeListener('model-download-progress', subscription)

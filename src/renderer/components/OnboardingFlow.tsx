@@ -6,6 +6,7 @@ import { Input } from './ui/Input'
 import { Badge } from './ui/Badge'
 import { PricingView } from './settings/PricingView'
 import { GhostMeetingTutorial } from './meeting/GhostMeetingTutorial'
+import { ModelDownloadProgress } from './ModelDownloadProgress'
 import { Key } from 'lucide-react'
 
 import { rendererLog } from '../utils/logger'
@@ -365,13 +366,8 @@ export const OnboardingFlow: React.FC = () => {
             <h2 className="text-2xl font-semibold tracking-wide text-white mb-8 text-center lg:text-left">
               Initializing System...
             </h2>
-            <div className="w-full h-1 bg-white/10 rounded-full overflow-hidden mb-8">
-              <div
-                className="h-full bg-emerald-500 transition-all duration-1000"
-                style={{ width: isDownloading ? '50%' : '10%' }}
-              />
-            </div>
-            <ul className="space-y-4 text-sm font-mono">
+            <ModelDownloadProgress />
+            <ul className="space-y-4 text-sm font-mono mt-6">
               <li className="flex items-start gap-3 text-emerald-400">
                 <span>[OK]</span> Account authenticated
               </li>

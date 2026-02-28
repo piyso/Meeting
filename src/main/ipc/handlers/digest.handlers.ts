@@ -1,12 +1,11 @@
 import { ipcMain } from 'electron'
 import { getDatabase } from '../../database/connection'
-import { config } from '../../config/environment'
 import { Logger } from '../../services/Logger'
 
 const log = Logger.create('DigestHandlers')
 
 export function registerDigestHandlers(): void {
-  // digest:generate — Generate meeting digest via Ollama
+  // digest:generate — Generate meeting digest via local AI engine
   ipcMain.handle('digest:generate', async (_, params) => {
     try {
       if (!params?.meetingId) {
@@ -23,7 +22,7 @@ export function registerDigestHandlers(): void {
       const db = getDatabase()
       const transcripts = db
         .prepare(
-          'SELECT text, speaker FROM transcripts WHERE meeting_id = ? ORDER BY start_time ASC'
+          'SELECT text, speaker_name AS speaker FROM transcripts WHERE meeting_id = ? ORDER BY start_time ASC'
         )
         .all(params.meetingId) as Array<{
         text: string
@@ -43,15 +42,18 @@ export function registerDigestHandlers(): void {
       // Format transcript for LLM
       const transcriptText = transcripts.map(t => `${t.speaker}: ${t.text}`).join('\n')
 
-      // Call Ollama sequentially — parallel calls overwhelm single-GPU machines
-      const summary = await callOllama(
-        `You are a meeting summarizer. Summarize this meeting transcript concisely in exactly 3 bullet points. Use third person.\n\nTRANSCRIPT:\n${transcriptText}\n\nSUMMARY:`
+      // Call AI engine sequentially — parallel calls overwhelm single-GPU machines
+      const summary = await generateText(
+        `You are a meeting summarizer. Summarize this meeting transcript concisely in exactly 3 bullet points. Use third person.\n\nTRANSCRIPT:\n${transcriptText}\n\nSUMMARY:`,
+        300
       )
-      const actions = await callOllama(
-        `Extract action items from this meeting. Format: "- [ASSIGNEE]: Task description (DEADLINE if mentioned)". Only include items with clear owners.\n\nTRANSCRIPT:\n${transcriptText}\n\nACTION ITEMS:`
+      const actions = await generateText(
+        `Extract action items from this meeting. Format: "- [ASSIGNEE]: Task description (DEADLINE if mentioned)". Only include items with clear owners.\n\nTRANSCRIPT:\n${transcriptText}\n\nACTION ITEMS:`,
+        300
       )
-      const decisions = await callOllama(
-        `List only the final decisions made in this meeting. Format: "- Decision statement". Do not list proposals that were rejected.\n\nTRANSCRIPT:\n${transcriptText}\n\nDECISIONS:`
+      const decisions = await generateText(
+        `List only the final decisions made in this meeting. Format: "- Decision statement". Do not list proposals that were rejected.\n\nTRANSCRIPT:\n${transcriptText}\n\nDECISIONS:`,
+        300
       )
 
       return {
@@ -69,7 +71,7 @@ export function registerDigestHandlers(): void {
         success: false,
         error: {
           code: 'DIGEST_FAILED',
-          message: 'Meeting digest unavailable — Ollama not running. Start it with: ollama serve',
+          message: 'Meeting digest unavailable — AI engine may still be loading.',
           timestamp: Date.now(),
         },
       }
@@ -83,31 +85,20 @@ export function registerDigestHandlers(): void {
 }
 
 /**
- * Helper to call Ollama API
+ * Helper to generate text via ModelManager (node-llama-cpp)
  */
-async function callOllama(prompt: string): Promise<string> {
+async function generateText(prompt: string, maxTokens: number = 300): Promise<string> {
   try {
-    // Use ModelManager for hardware-tier-aware model selection
     const { getModelManager } = await import('../../services/ModelManager')
-    const model = getModelManager().getLLMModel()
+    const modelManager = getModelManager()
 
-    const response = await fetch(`${config.OLLAMA_BASE_URL}/api/generate`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        model,
-        prompt,
-        stream: false,
-        options: {
-          temperature: 0.2,
-          num_predict: 300,
-        },
-      }),
+    return await modelManager.generate({
+      prompt,
+      temperature: 0.2,
+      maxTokens,
     })
-    const data = await response.json()
-    return data.response?.trim() || ''
   } catch (err) {
-    log.debug('Ollama call failed', err)
-    return '⚠️ AI unavailable — Ollama not running'
+    log.debug('AI generation failed', err)
+    return '⚠️ AI unavailable — engine may still be loading'
   }
 }

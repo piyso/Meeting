@@ -1,12 +1,13 @@
 {
   "name": "bluearkive",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Local-first meeting transcription application with AI-powered note expansion",
   "main": "dist-electron/main.js",
   "author": "BlueArkive",
   "license": "MIT",
   "private": true,
   "scripts": {
+    "postinstall": "electron-builder install-app-deps",
     "dev": "vite",
     "build": "vite build && electron-builder",
     "preview": "vite preview",
@@ -48,6 +49,7 @@
     "framer-motion": "^12.34.3",
     "keytar": "^7.9.0",
     "lucide-react": "^0.575.0",
+    "node-llama-cpp": "^3.16.2",
     "ollama": "^0.6.3",
     "onnxruntime-node": "^1.24.2",
     "react": "^18.2.0",
@@ -123,7 +125,10 @@
       "!**/node_modules/**/@types/**",
       "!**/node_modules/**/node-gyp/**",
       "!{.eslintrc*,.prettierrc*,tsconfig*,vite.config*,.gitignore,.editorconfig}",
-      "!{docs,coverage,.github,.vscode}/**"
+      "!{docs,coverage,.github,.vscode}/**",
+      "!**/node_modules/node-llama-cpp/llama/**",
+      "!**/node_modules/node-llama-cpp/templates/**",
+      "!**/node_modules/cmake-js/**"
     ],
     "extraResources": [
       {
@@ -147,16 +152,14 @@
           "target": "dmg",
           "arch": [
             "x64",
-            "arm64",
-            "universal"
+            "arm64"
           ]
         },
         {
           "target": "zip",
           "arch": [
             "x64",
-            "arm64",
-            "universal"
+            "arm64"
           ]
         }
       ],
@@ -332,6 +335,7 @@
     "asar": true,
     "asarUnpack": [
       "**/*.node",
+      "**/node-llama-cpp/**",
       "resources/models/**/*"
     ]
   }

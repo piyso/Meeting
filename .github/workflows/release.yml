@@ -1,20 +1,29 @@
-name: Release
+# Build and Release BlueArkive
+# Triggers on version tags (v0.1.0, v1.0.0, etc.)
+# Builds for macOS (arm64 + x64), Windows (x64), and Linux (x64)
+# Auto-publishes DMG/EXE/AppImage to a draft GitHub Release
+
+name: Build & Release
 
 on:
   push:
     tags:
       - 'v*'
 
-permissions:
-  contents: write
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  NODE_ENV: production
 
 jobs:
+  # ─── macOS Build ────────────────────────────────────────────
   build-mac:
     runs-on: macos-14 # Apple Silicon runner
-
+    timeout-minutes: 30
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -22,48 +31,51 @@ jobs:
           node-version: 20
           cache: 'npm'
 
+      - name: Cache Electron
+        uses: actions/cache@v4
+        with:
+          path: ~/Library/Caches/electron
+          key: electron-mac-${{ hashFiles('package-lock.json') }}
+
       - name: Install dependencies
         run: npm ci
 
-      - name: Run tests
-        run: npm test
-
-      - name: Build macOS ARM64
-        run: npm run build:mac:arm64
+      - name: Build and package (arm64 + x64)
+        run: npm run build:mac
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          # Code signing (uncomment when Apple Developer cert is available)
-          # CSC_LINK: ${{ secrets.CSC_LINK }}
-          # CSC_KEY_PASSWORD: ${{ secrets.CSC_KEY_PASSWORD }}
+          # Uncomment when you have Apple Developer certificate:
+          # CSC_LINK: ${{ secrets.MAC_CSC_LINK }}
+          # CSC_KEY_PASSWORD: ${{ secrets.MAC_CSC_KEY_PASSWORD }}
           # APPLE_ID: ${{ secrets.APPLE_ID }}
           # APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
           # APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
-          CSC_IDENTITY_AUTO_DISCOVERY: false
 
-      - name: Build macOS x64
-        run: npx electron-builder --mac dmg zip --x64
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          CSC_IDENTITY_AUTO_DISCOVERY: false
+      - name: Verify build artifacts
+        run: |
+          echo "=== macOS Build Artifacts ==="
+          ls -lah release/*.dmg release/*.zip 2>/dev/null || echo "No DMG/ZIP found"
+          echo "=== App sizes ==="
+          du -sh release/mac*/BlueArkive.app/ 2>/dev/null || true
 
-      - name: Upload Mac artifacts
-        uses: softprops/action-gh-release@v2
+      - name: Upload macOS artifacts
+        uses: actions/upload-artifact@v4
         with:
-          files: |
+          name: mac-builds
+          path: |
             release/*.dmg
             release/*.zip
             release/*.blockmap
             release/latest-mac.yml
-          generate_release_notes: true
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          if-no-files-found: error
+          retention-days: 5
 
-  build-windows:
+  # ─── Windows Build ──────────────────────────────────────────
+  build-win:
     runs-on: windows-latest
-
+    timeout-minutes: 30
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -71,34 +83,37 @@ jobs:
           node-version: 20
           cache: 'npm'
 
+      - name: Cache Electron
+        uses: actions/cache@v4
+        with:
+          path: ~/AppData/Local/electron/Cache
+          key: electron-win-${{ hashFiles('package-lock.json') }}
+
       - name: Install dependencies
         run: npm ci
 
-      - name: Run tests
-        run: npm test
-
-      - name: Build Windows x64
-        run: npx electron-builder --win nsis portable --x64
+      - name: Build and package (x64)
+        run: npm run build:win:x64
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Upload Windows artifacts
-        uses: softprops/action-gh-release@v2
+        uses: actions/upload-artifact@v4
         with:
-          files: |
+          name: win-builds
+          path: |
             release/*.exe
             release/*.blockmap
             release/latest.yml
-          generate_release_notes: true
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          if-no-files-found: error
+          retention-days: 5
 
+  # ─── Linux Build ────────────────────────────────────────────
   build-linux:
     runs-on: ubuntu-latest
-
+    timeout-minutes: 30
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -106,25 +121,65 @@ jobs:
           node-version: 20
           cache: 'npm'
 
+      - name: Install Linux build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libsecret-1-dev rpm
+
+      - name: Cache Electron
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/electron
+          key: electron-linux-${{ hashFiles('package-lock.json') }}
+
       - name: Install dependencies
         run: npm ci
 
-      - name: Run tests
-        run: npm test
-
-      - name: Build Linux x64
-        run: npx electron-builder --linux AppImage deb --x64
+      - name: Build and package (x64)
+        run: npm run build:linux
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Upload Linux artifacts
-        uses: softprops/action-gh-release@v2
+        uses: actions/upload-artifact@v4
         with:
-          files: |
+          name: linux-builds
+          path: |
             release/*.AppImage
             release/*.deb
-            release/*.blockmap
+            release/*.rpm
             release/latest-linux.yml
+          if-no-files-found: error
+          retention-days: 5
+
+  # ─── Create GitHub Release ──────────────────────────────────
+  release:
+    needs: [build-mac, build-win, build-linux]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: List all release files
+        run: |
+          echo "=== All Release Artifacts ==="
+          find artifacts -type f -exec ls -lh {} \;
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          draft: true
           generate_release_notes: true
+          name: BlueArkive ${{ github.ref_name }}
+          files: |
+            artifacts/mac-builds/*
+            artifacts/win-builds/*
+            artifacts/linux-builds/*
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

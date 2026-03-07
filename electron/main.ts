@@ -219,6 +219,12 @@ app.whenReady().then(() => {
   createWindow()
   createWidgetWindow()
 
+  // Wire model download progress to the renderer window
+  if (mainWindow) {
+    const { getModelDownloadService } = require('../src/main/services/ModelDownloadService')
+    getModelDownloadService().setMainWindow(mainWindow)
+  }
+
   // Register Global OS Hotkey for instant recording
   globalShortcut.register('CommandOrControl+Shift+Space', () => {
     log.info('Global shortcut triggered: Cmd+Shift+Space')

@@ -55,8 +55,19 @@ export class EncryptionService {
   private static readonly HASH_ALGORITHM = 'sha256'
   private static readonly CIPHER_ALGORITHM = 'aes-256-gcm'
 
+  // Key cache — avoids re-running PBKDF2 (100K iterations) for every encrypt in a batch
+  private static keyCache: {
+    cacheKey: string
+    key: Buffer
+    salt: Buffer
+    expiresAt: number
+  } | null = null
+  private static readonly KEY_CACHE_TTL = 5 * 60 * 1000 // 5 minutes
+
   /**
    * Derive encryption key from password using PBKDF2
+   * Uses an in-memory cache to avoid repeated 100K-iteration derivation
+   * during batch sync operations.
    *
    * @param password - User password
    * @param salt - Salt (32 bytes). If not provided, generates new random salt
@@ -66,6 +77,21 @@ export class EncryptionService {
     // Generate random salt if not provided
     const actualSalt = salt || crypto.randomBytes(this.SALT_LENGTH)
 
+    // Check cache — same password+salt yields same key (PBKDF2 is deterministic)
+    // Hash password before storing in cacheKey to avoid cleartext password in memory
+    const cacheKey = crypto
+      .createHash('sha256')
+      .update(`${password}:${actualSalt.toString('base64')}`)
+      .digest('hex')
+    if (
+      this.keyCache &&
+      this.keyCache.cacheKey.length === cacheKey.length &&
+      crypto.timingSafeEqual(Buffer.from(this.keyCache.cacheKey), Buffer.from(cacheKey)) &&
+      Date.now() < this.keyCache.expiresAt
+    ) {
+      return { key: this.keyCache.key, salt: this.keyCache.salt }
+    }
+
     // Derive key using PBKDF2 with 100,000 iterations (async — does not block event loop)
     const key = await pbkdf2Async(
       password,
@@ -74,6 +100,19 @@ export class EncryptionService {
       this.KEY_LENGTH,
       this.HASH_ALGORITHM
     )
+
+    // Zero previous cached key buffer before replacing (defense in depth)
+    if (this.keyCache) {
+      this.keyCache.key.fill(0)
+    }
+
+    // Cache the derived key
+    this.keyCache = {
+      cacheKey,
+      key,
+      salt: actualSalt,
+      expiresAt: Date.now() + this.KEY_CACHE_TTL,
+    }
 
     return {
       key,

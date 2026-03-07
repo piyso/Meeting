@@ -53,8 +53,9 @@ export class YjsConflictResolver {
    */
   public createDocument(noteId: string, initialText: string = ''): Y.Doc {
     // Check if document already exists
-    if (this.documents.has(noteId)) {
-      return this.documents.get(noteId)!
+    const existingDoc = this.documents.get(noteId)
+    if (existingDoc) {
+      return existingDoc
     }
 
     // Create new Yjs document

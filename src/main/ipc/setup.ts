@@ -7,6 +7,7 @@
 
 import { Logger } from '../services/Logger'
 import { ipcMain } from 'electron'
+import { getAllChannels } from '../../types/ipcChannels'
 
 const log = Logger.create('IPC')
 
@@ -26,6 +27,13 @@ import { registerPowerHandlers } from './handlers/power.handlers'
 import { registerAuthHandlers } from './handlers/auth.handlers'
 
 import { registerWindowHandlers } from './handlers/window.handlers'
+import { registerDeviceHandlers } from './handlers/device.handlers'
+import { registerDiagnosticHandlers } from './handlers/diagnostic.handlers'
+import { registerQuotaHandlers } from './handlers/quota.handlers'
+import { registerAuditHandlers } from './handlers/audit.handlers'
+import { registerExportHandlers } from './handlers/export.handlers'
+import { registerBillingHandlers } from './handlers/billing.handler'
+import { registerHighlightHandlers } from './handlers/highlight.handlers'
 
 /**
  * Register all IPC handlers
@@ -35,7 +43,7 @@ import { registerWindowHandlers } from './handlers/window.handlers'
 export function setupIPC(): void {
   log.info('Setting up IPC handlers...')
 
-  // Register all 15 handler modules
+  // Register all 21 handler modules
   registerMeetingHandlers()
   registerAudioHandlers()
   registerModelHandlers()
@@ -51,8 +59,15 @@ export function setupIPC(): void {
   registerPowerHandlers()
   registerAuthHandlers()
   registerWindowHandlers()
+  registerDeviceHandlers()
+  registerDiagnosticHandlers()
+  registerQuotaHandlers()
+  registerAuditHandlers()
+  registerExportHandlers()
+  registerBillingHandlers()
+  registerHighlightHandlers()
 
-  log.info('All 15 IPC handler groups registered successfully')
+  log.info('All 22 IPC handler groups registered successfully')
 }
 
 /**
@@ -63,117 +78,22 @@ export function setupIPC(): void {
 export function cleanupIPC(): void {
   log.info('Cleaning up IPC handlers...')
 
-  // Remove all registered IPC handle channels
+  // Remove all registered IPC handle channels using the type-safe registry.
   // Using removeHandler() instead of removeAllListeners() to avoid
-  // removing Electron's own internal listeners
-  const channels = [
-    // Meeting
-    'meeting:start',
-    'meeting:stop',
-    'meeting:get',
-    'meeting:list',
-    'meeting:update',
-    'meeting:delete',
-    'meeting:export',
-    // Note
-    'note:create',
-    'note:update',
-    'note:expand',
-    'note:batchExpand',
-    'note:get',
-    'note:delete',
-    // Transcript
-    'transcript:get',
-    'transcript:getContext',
-    'transcript:updateSpeaker',
-    // Entity
-    'entity:get',
-    'entity:getByType',
-    'entity:extract',
-    // Search
-    'search:query',
-    'search:semantic',
-    // Sync
-    'sync:getStatus',
-    'sync:trigger',
-    'sync:login',
-    'sync:logout',
-    'sync:googleAuth',
-    // Audio
-    'audio:listDevices',
-    'audio:startCapture',
-    'audio:stopCapture',
-    'audio:getStatus',
-    'audio:preFlightTest',
-    'audio:openSoundSettings',
-    'audio:getScreenRecordingPermission',
-    'audio:openScreenRecordingSettings',
-    'audio:startSystemAudioTest',
-    'audio:stopSystemAudioTest',
-    'audio:getSystemAudioTestStatus',
-    'audio:startMicrophoneTest',
-    'audio:stopMicrophoneTest',
-    'audio:getMicrophoneTestStatus',
-    'audio:exportDiagnostics',
-    'audio:getDiagnosticsPath',
-    'audio:getDiagnosticsStats',
-    'audio:clearDiagnostics',
-    'audio:openDiagnosticsFolder',
-    'audio:startCaptureWithFallback',
-    'audio:handleCaptureFallback',
-    // Intelligence
-    'intelligence:getHardwareTier',
-    'intelligence:getEngineStatus',
-    'intelligence:checkOllama',
-    'intelligence:unloadModels',
-    'intelligence:meetingSuggestion',
-    // Model
-    'model:detectHardwareTier',
-    'model:isFirstLaunch',
-    'model:areModelsDownloaded',
-    'model:downloadModelsForTier',
-    'model:verifyModel',
-    'model:deleteModel',
-    'model:getModelPaths',
-    'model:downloadAll',
-    'model:getResourceUsage',
-    // Settings
-    'settings:get',
-    'settings:getAll',
-    'settings:update',
-    'settings:reset',
-    // Auth
-    'auth:login',
-    'auth:register',
-    'auth:logout',
-    'auth:getCurrentUser',
-    'auth:isAuthenticated',
-    'auth:googleAuth',
-    'auth:refreshToken',
-    'auth:generateRecoveryKey',
-    // Graph
-    'graph:get',
-    'graph:getContradictions',
-    // Digest
-    'digest:generate',
-    'digest:getLatest',
-    // Power
-    'power:getStatus',
-    // Window
-    'window:restoreMain',
-    // Widget
-    'widget:updateState',
-    // Shell
-    'shell:openExternal',
-  ]
+  // removing Electron's own internal listeners.
+  // Note: getAllChannels() includes event channels (webContents.send) which
+  // are not registered via ipcMain.handle — removeHandler() silently ignores them.
+  const channels = getAllChannels()
+  let removed = 0
 
   for (const channel of channels) {
     try {
       ipcMain.removeHandler(channel)
+      removed++
     } catch {
-      // Handler may not have been registered
+      // Handler may not have been registered (e.g. event-only channels)
     }
   }
 
-  log.info('IPC handlers cleaned up')
+  log.info(`IPC handlers cleaned up (${removed} of ${channels.length} channels)`)
 }

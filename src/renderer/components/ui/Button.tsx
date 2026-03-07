@@ -31,6 +31,7 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
         ref={ref}
         disabled={disabled || loading}
         className={`ui-btn ${variantClass} ${sizeClass} premium-hover ${className}`}
+        aria-label={props['aria-label'] || (typeof children === 'string' ? children : undefined)}
         {...props}
       >
         <span

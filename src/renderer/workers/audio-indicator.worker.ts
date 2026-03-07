@@ -1,6 +1,6 @@
 let canvas: OffscreenCanvas | null = null
 let ctx: OffscreenCanvasRenderingContext2D | null = null
-let animationId = 0
+let _animationId = 0
 let isRecording = false
 let currentLevel = 0
 
@@ -34,16 +34,17 @@ function draw() {
     ctx.fill()
   }
 
-  animationId = requestAnimationFrame(draw)
+  _animationId = requestAnimationFrame(draw)
 }
 
 self.onmessage = e => {
   if (e.data.type === 'init') {
     canvas = e.data.canvas
-    ctx = canvas!.getContext('2d')
+    if (!canvas) return
+    ctx = canvas.getContext('2d')
     const totalWidth = numBars * barWidth + (numBars - 1) * gap
-    startX = (canvas!.width - totalWidth) / 2
-    centerY = canvas!.height / 2
+    startX = (canvas.width - totalWidth) / 2
+    centerY = canvas.height / 2
     draw()
   } else if (e.data.type === 'update') {
     isRecording = e.data.isRecording

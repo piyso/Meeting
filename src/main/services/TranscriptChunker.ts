@@ -187,15 +187,20 @@ export class TranscriptChunker {
     const sortedChunks = [...chunks].sort((a, b) => a.metadata.chunkIndex - b.metadata.chunkIndex)
 
     // Validate chunk sequence
-    const totalChunks = sortedChunks[0]!.metadata.totalChunks
+    const firstChunk = sortedChunks[0]
+    if (!firstChunk) {
+      return ''
+    }
+    const totalChunks = firstChunk.metadata.totalChunks
     if (sortedChunks.length !== totalChunks) {
       throw new Error(`Missing chunks: expected ${totalChunks}, got ${sortedChunks.length}`)
     }
 
     for (let i = 0; i < sortedChunks.length; i++) {
-      if (sortedChunks[i]!.metadata.chunkIndex !== i) {
+      const chunk = sortedChunks[i]
+      if (chunk && chunk.metadata.chunkIndex !== i) {
         throw new Error(
-          `Chunk sequence error: expected index ${i}, got ${sortedChunks[i]!.metadata.chunkIndex}`
+          `Chunk sequence error: expected index ${i}, got ${chunk.metadata.chunkIndex}`
         )
       }
     }
@@ -221,26 +226,13 @@ export class TranscriptChunker {
   /**
    * Get upgrade prompt message when limit exceeded
    */
-  getUpgradePromptMessage(tier: PlanTier): string {
-    const currentLimit = this.PLAN_LIMITS[tier]
-
-    if (tier === 'free') {
-      return `Upgrade to Starter ($9/mo) for 10K char limit (2x more)`
+  async getUpgradePromptMessage(tier: PlanTier): Promise<string> {
+    try {
+      const { getUpgradeMessage } = await import('./TierMappingService')
+      return getUpgradeMessage(tier) || `Current limit: ${this.PLAN_LIMITS[tier]} chars`
+    } catch {
+      return `Current limit: ${this.PLAN_LIMITS[tier]} chars`
     }
-
-    if (tier === 'starter') {
-      return `Upgrade to Pro ($19/mo) for 25K char limit (2.5x more)`
-    }
-
-    if (tier === 'pro') {
-      return `Upgrade to Team ($29/seat/mo) for 50K char limit (2x more)`
-    }
-
-    if (tier === 'team') {
-      return `Upgrade to Enterprise for 100K char limit (2x more)`
-    }
-
-    return `Current limit: ${currentLimit} chars`
   }
 
   /**

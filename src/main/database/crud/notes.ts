@@ -4,6 +4,8 @@
 
 import { getDatabase } from '../connection'
 import type { Note, CreateNoteInput, UpdateNoteInput } from '../../../types/database'
+import { createSyncQueueItem } from './sync-queue'
+import { v4 as uuidv4 } from 'uuid'
 
 /**
  * Create a new note
@@ -28,7 +30,21 @@ export function createNote(input: CreateNoteInput): Note {
     input.is_augmented ? 1 : 0
   )
 
-  return getNoteById(input.id)!
+  const note = getNoteById(input.id)
+  if (!note) {
+    throw new Error(`Failed to read back note after INSERT: ${input.id}`)
+  }
+
+  // Queue sync event
+  createSyncQueueItem({
+    id: uuidv4(),
+    operation_type: 'create',
+    table_name: 'notes',
+    record_id: note.id,
+    payload: note as unknown as Record<string, unknown>,
+  })
+
+  return note
 }
 
 /**
@@ -118,7 +134,19 @@ export function updateNote(id: string, input: UpdateNoteInput): Note | null {
 
   stmt.run(...values)
 
-  return getNoteById(id)
+  const updatedNote = getNoteById(id)
+  if (updatedNote) {
+    // Queue sync event
+    createSyncQueueItem({
+      id: uuidv4(),
+      operation_type: 'update',
+      table_name: 'notes',
+      record_id: updatedNote.id,
+      payload: updatedNote as unknown as Record<string, unknown>,
+    })
+  }
+
+  return updatedNote
 }
 
 /**
@@ -129,6 +157,17 @@ export function deleteNote(id: string): boolean {
 
   const stmt = db.prepare('DELETE FROM notes WHERE id = ?')
   const result = stmt.run(id)
+
+  if (result.changes > 0) {
+    // Queue sync event
+    createSyncQueueItem({
+      id: uuidv4(),
+      operation_type: 'delete',
+      table_name: 'notes',
+      record_id: id,
+      payload: { id },
+    })
+  }
 
   return result.changes > 0
 }

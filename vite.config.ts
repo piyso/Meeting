@@ -28,6 +28,15 @@ export default defineConfig({
       {
         // Main process entry point
         entry: 'electron/main.ts',
+        onstart({ startup }) {
+          // ELECTRON_RUN_AS_NODE=1 in the shell environment makes the Electron
+          // binary run as plain Node.js, breaking require('electron'). Remove it
+          // from the current process env so the spawned Electron process doesn't
+          // inherit it. The env var is read at C++ binary startup level before
+          // any JS runs, so a JS-level delete is too late.
+          delete process.env.ELECTRON_RUN_AS_NODE
+          startup()
+        },
         vite: {
           build: {
             outDir: 'dist-electron',
@@ -84,6 +93,10 @@ export default defineConfig({
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),
+      // Force single React instance — prevent vite-plugin-electron-renderer
+      // from resolving its own copy, which causes "Invalid hook call" in production
+      react: path.resolve(__dirname, './node_modules/react'),
+      'react-dom': path.resolve(__dirname, './node_modules/react-dom'),
     },
     // CRITICAL: Prevent duplicate React instances.
     // vite-plugin-electron-renderer + @tanstack/react-query can each pull
@@ -97,6 +110,7 @@ export default defineConfig({
     rollupOptions: {
       input: {
         main: path.resolve(__dirname, 'index.html'),
+        widget: path.resolve(__dirname, 'widget-index.html'),
       },
     },
   },

@@ -48,7 +48,7 @@ const TutorialNotePane: React.FC<{
         onChange={e => setContent(e.target.value)}
         onKeyDown={handleKeyDown}
         placeholder="Start typing your notes here… Press ⌘+Enter to expand with AI."
-        className="w-full h-full bg-transparent resize-none outline-none text-[var(--color-text-primary)] placeholder-[var(--color-text-tertiary)]"
+        className="w-full h-full surface-glass-premium bg-transparent p-4 border border-[var(--color-border-subtle)] rounded-xl resize-none outline-none text-[var(--color-text-primary)] placeholder-[var(--color-text-tertiary)] focus:border-[var(--color-violet)] focus:shadow-[0_0_0_1px_var(--color-glow-violet)] transition-all"
         disabled={isExpanded}
       />
 

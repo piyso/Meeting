@@ -18,7 +18,10 @@ export function registerModelHandlers() {
       const tierInfo = modelService.detectHardwareTier()
       return { success: true, data: tierInfo }
     } catch (error: unknown) {
-      return { success: false, error: (error as Error).message }
+      return {
+        success: false,
+        error: { code: 'MODEL_ERROR', message: (error as Error).message, timestamp: Date.now() },
+      }
     }
   })
 
@@ -30,7 +33,10 @@ export function registerModelHandlers() {
       const isFirstLaunch = modelService.isFirstLaunch()
       return { success: true, data: isFirstLaunch }
     } catch (error: unknown) {
-      return { success: false, error: (error as Error).message }
+      return {
+        success: false,
+        error: { code: 'MODEL_ERROR', message: (error as Error).message, timestamp: Date.now() },
+      }
     }
   })
 
@@ -42,7 +48,10 @@ export function registerModelHandlers() {
       const downloaded = modelService.areModelsDownloaded(modelType as ModelType)
       return { success: true, data: downloaded }
     } catch (error: unknown) {
-      return { success: false, error: (error as Error).message }
+      return {
+        success: false,
+        error: { code: 'MODEL_ERROR', message: (error as Error).message, timestamp: Date.now() },
+      }
     }
   })
 
@@ -55,9 +64,12 @@ export function registerModelHandlers() {
       await modelService.downloadModelsForTier(tierInfo)
       // Download LLM GGUF model (auto-download on first launch)
       await modelService.downloadLLMForTier(tierInfo)
-      return { success: true }
+      return { success: true, data: undefined }
     } catch (error: unknown) {
-      return { success: false, error: (error as Error).message }
+      return {
+        success: false,
+        error: { code: 'MODEL_ERROR', message: (error as Error).message, timestamp: Date.now() },
+      }
     }
   })
 
@@ -69,7 +81,10 @@ export function registerModelHandlers() {
       const valid = await modelService.verifyModel(modelType as ModelType)
       return { success: true, data: valid }
     } catch (error: unknown) {
-      return { success: false, error: (error as Error).message }
+      return {
+        success: false,
+        error: { code: 'MODEL_ERROR', message: (error as Error).message, timestamp: Date.now() },
+      }
     }
   })
 
@@ -79,9 +94,12 @@ export function registerModelHandlers() {
   ipcMain.handle('model:deleteModel', async (_event, modelType: string) => {
     try {
       modelService.deleteModel(modelType as ModelType)
-      return { success: true }
+      return { success: true, data: undefined }
     } catch (error: unknown) {
-      return { success: false, error: (error as Error).message }
+      return {
+        success: false,
+        error: { code: 'MODEL_ERROR', message: (error as Error).message, timestamp: Date.now() },
+      }
     }
   })
 
@@ -93,7 +111,10 @@ export function registerModelHandlers() {
       const paths = modelService.getModelPaths(modelType as ModelType)
       return { success: true, data: paths }
     } catch (error: unknown) {
-      return { success: false, error: (error as Error).message }
+      return {
+        success: false,
+        error: { code: 'MODEL_ERROR', message: (error as Error).message, timestamp: Date.now() },
+      }
     }
   })
 
@@ -109,7 +130,10 @@ export function registerModelHandlers() {
       await modelService.downloadLLMForTier(tierInfo)
       return { success: true, data: tierInfo }
     } catch (error: unknown) {
-      return { success: false, error: (error as Error).message }
+      return {
+        success: false,
+        error: { code: 'MODEL_ERROR', message: (error as Error).message, timestamp: Date.now() },
+      }
     }
   })
 
@@ -122,7 +146,10 @@ export function registerModelHandlers() {
       const stats = getModelManager().getResourceUsage()
       return { success: true, data: stats }
     } catch (error: unknown) {
-      return { success: false, error: (error as Error).message }
+      return {
+        success: false,
+        error: { code: 'MODEL_ERROR', message: (error as Error).message, timestamp: Date.now() },
+      }
     }
   })
 }

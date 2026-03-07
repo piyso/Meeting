@@ -1,4 +1,4 @@
-import { app, BrowserWindow } from 'electron'
+import { app, BrowserWindow, globalShortcut, screen } from 'electron'
 import path from 'path'
 import { setupIPC, cleanupIPC } from '../src/main/ipc/setup'
 import { getDatabaseService } from '../src/main/services/DatabaseService'
@@ -8,16 +8,36 @@ import { CrashReporter } from '../src/main/services/CrashReporter'
 
 const log = Logger.create('Main')
 
+// ─── Global Error Handling ─────────────────────────────────
+process.on('uncaughtException', (err: NodeJS.ErrnoException) => {
+  if (err.code === 'EPIPE') return // Silently ignore — terminal closed
+
+  log.error('FATAL UNCAUGHT EXCEPTION:', err)
+  // In production, we log and try to keep running unless it's a critical native crash
+  // In development, we throw to fail fast
+  if (process.env.NODE_ENV === 'development') {
+    throw err
+  }
+})
+
+process.on('unhandledRejection', (reason, promise) => {
+  log.error('UNHANDLED PROMISE REJECTION:', { reason, promise })
+})
+
 // ─── Auto-updater (checks GitHub Releases) ───────────────
 let autoUpdater: { checkForUpdatesAndNotify: () => void } | null = null
 try {
   // electron-updater is optional — skip in dev or if not installed
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
+
   const { autoUpdater: updater } = require('electron-updater')
   autoUpdater = updater
   updater.logger = log
   updater.autoDownload = true
   updater.autoInstallOnAppQuit = true
+
+  updater.on('error', (err: Error) => {
+    log.warn('Auto-updater error (likely network/offline):', err.message)
+  })
 } catch {
   // Not installed or in development, skip
 }
@@ -104,6 +124,14 @@ const createWindow = () => {
     log.info('Loaded production bundle')
   }
 
+  // Open external links securely in the default OS browser
+  mainWindow.webContents.setWindowOpenHandler(({ url }) => {
+    if (url.startsWith('http:') || url.startsWith('https:')) {
+      require('electron').shell.openExternal(url)
+    }
+    return { action: 'deny' }
+  })
+
   // Handle window closed
   mainWindow.on('closed', () => {
     mainWindow = null
@@ -112,10 +140,18 @@ const createWindow = () => {
 }
 
 const createWidgetWindow = () => {
+  const primaryDisplay = screen.getPrimaryDisplay()
+  const { width: screenWidth, height: screenHeight } = primaryDisplay.workArea
+  const widgetWidth = 320
+  const widgetHeight = 400
+  const padding = 24 // Distance from the right/bottom edge of the screen
+
   // Create the transparent, always-on-top widget window
   widgetWindow = new BrowserWindow({
-    width: 300, // Slightly wider to accommodate drop shadow margins
-    height: 100, // Slightly taller for drop shadow margins
+    width: widgetWidth,
+    height: widgetHeight,
+    x: screenWidth - widgetWidth - padding,
+    y: screenHeight - widgetHeight - padding,
     frame: false,
     transparent: true,
     alwaysOnTop: true,
@@ -138,6 +174,14 @@ const createWidgetWindow = () => {
   } else {
     widgetWindow.loadFile(path.join(__dirname, '../dist/widget-index.html'))
   }
+
+  // Open external links securely in the default OS browser
+  widgetWindow.webContents.setWindowOpenHandler(({ url }) => {
+    if (url.startsWith('http:') || url.startsWith('https:')) {
+      require('electron').shell.openExternal(url)
+    }
+    return { action: 'deny' }
+  })
 
   widgetWindow.on('closed', () => {
     widgetWindow = null
@@ -175,6 +219,17 @@ app.whenReady().then(() => {
   createWindow()
   createWidgetWindow()
 
+  // Register Global OS Hotkey for instant recording
+  globalShortcut.register('CommandOrControl+Shift+Space', () => {
+    log.info('Global shortcut triggered: Cmd+Shift+Space')
+    if (mainWindow) {
+      if (mainWindow.isMinimized()) mainWindow.restore()
+      mainWindow.show()
+      mainWindow.focus()
+      mainWindow.webContents.send('global-shortcut:start-recording')
+    }
+  })
+
   // On macOS, re-create window when dock icon is clicked and no windows are open
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) {
@@ -210,6 +265,11 @@ app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') {
     app.quit()
   }
+})
+
+app.on('will-quit', () => {
+  // Unregister all shortcuts when app is quitting
+  globalShortcut.unregisterAll()
 })
 
 // Handle app quit

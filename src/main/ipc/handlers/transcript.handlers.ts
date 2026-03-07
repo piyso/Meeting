@@ -16,7 +16,6 @@ import type {
   TranscriptChunk,
 } from '../../../types/ipc'
 import type { Transcript } from '../../../types/database'
-import { updateTranscript } from '../../database/crud/transcripts'
 
 /**
  * Register all transcript-related IPC handlers
@@ -113,15 +112,29 @@ export function registerTranscriptHandlers(): void {
       try {
         const { speakerId, speakerName } = params
 
-        // Update all transcripts with this speaker ID
-        const { getTranscriptsBySpeaker } = await import('../../database/crud/transcripts')
-        const transcripts = getTranscriptsBySpeaker('', speakerId)
-
-        for (const transcript of transcripts) {
-          updateTranscript(transcript.id, {
-            speaker_name: speakerName,
-          })
+        if (!speakerId || !speakerName) {
+          return {
+            success: false,
+            error: {
+              code: 'INVALID_PARAMS',
+              message: 'speakerId and speakerName are required',
+              timestamp: Date.now(),
+            },
+          }
         }
+
+        // Update all transcripts with this speaker ID across ALL meetings
+        // Previously used getTranscriptsBySpeaker('', speakerId) which always
+        // returned 0 results because SQL filtered on meeting_id = ''
+        const { getDatabase } = await import('../../database/connection')
+        const db = getDatabase()
+        const result = db
+          .prepare('UPDATE transcripts SET speaker_name = ? WHERE speaker_id = ?')
+          .run(speakerName, speakerId)
+
+        log.info(
+          `[IPC] transcript:updateSpeaker: updated ${result.changes} transcripts for speaker ${speakerId} → "${speakerName}"`
+        )
 
         return {
           success: true,

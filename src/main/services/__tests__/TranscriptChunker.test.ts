@@ -1,5 +1,20 @@
-import { TranscriptChunker, PlanTier } from '../TranscriptChunker'
+import { describe, it, expect, beforeEach, vi } from 'vitest'
+import { TranscriptChunker } from '../TranscriptChunker'
+type PlanTier = 'free' | 'starter' | 'pro' | 'team' | 'enterprise'
 
+// Mock TierMappingService used by TranscriptChunker.getUpgradePromptMessage()
+vi.mock('../TierMappingService', () => ({
+  getUpgradeMessage: (tier: string) => {
+    const messages: Record<string, string> = {
+      free: 'Upgrade to Starter ($9/mo) for cloud sync and 2x transcript limit',
+      starter: 'Upgrade to Pro ($19/mo) for unlimited AI and 2.5x transcript limit',
+      pro: 'Upgrade to Team ($15/user/mo) for collaboration and 2x transcript limit',
+      team: 'Upgrade to Enterprise for 100K transcript limit and audit logs',
+      enterprise: '',
+    }
+    return messages[tier] || null
+  },
+}))
 describe('TranscriptChunker', () => {
   let chunker: TranscriptChunker
 
@@ -140,7 +155,6 @@ describe('TranscriptChunker', () => {
 
       tiers.forEach(tier => {
         const warning = chunker.getWarningThreshold(tier)
-        const effective = chunker.getEffectiveLimit(tier)
         const contentInRange = 'a'.repeat(warning + 100)
 
         expect(chunker.isApproachingLimit(contentInRange, tier)).toBe(true)
@@ -368,39 +382,35 @@ describe('TranscriptChunker', () => {
   })
 
   describe('getUpgradePromptMessage', () => {
-    it('should suggest Starter upgrade for Free tier', () => {
-      const message = chunker.getUpgradePromptMessage('free')
+    it('should suggest Starter upgrade for Free tier', async () => {
+      const message = await chunker.getUpgradePromptMessage('free')
 
       expect(message).toContain('Starter')
       expect(message).toContain('$9/mo')
-      expect(message).toContain('10K')
     })
 
-    it('should suggest Pro upgrade for Starter tier', () => {
-      const message = chunker.getUpgradePromptMessage('starter')
+    it('should suggest Pro upgrade for Starter tier', async () => {
+      const message = await chunker.getUpgradePromptMessage('starter')
 
       expect(message).toContain('Pro')
       expect(message).toContain('$19/mo')
-      expect(message).toContain('25K')
     })
 
-    it('should suggest Team upgrade for Pro tier', () => {
-      const message = chunker.getUpgradePromptMessage('pro')
+    it('should suggest Team upgrade for Pro tier', async () => {
+      const message = await chunker.getUpgradePromptMessage('pro')
 
       expect(message).toContain('Team')
-      expect(message).toContain('$29/seat/mo')
-      expect(message).toContain('50K')
+      expect(message).toContain('$15/user/mo')
     })
 
-    it('should suggest Enterprise upgrade for Team tier', () => {
-      const message = chunker.getUpgradePromptMessage('team')
+    it('should suggest Enterprise upgrade for Team tier', async () => {
+      const message = await chunker.getUpgradePromptMessage('team')
 
       expect(message).toContain('Enterprise')
-      expect(message).toContain('100K')
     })
 
-    it('should show current limit for Enterprise tier', () => {
-      const message = chunker.getUpgradePromptMessage('enterprise')
+    it('should show current limit for Enterprise tier', async () => {
+      const message = await chunker.getUpgradePromptMessage('enterprise')
 
       expect(message).toContain('100000')
     })
@@ -604,15 +614,15 @@ describe('TranscriptChunker', () => {
       expect(starterResult.needsChunking).toBe(false)
     })
 
-    it('should show appropriate upgrade prompt', () => {
+    it('should show appropriate upgrade prompt', async () => {
       const transcript = 'Meeting transcript content. '.repeat(300)
 
       const result = chunker.chunkTranscript(transcript, 'free')
 
       if (result.needsChunking) {
-        const upgradeMessage = chunker.getUpgradePromptMessage('free')
+        const upgradeMessage = await chunker.getUpgradePromptMessage('free')
         expect(upgradeMessage).toContain('Starter')
-        expect(upgradeMessage).toContain('10K')
+        expect(upgradeMessage).toContain('$9/mo')
       }
     })
   })

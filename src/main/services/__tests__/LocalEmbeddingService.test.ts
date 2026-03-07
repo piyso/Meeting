@@ -1,7 +1,7 @@
 import { LocalEmbeddingService } from '../LocalEmbeddingService'
 import * as ort from 'onnxruntime-node'
 import * as fs from 'fs'
-import * as path from 'path'
+
 import { vi, describe, it, expect, beforeEach } from 'vitest'
 
 // Mock dependencies

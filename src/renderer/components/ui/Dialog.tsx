@@ -21,9 +21,9 @@ export const Dialog: React.FC<DialogProps> = ({ open, onClose, title, children, 
     return () => window.removeEventListener('keydown', handleKeyDown)
   }, [open, onClose])
 
-  if (!open) return null
-
   const titleId = React.useId()
+
+  if (!open) return null
 
   return createPortal(
     <div className="ui-dialog-overlay" onClick={onClose}>

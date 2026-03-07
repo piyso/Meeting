@@ -55,9 +55,9 @@ export const ScreenRecordingPermissionDialog: React.FC<ScreenRecordingPermission
         {/* Error Message */}
         <div className="dialog-content">
           <p className="error-message">
-            BlueArkive needs Screen Recording permission to capture system audio from your
-            meetings (Zoom, Teams, Google Meet, etc.). This permission allows the app to record
-            audio from your computer's output, not your screen visuals.
+            BlueArkive needs Screen Recording permission to capture system audio from your meetings
+            (Zoom, Teams, Google Meet, etc.). This permission allows the app to record audio from
+            your computer's output, not your screen visuals.
           </p>
 
           {/* Step-by-Step Guide */}

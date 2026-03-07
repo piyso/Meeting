@@ -7,6 +7,7 @@
  */
 
 import React, { useState, useEffect } from 'react'
+import { Button } from './ui/Button'
 import { StereoMixErrorDialog } from './StereoMixErrorDialog'
 import type { PreFlightTestResult } from '../../types/ipc'
 import './StereoMixErrorDialog.css'
@@ -85,7 +86,9 @@ export const AudioSetup: React.FC = () => {
     return (
       <div className="audio-setup">
         <p>Failed to test audio devices</p>
-        <button onClick={runPreFlightTest}>Retry</button>
+        <Button variant="primary" onClick={runPreFlightTest} className="mt-4">
+          Retry
+        </Button>
       </div>
     )
   }
@@ -141,7 +144,9 @@ export const AudioSetup: React.FC = () => {
 
       {/* Show Dialog Button (for testing) */}
       {!testResult.systemAudio.available && testResult.systemAudio.guidance && (
-        <button onClick={() => setShowDialog(true)}>Show Setup Guide</button>
+        <Button variant="primary" onClick={() => setShowDialog(true)} className="mt-4">
+          Show Setup Guide
+        </Button>
       )}
 
       {/* Stereo Mix Error Dialog */}

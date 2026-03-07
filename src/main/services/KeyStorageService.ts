@@ -71,6 +71,7 @@ export enum KeyType {
   RECOVERY_PHRASE = 'recovery-phrase',
   PLAN_TIER = 'plan-tier',
   USER_ID = 'user-id',
+  BILLING_STATUS = 'billing-status',
 }
 
 /**
@@ -250,6 +251,7 @@ export class KeyStorageService {
       this.deleteKey(KeyType.REFRESH_TOKEN, userId),
       this.deleteKey(KeyType.RECOVERY_PHRASE, userId),
       this.deleteKey(KeyType.PLAN_TIER, userId),
+      this.deleteKey(KeyType.BILLING_STATUS, userId),
     ])
   }
 
@@ -325,5 +327,25 @@ export class KeyStorageService {
    */
   public static async clearCurrentUserId(): Promise<boolean> {
     return await this.deleteKey(KeyType.USER_ID, 'current')
+  }
+
+  /**
+   * Store billing status in keychain
+   *
+   * @param userId - User ID
+   * @param status - Billing status (active, past_due, cancelled, trial, unknown)
+   */
+  public static async storeBillingStatus(userId: string, status: string): Promise<void> {
+    await this.setKey(KeyType.BILLING_STATUS, userId, status)
+  }
+
+  /**
+   * Retrieve billing status from keychain
+   *
+   * @param userId - User ID
+   * @returns Billing status or null
+   */
+  public static async getBillingStatus(userId: string): Promise<string | null> {
+    return await this.getKey(KeyType.BILLING_STATUS, userId)
   }
 }

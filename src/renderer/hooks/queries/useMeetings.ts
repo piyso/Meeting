@@ -9,7 +9,7 @@ export function useMeetings(params: ListMeetingsParams = { limit: 50, offset: 0 
       if (!response.success) {
         throw new Error(response.error?.message || 'Failed to fetch meetings')
       }
-      return response.data!
+      return response.data ?? { items: [], total: 0, limit: 10, offset: 0, hasMore: false }
     },
   })
 }

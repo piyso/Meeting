@@ -1,5 +1,5 @@
-import React from 'react'
-import { useQuery } from '@tanstack/react-query'
+import React, { useState } from 'react'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import './MeetingListSidebar.css'
 
 interface MeetingListSidebarProps {
@@ -11,6 +11,9 @@ export const MeetingListSidebar: React.FC<MeetingListSidebarProps> = ({
   activeMeetingId,
   onMeetingSelect,
 }) => {
+  const queryClient = useQueryClient()
+  const [editingId, setEditingId] = useState<string | null>(null)
+  const [editTitle, setEditTitle] = useState('')
   // Fetch meetings using React Query
   const {
     data: response,
@@ -36,8 +39,34 @@ export const MeetingListSidebar: React.FC<MeetingListSidebarProps> = ({
   const sortedMeetings = [...meetings].sort((a, b) => b.start_time - a.start_time)
 
   const handleMeetingClick = (meetingId: string) => {
+    if (editingId) return // prevent selection during rename
     if (onMeetingSelect) {
       onMeetingSelect(meetingId)
+    }
+  }
+
+  const handleContextMenu = (e: React.MouseEvent, meetingId: string, currentTitle: string) => {
+    e.preventDefault()
+    setEditingId(meetingId)
+    setEditTitle(currentTitle)
+  }
+
+  const handleRenameSubmit = async (meetingId: string) => {
+    if (!editTitle.trim() || editTitle.trim() === '') {
+      setEditingId(null)
+      return
+    }
+
+    try {
+      await window.electronAPI.meeting.update({
+        meetingId: meetingId,
+        updates: { title: editTitle.trim() },
+      })
+      queryClient.invalidateQueries({ queryKey: ['meetings'] })
+    } catch (err) {
+      console.error('Failed to rename meeting', err)
+    } finally {
+      setEditingId(null)
     }
   }
 
@@ -106,12 +135,27 @@ export const MeetingListSidebar: React.FC<MeetingListSidebarProps> = ({
 
         {isError && (
           <div className="error-state">
-            <p className="error-message">
-              Failed to load meetings: {error instanceof Error ? error.message : 'Unknown error'}
-            </p>
-            <button className="retry-button" onClick={handleRefresh}>
-              Retry
-            </button>
+            {error instanceof Error && error.message.toLowerCase().includes('not authenticated') ? (
+              <>
+                <div className="empty-icon text-[var(--color-amber)] text-2xl mb-2">🔒</div>
+                <p className="empty-message text-[var(--color-text-primary)] font-medium">
+                  Please sign in
+                </p>
+                <p className="empty-hint mt-1 max-w-[180px] mx-auto text-[var(--color-text-secondary)] text-sm leading-relaxed">
+                  Sign in to view your meetings.
+                </p>
+              </>
+            ) : (
+              <>
+                <p className="error-message">
+                  Failed to load meetings:{' '}
+                  {error instanceof Error ? error.message : 'Unknown error'}
+                </p>
+                <button className="retry-button" onClick={handleRefresh}>
+                  Retry
+                </button>
+              </>
+            )}
           </div>
         )}
 
@@ -130,9 +174,27 @@ export const MeetingListSidebar: React.FC<MeetingListSidebarProps> = ({
                 key={meeting.id}
                 className={`meeting-item ${activeMeetingId === meeting.id ? 'active' : ''}`}
                 onClick={() => handleMeetingClick(meeting.id)}
+                onContextMenu={e => handleContextMenu(e, meeting.id, meeting.title || 'Untitled')}
               >
                 <div className="meeting-item-header">
-                  <h3 className="meeting-title">{meeting.title}</h3>
+                  {editingId === meeting.id ? (
+                    <input
+                      autoFocus
+                      value={editTitle}
+                      onChange={e => setEditTitle(e.target.value)}
+                      onBlur={() => handleRenameSubmit(meeting.id)}
+                      onKeyDown={e => {
+                        if (e.key === 'Enter') handleRenameSubmit(meeting.id)
+                        if (e.key === 'Escape') setEditingId(null)
+                      }}
+                      className="meeting-title-input w-full bg-[var(--color-bg-elevated)] border border-[var(--color-violet)] rounded px-1.5 py-0.5 text-[0.95rem] font-medium outline-none text-[var(--color-text-primary)] -mx-1.5 -my-0.5"
+                      onClick={e => e.stopPropagation()}
+                    />
+                  ) : (
+                    <h3 className="meeting-title relative group" title="Right click to rename">
+                      {meeting.title}
+                    </h3>
+                  )}
                 </div>
                 <div className="meeting-item-meta">
                   <div className="meeting-date">

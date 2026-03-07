@@ -24,16 +24,32 @@ export class PiyAPIBackend implements IBackendProvider {
   private baseUrl: string
   private accessToken: string | null = null
   private userId: string | null = null
+  private proxyMode: boolean = false
 
-  constructor(baseUrl: string = config.PIYAPI_BASE_URL) {
-    this.baseUrl = baseUrl
+  constructor(baseUrl: string = config.BLUEARKIVE_FUNCTIONS_URL || config.PIYAPI_BASE_URL) {
+    // Edge Functions proxy: requests go to /piyapi-proxy/memories etc.
+    // Direct PiyAPI: requests go to /api/v1/memories etc.
+    if (baseUrl && (baseUrl.includes('supabase') || baseUrl.includes('functions'))) {
+      this.baseUrl = baseUrl.endsWith('/piyapi-proxy') ? baseUrl : `${baseUrl}/piyapi-proxy`
+      this.proxyMode = true
+    } else {
+      const url = baseUrl || config.PIYAPI_BASE_URL
+      this.baseUrl = url.endsWith('/api/v1') ? url : `${url}/api/v1`
+    }
+  }
+
+  /**
+   * Check if backend is using Edge Function proxy mode
+   */
+  public isProxyMode(): boolean {
+    return this.proxyMode
   }
 
   /**
    * Get backend name
    */
   public getName(): string {
-    return 'PiyAPI'
+    return 'Sovereign Cloud'
   }
 
   /**
@@ -45,8 +61,16 @@ export class PiyAPIBackend implements IBackendProvider {
 
   /**
    * Login with email and password
+   * NOTE: In proxy mode, auth is handled by AuthService (Supabase).
+   * This method is only used in direct PiyAPI mode.
    */
   public async login(email: string, password: string): Promise<AuthTokens> {
+    if (this.proxyMode) {
+      throw new Error(
+        'Login is handled by AuthService in proxy mode. Use AuthService.login() instead.'
+      )
+    }
+
     const response = await fetch(`${this.baseUrl}/auth/login`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -62,12 +86,11 @@ export class PiyAPIBackend implements IBackendProvider {
     const tokens: AuthTokens = {
       accessToken: data.access_token || data.accessToken,
       refreshToken: data.refresh_token || data.refreshToken,
-      expiresIn: data.expires_in || data.expiresIn || 900, // Default 15 minutes
+      expiresIn: data.expires_in || data.expiresIn || 900,
       userId: data.user_id || data.userId,
       planTier: data.plan_tier || data.planTier || 'free',
     }
 
-    // Store tokens in OS keychain
     this.accessToken = tokens.accessToken
     this.userId = tokens.userId || email
 
@@ -82,8 +105,13 @@ export class PiyAPIBackend implements IBackendProvider {
 
   /**
    * Refresh access token
+   * NOTE: In proxy mode, refresh is handled by AuthService (Supabase).
    */
   public async refreshToken(refreshToken: string): Promise<AuthTokens> {
+    if (this.proxyMode) {
+      throw new Error('Token refresh is handled by AuthService in proxy mode.')
+    }
+
     const response = await fetch(`${this.baseUrl}/auth/refresh`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -104,7 +132,6 @@ export class PiyAPIBackend implements IBackendProvider {
       planTier: data.plan_tier || data.planTier,
     }
 
-    // Update stored tokens
     this.accessToken = tokens.accessToken
     if (this.userId) {
       await KeyStorageService.storeAccessToken(this.userId, tokens.accessToken)
@@ -116,22 +143,25 @@ export class PiyAPIBackend implements IBackendProvider {
 
   /**
    * Logout and invalidate tokens
+   * In proxy mode: only clears local state (Supabase signOut handled by AuthService)
    */
   public async logout(): Promise<void> {
     if (!this.accessToken) {
       return
     }
 
-    try {
-      await fetch(`${this.baseUrl}/auth/logout`, {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${this.accessToken}`,
-        },
-      })
-    } catch (error) {
-      // Continue with local cleanup even if server request fails
-      void error
+    // Only call PiyAPI logout in direct mode
+    if (!this.proxyMode) {
+      try {
+        await fetch(`${this.baseUrl}/auth/logout`, {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${this.accessToken}`,
+          },
+        })
+      } catch (error) {
+        void error
+      }
     }
 
     // Clear local tokens
@@ -394,17 +424,24 @@ export class PiyAPIBackend implements IBackendProvider {
 
   /**
    * Check backend health
+   * In proxy mode: pings the Edge Function URL to verify connectivity
    */
   public async healthCheck(): Promise<HealthStatus> {
     const start = Date.now()
 
     try {
       const controller = new AbortController()
-      const timeout = setTimeout(() => controller.abort(), 5000) // 5s timeout
+      const timeout = setTimeout(() => controller.abort(), 5000)
 
-      const response = await fetch(`${this.baseUrl}/health`, {
+      // In proxy mode, just check if the function endpoint is reachable
+      const healthUrl = this.proxyMode
+        ? `${this.baseUrl}/health` // Proxy will return its own response
+        : `${this.baseUrl}/health`
+
+      const response = await fetch(healthUrl, {
         method: 'GET',
         signal: controller.signal,
+        headers: this.accessToken ? { Authorization: `Bearer ${this.accessToken}` } : {},
       })
 
       clearTimeout(timeout)
@@ -416,6 +453,15 @@ export class PiyAPIBackend implements IBackendProvider {
           status: 'healthy',
           latency,
           version: data.version,
+        }
+      } else if (response.status === 401 || response.status === 403) {
+        // In proxy mode, auth errors mean the proxy is reachable
+        return {
+          status: this.proxyMode ? 'healthy' : 'degraded',
+          latency,
+          message: this.proxyMode
+            ? 'Proxy reachable (auth required for data)'
+            : `Backend returned ${response.status}`,
         }
       } else {
         return {

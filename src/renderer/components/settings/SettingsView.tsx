@@ -1,10 +1,30 @@
 import React, { useState, useEffect, useCallback } from 'react'
-import { Mic, Type, Brain, Shield, HardDrive, User, RefreshCw, Download } from 'lucide-react'
+import {
+  Mic,
+  Type,
+  Brain,
+  Shield,
+  HardDrive,
+  User,
+  RefreshCw,
+  Download,
+  Monitor,
+  Activity,
+  Database,
+  Lock,
+} from 'lucide-react'
 import { Select } from '../ui/Select'
 import { Toggle } from '../ui/Toggle'
 import { Badge } from '../ui/Badge'
 import { Button } from '../ui/Button'
 import { useAppStore } from '../../store/appStore'
+
+import { DeviceManagement } from './DeviceManagement'
+import { AIUsageMeter } from './AIUsageMeter'
+import { AuditLogViewer } from './AuditLogViewer'
+import { RecoveryKeySettings } from '../RecoveryKeySettings'
+import { UpgradePrompt } from './UpgradePrompt'
+import { openUpgrade } from '../../utils/openUpgrade'
 
 import { rendererLog } from '../../utils/logger'
 const log = rendererLog.create('Settings')
@@ -68,9 +88,42 @@ export const SettingsView: React.FC = () => {
   const [settings, setSettings] = useState<SettingsState>(DEFAULT_SETTINGS)
   const [loading, setLoading] = useState(true)
   const [modelStatus, setModelStatus] = useState<string>('Checking...')
-  const [userInfo, setUserInfo] = useState<{ email: string; tier: string } | null>(null)
+  const [userInfo, setUserInfo] = useState<{
+    email: string
+    tier: string
+    billingStatus?: string
+  } | null>(null)
   const [localMeetingCount, setLocalMeetingCount] = useState<number>(0)
   const [syncedMeetingCount, setSyncedMeetingCount] = useState<number>(0)
+  const [licenseKey, setLicenseKey] = useState('')
+  const [licenseStatus, setLicenseStatus] = useState<'idle' | 'loading' | 'success' | 'error'>(
+    'idle'
+  )
+  const [licenseError, setLicenseError] = useState('')
+
+  const handleActivateLicense = useCallback(async () => {
+    if (!licenseKey.trim()) return
+    setLicenseStatus('loading')
+    setLicenseError('')
+    try {
+      const res = await window.electronAPI?.auth?.activateLicense({ key: licenseKey.trim() })
+      if (res?.success && res.data) {
+        setLicenseStatus('success')
+        setUserInfo({ email: res.data.email, tier: res.data.tier, billingStatus: 'active' })
+        setLicenseKey('')
+        // Notify the rest of the app (AppLayout focus listener, etc.)
+        window.dispatchEvent(new CustomEvent('tier-refreshed', { detail: res.data }))
+        // Auto-clear success message after 5 seconds
+        setTimeout(() => setLicenseStatus('idle'), 5000)
+      } else {
+        setLicenseStatus('error')
+        setLicenseError(res?.error?.message || 'Invalid license key')
+      }
+    } catch {
+      setLicenseStatus('error')
+      setLicenseError('Failed to activate license key')
+    }
+  }, [licenseKey])
 
   // Load all settings from DB on mount
   useEffect(() => {
@@ -105,11 +158,17 @@ export const SettingsView: React.FC = () => {
         setModelStatus('Unavailable')
       }
 
-      // Load user info
+      // Load user info and billing status
       try {
         const userRes = await window.electronAPI?.auth?.getCurrentUser()
+        const billingRes = await window.electronAPI?.billing?.getStatus()
+
         if (userRes?.success && userRes.data) {
-          setUserInfo(userRes.data as { email: string; tier: string })
+          setUserInfo({
+            email: userRes.data.email,
+            tier: userRes.data.tier,
+            billingStatus: billingRes?.success ? billingRes.data?.status : undefined,
+          })
         }
       } catch (err) {
         log.warn('Not logged in or auth unavailable:', err)
@@ -252,9 +311,16 @@ export const SettingsView: React.FC = () => {
           <div className="flex items-center justify-between h-[40px]">
             <span className="text-[var(--text-sm)] text-[var(--color-text-secondary)]">
               Cloud transcription
+              {userInfo?.tier === 'free' && (
+                <Lock
+                  size={12}
+                  className="inline ml-1.5 opacity-60 text-[var(--color-amber)] mb-0.5"
+                />
+              )}
             </span>
             <Toggle
               checked={settings.useCloudTranscription}
+              disabled={userInfo?.tier === 'free'}
               onChange={e => updateSetting('useCloudTranscription', e.target.checked)}
             />
           </div>
@@ -270,9 +336,16 @@ export const SettingsView: React.FC = () => {
           <div className="flex items-center justify-between h-[40px]">
             <span className="text-[var(--text-sm)] text-[var(--color-text-secondary)]">
               Auto-expand notes
+              {userInfo?.tier === 'free' && (
+                <Lock
+                  size={12}
+                  className="inline ml-1.5 opacity-60 text-[var(--color-amber)] mb-0.5"
+                />
+              )}
             </span>
             <Toggle
               checked={settings.autoExpandNotes}
+              disabled={userInfo?.tier === 'free'}
               onChange={e => updateSetting('autoExpandNotes', e.target.checked)}
             />
           </div>
@@ -380,9 +453,16 @@ export const SettingsView: React.FC = () => {
               <div className="flex items-center justify-between h-[40px] px-2">
                 <span className="text-[var(--text-sm)] text-[var(--color-text-secondary)]">
                   Cloud Sync (E2EE)
+                  {userInfo?.tier === 'free' && (
+                    <Lock
+                      size={12}
+                      className="inline ml-1.5 opacity-60 text-[var(--color-amber)] mb-0.5"
+                    />
+                  )}
                 </span>
                 <Toggle
                   checked={settings.syncEnabled}
+                  disabled={userInfo?.tier === 'free'}
                   onChange={e => updateSetting('syncEnabled', e.target.checked)}
                 />
               </div>
@@ -448,46 +528,161 @@ export const SettingsView: React.FC = () => {
       ),
     },
     {
+      id: 'devices',
+      title: 'Devices',
+      icon: <Monitor size={20} className="text-[var(--color-indigo)]" />,
+      content: <DeviceManagement />,
+    },
+    {
+      id: 'ai-usage',
+      title: 'AI Usage',
+      icon: <Activity size={20} className="text-[var(--color-sky)]" />,
+      content: <AIUsageMeter />,
+    },
+    {
+      id: 'audit-logs',
+      title: 'Audit Logs',
+      icon: <Database size={20} className="text-[var(--color-amber)]" />,
+      content: <AuditLogViewer />,
+    },
+    {
+      id: 'diagnostics',
+      title: 'Diagnostics Export',
+      icon: <Download size={20} className="text-[var(--color-text-secondary)]" />,
+      content: (
+        <div className="flex items-center justify-between h-[40px]">
+          <span className="text-[var(--text-sm)] text-[var(--color-text-secondary)]">
+            Export secure system diagnostics
+          </span>
+          <Button
+            variant="secondary"
+            size="sm"
+            onClick={() => window.electronAPI?.diagnostic?.export()}
+          >
+            Export ZIP
+          </Button>
+        </div>
+      ),
+    },
+    {
       id: 'account',
       title: 'Account',
       icon: <User size={20} className="text-[var(--color-text-secondary)]" />,
       content: (
         <>
           {userInfo ? (
-            <>
-              <div className="flex items-center justify-between h-[40px]">
-                <span className="text-[var(--text-sm)] text-[var(--color-text-secondary)]">
-                  Email
-                </span>
-                <span className="text-[var(--text-sm)] text-[var(--color-text-primary)]">
-                  {userInfo.email}
-                </span>
+            <div className="flex flex-col gap-6">
+              <div className="flex flex-col gap-2">
+                <div className="flex items-center justify-between h-[40px]">
+                  <span className="text-[var(--text-sm)] text-[var(--color-text-secondary)]">
+                    Email
+                  </span>
+                  <span className="text-[var(--text-sm)] text-[var(--color-text-primary)]">
+                    {userInfo.email}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between h-[40px]">
+                  <span className="text-[var(--text-sm)] text-[var(--color-text-secondary)]">
+                    Plan
+                  </span>
+                  <Badge variant={userInfo.tier === 'pro' ? 'success' : 'default'}>
+                    {userInfo.tier.charAt(0).toUpperCase() + userInfo.tier.slice(1)}
+                  </Badge>
+                </div>
+                <div className="flex items-center justify-between min-h-[40px] gap-3">
+                  <span className="text-[var(--text-sm)] text-[var(--color-text-secondary)] whitespace-nowrap">
+                    License Key
+                  </span>
+                  <div className="flex gap-2 items-center">
+                    <input
+                      type="text"
+                      value={licenseKey}
+                      onChange={e => setLicenseKey(e.target.value.toUpperCase())}
+                      placeholder="BLUEARKIVE-PRO-XXXX-XXXX"
+                      className="px-3 py-1.5 text-[var(--text-sm)] bg-[var(--color-bg-elevated)] border border-[var(--color-border-subtle)] rounded-[var(--radius-md)] text-[var(--color-text-primary)] w-[220px] placeholder:text-[var(--color-text-tertiary)] focus:border-[var(--color-violet)] outline-none transition-colors"
+                      onKeyDown={e => e.key === 'Enter' && handleActivateLicense()}
+                    />
+                    <Button
+                      variant="primary"
+                      size="sm"
+                      onClick={handleActivateLicense}
+                      disabled={licenseStatus === 'loading' || !licenseKey.trim()}
+                    >
+                      {licenseStatus === 'loading' ? 'Activating...' : 'Activate'}
+                    </Button>
+                  </div>
+                </div>
+                {licenseStatus === 'error' && (
+                  <div className="text-[var(--text-xs)] text-red-400 text-right -mt-1">
+                    {licenseError}
+                  </div>
+                )}
+                {licenseStatus === 'success' && (
+                  <div className="text-[var(--text-xs)] text-green-400 text-right -mt-1">
+                    ✓ License activated successfully!
+                  </div>
+                )}
+
+                {/* Billing Status Warning */}
+                {userInfo.billingStatus === 'past_due' && (
+                  <div className="mt-2 p-3 rounded-md bg-red-500/10 border border-red-500/20 text-red-400 text-sm">
+                    ⚠️ Your subscription payment is past due. To continue enjoying premium features,
+                    please update your payment method.
+                  </div>
+                )}
+                {userInfo.billingStatus === 'cancelled' && (
+                  <div className="mt-2 p-3 rounded-md bg-amber-500/10 border border-amber-500/20 text-amber-400 text-sm">
+                    Your subscription has been cancelled and will end soon. Resubscribe to retain
+                    premium access.
+                  </div>
+                )}
+
+                <div className="flex items-center justify-between h-[40px]">
+                  <span className="text-[var(--text-sm)] text-[var(--color-text-secondary)]">
+                    Manage Subscription
+                  </span>
+                  <Button variant="secondary" size="sm" onClick={() => openUpgrade()}>
+                    Manage
+                  </Button>
+                </div>
+
+                <div className="flex items-center justify-between h-[40px]">
+                  <span className="text-[var(--text-sm)] text-[var(--color-text-secondary)]">
+                    Export data (GDPR)
+                  </span>
+                  <Button variant="secondary" size="sm" onClick={handleExportData}>
+                    <Download size={14} className="mr-1" /> Export
+                  </Button>
+                </div>
+                <div className="flex items-center justify-between h-[40px]">
+                  <span className="text-[var(--text-sm)] text-[var(--color-text-secondary)]">
+                    Sign out
+                  </span>
+                  <Button variant="danger" size="sm" onClick={handleLogout}>
+                    Logout
+                  </Button>
+                </div>
               </div>
-              <div className="flex items-center justify-between h-[40px]">
-                <span className="text-[var(--text-sm)] text-[var(--color-text-secondary)]">
-                  Plan
-                </span>
-                <Badge variant={userInfo.tier === 'pro' ? 'success' : 'default'}>
-                  {userInfo.tier.charAt(0).toUpperCase() + userInfo.tier.slice(1)}
-                </Badge>
+
+              <div className="pt-6 border-t border-[var(--color-border-subtle)]">
+                {userInfo.tier !== 'enterprise' && (
+                  <UpgradePrompt
+                    feature="cloudSync"
+                    featureLabel={
+                      userInfo.tier === 'free'
+                        ? 'Cloud Sync & AI Features'
+                        : 'Premium Tier Expansion'
+                    }
+                    currentTier={userInfo.tier}
+                    requiredTier={userInfo.tier === 'free' ? 'starter' : 'pro'}
+                    onUpgrade={() => {
+                      openUpgrade(userInfo.tier === 'free' ? 'starter' : 'pro')
+                    }}
+                  />
+                )}
+                <RecoveryKeySettings userId={userInfo.email} />
               </div>
-              <div className="flex items-center justify-between h-[40px]">
-                <span className="text-[var(--text-sm)] text-[var(--color-text-secondary)]">
-                  Export data (GDPR)
-                </span>
-                <Button variant="secondary" size="sm" onClick={handleExportData}>
-                  <Download size={14} className="mr-1" /> Export
-                </Button>
-              </div>
-              <div className="flex items-center justify-between h-[40px]">
-                <span className="text-[var(--text-sm)] text-[var(--color-text-secondary)]">
-                  Sign out
-                </span>
-                <Button variant="danger" size="sm" onClick={handleLogout}>
-                  Logout
-                </Button>
-              </div>
-            </>
+            </div>
           ) : (
             <div className="flex items-center justify-between h-[40px]">
               <span className="text-[var(--text-sm)] text-[var(--color-text-secondary)]">

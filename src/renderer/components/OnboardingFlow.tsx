@@ -3,7 +3,6 @@ import { useAppStore } from '../store/appStore'
 
 import { Button } from './ui/Button'
 import { Input } from './ui/Input'
-import { Badge } from './ui/Badge'
 import { PricingView } from './settings/PricingView'
 import { GhostMeetingTutorial } from './meeting/GhostMeetingTutorial'
 import { ModelDownloadProgress } from './ModelDownloadProgress'
@@ -304,11 +303,9 @@ export const OnboardingFlow: React.FC = () => {
               />
 
               {authError && (
-                <div className="flex items-center gap-2 p-3 rounded-lg bg-rose-500/10 border border-rose-500/20 text-rose-400 text-sm">
-                  <Badge variant="error" className="border-none bg-transparent px-0 w-4 h-4">
-                    !
-                  </Badge>
-                  {authError}
+                <div className="flex items-center gap-3 p-3.5 rounded-xl bg-[rgba(244,63,94,0.06)] border border-[rgba(244,63,94,0.3)] shadow-[0_0_15px_rgba(244,63,94,0.15),inset_0_0_0_1px_rgba(255,255,255,0.05)] text-rose-300 text-sm font-medium backdrop-blur-xl animate-slide-up">
+                  <div className="w-2 h-2 rounded-full bg-rose-500 shadow-[0_0_8px_rgba(244,63,94,1)] animate-pulse" />
+                  <span className="flex-1 tracking-wide">{authError}</span>
                 </div>
               )}
 
@@ -357,6 +354,35 @@ export const OnboardingFlow: React.FC = () => {
                   </>
                 )}
               </div>
+              {authMode === 'login' && (
+                <button
+                  type="button"
+                  className="mt-3 text-xs text-violet-400 hover:text-violet-300 cursor-pointer transition-colors bg-transparent border-none font-medium tracking-wide"
+                  onClick={async () => {
+                    if (!authEmail) {
+                      setAuthError('Enter your email first, then click Forgot Password')
+                      return
+                    }
+                    try {
+                      const result = await window.electronAPI?.auth?.forgotPassword?.({
+                        email: authEmail,
+                      })
+                      if (result?.success) {
+                        setAuthError(null)
+                        log.info('Password reset email sent')
+                        // Show a brief success message using the error display but styled differently
+                        setAuthError('✓ Password reset email sent — check your inbox')
+                      } else {
+                        setAuthError(result?.error?.message || 'Failed to send reset email')
+                      }
+                    } catch {
+                      setAuthError('Failed to send reset email')
+                    }
+                  }}
+                >
+                  Forgot password?
+                </button>
+              )}
             </div>
           </div>
         )}

@@ -10,6 +10,7 @@
  */
 
 import React, { useState, useEffect, useRef } from 'react'
+import { Button } from './ui/Button'
 import './SystemAudioTest.css'
 
 import { rendererLog } from '../utils/logger'
@@ -41,6 +42,7 @@ export const SystemAudioTest: React.FC<SystemAudioTestProps> = ({ onTestComplete
     return () => {
       stopTest()
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   const startTest = async () => {
@@ -86,21 +88,21 @@ export const SystemAudioTest: React.FC<SystemAudioTestProps> = ({ onTestComplete
       const stream = await navigator.mediaDevices.getDisplayMedia({
         audio: true,
         video: false,
-      } as any)
+      } as unknown as DisplayMediaStreamOptions)
 
       mediaStreamRef.current = stream
 
       // Create audio context and analyser
-      const audioContext = new AudioContext({ sampleRate: 16000 })
-      const source = audioContext.createMediaStreamSource(stream)
-      const analyser = audioContext.createAnalyser()
+      const ctx = new window.AudioContext({ sampleRate: 16000 })
+      const source = ctx.createMediaStreamSource(stream)
+      const analyser = ctx.createAnalyser()
 
       analyser.fftSize = 2048
       analyser.smoothingTimeConstant = 0.8
 
       source.connect(analyser)
 
-      audioContextRef.current = audioContext
+      audioContextRef.current = ctx
       analyserRef.current = analyser
 
       log.info('✅ System audio capture started')
@@ -124,7 +126,7 @@ export const SystemAudioTest: React.FC<SystemAudioTestProps> = ({ onTestComplete
       // Calculate RMS level
       let sum = 0
       for (let i = 0; i < dataArray.length; i++) {
-        const normalized = dataArray[i]! / 255
+        const normalized = (dataArray[i] ?? 0) / 255
         sum += normalized * normalized
       }
       const rms = Math.sqrt(sum / dataArray.length)
@@ -236,9 +238,9 @@ export const SystemAudioTest: React.FC<SystemAudioTestProps> = ({ onTestComplete
               </li>
             </ul>
           </div>
-          <button className="btn-start-test" onClick={startTest}>
+          <Button variant="primary" onClick={startTest} className="mt-4">
             🎬 Start System Audio Test
-          </button>
+          </Button>
         </div>
       )}
 
@@ -305,9 +307,9 @@ export const SystemAudioTest: React.FC<SystemAudioTestProps> = ({ onTestComplete
             <span className="peak-value">{Math.round(maxLevel * 100)}%</span>
           </div>
 
-          <button className="btn-stop-test" onClick={stopTest}>
+          <Button variant="secondary" onClick={stopTest} className="mt-4">
             ⏹️ Stop Test
-          </button>
+          </Button>
         </div>
       )}
 
@@ -341,10 +343,10 @@ export const SystemAudioTest: React.FC<SystemAudioTestProps> = ({ onTestComplete
             )}
           </div>
 
-          <div className="test-actions">
-            <button className="btn-test-again" onClick={resetTest}>
+          <div className="test-actions mt-4">
+            <Button variant="primary" onClick={resetTest}>
               🔄 Test Again
-            </button>
+            </Button>
           </div>
         </div>
       )}
@@ -357,9 +359,9 @@ export const SystemAudioTest: React.FC<SystemAudioTestProps> = ({ onTestComplete
             <h4>Test Failed</h4>
             <p className="error-message">{error}</p>
           </div>
-          <button className="btn-try-again" onClick={resetTest}>
+          <Button variant="primary" onClick={resetTest} className="mt-4">
             🔄 Try Again
-          </button>
+          </Button>
         </div>
       )}
     </div>

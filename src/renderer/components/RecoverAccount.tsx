@@ -121,7 +121,7 @@ export const RecoverAccount: React.FC<RecoverAccountProps> = ({ onRecoveryComple
               </div>
               <textarea
                 id="recovery-phrase"
-                className="w-full bg-slate-950/50 border border-[var(--color-border-subtle)] rounded-xl p-4 text-[var(--color-text-primary)] text-sm font-mono leading-relaxed focus:outline-none focus:ring-1 focus:ring-[var(--color-violet)]/50 focus:border-[var(--color-violet)] transition-all resize-none shadow-inner"
+                className="w-full surface-glass-premium bg-transparent border border-[var(--color-border-subtle)] rounded-xl p-4 text-[var(--color-text-primary)] text-sm font-mono leading-relaxed focus:outline-none focus:border-[var(--color-violet)] focus:shadow-[0_0_0_1px_var(--color-glow-violet)] transition-all resize-none"
                 value={recoveryPhrase}
                 onChange={handlePhraseChange}
                 placeholder="abandon ability able about above absent absorb abstract absurd abuse access accident..."

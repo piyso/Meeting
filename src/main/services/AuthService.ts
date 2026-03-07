@@ -1,20 +1,23 @@
 /**
  * Auth Service
  *
- * Handles authentication against PiyAPI backend.
- * - Email/password login + registration
- * - JWT token management (access + refresh)
+ * Handles authentication against Supabase backend.
+ * - Email/password login + registration (via Supabase Auth)
+ * - Session management (Supabase handles JWTs)
  * - Secure token storage via keytar
- * - Google OAuth via system browser
- * - Automatic token refresh
+ * - Google OAuth via system browser + bluearkive:// deeplink
+ * - Automatic session refresh
+ * - Profile refresh (tier detection from Supabase profiles table)
+ * - License key activation via Edge Function
  */
 
+import { createClient, SupabaseClient, Session } from '@supabase/supabase-js'
 import { Logger } from './Logger'
 import { config } from '../config/environment'
 
 const log = Logger.create('AuthService')
 
-// Token storage keys
+// Token storage keys (keytar)
 const TOKEN_SERVICE = 'bluearkive'
 const ACCESS_TOKEN_KEY = 'access-token'
 const REFRESH_TOKEN_KEY = 'refresh-token'
@@ -31,7 +34,7 @@ interface AuthTokens {
 interface UserInfo {
   id: string
   email: string
-  tier: 'free' | 'starter' | 'pro' | 'enterprise'
+  tier: 'free' | 'starter' | 'pro' | 'team' | 'enterprise'
 }
 
 interface AuthResult {
@@ -41,10 +44,17 @@ interface AuthResult {
 
 export class AuthService {
   private refreshTimer: ReturnType<typeof setTimeout> | null = null
-  private apiBase: string
+  private sessionTimer: ReturnType<typeof setInterval> | null = null
+  private lastActivityTime: number = Date.now()
+  private supabase: SupabaseClient
+  private functionsUrl: string
 
   constructor() {
-    this.apiBase = config.PIYAPI_BASE_URL || 'https://api.piyapi.cloud'
+    this.supabase = createClient(
+      config.SUPABASE_URL || 'https://placeholder.supabase.co',
+      config.SUPABASE_ANON_KEY || 'placeholder'
+    )
+    this.functionsUrl = config.BLUEARKIVE_FUNCTIONS_URL || ''
   }
 
   /**
@@ -54,34 +64,58 @@ export class AuthService {
     if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
       throw new Error('Invalid email format')
     }
-    if (!password || password.length < 1) {
-      throw new Error('Password is required')
+    if (!password || password.length < 8) {
+      throw new Error('Password must be at least 8 characters')
     }
 
     log.info('Attempting login', { email })
 
-    const response = await fetch(`${this.apiBase}/api/v1/auth/login`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email, password }),
+    const { data, error } = await this.supabase.auth.signInWithPassword({
+      email,
+      password,
     })
 
-    if (!response.ok) {
-      const err = await response.json().catch(() => ({}))
-      throw new Error(err.message || `Login failed: ${response.status}`)
+    if (error) {
+      throw new Error(error.message || 'Login failed')
     }
 
-    const data = await response.json()
-    const result = this.parseAuthResponse(data)
+    if (!data.session || !data.user) {
+      throw new Error('Login failed: no session returned')
+    }
+
+    const result = await this.buildAuthResult(data.session)
     await this.storeTokens(result)
     this.scheduleRefresh(result.tokens.expiresIn)
+    this.startSessionTimer()
 
     log.info('Login successful', { email, tier: result.user.tier })
     return result
   }
 
   /**
+   * Send a password reset email via Supabase
+   */
+  async forgotPassword(email: string): Promise<void> {
+    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      throw new Error('Invalid email format')
+    }
+
+    log.info('Sending password reset email', { email })
+
+    const { error } = await this.supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: 'bluearkive://auth/reset-password',
+    })
+
+    if (error) {
+      throw new Error(error.message || 'Failed to send reset email')
+    }
+
+    log.info('Password reset email sent', { email })
+  }
+
+  /**
    * Register a new account
+   * Note: on-signup Edge Function auto-creates PiyAPI account
    */
   async register(email: string, password: string): Promise<AuthResult> {
     if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
@@ -93,19 +127,20 @@ export class AuthService {
 
     log.info('Attempting registration', { email })
 
-    const response = await fetch(`${this.apiBase}/api/v1/auth/register`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email, password }),
+    const { data, error } = await this.supabase.auth.signUp({
+      email,
+      password,
     })
 
-    if (!response.ok) {
-      const err = await response.json().catch(() => ({}))
-      throw new Error(err.message || `Registration failed: ${response.status}`)
+    if (error) {
+      throw new Error(error.message || 'Registration failed')
     }
 
-    const data = await response.json()
-    const result = this.parseAuthResponse(data)
+    if (!data.session || !data.user) {
+      throw new Error('Registration successful but email confirmation may be required')
+    }
+
+    const result = await this.buildAuthResult(data.session)
     await this.storeTokens(result)
     this.scheduleRefresh(result.tokens.expiresIn)
 
@@ -114,10 +149,16 @@ export class AuthService {
   }
 
   /**
-   * Logout — clear all stored tokens
+   * Logout — clear Supabase session and all stored tokens
    */
   async logout(): Promise<void> {
     log.info('Logging out')
+
+    try {
+      await this.supabase.auth.signOut()
+    } catch (err) {
+      log.debug('Supabase signOut error (non-critical)', err)
+    }
 
     try {
       const keytar = await import('keytar')
@@ -135,6 +176,8 @@ export class AuthService {
       this.refreshTimer = null
     }
 
+    this.stopSessionTimer()
+
     log.info('Logout complete')
   }
 
@@ -151,24 +194,19 @@ export class AuthService {
         return null
       }
 
-      const response = await fetch(`${this.apiBase}/api/v1/auth/refresh`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${refreshToken}`,
-        },
+      const { data, error } = await this.supabase.auth.refreshSession({
+        refresh_token: refreshToken,
       })
 
-      if (!response.ok) {
-        log.warn('Token refresh failed', { status: response.status })
+      if (error || !data.session) {
+        log.warn('Token refresh failed', { error: error?.message })
         return null
       }
 
-      const data = await response.json()
       const tokens: AuthTokens = {
-        accessToken: data.access_token || data.accessToken,
-        refreshToken: data.refresh_token || data.refreshToken || refreshToken,
-        expiresIn: data.expires_in || data.expiresIn || 900,
+        accessToken: data.session.access_token,
+        refreshToken: data.session.refresh_token,
+        expiresIn: data.session.expires_in || 3600,
       }
 
       await keytar.default.setPassword(TOKEN_SERVICE, ACCESS_TOKEN_KEY, tokens.accessToken)
@@ -197,18 +235,19 @@ export class AuthService {
 
       // Decode JWT and check expiry
       try {
-        const payloadBase64 = token.split('.')[1]
-        if (payloadBase64) {
+        const parts = token.split('.')
+        const payloadBase64 = parts.length >= 3 ? parts[1] : undefined
+        if (payloadBase64 && typeof payloadBase64 === 'string' && payloadBase64.length > 0) {
           const payload = JSON.parse(Buffer.from(payloadBase64, 'base64').toString('utf-8'))
           const now = Math.floor(Date.now() / 1000)
-          if (payload.exp && payload.exp < now) {
+          if (typeof payload.exp === 'number' && payload.exp < now) {
             log.debug('Access token expired, attempting refresh')
             const refreshed = await this.refreshToken()
             return refreshed?.accessToken || null
           }
         }
       } catch {
-        // If JWT decode fails, return token as-is (non-JWT tokens)
+        // If JWT decode fails, return token as-is
       }
 
       return token
@@ -246,57 +285,94 @@ export class AuthService {
   }
 
   /**
-   * Initialize Google OAuth flow via system browser
+   * Initialize Google OAuth flow via system browser + deeplink
    */
   async startGoogleAuth(): Promise<void> {
-    const { shell } = await import('electron')
-    const callbackUrl = `${this.apiBase}/api/v1/auth/google/callback`
-    const authUrl = `${this.apiBase}/api/v1/auth/google?redirect_uri=${encodeURIComponent(callbackUrl)}`
-    await shell.openExternal(authUrl)
+    const { shell, app } = await import('electron')
+
+    // Register bluearkive:// protocol (idempotent)
+    app.setAsDefaultProtocolClient('bluearkive')
+
+    const { data, error } = await this.supabase.auth.signInWithOAuth({
+      provider: 'google',
+      options: {
+        redirectTo: 'bluearkive://auth/callback',
+        skipBrowserRedirect: true,
+      },
+    })
+
+    if (error || !data.url) {
+      throw new Error(error?.message || 'Failed to start Google OAuth')
+    }
+
+    await shell.openExternal(data.url)
     log.info('Google OAuth flow started in system browser')
+  }
+
+  /**
+   * Handle the OAuth callback from bluearkive://auth/callback?code=xxx
+   * Called from app.on('open-url') in main process
+   */
+  async handleOAuthCallback(url: string): Promise<AuthResult> {
+    const urlObj = new URL(url)
+    const code = urlObj.searchParams.get('code')
+
+    if (!code) {
+      throw new Error('No auth code in callback URL')
+    }
+
+    const { data, error } = await this.supabase.auth.exchangeCodeForSession(code)
+
+    if (error || !data.session) {
+      throw new Error(error?.message || 'Failed to exchange code for session')
+    }
+
+    const result = await this.buildAuthResult(data.session)
+    await this.storeTokens(result)
+    this.scheduleRefresh(result.tokens.expiresIn)
+    this.startSessionTimer()
+
+    log.info('Google OAuth login successful', { email: result.user.email })
+    return result
   }
 
   // ── Private helpers ──
 
-  private parseAuthResponse(data: unknown): AuthResult {
-    if (!data || typeof data !== 'object') {
-      throw new Error('Invalid auth response: expected object')
+  /**
+   * Build AuthResult from Supabase session, fetching tier from profiles table
+   */
+  private async buildAuthResult(session: Session): Promise<AuthResult> {
+    const user = session.user
+    if (!user.email) {
+      throw new Error('User has no email')
     }
 
-    const d = data as Record<string, unknown>
-    const user = (d.user || {}) as Record<string, unknown>
+    // Fetch tier from profiles table
+    let tier: UserInfo['tier'] = 'free'
+    try {
+      const { data: profile } = await this.supabase
+        .from('profiles')
+        .select('tier')
+        .eq('id', user.id)
+        .single()
 
-    const accessToken = (d.access_token || d.accessToken) as string | undefined
-    const refreshToken = (d.refresh_token || d.refreshToken) as string | undefined
-    const userId = (user.id || d.userId) as string | undefined
-    const email = (user.email || d.email) as string | undefined
-
-    if (!accessToken || typeof accessToken !== 'string') {
-      throw new Error('Invalid auth response: missing access_token')
+      if (profile?.tier) {
+        tier = profile.tier as UserInfo['tier']
+      }
+    } catch {
+      log.debug('Could not fetch profile tier, defaulting to free')
     }
-    if (!refreshToken || typeof refreshToken !== 'string') {
-      throw new Error('Invalid auth response: missing refresh_token')
-    }
-    if (!userId || typeof userId !== 'string') {
-      throw new Error('Invalid auth response: missing user id')
-    }
-    if (!email || typeof email !== 'string') {
-      throw new Error('Invalid auth response: missing email')
-    }
-
-    const rawExpiresIn = (d.expires_in ?? d.expiresIn ?? 900) as number
-    const tier = (user.tier || d.tier || 'free') as string
 
     return {
       tokens: {
-        accessToken,
-        refreshToken,
-        expiresIn: typeof rawExpiresIn === 'number' ? rawExpiresIn : 900,
+        accessToken: session.access_token,
+        refreshToken: session.refresh_token,
+        expiresIn: session.expires_in || 3600,
       },
       user: {
-        id: userId,
-        email,
-        tier: tier as UserInfo['tier'],
+        id: user.id,
+        email: user.email,
+        tier,
       },
     }
   }
@@ -314,6 +390,102 @@ export class AuthService {
     }
   }
 
+  /**
+   * Fetch latest user profile from Supabase and update local keytar.
+   * Called on window focus to detect tier changes after payment.
+   */
+  async refreshProfile(): Promise<UserInfo | null> {
+    try {
+      const token = await this.getAccessToken()
+      if (!token) return null
+
+      // Set the session so Supabase client can make authenticated requests
+      const { data: profile } = await this.supabase
+        .from('profiles')
+        .select('tier, billing_status')
+        .single()
+
+      if (!profile) return this.getCurrentUser()
+
+      const currentUser = await this.getCurrentUser()
+      if (!currentUser) return null
+
+      const tier = (profile.tier || 'free') as UserInfo['tier']
+      const billingStatus = profile.billing_status || 'active'
+
+      // Update local keytar with latest tier from server
+      const keytar = await import('keytar')
+      await keytar.default.setPassword(TOKEN_SERVICE, USER_TIER_KEY, tier)
+      await keytar.default.setPassword(TOKEN_SERVICE, 'billing_status', billingStatus)
+
+      if (billingStatus === 'past_due') {
+        log.warn('Billing issue: payment past due', { tier, billingStatus })
+      } else if (billingStatus === 'cancelled') {
+        log.warn('Billing issue: subscription cancelled', { tier, billingStatus })
+      }
+
+      log.info('Profile refreshed', { tier, billingStatus })
+      return { ...currentUser, tier }
+    } catch (err) {
+      log.debug('Profile refresh error', err)
+      return this.getCurrentUser()
+    }
+  }
+
+  /**
+   * Activate a license key to upgrade the user's tier.
+   * Calls the license-activate Edge Function.
+   */
+  async activateLicense(licenseKey: string): Promise<UserInfo> {
+    if (!licenseKey || typeof licenseKey !== 'string') {
+      throw new Error('License key is required')
+    }
+
+    const trimmed = licenseKey.trim().toUpperCase()
+    if (trimmed.length < 10) {
+      throw new Error('Invalid license key format')
+    }
+
+    const token = await this.getAccessToken()
+    if (!token) {
+      throw new Error('Not authenticated. Please sign in first.')
+    }
+
+    const response = await fetch(`${this.functionsUrl}/license-activate`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ key: trimmed }),
+    })
+
+    if (!response.ok) {
+      const errBody = await response.json().catch(() => ({}) as Record<string, unknown>)
+      const message =
+        (errBody as Record<string, unknown>).error ||
+        (response.status === 404
+          ? 'License activation service not available'
+          : response.status === 400
+            ? 'Invalid or expired license key'
+            : 'License activation failed')
+      throw new Error(message as string)
+    }
+
+    const data = (await response.json()) as Record<string, unknown>
+    const tier = ((data.tier as string) || 'free') as UserInfo['tier']
+
+    const currentUser = await this.getCurrentUser()
+    if (!currentUser) throw new Error('Not authenticated')
+
+    // Update local keytar with the new tier
+    const keytar = await import('keytar')
+    await keytar.default.setPassword(TOKEN_SERVICE, USER_TIER_KEY, tier)
+
+    log.info('License activated', { tier, key: trimmed.slice(0, 12) + '...' })
+    return { ...currentUser, tier }
+  }
+
   private scheduleRefresh(expiresInSeconds: number): void {
     if (this.refreshTimer) clearTimeout(this.refreshTimer)
 
@@ -324,6 +496,89 @@ export class AuthService {
     }, refreshMs)
 
     log.debug(`Token refresh scheduled in ${Math.round(refreshMs / 1000)}s`)
+  }
+
+  // ── Session Timeout ────────────────────────────────────────
+
+  /**
+   * Start session inactivity timeout.
+   * If SESSION_TIMEOUT_MS > 0, the session auto-expires after inactivity.
+   */
+  startSessionTimer(): void {
+    const timeoutMs = config.SESSION_TIMEOUT_MS
+    if (timeoutMs <= 0) return // Disabled
+
+    this.stopSessionTimer()
+    this.lastActivityTime = Date.now()
+    let warningSent = false
+
+    this.sessionTimer = setInterval(async () => {
+      const elapsed = Date.now() - this.lastActivityTime
+      const remaining = timeoutMs - elapsed
+      const WARNING_MS = 5 * 60_000 // 5 minutes before expiry
+
+      // Reset warning flag if user was active recently
+      if (remaining > WARNING_MS) {
+        warningSent = false
+      }
+
+      // Send warning 5 minutes before expiry (only once)
+      if (!warningSent && remaining > 0 && remaining <= WARNING_MS) {
+        warningSent = true
+        try {
+          const { BrowserWindow } = await import('electron')
+          const win = BrowserWindow.getAllWindows()[0]
+          if (win) {
+            win.webContents.send('session:expiring', {
+              remainingMs: remaining,
+              timeoutMs,
+            })
+          }
+        } catch {
+          // BrowserWindow not available
+        }
+      }
+
+      if (elapsed >= timeoutMs) {
+        log.info(`Session timed out after ${Math.round(elapsed / 1000)}s of inactivity`)
+        this.logout().catch(err => log.warn('Session timeout logout failed', err))
+        this.stopSessionTimer()
+
+        // Notify renderer to show re-login prompt
+        try {
+          const { BrowserWindow } = await import('electron')
+          const win = BrowserWindow.getAllWindows()[0]
+          if (win) {
+            win.webContents.send('session:expired', {
+              reason: 'inactivity',
+              timeoutMs,
+            })
+          }
+        } catch {
+          // BrowserWindow not available
+        }
+      }
+    }, 60_000) // Check every 60 seconds
+
+    log.info(`Session timeout enabled: ${Math.round(timeoutMs / 60000)} min`)
+  }
+
+  /**
+   * Record user activity to reset inactivity timer.
+   * Call from keyDown/mouseMove/IPC handlers.
+   */
+  recordActivity(): void {
+    this.lastActivityTime = Date.now()
+  }
+
+  /**
+   * Stop session inactivity timer.
+   */
+  private stopSessionTimer(): void {
+    if (this.sessionTimer) {
+      clearInterval(this.sessionTimer)
+      this.sessionTimer = null
+    }
   }
 }
 

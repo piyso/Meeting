@@ -186,14 +186,14 @@ async function loadMoonshineBase(): Promise<void> {
 
     // Load preprocessor model
     workerLog.info('Loading preprocessor...')
-    moonshinePreprocessor = await ort.InferenceSession.create(paths[1]!, {
+    moonshinePreprocessor = await ort.InferenceSession.create(paths[1] || '', {
       executionProviders: ['cpu'],
       graphOptimizationLevel: 'all',
     })
 
     // Load main model
     workerLog.info('Loading main model...')
-    moonshineSession = await ort.InferenceSession.create(paths[0]!, {
+    moonshineSession = await ort.InferenceSession.create(paths[0] || '', {
       executionProviders: ['cpu'],
       graphOptimizationLevel: 'all',
     })
@@ -256,7 +256,7 @@ async function transcribeWithMoonshine(audioBuffer: Float32Array): Promise<Trans
     const results = await moonshineSession.run(feeds)
 
     // Parse output
-    const outputData = results['output']!.data as Float32Array
+    const outputData = (results['output']?.data as Float32Array) || new Float32Array()
     const text = decodeTokens(outputData)
 
     const duration = (Date.now() - startTime) / 1000
@@ -296,7 +296,7 @@ async function preprocessAudio(audioBuffer: Float32Array): Promise<Float32Array>
 
   // Run preprocessing
   const results = await moonshinePreprocessor.run(feeds)
-  return results['output']!.data as Float32Array
+  return (results['output']?.data as Float32Array) || new Float32Array()
 }
 
 /**
@@ -307,7 +307,7 @@ function decodeTokens(tokens: Float32Array): string {
   // For production Moonshine, this maps ONNX output indices to vocabulary tokens
   const decoded: string[] = []
   for (let i = 0; i < tokens.length; i++) {
-    const tokenId = Math.round(tokens[i]!)
+    const tokenId = Math.round(tokens[i] ?? 0)
     if (tokenId > 0 && tokenId < 128) {
       decoded.push(String.fromCharCode(tokenId))
     } else if (tokenId === 0) {

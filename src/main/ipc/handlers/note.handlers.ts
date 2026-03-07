@@ -23,7 +23,7 @@ export function registerNoteHandlers(): void {
       const note = createNote({
         id: uuidv4(),
         meeting_id: params.meetingId,
-        timestamp: params.timestamp,
+        timestamp: params.timestamp ?? Math.floor(Date.now() / 1000),
         original_text: params.text,
       })
       return { success: true, data: note }
@@ -99,7 +99,7 @@ export function registerNoteHandlers(): void {
         }
       }
       deleteNote(params.noteId)
-      return { success: true }
+      return { success: true, data: undefined }
     } catch (error) {
       return {
         success: false,

@@ -50,6 +50,16 @@ export class ModelManager {
   private cachedTier: HardwareTier | null = null
   private log = Logger.create('ModelManager')
   private isLoading = false
+  private isUnloading = false
+  private unloadPromise: Promise<void> | null = null
+  private unloadResolve: (() => void) | null = null
+  private loadPromise: Promise<void> | null = null
+  private loadResolve: (() => void) | null = null
+
+  // Session pool — reuse sessions per use-case to avoid create/dispose overhead
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  private sessionPool: Map<string, { session: any; lastUsed: number }> = new Map()
+  private readonly SESSION_IDLE_MS = 60_000 // Dispose idle sessions after 60s
 
   /** Idle timeout varies by tier: 8GB=30s (aggressive), 12GB=60s, 16GB+=120s (warm) */
   private getIdleTimeout(): number {
@@ -132,25 +142,45 @@ export class ModelManager {
    * Resets the idle unload timer each time.
    */
   async ensureLLMLoaded(): Promise<void> {
+    // Wait for any in-progress unload to complete before loading
+    if (this.isUnloading && this.unloadPromise) {
+      const TIMEOUT = 10_000
+      try {
+        await Promise.race([
+          this.unloadPromise,
+          new Promise<void>((_, reject) =>
+            setTimeout(() => {
+              this.isUnloading = false // Force-clear stuck flag
+              reject(new Error('Timed out waiting for model unload'))
+            }, TIMEOUT)
+          ),
+        ])
+      } catch (err) {
+        this.log.warn((err as Error).message)
+      }
+    }
+
     if (this.llmLoaded && _context) {
       this.resetUnloadTimer()
       return
     }
 
-    if (this.isLoading) {
-      // Wait for current load to finish
-      await new Promise<void>(resolve => {
-        const check = setInterval(() => {
-          if (!this.isLoading) {
-            clearInterval(check)
-            resolve()
-          }
-        }, 100)
-      })
+    if (this.isLoading && this.loadPromise) {
+      // Wait for current load to finish (with 30s timeout)
+      const TIMEOUT = 30_000
+      await Promise.race([
+        this.loadPromise,
+        new Promise<void>((_, reject) =>
+          setTimeout(() => reject(new Error('Timed out waiting for model load')), TIMEOUT)
+        ),
+      ])
       return
     }
 
     this.isLoading = true
+    this.loadPromise = new Promise<void>(resolve => {
+      this.loadResolve = resolve
+    })
 
     try {
       const modelPath = this.getModelPath()
@@ -200,14 +230,22 @@ export class ModelManager {
       throw error
     } finally {
       this.isLoading = false
+      if (this.loadResolve) {
+        this.loadResolve()
+        this.loadResolve = null
+        this.loadPromise = null
+      }
     }
   }
 
   /**
    * Generate text from a prompt using the loaded LLM.
-   * Replaces all `fetch(OLLAMA_BASE_URL/api/generate)` calls.
+   * Uses session pool to reuse LlamaChatSession instances per use-case.
+   *
+   * @param options - Generation options
+   * @param sessionKey - Optional session key for pooling (e.g., 'askMeetings', 'digest')
    */
-  async generate(options: GenerateOptions): Promise<string> {
+  async generate(options: GenerateOptions, sessionKey?: string): Promise<string> {
     await this.ensureLLMLoaded()
     this.resetUnloadTimer()
 
@@ -217,9 +255,23 @@ export class ModelManager {
 
     try {
       const llamaModule = await import('node-llama-cpp')
-      const session = new llamaModule.LlamaChatSession({
-        contextSequence: _context.getSequence(),
-      })
+      const poolKey = sessionKey || '_default'
+
+      // Get or create session from pool
+      let session: InstanceType<typeof llamaModule.LlamaChatSession>
+      const cached = this.sessionPool.get(poolKey)
+      if (cached) {
+        session = cached.session
+        cached.lastUsed = Date.now()
+      } else {
+        session = new llamaModule.LlamaChatSession({
+          contextSequence: _context.getSequence(),
+        })
+        this.sessionPool.set(poolKey, { session, lastUsed: Date.now() })
+
+        // Schedule idle session cleanup
+        this.scheduleSessionCleanup()
+      }
 
       let fullResponse = ''
 
@@ -235,14 +287,62 @@ export class ModelManager {
         },
       })
 
-      // Clean up session
-      session.dispose()
-
       return (response ?? fullResponse).trim()
     } catch (error) {
+      // Session is broken — remove from pool so next call creates fresh one
+      if (sessionKey) {
+        const cached = this.sessionPool.get(sessionKey)
+        if (cached) {
+          try {
+            cached.session.dispose()
+          } catch {
+            /* ignore */
+          }
+          this.sessionPool.delete(sessionKey)
+        }
+      }
       this.log.error('AI generation failed', error)
       throw error
     }
+  }
+
+  /**
+   * Clean up idle sessions from the pool
+   */
+  private scheduleSessionCleanup(): void {
+    setTimeout(() => {
+      const now = Date.now()
+      for (const [key, entry] of this.sessionPool) {
+        if (now - entry.lastUsed > this.SESSION_IDLE_MS) {
+          try {
+            entry.session.dispose()
+          } catch {
+            /* ignore */
+          }
+          this.sessionPool.delete(key)
+          this.log.debug(`Session pool: disposed idle session '${key}'`)
+        }
+      }
+      // Reschedule if pool not empty
+      if (this.sessionPool.size > 0) {
+        this.scheduleSessionCleanup()
+      }
+    }, this.SESSION_IDLE_MS)
+  }
+
+  /**
+   * Dispose all pooled sessions (called during model unload)
+   */
+  private disposeAllSessions(): void {
+    for (const [key, entry] of this.sessionPool) {
+      try {
+        entry.session.dispose()
+      } catch {
+        /* ignore */
+      }
+      this.log.debug(`Session pool: disposed session '${key}' on unload`)
+    }
+    this.sessionPool.clear()
   }
 
   /**
@@ -272,8 +372,16 @@ export class ModelManager {
    */
   private async unloadLLM(): Promise<void> {
     if (!this.llmLoaded) return
+    if (this.isLoading) return // Don't unload while a load is in progress
 
+    this.isUnloading = true
+    this.unloadPromise = new Promise<void>(resolve => {
+      this.unloadResolve = resolve
+    })
     try {
+      // Dispose all pooled sessions before unloading model
+      this.disposeAllSessions()
+
       if (_context) {
         await _context.dispose()
         _context = null
@@ -288,6 +396,13 @@ export class ModelManager {
       this.log.info('AI model unloaded to free RAM')
     } catch (err) {
       this.log.debug('AI unload skipped', err)
+    } finally {
+      this.isUnloading = false
+      if (this.unloadResolve) {
+        this.unloadResolve()
+        this.unloadResolve = null
+        this.unloadPromise = null
+      }
     }
   }
 

@@ -82,7 +82,7 @@ export function registerSettingsHandlers(): void {
         JSON.stringify(params.value),
         now
       )
-      return { success: true }
+      return { success: true, data: undefined }
     } catch (error) {
       return {
         success: false,
@@ -110,7 +110,7 @@ export function registerSettingsHandlers(): void {
       ]
       const placeholders = PRESERVED_KEYS.map(() => '?').join(', ')
       db.prepare(`DELETE FROM settings WHERE key NOT IN (${placeholders})`).run(...PRESERVED_KEYS)
-      return { success: true }
+      return { success: true, data: undefined }
     } catch (error) {
       return {
         success: false,

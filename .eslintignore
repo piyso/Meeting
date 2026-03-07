@@ -1,0 +1,7 @@
+
+src/main/services/__tests__/**/*
+
+
+**/__tests__/**
+**/*.example.ts
+

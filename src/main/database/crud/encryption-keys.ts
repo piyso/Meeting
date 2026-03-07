@@ -19,7 +19,11 @@ export function createEncryptionKey(input: CreateEncryptionKeyInput): Encryption
 
   stmt.run(input.id, input.user_id, input.salt, input.recovery_phrase_hash || null)
 
-  return getEncryptionKeyById(input.id)!
+  const key = getEncryptionKeyById(input.id)
+  if (!key) {
+    throw new Error(`Failed to read back encryption key after INSERT: ${input.id}`)
+  }
+  return key
 }
 
 /**

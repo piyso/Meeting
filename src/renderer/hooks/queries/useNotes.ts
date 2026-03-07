@@ -12,7 +12,7 @@ export function useNotes(meetingId: string | null) {
       if (!response.success) {
         throw new Error(response.error?.message || 'Failed to fetch notes')
       }
-      return response.data!
+      return response.data ?? []
     },
     enabled: !!meetingId,
   })
@@ -21,7 +21,8 @@ export function useNotes(meetingId: string | null) {
     mutationFn: async (params: CreateNoteParams) => {
       const response = await window.electronAPI.note.create(params)
       if (!response.success) throw new Error(response.error?.message)
-      return response.data!
+      if (!response.data) throw new Error('Return data is undefined')
+      return response.data
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['notes', meetingId] })
@@ -32,7 +33,8 @@ export function useNotes(meetingId: string | null) {
     mutationFn: async (params: UpdateNoteParams) => {
       const response = await window.electronAPI.note.update(params)
       if (!response.success) throw new Error(response.error?.message)
-      return response.data!
+      if (!response.data) throw new Error('Return data is undefined')
+      return response.data
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['notes', meetingId] })

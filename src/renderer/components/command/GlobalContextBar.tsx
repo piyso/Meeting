@@ -13,7 +13,7 @@ interface GlobalContextBarProps {
 export const GlobalContextBar: React.FC<GlobalContextBarProps> = ({ open, onClose }) => {
   const [query, setQuery] = useState('')
   const deferredQuery = useDeferredValue(query)
-  const { navigate } = useAppStore()
+  const navigate = useAppStore(s => s.navigate)
 
   const searchParams = React.useMemo(() => ({ query: deferredQuery }), [deferredQuery])
   const { data: results, isLoading, isFetching } = useSemanticSearch(searchParams)
@@ -40,7 +40,9 @@ export const GlobalContextBar: React.FC<GlobalContextBarProps> = ({ open, onClos
   return createPortal(
     <div className="ui-cmd-overlay" onClick={onClose}>
       <div
-        className="ui-global-context-bar surface-glass-premium gpu-promoted slide-up"
+        className="ui-global-context-bar surface-glass-premium slide-up"
+        role="dialog"
+        aria-modal="false"
         onClick={e => e.stopPropagation()}
       >
         <div className="ui-cmd-input-row !border-none">

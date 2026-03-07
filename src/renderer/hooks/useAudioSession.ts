@@ -1,4 +1,6 @@
 import { useState, useCallback } from 'react'
+import { useAppStore } from '../store/appStore'
+import type { ScreenRecordingGuidance } from '../../types/ipc'
 
 import { rendererLog } from '../utils/logger'
 const log = rendererLog.create('AudioSession')
@@ -12,10 +14,11 @@ export type PermissionStatus =
   | 'unknown'
 
 export function useAudioSession(meetingId: string | null) {
+  const setRecordingStartTime = useAppStore(s => s.setRecordingStartTime)
   const [isCapturing, setIsCapturing] = useState(false)
   const [captureMode, setCaptureMode] = useState<CaptureMode>('system')
   const [permissionStatus, setPermissionStatus] = useState<PermissionStatus>('unknown')
-  const [guidance, setGuidance] = useState<any | null>(null)
+  const [guidance, setGuidance] = useState<ScreenRecordingGuidance | null>(null)
 
   const checkPermissionStatus = useCallback(async () => {
     try {
@@ -61,6 +64,8 @@ export function useAudioSession(meetingId: string | null) {
           setIsCapturing(false)
           throw new Error(result.error?.message || 'Failed to start capture')
         }
+        // Record the start time globally so DynamicIsland timer works
+        setRecordingStartTime(Date.now())
         return true
       } catch (error) {
         log.error('Error starting capture:', error)
@@ -68,7 +73,7 @@ export function useAudioSession(meetingId: string | null) {
         throw error
       }
     },
-    [meetingId, checkPermissionStatus]
+    [meetingId, checkPermissionStatus, setRecordingStartTime]
   )
 
   const stopCapture = useCallback(async () => {
@@ -77,11 +82,12 @@ export function useAudioSession(meetingId: string | null) {
       const result = await window.electronAPI.audio.stopCapture({ meetingId })
       if (result.success) {
         setIsCapturing(false)
+        setRecordingStartTime(null)
       }
     } catch (error) {
       log.error('Error stopping capture:', error)
     }
-  }, [meetingId])
+  }, [meetingId, setRecordingStartTime])
 
   return {
     isCapturing,

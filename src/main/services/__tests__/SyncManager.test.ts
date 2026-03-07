@@ -14,11 +14,15 @@ import { v4 as uuidv4 } from 'uuid'
 
 // Mock backend for testing
 class MockPiyAPIBackend extends PiyAPIBackend {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   public createMemoryCalls: any[] = []
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   public getMemoriesCalls: any[] = []
   public shouldFail: boolean = false
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   public mockMemories: any[] = []
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   async createMemory(memory: any): Promise<any> {
     this.createMemoryCalls.push(memory)
     if (this.shouldFail) {
@@ -30,8 +34,9 @@ class MockPiyAPIBackend extends PiyAPIBackend {
     }
   }
 
-  async getMemories(): Promise<any[]> {
-    this.getMemoriesCalls.push(arguments)
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  async getMemories(...args: any[]): Promise<any[]> {
+    this.getMemoriesCalls.push(args)
     return this.mockMemories
   }
 
@@ -51,6 +56,7 @@ describe('SyncManager', () => {
 
   before(async () => {
     // Initialize in-memory database for testing
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     initializeDatabase(':memory:' as any)
   })
 
@@ -91,9 +97,9 @@ describe('SyncManager', () => {
       // Verify all events are persisted
       const pendingEvents = getPendingSyncItems(10)
       assert.strictEqual(pendingEvents.length, 3)
-      assert.strictEqual(pendingEvents[0]!.table_name, 'meetings')
-      assert.strictEqual(pendingEvents[1]!.table_name, 'notes')
-      assert.strictEqual(pendingEvents[2]!.table_name, 'transcripts')
+      assert.strictEqual(pendingEvents[0]?.table_name, 'meetings')
+      assert.strictEqual(pendingEvents[1]?.table_name, 'notes')
+      assert.strictEqual(pendingEvents[2]?.table_name, 'transcripts')
     })
   })
 
@@ -109,9 +115,9 @@ describe('SyncManager', () => {
       syncManager.queueEvent('delete', 'transcripts', 'transcript-123', { id: 'transcript-123' })
 
       const events = getPendingSyncItems(10)
-      assert.strictEqual(events[0]!.operation_type, 'create')
-      assert.strictEqual(events[1]!.operation_type, 'update')
-      assert.strictEqual(events[2]!.operation_type, 'delete')
+      assert.strictEqual(events[0]?.operation_type, 'create')
+      assert.strictEqual(events[1]?.operation_type, 'update')
+      assert.strictEqual(events[2]?.operation_type, 'delete')
     })
   })
 
@@ -244,12 +250,12 @@ describe('SyncManager', () => {
 
       // Verify retry count increased
       const events = getPendingSyncItems(10)
-      assert.strictEqual(events[0]!.retry_count, 1)
+      assert.strictEqual(events[0]?.retry_count, 1)
 
       // Second attempt
       await syncManager.syncPendingEvents()
       const events2 = getPendingSyncItems(10)
-      assert.strictEqual(events2[0]!.retry_count, 2)
+      assert.strictEqual(events2[0]?.retry_count, 2)
     })
   })
 

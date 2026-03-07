@@ -1,8 +1,9 @@
-import { CloudAccessManager, PlanTier } from '../CloudAccessManager'
+import { describe, it, expect, beforeEach, vi, Mock } from 'vitest'
+import { CloudAccessManager } from '../CloudAccessManager'
 import { KeyStorageService } from '../KeyStorageService'
 
 // Mock KeyStorageService
-jest.mock('../KeyStorageService')
+vi.mock('../KeyStorageService')
 
 // Mock navigator.onLine
 Object.defineProperty(global.navigator, 'onLine', {
@@ -16,12 +17,12 @@ describe('CloudAccessManager', () => {
   beforeEach(() => {
     manager = new CloudAccessManager()
     manager.clearCache()
-    jest.clearAllMocks()
+    vi.clearAllMocks()
 
     // Default mocks
-    ;(KeyStorageService.getAllUsers as jest.Mock).mockResolvedValue(['user-123'])
-    ;(KeyStorageService.getPlanTier as jest.Mock).mockResolvedValue('pro')
-    ;(KeyStorageService.getAccessToken as jest.Mock).mockResolvedValue('valid-token')
+    ;(KeyStorageService.getAllUsers as Mock).mockResolvedValue(['user-123'])
+    ;(KeyStorageService.getPlanTier as Mock).mockResolvedValue('pro')
+    ;(KeyStorageService.getAccessToken as Mock).mockResolvedValue('valid-token')
     Object.defineProperty(global.navigator, 'onLine', { value: true, writable: true })
   })
 
@@ -33,7 +34,7 @@ describe('CloudAccessManager', () => {
     })
 
     it('should return false for Free tier', async () => {
-      ;(KeyStorageService.getPlanTier as jest.Mock).mockResolvedValue('free')
+      ;(KeyStorageService.getPlanTier as Mock).mockResolvedValue('free')
 
       const hasAccess = await manager.hasCloudAccess()
 
@@ -49,7 +50,7 @@ describe('CloudAccessManager', () => {
     })
 
     it('should return false when not logged in', async () => {
-      ;(KeyStorageService.getAllUsers as jest.Mock).mockResolvedValue([])
+      ;(KeyStorageService.getAllUsers as Mock).mockResolvedValue([])
 
       const hasAccess = await manager.hasCloudAccess()
 
@@ -57,7 +58,7 @@ describe('CloudAccessManager', () => {
     })
 
     it('should return false when access token is missing', async () => {
-      ;(KeyStorageService.getAccessToken as jest.Mock).mockResolvedValue(null)
+      ;(KeyStorageService.getAccessToken as Mock).mockResolvedValue(null)
 
       const hasAccess = await manager.hasCloudAccess()
 
@@ -65,7 +66,7 @@ describe('CloudAccessManager', () => {
     })
 
     it('should return false when access token is empty', async () => {
-      ;(KeyStorageService.getAccessToken as jest.Mock).mockResolvedValue('')
+      ;(KeyStorageService.getAccessToken as Mock).mockResolvedValue('')
 
       const hasAccess = await manager.hasCloudAccess()
 
@@ -73,7 +74,7 @@ describe('CloudAccessManager', () => {
     })
 
     it('should return true for Starter tier + online + logged in', async () => {
-      ;(KeyStorageService.getPlanTier as jest.Mock).mockResolvedValue('starter')
+      ;(KeyStorageService.getPlanTier as Mock).mockResolvedValue('starter')
 
       const hasAccess = await manager.hasCloudAccess()
 
@@ -81,7 +82,7 @@ describe('CloudAccessManager', () => {
     })
 
     it('should return true for Team tier + online + logged in', async () => {
-      ;(KeyStorageService.getPlanTier as jest.Mock).mockResolvedValue('team')
+      ;(KeyStorageService.getPlanTier as Mock).mockResolvedValue('team')
 
       const hasAccess = await manager.hasCloudAccess()
 
@@ -89,7 +90,7 @@ describe('CloudAccessManager', () => {
     })
 
     it('should return true for Enterprise tier + online + logged in', async () => {
-      ;(KeyStorageService.getPlanTier as jest.Mock).mockResolvedValue('enterprise')
+      ;(KeyStorageService.getPlanTier as Mock).mockResolvedValue('enterprise')
 
       const hasAccess = await manager.hasCloudAccess()
 
@@ -111,7 +112,7 @@ describe('CloudAccessManager', () => {
     })
 
     it('should return "not_logged_in" when user not logged in', async () => {
-      ;(KeyStorageService.getAllUsers as jest.Mock).mockResolvedValue([])
+      ;(KeyStorageService.getAllUsers as Mock).mockResolvedValue([])
 
       const status = await manager.getCloudAccessStatus()
 
@@ -125,7 +126,7 @@ describe('CloudAccessManager', () => {
     })
 
     it('should return "free_tier" for Free tier users', async () => {
-      ;(KeyStorageService.getPlanTier as jest.Mock).mockResolvedValue('free')
+      ;(KeyStorageService.getPlanTier as Mock).mockResolvedValue('free')
 
       const status = await manager.getCloudAccessStatus()
 
@@ -153,7 +154,7 @@ describe('CloudAccessManager', () => {
     })
 
     it('should return "token_expired" when access token is invalid', async () => {
-      ;(KeyStorageService.getAccessToken as jest.Mock).mockResolvedValue(null)
+      ;(KeyStorageService.getAccessToken as Mock).mockResolvedValue(null)
 
       const status = await manager.getCloudAccessStatus()
 
@@ -186,7 +187,7 @@ describe('CloudAccessManager', () => {
 
   describe('getFeatureAccess', () => {
     it('should return Free tier features', async () => {
-      ;(KeyStorageService.getPlanTier as jest.Mock).mockResolvedValue('free')
+      ;(KeyStorageService.getPlanTier as Mock).mockResolvedValue('free')
 
       const features = await manager.getFeatureAccess()
 
@@ -209,7 +210,7 @@ describe('CloudAccessManager', () => {
     })
 
     it('should return Starter tier features', async () => {
-      ;(KeyStorageService.getPlanTier as jest.Mock).mockResolvedValue('starter')
+      ;(KeyStorageService.getPlanTier as Mock).mockResolvedValue('starter')
 
       const features = await manager.getFeatureAccess()
 
@@ -232,7 +233,7 @@ describe('CloudAccessManager', () => {
     })
 
     it('should return Pro tier features', async () => {
-      ;(KeyStorageService.getPlanTier as jest.Mock).mockResolvedValue('pro')
+      ;(KeyStorageService.getPlanTier as Mock).mockResolvedValue('pro')
 
       const features = await manager.getFeatureAccess()
 
@@ -255,7 +256,7 @@ describe('CloudAccessManager', () => {
     })
 
     it('should return Team tier features', async () => {
-      ;(KeyStorageService.getPlanTier as jest.Mock).mockResolvedValue('team')
+      ;(KeyStorageService.getPlanTier as Mock).mockResolvedValue('team')
 
       const features = await manager.getFeatureAccess()
 
@@ -278,7 +279,7 @@ describe('CloudAccessManager', () => {
     })
 
     it('should return Enterprise tier features', async () => {
-      ;(KeyStorageService.getPlanTier as jest.Mock).mockResolvedValue('enterprise')
+      ;(KeyStorageService.getPlanTier as Mock).mockResolvedValue('enterprise')
 
       const features = await manager.getFeatureAccess()
 
@@ -302,7 +303,7 @@ describe('CloudAccessManager', () => {
 
     it('should disable cloud features when offline', async () => {
       Object.defineProperty(global.navigator, 'onLine', { value: false, writable: true })
-      ;(KeyStorageService.getPlanTier as jest.Mock).mockResolvedValue('pro')
+      ;(KeyStorageService.getPlanTier as Mock).mockResolvedValue('pro')
 
       const features = await manager.getFeatureAccess()
 
@@ -323,7 +324,7 @@ describe('CloudAccessManager', () => {
     })
 
     it('should return local mode message when not logged in', async () => {
-      ;(KeyStorageService.getAllUsers as jest.Mock).mockResolvedValue([])
+      ;(KeyStorageService.getAllUsers as Mock).mockResolvedValue([])
 
       const message = await manager.getStatusMessage()
 
@@ -331,7 +332,7 @@ describe('CloudAccessManager', () => {
     })
 
     it('should return local mode message for Free tier', async () => {
-      ;(KeyStorageService.getPlanTier as jest.Mock).mockResolvedValue('free')
+      ;(KeyStorageService.getPlanTier as Mock).mockResolvedValue('free')
 
       const message = await manager.getStatusMessage()
 
@@ -347,7 +348,7 @@ describe('CloudAccessManager', () => {
     })
 
     it('should return session expired message when token invalid', async () => {
-      ;(KeyStorageService.getAccessToken as jest.Mock).mockResolvedValue(null)
+      ;(KeyStorageService.getAccessToken as Mock).mockResolvedValue(null)
 
       const message = await manager.getStatusMessage()
 
@@ -357,7 +358,7 @@ describe('CloudAccessManager', () => {
 
   describe('isFeatureAvailable', () => {
     it('should return true for available boolean features', async () => {
-      ;(KeyStorageService.getPlanTier as jest.Mock).mockResolvedValue('pro')
+      ;(KeyStorageService.getPlanTier as Mock).mockResolvedValue('pro')
 
       const available = await manager.isFeatureAvailable('cloudAI')
 
@@ -365,7 +366,7 @@ describe('CloudAccessManager', () => {
     })
 
     it('should return false for unavailable boolean features', async () => {
-      ;(KeyStorageService.getPlanTier as jest.Mock).mockResolvedValue('free')
+      ;(KeyStorageService.getPlanTier as Mock).mockResolvedValue('free')
 
       const available = await manager.isFeatureAvailable('cloudAI')
 
@@ -373,7 +374,7 @@ describe('CloudAccessManager', () => {
     })
 
     it('should return true for numeric features > 0', async () => {
-      ;(KeyStorageService.getPlanTier as jest.Mock).mockResolvedValue('starter')
+      ;(KeyStorageService.getPlanTier as Mock).mockResolvedValue('starter')
 
       const available = await manager.isFeatureAvailable('monthlyAIQueries')
 
@@ -381,7 +382,7 @@ describe('CloudAccessManager', () => {
     })
 
     it('should return false for numeric features = 0', async () => {
-      ;(KeyStorageService.getPlanTier as jest.Mock).mockResolvedValue('free')
+      ;(KeyStorageService.getPlanTier as Mock).mockResolvedValue('free')
 
       const available = await manager.isFeatureAvailable('monthlyAIQueries')
 
@@ -423,7 +424,7 @@ describe('CloudAccessManager', () => {
 
   describe('Error handling', () => {
     it('should handle KeyStorageService errors gracefully', async () => {
-      ;(KeyStorageService.getAllUsers as jest.Mock).mockRejectedValue(new Error('Keytar error'))
+      ;(KeyStorageService.getAllUsers as Mock).mockRejectedValue(new Error('Keytar error'))
 
       const status = await manager.getCloudAccessStatus()
 
@@ -432,7 +433,7 @@ describe('CloudAccessManager', () => {
     })
 
     it('should default to free tier on error', async () => {
-      ;(KeyStorageService.getPlanTier as jest.Mock).mockRejectedValue(new Error('Keytar error'))
+      ;(KeyStorageService.getPlanTier as Mock).mockRejectedValue(new Error('Keytar error'))
 
       const status = await manager.getCloudAccessStatus()
 
@@ -440,7 +441,7 @@ describe('CloudAccessManager', () => {
     })
 
     it('should handle access token check errors', async () => {
-      ;(KeyStorageService.getAccessToken as jest.Mock).mockRejectedValue(new Error('Keytar error'))
+      ;(KeyStorageService.getAccessToken as Mock).mockRejectedValue(new Error('Keytar error'))
 
       const status = await manager.getCloudAccessStatus()
 
@@ -451,16 +452,16 @@ describe('CloudAccessManager', () => {
   describe('Real-world scenarios', () => {
     it('should handle user login flow', async () => {
       // Start not logged in
-      ;(KeyStorageService.getAllUsers as jest.Mock).mockResolvedValue([])
+      ;(KeyStorageService.getAllUsers as Mock).mockResolvedValue([])
 
       let status = await manager.getCloudAccessStatus()
       expect(status.hasAccess).toBe(false)
       expect(status.reason).toBe('not_logged_in')
 
       // User logs in
-      ;(KeyStorageService.getAllUsers as jest.Mock).mockResolvedValue(['user-123'])
-      ;(KeyStorageService.getPlanTier as jest.Mock).mockResolvedValue('pro')
-      ;(KeyStorageService.getAccessToken as jest.Mock).mockResolvedValue('valid-token')
+      ;(KeyStorageService.getAllUsers as Mock).mockResolvedValue(['user-123'])
+      ;(KeyStorageService.getPlanTier as Mock).mockResolvedValue('pro')
+      ;(KeyStorageService.getAccessToken as Mock).mockResolvedValue('valid-token')
       manager.clearCache()
 
       status = await manager.getCloudAccessStatus()
@@ -487,7 +488,7 @@ describe('CloudAccessManager', () => {
 
     it('should handle tier upgrade flow', async () => {
       // Start with Free tier
-      ;(KeyStorageService.getPlanTier as jest.Mock).mockResolvedValue('free')
+      ;(KeyStorageService.getPlanTier as Mock).mockResolvedValue('free')
 
       let features = await manager.getFeatureAccess()
       expect(features.deviceLimit).toBe(1)
@@ -495,7 +496,7 @@ describe('CloudAccessManager', () => {
 
       // Upgrade to Pro
       await manager.updateUserTier('user-123', 'pro')
-      ;(KeyStorageService.getPlanTier as jest.Mock).mockResolvedValue('pro')
+      ;(KeyStorageService.getPlanTier as Mock).mockResolvedValue('pro')
 
       features = await manager.getFeatureAccess()
       expect(features.deviceLimit).toBe(Infinity)

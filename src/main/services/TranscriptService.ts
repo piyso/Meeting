@@ -91,6 +91,7 @@ export class TranscriptService extends EventEmitter {
 
   /**
    * Generate and store embedding for a transcript (non-blocking)
+   * Stores as BLOB (Float32Array binary) in embedding_blob column for ~4× disk savings
    */
   private async generateEmbeddingAsync(transcriptId: string, text: string): Promise<void> {
     try {
@@ -100,10 +101,10 @@ export class TranscriptService extends EventEmitter {
       const result = await embeddingService.embed(text)
       const { getDatabase } = await import('../database/connection')
       const db = getDatabase()
-      db.prepare('UPDATE transcripts SET embedding = ? WHERE id = ?').run(
-        JSON.stringify(result.embedding),
-        transcriptId
-      )
+
+      // Store as raw Float32Array binary (BLOB) instead of JSON text
+      const buffer = Buffer.from(new Float32Array(result.embedding).buffer)
+      db.prepare('UPDATE transcripts SET embedding_blob = ? WHERE id = ?').run(buffer, transcriptId)
 
       log.debug(`Embedding generated for transcript ${transcriptId}`)
     } catch {
@@ -185,10 +186,12 @@ export class TranscriptService extends EventEmitter {
       .join('\n')
 
     const startTime =
-      transcripts.length > 0 ? transcripts[0]!.start_time : timestamp - beforeSeconds
+      transcripts.length > 0
+        ? (transcripts[0]?.start_time ?? timestamp - beforeSeconds)
+        : timestamp - beforeSeconds
     const endTime =
       transcripts.length > 0
-        ? transcripts[transcripts.length - 1]!.end_time
+        ? (transcripts[transcripts.length - 1]?.end_time ?? timestamp + afterSeconds)
         : timestamp + afterSeconds
 
     return {

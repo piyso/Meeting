@@ -7,7 +7,7 @@
  *  - auth:logout — Clear session
  *  - auth:getCurrentUser — Get stored user info
  *  - auth:isAuthenticated — Check auth status
- *  - auth:generateRecoveryKey — Generate a 12-word BIP39-style recovery phrase
+ *  - auth:generateRecoveryKey — Generate a 24-word BIP39-style recovery phrase
  *  - auth:googleAuth — Start Google OAuth flow
  *  - auth:refreshToken — Manually refresh token
  */
@@ -363,7 +363,7 @@ export function registerAuthHandlers(): void {
     try {
       const { getAuthService } = await import('../../services/AuthService')
       await getAuthService().logout()
-      return { success: true }
+      return { success: true, data: undefined }
     } catch (error) {
       return {
         success: false,
@@ -410,7 +410,7 @@ export function registerAuthHandlers(): void {
     try {
       const { getAuthService } = await import('../../services/AuthService')
       await getAuthService().startGoogleAuth()
-      return { success: true }
+      return { success: true, data: undefined }
     } catch (error) {
       return {
         success: false,
@@ -441,7 +441,7 @@ export function registerAuthHandlers(): void {
     }
   })
 
-  // auth:generateRecoveryKey — Generate a 12-word recovery phrase
+  // auth:generateRecoveryKey — Generate a 24-word recovery phrase
   ipcMain.handle('auth:generateRecoveryKey', async () => {
     try {
       const phrase = generateRecoveryPhrase()
@@ -466,6 +466,95 @@ export function registerAuthHandlers(): void {
         success: false,
         error: {
           code: 'AUTH_RECOVERY_KEY_FAILED',
+          message: (error as Error).message,
+          timestamp: Date.now(),
+        },
+      }
+    }
+  })
+
+  // auth:recordActivity — Reset session inactivity timer
+  ipcMain.handle('auth:recordActivity', async () => {
+    try {
+      const { getAuthService } = await import('../../services/AuthService')
+      getAuthService().recordActivity()
+      return { success: true, data: undefined }
+    } catch {
+      return { success: true } // Non-critical — don't error on activity tracking
+    }
+  })
+
+  // auth:refreshProfile — Fetch latest user info from PiyAPI (detects tier upgrades)
+  ipcMain.handle('auth:refreshProfile', async () => {
+    try {
+      const { getAuthService } = await import('../../services/AuthService')
+      const user = await getAuthService().refreshProfile()
+      return { success: true, data: user }
+    } catch (error) {
+      return {
+        success: false,
+        error: {
+          code: 'AUTH_REFRESH_PROFILE_FAILED',
+          message: (error as Error).message,
+          timestamp: Date.now(),
+        },
+      }
+    }
+  })
+
+  // auth:activateLicense — Validate and activate a license key to upgrade user tier
+  ipcMain.handle('auth:activateLicense', async (_, params: unknown) => {
+    try {
+      const { key } = (params || {}) as { key?: string }
+      if (!key || typeof key !== 'string' || key.trim().length === 0) {
+        return {
+          success: false,
+          error: {
+            code: 'INVALID_INPUT',
+            message: 'License key is required',
+            timestamp: Date.now(),
+          },
+        }
+      }
+
+      const { getAuthService } = await import('../../services/AuthService')
+      const user = await getAuthService().activateLicense(key)
+      return { success: true, data: user }
+    } catch (error) {
+      return {
+        success: false,
+        error: {
+          code: 'LICENSE_ACTIVATION_FAILED',
+          message: (error as Error).message,
+          timestamp: Date.now(),
+        },
+      }
+    }
+  })
+
+  // auth:forgotPassword — Send password reset email via Supabase
+  ipcMain.handle('auth:forgotPassword', async (_, params: unknown) => {
+    try {
+      const { email } = (params || {}) as { email?: string }
+      if (!email || typeof email !== 'string' || email.trim().length === 0) {
+        return {
+          success: false,
+          error: {
+            code: 'INVALID_INPUT',
+            message: 'Email is required',
+            timestamp: Date.now(),
+          },
+        }
+      }
+
+      const { getAuthService } = await import('../../services/AuthService')
+      await getAuthService().forgotPassword(email)
+      return { success: true, data: undefined }
+    } catch (error) {
+      return {
+        success: false,
+        error: {
+          code: 'AUTH_RESET_FAILED',
           message: (error as Error).message,
           timestamp: Date.now(),
         },

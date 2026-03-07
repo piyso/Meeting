@@ -164,6 +164,7 @@ export function registerMeetingHandlers(): void {
 
         return {
           success: true,
+          data: undefined,
         }
       } catch (error) {
         log.error('Failed to stop meeting:', error)
@@ -350,7 +351,8 @@ export function registerMeetingHandlers(): void {
 
         const format = params.format || 'json'
 
-        if (format === 'markdown') {
+        if (format === 'markdown' || format === 'pdf') {
+          // For PDF requests, generate markdown (PDF rendering is a frontend concern)
           const md = [
             `# ${meeting.title || 'Meeting'}`,
             `**Date:** ${new Date(meeting.start_time * 1000).toLocaleString()}`,

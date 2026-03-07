@@ -74,8 +74,8 @@ export class ConflictResolver {
 
     // Conflict detected - get versions
     const db = getDatabaseService().getDb()
-    const localNote = db.prepare('SELECT content FROM notes WHERE id = ?').get(noteId) as
-      | { content: string }
+    const localNote = db.prepare('SELECT original_text FROM notes WHERE id = ?').get(noteId) as
+      | { original_text: string }
       | undefined
 
     if (!localNote) {
@@ -84,7 +84,7 @@ export class ConflictResolver {
 
     return {
       noteId,
-      localVersion: localNote.content,
+      localVersion: localNote.original_text,
       remoteVersion: '', // Will be filled by caller
       localClock,
       remoteClock,
@@ -193,9 +193,9 @@ export class ConflictResolver {
       const db = getDatabaseService().getDb()
 
       // Update note content
-      db.prepare('UPDATE notes SET content = ?, updated_at = ? WHERE id = ?').run(
+      db.prepare('UPDATE notes SET original_text = ?, updated_at = ? WHERE id = ?').run(
         resolution.resolvedVersion,
-        new Date().toISOString(),
+        Math.floor(Date.now() / 1000),
         resolution.noteId
       )
 
@@ -231,15 +231,16 @@ export class ConflictResolver {
     // Get local version
     const db = getDatabaseService().getDb()
     const localNote = db
-      .prepare('SELECT content, vector_clock FROM notes WHERE id = ?')
-      .get(noteId) as { content: string; vector_clock: string } | undefined
+      .prepare('SELECT original_text, vector_clock FROM notes WHERE id = ?')
+      .get(noteId) as { original_text: string; vector_clock: string } | undefined
 
     if (!localNote) {
       // Note doesn't exist locally - create it
       const clockJson = this.vectorClockManager.serialize(remoteClock)
+      const now = Math.floor(Date.now() / 1000)
       db.prepare(
-        'INSERT INTO notes (id, content, vector_clock, created_at, updated_at) VALUES (?, ?, ?, ?, ?)'
-      ).run(noteId, remoteVersion, clockJson, new Date().toISOString(), new Date().toISOString())
+        'INSERT INTO notes (id, meeting_id, timestamp, original_text, vector_clock, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)'
+      ).run(noteId, 'unknown', now, remoteVersion, clockJson, now, now)
       return null
     }
 
@@ -252,12 +253,10 @@ export class ConflictResolver {
     if (comparison === 'remote_newer') {
       // Remote is newer - update local
       const clockJson = this.vectorClockManager.serialize(remoteClock)
-      db.prepare('UPDATE notes SET content = ?, vector_clock = ?, updated_at = ? WHERE id = ?').run(
-        remoteVersion,
-        clockJson,
-        new Date().toISOString(),
-        noteId
-      )
+      const now = Math.floor(Date.now() / 1000)
+      db.prepare(
+        'UPDATE notes SET original_text = ?, vector_clock = ?, updated_at = ? WHERE id = ?'
+      ).run(remoteVersion, clockJson, now, noteId)
       return null
     } else if (comparison === 'local_newer') {
       // Local is newer - no update needed
@@ -266,7 +265,7 @@ export class ConflictResolver {
       // Concurrent edits - conflict detected
       const conflict: ConflictInfo = {
         noteId,
-        localVersion: localNote.content,
+        localVersion: localNote.original_text,
         remoteVersion,
         localClock,
         remoteClock,

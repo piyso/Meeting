@@ -43,7 +43,11 @@ export function createSyncQueueItem(input: CreateSyncQueueInput): SyncQueueItem 
     input.payload ? JSON.stringify(input.payload) : null
   )
 
-  return getSyncQueueItemById(input.id)!
+  const item = getSyncQueueItemById(input.id)
+  if (!item) {
+    throw new Error(`Failed to read back sync queue item after INSERT: ${input.id}`)
+  }
+  return item
 }
 
 /**

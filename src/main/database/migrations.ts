@@ -33,14 +33,67 @@ export const MIGRATIONS: Migration[] = [
     down: undefined,
   },
 
-  // Future migrations will be added here
-  // Example:
-  // {
-  //   version: 2,
-  //   name: 'add_meeting_tags_index',
-  //   up: 'CREATE INDEX idx_meetings_tags ON meetings(tags);',
-  //   down: 'DROP INDEX IF EXISTS idx_meetings_tags;'
-  // }
+  // Migration 2: Schema improvements — indexes, FTS5 speaker search, bookmarks
+  {
+    version: 2,
+    name: 'schema_improvements_v2',
+    up: [
+      // Faster meeting list sorting (was full table scan)
+      'CREATE INDEX IF NOT EXISTS idx_meetings_start_time ON meetings(start_time);',
+      // Tag-based filtering (was full table scan)
+      'CREATE INDEX IF NOT EXISTS idx_meetings_tags ON meetings(tags);',
+      // Bookmarkable transcript segments
+      'ALTER TABLE transcripts ADD COLUMN is_pinned INTEGER DEFAULT 0;',
+      // Rebuild FTS5 to include speaker_name — enables "what did John say?" queries.
+      // FTS5 column sets cannot be altered in-place, so we must DROP + CREATE + rebuild.
+      'DROP TABLE IF EXISTS transcripts_fts;',
+      `CREATE VIRTUAL TABLE transcripts_fts USING fts5(
+        text, speaker_name, content=transcripts, content_rowid=rowid
+      );`,
+      // Re-create FTS triggers for the new column set
+      'DROP TRIGGER IF EXISTS transcripts_fts_insert;',
+      'DROP TRIGGER IF EXISTS transcripts_fts_delete;',
+      'DROP TRIGGER IF EXISTS transcripts_fts_update;',
+      `CREATE TRIGGER transcripts_fts_insert AFTER INSERT ON transcripts BEGIN
+        INSERT INTO transcripts_fts(rowid, text, speaker_name) VALUES (new.rowid, new.text, new.speaker_name);
+      END;`,
+      `CREATE TRIGGER transcripts_fts_delete AFTER DELETE ON transcripts BEGIN
+        INSERT INTO transcripts_fts(transcripts_fts, rowid, text, speaker_name)
+        VALUES ('delete', old.rowid, old.text, old.speaker_name);
+      END;`,
+      `CREATE TRIGGER transcripts_fts_update AFTER UPDATE ON transcripts BEGIN
+        INSERT INTO transcripts_fts(transcripts_fts, rowid, text, speaker_name)
+        VALUES ('delete', old.rowid, old.text, old.speaker_name);
+        INSERT INTO transcripts_fts(rowid, text, speaker_name) VALUES (new.rowid, new.text, new.speaker_name);
+      END;`,
+      // Rebuild FTS5 index from existing transcript data
+      "INSERT INTO transcripts_fts(transcripts_fts) VALUES('rebuild');",
+    ].join('\n'),
+    down: [
+      'DROP INDEX IF EXISTS idx_meetings_start_time;',
+      'DROP INDEX IF EXISTS idx_meetings_tags;',
+      // Note: ALTER TABLE DROP COLUMN is only supported in SQLite 3.35+
+      // For safety, we leave is_pinned in the down migration
+    ].join('\n'),
+  },
+
+  // Migration 3: Convert embedding TEXT → BLOB for ~4× disk savings
+  // 384 floats as JSON ≈ 3 KB; as raw Float32 ≈ 1.5 KB per row
+  {
+    version: 3,
+    name: 'embedding_text_to_blob',
+    up: [
+      // 1. Add new BLOB column
+      'ALTER TABLE transcripts ADD COLUMN embedding_blob BLOB;',
+      // 2. The actual TEXT→BLOB conversion must happen in JS (see applyMigration override)
+      //    because SQLite cannot natively cast JSON text to a binary buffer.
+      //    We leave a marker comment; the JS hook in applyMigration handles it.
+    ].join('\n'),
+    down: [
+      // SQLite 3.35+ supports ALTER TABLE DROP COLUMN
+      'ALTER TABLE transcripts DROP COLUMN embedding_blob;',
+    ].join('\n'),
+  },
 ]
 
 /**
@@ -77,6 +130,32 @@ export function applyMigration(db: Database.Database, migration: Migration): voi
     // Execute migration SQL
     if (migration.up && migration.up !== '-- Initial schema created by schema.ts') {
       db.exec(migration.up)
+    }
+
+    // ── Post-migration JS hooks ────────────────────────────────
+    // Migration 3: Convert existing TEXT embeddings → BLOB (Float32Array)
+    if (migration.version === 3) {
+      const rows = db
+        .prepare('SELECT id, embedding FROM transcripts WHERE embedding IS NOT NULL')
+        .all() as Array<{ id: string; embedding: string }>
+
+      const updateStmt = db.prepare(
+        'UPDATE transcripts SET embedding_blob = ?, embedding = NULL WHERE id = ?'
+      )
+
+      let converted = 0
+      for (const row of rows) {
+        try {
+          const floats: number[] = JSON.parse(row.embedding)
+          const buffer = Buffer.from(new Float32Array(floats).buffer)
+          updateStmt.run(buffer, row.id)
+          converted++
+        } catch {
+          log.warn(`Skipped malformed embedding for transcript ${row.id}`)
+        }
+      }
+
+      log.info(`Migration 3: Converted ${converted} embeddings from TEXT to BLOB`)
     }
 
     // Record migration in schema_version table
@@ -140,7 +219,7 @@ export function rollbackMigration(db: Database.Database, version: number): void 
 
   const rollbackTxn = db.transaction(() => {
     // Execute rollback SQL
-    db.exec(migration.down!)
+    if (migration.down) db.exec(migration.down)
 
     // Remove migration record
     db.prepare('DELETE FROM schema_version WHERE version = ?').run(version)

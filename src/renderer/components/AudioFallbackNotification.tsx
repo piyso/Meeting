@@ -28,9 +28,12 @@ export const AudioFallbackNotification: React.FC = () => {
   const [isVisible, setIsVisible] = useState(false)
 
   useEffect(() => {
+    let unsubFallback: (() => void) | undefined
+    let unsubLegacy: (() => void) | undefined
+
     // Listen for fallback notifications from main process (Task 13.2)
     if (window.electronAPI?.audio?.onFallbackOccurred) {
-      window.electronAPI.audio.onFallbackOccurred((info: FallbackInfo) => {
+      unsubFallback = window.electronAPI.audio.onFallbackOccurred((info: FallbackInfo) => {
         log.info('Received fallback notification:', info)
         setFallbackInfo(info)
         setIsVisible(true)
@@ -45,7 +48,7 @@ export const AudioFallbackNotification: React.FC = () => {
 
     // Legacy fallback notification support (for backward compatibility)
     if (window.electronAPI?.ipcRenderer) {
-      const unsubscribe = window.electronAPI.ipcRenderer.on(
+      unsubLegacy = window.electronAPI.ipcRenderer.on(
         'audio:fallbackNotification',
         (_event: unknown, rawData: unknown) => {
           const data = rawData as { type: 'microphone' | 'cloud'; message: string; details: string }
@@ -64,15 +67,12 @@ export const AudioFallbackNotification: React.FC = () => {
           }, 10000)
         }
       )
-
-      return () => {
-        if (unsubscribe) {
-          unsubscribe()
-        }
-      }
     }
 
-    return undefined
+    return () => {
+      unsubFallback?.()
+      unsubLegacy?.()
+    }
   }, [])
 
   const handleClose = () => {

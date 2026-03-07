@@ -8,6 +8,8 @@ import type {
   CreateTranscriptInput,
   UpdateTranscriptInput,
 } from '../../../types/database'
+import { createSyncQueueItem } from './sync-queue'
+import { v4 as uuidv4 } from 'uuid'
 
 /**
  * Create a new transcript
@@ -34,7 +36,20 @@ export function createTranscript(input: CreateTranscriptInput): Transcript {
     input.words ? JSON.stringify(input.words) : null
   )
 
-  return getTranscriptById(input.id)!
+  const transcript = getTranscriptById(input.id)
+  if (!transcript) {
+    throw new Error(`Failed to read back transcript after INSERT: ${input.id}`)
+  }
+
+  createSyncQueueItem({
+    id: uuidv4(),
+    operation_type: 'create',
+    table_name: 'transcripts',
+    record_id: transcript.id,
+    payload: transcript as unknown as Record<string, unknown>,
+  })
+
+  return transcript
 }
 
 /**
@@ -68,7 +83,22 @@ export function createTranscripts(inputs: CreateTranscriptInput[]): Transcript[]
 
   insertMany(inputs)
 
-  return inputs.map(input => getTranscriptById(input.id)!)
+  return inputs.map(input => {
+    const transcript = getTranscriptById(input.id)
+    if (!transcript) {
+      throw new Error(`Failed to read back transcript after INSERT: ${input.id}`)
+    }
+
+    createSyncQueueItem({
+      id: uuidv4(),
+      operation_type: 'create',
+      table_name: 'transcripts',
+      record_id: transcript.id,
+      payload: transcript as unknown as Record<string, unknown>,
+    })
+
+    return transcript
+  })
 }
 
 /**
@@ -191,7 +221,18 @@ export function updateTranscript(id: string, input: UpdateTranscriptInput): Tran
 
   stmt.run(...values)
 
-  return getTranscriptById(id)
+  const updatedTranscript = getTranscriptById(id)
+  if (updatedTranscript) {
+    createSyncQueueItem({
+      id: uuidv4(),
+      operation_type: 'update',
+      table_name: 'transcripts',
+      record_id: updatedTranscript.id,
+      payload: updatedTranscript as unknown as Record<string, unknown>,
+    })
+  }
+
+  return updatedTranscript
 }
 
 /**
@@ -202,6 +243,16 @@ export function deleteTranscript(id: string): boolean {
 
   const stmt = db.prepare('DELETE FROM transcripts WHERE id = ?')
   const result = stmt.run(id)
+
+  if (result.changes > 0) {
+    createSyncQueueItem({
+      id: uuidv4(),
+      operation_type: 'delete',
+      table_name: 'transcripts',
+      record_id: id,
+      payload: { id },
+    })
+  }
 
   return result.changes > 0
 }

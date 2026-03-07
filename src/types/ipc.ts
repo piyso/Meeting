@@ -99,6 +99,10 @@ export interface ExportMeetingResponse {
   fileSize?: number
 }
 
+export interface MeetingOperations {
+  onGlobalShortcutStart?: (callback: () => void) => () => void
+}
+
 // ============================================================================
 // Note Operations
 // ============================================================================
@@ -446,10 +450,12 @@ export interface CheckOllamaResponse {
 export interface MeetingSuggestionParams {
   meetingId: string
   recentContext: string
+  promptMode?: 'title' | 'question' | 'action' | 'decision'
 }
 
 export interface MeetingSuggestionResponse {
   suggestion: string
+  mode?: string
 }
 
 // ============================================================================
@@ -677,6 +683,7 @@ export interface ElectronAPI {
     update: (params: UpdateMeetingParams) => Promise<IPCResponse<Meeting>>
     delete: (params: DeleteMeetingParams) => Promise<IPCResponse<void>>
     export: (params: ExportMeetingParams) => Promise<IPCResponse<ExportMeetingResponse>>
+    onGlobalShortcutStart?: (callback: () => void) => () => void
   }
 
   // Note operations
@@ -728,6 +735,21 @@ export interface ElectronAPI {
     login: (params: LoginParams) => Promise<IPCResponse<LoginResponse>>
     logout: () => Promise<IPCResponse<void>>
     googleAuth: () => Promise<IPCResponse<{ status: string; message: string }>>
+    onConflict?: (
+      callback: (data: {
+        noteId: string
+        localVersion: string
+        remoteVersion: string
+        autoResolved: boolean
+      }) => void
+    ) => () => void
+    resolveConflict?: (params: {
+      noteId: string
+      strategy: string
+      mergedContent?: string
+      localVersion?: string
+      remoteVersion?: string
+    }) => Promise<IPCResponse<void>>
   }
 
   // Audio operations
@@ -830,6 +852,10 @@ export interface ElectronAPI {
     meetingSuggestion: (
       params: MeetingSuggestionParams
     ) => Promise<IPCResponse<MeetingSuggestionResponse>>
+    askMeetings: (params: {
+      question: string
+      context: string
+    }) => Promise<IPCResponse<{ answer: string }>>
   }
 
   // Model operations
@@ -885,7 +911,50 @@ export interface ElectronAPI {
       isRecording: boolean
       elapsedTime: string
       lastTranscriptLine: string
+      audioMode?: 'system' | 'microphone' | 'none'
+      syncStatus?: 'idle' | 'syncing' | 'error'
+      suggestionText?: string
+      liveCoachTip?: string | null
+      entityCount?: number
+      noteCount?: number
     }) => Promise<IPCResponse<void>>
+    triggerBookmark: () => Promise<IPCResponse<void>>
+    submitQuickNote: (note: string) => Promise<IPCResponse<void>>
+  }
+
+  // Highlight (bookmark) operations
+  highlight: {
+    create: (params: {
+      meetingId: string
+      startTime: number
+      endTime: number
+      label?: string
+      color?: string
+    }) => Promise<
+      IPCResponse<{
+        id: string
+        meeting_id: string
+        start_time: number
+        end_time: number
+        label: string | null
+        color: string
+        created_at: number
+      }>
+    >
+    list: (meetingId: string) => Promise<
+      IPCResponse<
+        Array<{
+          id: string
+          meeting_id: string
+          start_time: number
+          end_time: number
+          label: string | null
+          color: string
+          created_at: number
+        }>
+      >
+    >
+    delete: (id: string) => Promise<IPCResponse<{ deleted: boolean }>>
   }
 
   // Event listeners (streaming)
@@ -900,9 +969,21 @@ export interface ElectronAPI {
         isRecording: boolean
         elapsedTime: string
         lastTranscriptLine: string
+        audioMode?: 'system' | 'microphone' | 'none'
+        syncStatus?: 'idle' | 'syncing' | 'error'
+        suggestionText?: string
+        liveCoachTip?: string | null
+        entityCount?: number
+        noteCount?: number
       }) => void
     ) => () => void
     error: (callback: (error: ErrorEvent) => void) => () => void
+    'intelligence:streamToken': (
+      callback: (data: { token: string; fullText: string }) => void
+    ) => () => void
+    showIntelligenceWall: (callback: (data: { used: number; limit: number }) => void) => () => void
+    bookmarkRequested: (callback: () => void) => () => void
+    quickNoteRequested: (callback: (text: string) => void) => () => void
   }
 
   // IPC Renderer (for audio capture module)
@@ -936,5 +1017,132 @@ export interface ElectronAPI {
     googleAuth: () => Promise<IPCResponse<void>>
     refreshToken: () => Promise<IPCResponse<{ refreshed: boolean }>>
     generateRecoveryKey: () => Promise<IPCResponse<{ phrase: string[] }>>
+    onSessionExpired?: (
+      callback: (data: { reason: string; timeoutMs: number }) => void
+    ) => () => void
+    onSessionExpiring?: (
+      callback: (data: { remainingMs: number; timeoutMs: number }) => void
+    ) => () => void
+    recordActivity: () => Promise<IPCResponse<void>>
+    refreshProfile: () => Promise<IPCResponse<{ id: string; email: string; tier: string } | null>>
+    activateLicense: (params: {
+      key: string
+    }) => Promise<IPCResponse<{ id: string; email: string; tier: string } | null>>
+    forgotPassword: (params: { email: string }) => Promise<IPCResponse<void>>
+  }
+
+  // Device management
+  device: {
+    list: (params?: { userId?: string; activeOnly?: boolean }) => Promise<IPCResponse<unknown[]>>
+    getCurrent: () => Promise<
+      IPCResponse<{
+        deviceId: string
+        deviceName: string
+        platform: string
+        hostname: string
+        appVersion: string
+      }>
+    >
+    register: (params: { userId: string; customName?: string; planTier?: string }) => Promise<
+      IPCResponse<{
+        success: boolean
+        isNewDevice: boolean
+        limitReached: boolean
+        currentDeviceCount: number
+        maxDevices: number
+        message?: string
+      }>
+    >
+    deactivate: (params: {
+      deviceId: string
+      userId: string
+    }) => Promise<IPCResponse<{ deactivated: boolean }>>
+    rename: (params: {
+      deviceId: string
+      userId: string
+      newName: string
+    }) => Promise<IPCResponse<{ renamed: boolean }>>
+  }
+
+  // Diagnostics
+  diagnostic: {
+    export: () => Promise<IPCResponse<{ path: string }>>
+    clear: () => Promise<IPCResponse<void>>
+    stats: () => Promise<
+      IPCResponse<{
+        totalFiles: number
+        totalSize: string
+        oldestLog: string | null
+        newestLog: string | null
+      }>
+    >
+    openFolder: () => Promise<IPCResponse<void>>
+    getSystemInfo: () => Promise<IPCResponse<Record<string, string | number>>>
+  }
+
+  // Billing
+  billing: {
+    getConfig: () => Promise<
+      IPCResponse<{
+        billingUrl: string
+        functionsUrl: string
+        appName: string
+        tiers: Array<{
+          id: string
+          name: string
+          price: string
+          priceINR?: string
+          period: string
+          yearlyPrice?: string
+          yearlyPriceINR?: string
+          features: string[]
+        }>
+      }>
+    >
+    getStatus: () => Promise<
+      IPCResponse<{
+        status: string
+        tier: string
+      }>
+    >
+    openCheckout: (params: { targetTier?: string }) => Promise<IPCResponse<void>>
+  }
+
+  // Quota
+  quota: {
+    check: () => Promise<
+      IPCResponse<{
+        used: number
+        limit: number
+        remaining: number
+        resetsAt: string
+        exhausted: boolean
+        tier: string
+      }>
+    >
+  }
+
+  // Audit
+  audit: {
+    query: (params: {
+      limit?: number
+      offset?: number
+      startDate?: string
+      endDate?: string
+    }) => Promise<
+      IPCResponse<{
+        items: Array<{
+          id?: string
+          timestamp: string
+          operation: string
+          table: string
+          recordId?: string
+          ipAddress?: string
+          userAgent?: string
+        }>
+        total: number
+      }>
+    >
+    export: () => Promise<IPCResponse<{ content: string; filename: string }>>
   }
 }

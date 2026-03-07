@@ -40,6 +40,7 @@ const electronAPI: ElectronAPI = {
     update: params => ipcRenderer.invoke('meeting:update', params),
     delete: params => ipcRenderer.invoke('meeting:delete', params),
     export: params => ipcRenderer.invoke('meeting:export', params),
+    onGlobalShortcutStart: createEventListener('global-shortcut:start-recording'),
   },
 
   // ============================================================================
@@ -89,6 +90,9 @@ const electronAPI: ElectronAPI = {
     login: params => ipcRenderer.invoke('sync:login', params),
     logout: () => ipcRenderer.invoke('sync:logout'),
     googleAuth: () => ipcRenderer.invoke('sync:googleAuth'),
+    onConflict: createEventListener('sync:conflict'),
+    resolveConflict: (params: { noteId: string; strategy: string; mergedContent?: string }) =>
+      ipcRenderer.invoke('sync:resolveConflict', params),
   },
 
   // ============================================================================
@@ -162,6 +166,7 @@ const electronAPI: ElectronAPI = {
     checkOllama: params => ipcRenderer.invoke('intelligence:checkOllama', params),
     unloadModels: () => ipcRenderer.invoke('intelligence:unloadModels'),
     meetingSuggestion: params => ipcRenderer.invoke('intelligence:meetingSuggestion', params),
+    askMeetings: params => ipcRenderer.invoke('intelligence:askMeetings', params),
   },
 
   // ============================================================================
@@ -223,6 +228,21 @@ const electronAPI: ElectronAPI = {
   },
 
   // ============================================================================
+  // Highlight (Bookmark) Operations
+  // ============================================================================
+  highlight: {
+    create: (params: {
+      meetingId: string
+      startTime: number
+      endTime: number
+      label?: string
+      color?: string
+    }) => ipcRenderer.invoke('highlight:create', params),
+    list: (meetingId: string) => ipcRenderer.invoke('highlight:list', meetingId),
+    delete: (id: string) => ipcRenderer.invoke('highlight:delete', id),
+  },
+
+  // ============================================================================
   // Weekly Digest Operations
   // ============================================================================
   digest: {
@@ -252,7 +272,15 @@ const electronAPI: ElectronAPI = {
       isRecording: boolean
       elapsedTime: string
       lastTranscriptLine: string
+      audioMode?: 'system' | 'microphone' | 'none'
+      syncStatus?: 'idle' | 'syncing' | 'error'
+      suggestionText?: string
+      liveCoachTip?: string | null
+      entityCount?: number
+      noteCount?: number
     }) => ipcRenderer.invoke('widget:updateState', state),
+    triggerBookmark: () => ipcRenderer.invoke('widget:triggerBookmark'),
+    submitQuickNote: (note: string) => ipcRenderer.invoke('widget:submitQuickNote', note),
   },
 
   // ============================================================================
@@ -266,6 +294,10 @@ const electronAPI: ElectronAPI = {
     batchExpandProgress: createEventListener('event:batchExpandProgress'),
     widgetStateUpdated: createEventListener('widget:stateUpdated'),
     error: createEventListener('event:error'),
+    'intelligence:streamToken': createEventListener('intelligence:streamToken'),
+    showIntelligenceWall: createEventListener('show-intelligence-wall'),
+    bookmarkRequested: createEventListener('event:bookmarkRequested'),
+    quickNoteRequested: createEventListener('event:quickNoteRequested'),
   },
 
   // ============================================================================
@@ -320,6 +352,66 @@ const electronAPI: ElectronAPI = {
     googleAuth: () => ipcRenderer.invoke('auth:googleAuth'),
     refreshToken: () => ipcRenderer.invoke('auth:refreshToken'),
     generateRecoveryKey: () => ipcRenderer.invoke('auth:generateRecoveryKey'),
+    onSessionExpired: createEventListener('session:expired'),
+    onSessionExpiring: createEventListener('session:expiring'),
+    recordActivity: () => ipcRenderer.invoke('auth:recordActivity'),
+    refreshProfile: () => ipcRenderer.invoke('auth:refreshProfile'),
+    activateLicense: (params: { key: string }) =>
+      ipcRenderer.invoke('auth:activateLicense', params),
+    forgotPassword: (params: { email: string }) =>
+      ipcRenderer.invoke('auth:forgotPassword', params),
+  },
+
+  // ============================================================================
+  // Device Management
+  // ============================================================================
+  device: {
+    list: (params?: { userId?: string; activeOnly?: boolean }) =>
+      ipcRenderer.invoke('device:list', params),
+    getCurrent: () => ipcRenderer.invoke('device:getCurrent'),
+    register: (params: { userId: string; customName?: string; planTier?: string }) =>
+      ipcRenderer.invoke('device:register', params),
+    deactivate: (params: { deviceId: string; userId: string }) =>
+      ipcRenderer.invoke('device:deactivate', params),
+    rename: (params: { deviceId: string; userId: string; newName: string }) =>
+      ipcRenderer.invoke('device:rename', params),
+  },
+
+  // ============================================================================
+  // Diagnostics
+  // ============================================================================
+  diagnostic: {
+    export: () => ipcRenderer.invoke('diagnostic:export'),
+    clear: () => ipcRenderer.invoke('diagnostic:clear'),
+    stats: () => ipcRenderer.invoke('diagnostic:stats'),
+    openFolder: () => ipcRenderer.invoke('diagnostic:openFolder'),
+    getSystemInfo: () => ipcRenderer.invoke('diagnostic:getSystemInfo'),
+  },
+
+  // ============================================================================
+  // Quota & Billing
+  // ============================================================================
+  quota: {
+    check: () => ipcRenderer.invoke('quota:check'),
+  },
+
+  // ============================================================================
+  // Audit Logs
+  // ============================================================================
+  audit: {
+    query: (params: { limit?: number; offset?: number; startDate?: string; endDate?: string }) =>
+      ipcRenderer.invoke('audit:query', params),
+    export: () => ipcRenderer.invoke('audit:export'),
+  },
+
+  // ============================================================================
+  // Billing
+  // ============================================================================
+  billing: {
+    getConfig: () => ipcRenderer.invoke('billing:getConfig'),
+    getStatus: () => ipcRenderer.invoke('billing:getStatus'),
+    openCheckout: (params: { targetTier?: string }) =>
+      ipcRenderer.invoke('billing:openCheckout', params),
   },
 }
 

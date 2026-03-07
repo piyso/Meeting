@@ -1,9 +1,21 @@
 import React, { useState, useEffect, useDeferredValue } from 'react'
 import { createPortal } from 'react-dom'
-import { Search, FileText, Settings, Maximize, Mic, Download, Shield, Layout } from 'lucide-react'
+import {
+  Search,
+  FileText,
+  Settings,
+  Maximize,
+  Mic,
+  Download,
+  Shield,
+  Layout,
+  Brain,
+  CalendarDays,
+  MessageSquare,
+} from 'lucide-react'
 import { useAppStore } from '../../store/appStore'
 import { Badge } from '../ui/Badge'
-import { useSearch } from '../../hooks/queries/useSearch'
+import { useSearch, useSemanticSearch } from '../../hooks/queries/useSearch'
 import { useMeetings } from '../../hooks/queries/useMeetings'
 import './command.css'
 
@@ -18,7 +30,10 @@ interface CommandItem {
 }
 
 export const CommandPalette: React.FC = () => {
-  const { commandPaletteOpen, toggleCommandPalette, toggleFocusMode, navigate } = useAppStore()
+  const commandPaletteOpen = useAppStore(s => s.commandPaletteOpen)
+  const toggleCommandPalette = useAppStore(s => s.toggleCommandPalette)
+  const toggleFocusMode = useAppStore(s => s.toggleFocusMode)
+  const navigate = useAppStore(s => s.navigate)
   const [query, setQuery] = useState('')
   const deferredQuery = useDeferredValue(query)
   const [selectedIndex, setSelectedIndex] = useState(0)
@@ -108,10 +123,44 @@ export const CommandPalette: React.FC = () => {
         toggleCommandPalette()
       },
     },
+    {
+      id: 'a8',
+      type: 'action',
+      icon: <Brain size={16} />,
+      label: 'Open Knowledge Graph',
+      description: 'Explore entities and relationships across meetings',
+      onSelect: () => {
+        navigate('knowledge-graph')
+        toggleCommandPalette()
+      },
+    },
+    {
+      id: 'a9',
+      type: 'action',
+      icon: <CalendarDays size={16} />,
+      label: 'Open Weekly Digest',
+      description: 'View your weekly meeting summary and insights',
+      onSelect: () => {
+        navigate('weekly-digest')
+        toggleCommandPalette()
+      },
+    },
+    {
+      id: 'a10',
+      type: 'action',
+      icon: <MessageSquare size={16} />,
+      label: 'Ask Your Meetings',
+      description: 'Ask AI questions about your meeting history',
+      onSelect: () => {
+        navigate('ask-meetings')
+        toggleCommandPalette()
+      },
+    },
   ]
 
   const searchParams = React.useMemo(() => ({ query: deferredQuery }), [deferredQuery])
   const { data: searchResults } = useSearch(searchParams)
+  const { data: semanticResults } = useSemanticSearch(searchParams)
   const { data: recentMeetings } = useMeetings({ limit: 4 })
 
   // Map Results
@@ -119,6 +168,17 @@ export const CommandPalette: React.FC = () => {
 
   const meetingItems: CommandItem[] = isSearching
     ? [
+        ...(semanticResults || []).map(s => ({
+          id: `sem_${s.meeting.id}`,
+          type: 'meeting' as const,
+          icon: <Brain size={16} className="text-[var(--color-sky)]" />,
+          label: s.meeting.title || 'Untitled Meeting',
+          description: s.snippet || 'Semantic match',
+          onSelect: () => {
+            navigate('meeting-detail', s.meeting.id)
+            toggleCommandPalette()
+          },
+        })),
         ...(searchResults?.transcripts || []).map(t => ({
           id: `t_${t.transcript.id}`,
           type: 'meeting' as const,
@@ -162,7 +222,8 @@ export const CommandPalette: React.FC = () => {
       ]
     }
     return [...baseActions, ...meetingItems]
-  }, [isSearching, baseActions, meetingItems, deferredQuery])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isSearching, deferredQuery, meetingItems])
 
   useEffect(() => {
     setSelectedIndex(0)

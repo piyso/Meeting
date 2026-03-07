@@ -35,6 +35,15 @@ export const PermissionRequestFlow: React.FC<PermissionRequestFlowProps> = ({
     checkPermissionStatus()
   }, [])
 
+  useEffect(() => {
+    if (status === 'granted') {
+      onGranted()
+      setTimeout(onClose, 1000)
+    } else if (status === 'not-applicable') {
+      onClose()
+    }
+  }, [status, onGranted, onClose])
+
   const checkPermissionStatus = async () => {
     setIsChecking(true)
     setError(null)
@@ -96,14 +105,8 @@ export const PermissionRequestFlow: React.FC<PermissionRequestFlowProps> = ({
       </div>
     )
   }
-
   // If granted, notify and close
   if (status === 'granted') {
-    useEffect(() => {
-      onGranted()
-      setTimeout(onClose, 1000)
-    }, [])
-
     return (
       <div className="permission-flow-overlay">
         <div className="permission-flow-dialog">
@@ -119,9 +122,6 @@ export const PermissionRequestFlow: React.FC<PermissionRequestFlowProps> = ({
 
   // If not applicable (non-macOS), close immediately
   if (status === 'not-applicable') {
-    useEffect(() => {
-      onClose()
-    }, [])
     return null
   }
 

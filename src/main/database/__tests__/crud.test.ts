@@ -9,7 +9,7 @@ import assert from 'node:assert'
 import fs from 'fs'
 import path from 'path'
 import { v4 as uuidv4 } from 'uuid'
-import { initializeDatabase, closeDatabase, getDatabase } from '../connection'
+import { initializeDatabase, closeDatabase } from '../connection'
 import {
   createMeeting,
   getMeetingById,

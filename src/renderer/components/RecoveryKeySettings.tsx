@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react'
 import { Key } from 'lucide-react'
 import { Button } from './ui/Button'
+import { IconButton } from './ui/IconButton'
 import { Input } from './ui/Input'
 import { Badge } from './ui/Badge'
 
@@ -217,12 +218,12 @@ export const RecoveryKeySettings: React.FC<RecoveryKeySettingsProps> = ({ userId
                 Your Recovery Key
               </h3>
             </div>
-            <button
+            <IconButton
+              icon={<span style={{ fontSize: 14 }}>✕</span>}
               onClick={handleClose}
-              className="text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)] transition-colors bg-white/5 p-2 rounded-md hover:bg-white/10"
-            >
-              ✕
-            </button>
+              tooltip="Close"
+              className="bg-white/5 hover:bg-white/10"
+            />
           </div>
 
           <div className="flex items-center gap-3 mb-8 p-3 rounded-lg bg-[rgba(251,191,36,0.1)] border border-[var(--color-amber)]/20 text-[var(--color-amber)] text-sm leading-relaxed">

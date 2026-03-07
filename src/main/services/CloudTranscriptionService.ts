@@ -310,8 +310,8 @@ export class CloudTranscriptionService extends EventEmitter {
       if (words.length > 0) {
         segments.push({
           text: alt.transcript as string,
-          start: words[0]!.start as number,
-          end: words[words.length - 1]!.end as number,
+          start: (words[0]?.start as number) || 0,
+          end: (words[words.length - 1]?.end as number) || 0,
           confidence: alt.confidence as number,
           words: words.map((w: Record<string, unknown>) => ({
             word: w.word as string,
@@ -349,7 +349,7 @@ export class CloudTranscriptionService extends EventEmitter {
 
     // Convert samples to 16-bit PCM
     for (let i = 0; i < samples.length; i++) {
-      const s = Math.max(-1, Math.min(1, samples[i]!))
+      const s = Math.max(-1, Math.min(1, samples[i] ?? 0))
       buffer.writeInt16LE(s < 0 ? s * 0x8000 : s * 0x7fff, 44 + i * 2)
     }
 
@@ -363,7 +363,7 @@ export class CloudTranscriptionService extends EventEmitter {
     const buffer = Buffer.alloc(samples.length * 2)
 
     for (let i = 0; i < samples.length; i++) {
-      const s = Math.max(-1, Math.min(1, samples[i]!))
+      const s = Math.max(-1, Math.min(1, samples[i] ?? 0))
       buffer.writeInt16LE(s < 0 ? s * 0x8000 : s * 0x7fff, i * 2)
     }
 

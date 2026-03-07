@@ -6,6 +6,7 @@
  */
 
 import React, { useEffect, useState } from 'react'
+import { Button } from './ui/Button'
 import './ModelDownloadProgress.css'
 
 interface ModelDownloadProgressProps {
@@ -145,13 +146,13 @@ export const ModelDownloadProgress: React.FC<ModelDownloadProgressProps> = ({ on
       </div>
 
       {progress.status === 'error' && (
-        <div className="error-actions">
-          <button className="retry-button" onClick={() => window.location.reload()}>
+        <div className="error-actions flex gap-3 mt-4">
+          <Button variant="primary" onClick={() => window.location.reload()}>
             Retry Download
-          </button>
-          <button className="skip-button" onClick={onComplete}>
+          </Button>
+          <Button variant="secondary" onClick={onComplete}>
             Skip (Use Cloud Transcription)
-          </button>
+          </Button>
         </div>
       )}
     </div>

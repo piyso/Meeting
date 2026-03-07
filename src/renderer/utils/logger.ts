@@ -7,9 +7,10 @@
  */
 
 // Vite injects import.meta.env at build time; fallback for non-Vite envs
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+
 const isDev =
-  !!(globalThis as any).__VUE_DEVTOOLS_GLOBAL_HOOK__ || process.env.NODE_ENV !== 'production'
+  !!(globalThis as unknown as Record<string, unknown>).__VUE_DEVTOOLS_GLOBAL_HOOK__ ||
+  process.env.NODE_ENV !== 'production'
 
 type LogLevel = 'debug' | 'info' | 'warn' | 'error'
 

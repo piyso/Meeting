@@ -13,6 +13,7 @@
  */
 
 import React, { useState, useRef, useEffect } from 'react'
+import { Button } from './ui/Button'
 import './RecoveryKeyExport.css'
 
 import { rendererLog } from '../utils/logger'
@@ -111,7 +112,7 @@ To recover your account:
     const columns: string[][] = [[], [], []]
     recoveryPhrase.forEach((word, index) => {
       const col = Math.floor(index / 8)
-      columns[col]!.push(word)
+      columns[col]?.push(word)
     })
     return columns
   }
@@ -160,18 +161,12 @@ To recover your account:
 
       {/* Action Buttons */}
       <div className="recovery-actions">
-        <button
-          className={`action-button copy-button ${copied ? 'success' : ''}`}
-          onClick={handleCopyToClipboard}
-        >
+        <Button variant={copied ? 'primary' : 'secondary'} onClick={handleCopyToClipboard}>
           {copied ? '✓ Copied!' : '📋 Copy to Clipboard'}
-        </button>
-        <button
-          className={`action-button save-button ${saved ? 'success' : ''}`}
-          onClick={handleSaveAsFile}
-        >
+        </Button>
+        <Button variant={saved ? 'primary' : 'secondary'} onClick={handleSaveAsFile}>
           {saved ? '✓ Saved!' : '💾 Save as File'}
-        </button>
+        </Button>
       </div>
 
       {/* Confirmation Checkbox */}
@@ -194,15 +189,16 @@ To recover your account:
       </div>
 
       {/* Continue Button */}
-      <div className="recovery-footer">
-        <button
-          className="continue-button"
+      <div className="recovery-footer mt-6">
+        <Button
+          variant="primary"
           onClick={handleContinue}
           disabled={!hasConfirmed}
+          className="w-full justify-center py-3 text-lg"
           title={!hasConfirmed ? 'Please confirm you have saved your recovery key' : ''}
         >
           Continue
-        </button>
+        </Button>
       </div>
 
       {/* Additional Security Tips */}

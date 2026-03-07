@@ -90,9 +90,9 @@ export const SplitPane: React.FC<SplitPaneProps> = ({
     }
   }, [handlePointerUp, handlePointerMove])
 
-  // Flex basis for smoothness (fallback initial)
-  const topStyle = { height: `${ratio * 100}%` }
-  const bottomStyle = { height: `${(1 - ratio) * 100}%` }
+  // Flex basis for mathematical smoothness
+  const topStyle = { flexBasis: `calc(${ratio * 100}% - 4px)` } // Account for half the 8px divider
+  const bottomStyle = { flexBasis: `calc(${(1 - ratio) * 100}% - 4px)` }
 
   return (
     <div ref={containerRef} className="ui-split-container">

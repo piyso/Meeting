@@ -24,7 +24,7 @@ export interface Memory {
   content: string
   namespace: string // e.g., 'meetings.transcripts', 'meetings.notes'
   tags?: string[]
-  metadata?: Record<string, any>
+  metadata?: Record<string, unknown>
   sourceType?: string // e.g., 'transcript', 'note', 'entity'
   eventTime?: string // ISO 8601 timestamp
   embedding?: number[] // Local embedding vector (384 dimensions for all-MiniLM-L6-v2)
@@ -51,7 +51,7 @@ export interface AskResponse {
     content: string
     similarity: number
   }>
-  model: string // e.g., 'gpt-4', 'claude-3'
+  model: string // e.g., 'qwen-2.5-3b', 'llama-3'
   tokensUsed: number
 }
 
@@ -70,7 +70,7 @@ export interface GraphNode {
   id: string
   label: string
   type: 'meeting' | 'person' | 'topic' | 'decision' | 'action_item'
-  metadata?: Record<string, any>
+  metadata?: Record<string, unknown>
 }
 
 /**
@@ -89,7 +89,7 @@ export interface GraphEdge {
     | 'implements'
     | 'parent'
   weight?: number
-  metadata?: Record<string, any>
+  metadata?: Record<string, unknown>
 }
 
 /**

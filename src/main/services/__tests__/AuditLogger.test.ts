@@ -323,15 +323,13 @@ describe('AuditLogger', () => {
 
       // Try to modify log directly in database
       const db = getDatabase()
-      const result = db
-        .prepare(
-          `
+      db.prepare(
+        `
         UPDATE audit_logs 
         SET operation = 'modified' 
         WHERE id = ?
       `
-        )
-        .run(logId)
+      ).run(logId)
 
       // Verify log was not modified (or throw error if constraints prevent it)
       const updatedLogs = await logger.query({ userId: testUserId })

@@ -9,7 +9,7 @@ export function useCurrentMeeting(meetingId: string | null) {
       if (!response.success) {
         throw new Error(response.error?.message || 'Failed to fetch meeting details')
       }
-      return response.data!
+      return response.data ?? null
     },
     enabled: !!meetingId,
   })

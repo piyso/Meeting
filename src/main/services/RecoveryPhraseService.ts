@@ -2131,12 +2131,12 @@ export class RecoveryPhraseService {
     // Convert entropy to binary string
     let bits = ''
     for (let i = 0; i < entropy.length; i++) {
-      bits += entropy[i]!.toString(2).padStart(8, '0')
+      bits += (entropy[i] ?? 0).toString(2).padStart(8, '0')
     }
 
     // Add checksum (first 8 bits of SHA-256 hash)
     const checksumHash = crypto.createHash('sha256').update(entropy).digest()
-    const checksumBits = checksumHash[0]!.toString(2).padStart(8, '0')
+    const checksumBits = (checksumHash[0] ?? 0).toString(2).padStart(8, '0')
     bits += checksumBits
 
     // Split into 11-bit chunks (2048 = 2^11 words in BIP39)
@@ -2145,7 +2145,7 @@ export class RecoveryPhraseService {
       const end = start + 11
       const chunk = bits.slice(start, end)
       const index = parseInt(chunk, 2) // Direct index into 2048-word list (no modulo needed)
-      words.push(BIP39_WORDLIST[index]!)
+      words.push(BIP39_WORDLIST[index] ?? '')
     }
 
     return words
@@ -2327,7 +2327,7 @@ To recover your account:
       for (let col = 0; col < columns; col++) {
         const index = col * rowsPerColumn + row
         const wordNum = (index + 1).toString().padStart(2, ' ')
-        const word = words[index]!.padEnd(12, ' ')
+        const word = (words[index] ?? '').padEnd(12, ' ')
         formatted += `${wordNum}. ${word}  `
       }
       formatted += '\n'

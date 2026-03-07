@@ -11,7 +11,9 @@ import { DeviceWallDialog } from '../meeting/DeviceWallDialog'
 import { IntelligenceWallDialog } from '../meeting/IntelligenceWallDialog'
 import { useAudioSession } from '../../hooks/useAudioSession'
 import { useAudioStatus } from '../../hooks/queries/useAudioStatus'
+import { useSystemState } from '../../hooks/useSystemState'
 import { useSyncEngine } from '../../hooks/useSyncEngine'
+import { ConflictMergeDialog } from '../meeting/ConflictMergeDialog'
 
 // Error fallback component for failed lazy loads
 const LazyLoadError: React.FC<{ name: string }> = ({ name }) => (
@@ -57,17 +59,38 @@ const OnboardingFlow = lazy(() =>
     .catch(() => ({ default: () => <LazyLoadError name="Onboarding" /> }))
 )
 
+const KnowledgeGraphView = lazy(() =>
+  import('../../views/KnowledgeGraphView').catch(() => ({
+    default: () => <LazyLoadError name="Knowledge Graph" />,
+  }))
+)
+const WeeklyDigestView = lazy(() =>
+  import('../../views/WeeklyDigestView').catch(() => ({
+    default: () => <LazyLoadError name="Weekly Digest" />,
+  }))
+)
+const AskMeetingsView = lazy(() =>
+  import('../../views/AskMeetingsView').catch(() => ({
+    default: () => <LazyLoadError name="Ask Meetings" />,
+  }))
+)
+const PricingView = lazy(() =>
+  import('../../views/PricingView')
+    .then(m => ({ default: m.PricingView }))
+    .catch(() => ({
+      default: () => <LazyLoadError name="Pricing" />,
+    }))
+)
+
 export const AppLayout: React.FC = () => {
-  const {
-    activeView,
-    navigate,
-    focusMode,
-    recordingState,
-    isOnline,
-    syncStatus,
-    setRecordingState,
-    selectedMeetingId,
-  } = useAppStore()
+  const activeView = useAppStore(s => s.activeView)
+  const navigate = useAppStore(s => s.navigate)
+  const focusMode = useAppStore(s => s.focusMode)
+  const recordingState = useAppStore(s => s.recordingState)
+  const isOnline = useAppStore(s => s.isOnline)
+  const syncStatus = useAppStore(s => s.syncStatus)
+  const setRecordingState = useAppStore(s => s.setRecordingState)
+  const selectedMeetingId = useAppStore(s => s.selectedMeetingId)
   const globalContextOpen = useAppStore(s => s.globalContextOpen)
   const toggleGlobalContext = useAppStore(s => s.toggleGlobalContext)
 
@@ -75,7 +98,143 @@ export const AppLayout: React.FC = () => {
   const [deviceWallOpen, setDeviceWallOpen] = React.useState(false)
   const [intelligenceWallOpen, setIntelligenceWallOpen] = React.useState(false)
 
+  // User tier + quota data for upgrade prompts and wall dialogs
+  const userTier = useAppStore(s => s.currentTier)
+  const deviceCount = useAppStore(s => s.deviceInfo.count)
+  const quotaData = useAppStore(s => s.quotaData)
+
+  // Conflict resolution state
+  const [conflictInfo, setConflictInfo] = React.useState<{
+    noteId: string
+    localVersion: string
+    remoteVersion: string
+    autoResolved: boolean
+  } | null>(null)
+
+  // Session expiring warning state
+  const [sessionExpiringMs, setSessionExpiringMs] = React.useState<number | null>(null)
+
   useSyncEngine() // Boot up sync and network polling
+  useSystemState() // Boot up system state polling
+
+  // Listen for sync:conflict and session:expired events from main process
+  React.useEffect(() => {
+    const handleConflict = (data: {
+      noteId: string
+      localVersion: string
+      remoteVersion: string
+      autoResolved: boolean
+    }) => {
+      if (!data.autoResolved) {
+        setConflictInfo(data)
+      }
+    }
+
+    const handleSessionExpired = () => {
+      navigate('onboarding')
+    }
+
+    const handleSessionExpiring = (data: { remainingMs: number }) => {
+      setSessionExpiringMs(data.remainingMs)
+    }
+
+    const handleGlobalShortcut = async () => {
+      // Trigger recording just like in MeetingListView.tsx handleQuickStart
+      setRecordingState('starting')
+      try {
+        const res = await window.electronAPI.meeting.start({})
+        if (res.success && res.data) {
+          navigate('meeting-detail', res.data.meeting.id)
+        } else {
+          setRecordingState('idle')
+        }
+      } catch (err) {
+        setRecordingState('idle')
+      }
+    }
+
+    // Subscribe to IPC events via window.electronAPI event listeners
+    const unsubConflict = window.electronAPI?.sync?.onConflict?.(handleConflict)
+    const unsubSession = window.electronAPI?.auth?.onSessionExpired?.(handleSessionExpired)
+    const unsubExpiring = window.electronAPI?.auth?.onSessionExpiring?.(handleSessionExpiring)
+    const unsubShortcut = window.electronAPI?.meeting?.onGlobalShortcutStart?.(handleGlobalShortcut)
+
+    return () => {
+      unsubConflict?.()
+      unsubSession?.()
+      unsubExpiring?.()
+      unsubShortcut?.()
+    }
+  }, [navigate, setRecordingState])
+
+  // ── Session activity tracking ─────────────────────────────
+  // Report user activity to main process to prevent session timeout.
+  // Throttled to max 1 IPC call per 60s to avoid flooding.
+  React.useEffect(() => {
+    let lastReport = 0
+    const THROTTLE_MS = 60_000 // 1 minute
+
+    const reportActivity = () => {
+      const now = Date.now()
+      if (now - lastReport > THROTTLE_MS) {
+        lastReport = now
+        window.electronAPI?.auth?.recordActivity?.().catch(() => {})
+      }
+    }
+
+    window.addEventListener('keydown', reportActivity)
+    window.addEventListener('mousemove', reportActivity)
+    window.addEventListener('click', reportActivity)
+
+    return () => {
+      window.removeEventListener('keydown', reportActivity)
+      window.removeEventListener('mousemove', reportActivity)
+      window.removeEventListener('click', reportActivity)
+    }
+  }, [])
+
+  // ── Bookmark Execution Logic ────────────────────────────
+  const executeBookmark = React.useCallback(async () => {
+    const state = useAppStore.getState()
+    if (state.recordingState !== 'recording' || !state.activeMeetingId || !state.recordingStartTime)
+      return
+
+    const elapsedMs = Date.now() - state.recordingStartTime
+    const endTimeSec = elapsedMs / 1000
+    const startTimeSec = Math.max(0, endTimeSec - 30) // Last 30 seconds
+
+    try {
+      await window.electronAPI?.highlight?.create({
+        meetingId: state.activeMeetingId,
+        startTime: startTimeSec,
+        endTime: endTimeSec,
+        label: '📌 Bookmarked moment',
+      })
+      state.addToast({ type: 'success', title: '📌 Moment bookmarked', duration: 2000 })
+    } catch {
+      state.addToast({ type: 'error', title: 'Failed to bookmark', duration: 3000 })
+    }
+  }, [])
+
+  // ── ⌘+Shift+B bookmark shortcut + Widget IPC ────────────
+  React.useEffect(() => {
+    const handleBookmarkShortcut = async (e: KeyboardEvent) => {
+      if (e.metaKey && e.shiftKey && e.key.toLowerCase() === 'b') {
+        e.preventDefault()
+        await executeBookmark()
+      }
+    }
+
+    const unsubBookmarkIPC = window.electronAPI?.on?.bookmarkRequested?.(() => {
+      executeBookmark()
+    })
+
+    window.addEventListener('keydown', handleBookmarkShortcut)
+    return () => {
+      window.removeEventListener('keydown', handleBookmarkShortcut)
+      if (unsubBookmarkIPC) unsubBookmarkIPC()
+    }
+  }, [executeBookmark])
 
   // First-launch detection: check if onboarding is completed
   React.useEffect(() => {
@@ -101,13 +260,17 @@ export const AppLayout: React.FC = () => {
   // React to store state to trigger actual backend capture
   React.useEffect(() => {
     if (recordingState === 'starting' && meetingId) {
-      startCapture('system').then(success => {
-        if (success) {
-          setRecordingState('recording')
-        } else {
+      startCapture('system')
+        .then(success => {
+          if (success) {
+            setRecordingState('recording')
+          } else {
+            setRecordingState('idle')
+          }
+        })
+        .catch(() => {
           setRecordingState('idle')
-        }
-      })
+        })
     }
   }, [recordingState, meetingId, startCapture, setRecordingState])
 
@@ -137,14 +300,17 @@ export const AppLayout: React.FC = () => {
     <div className="ui-app-layout">
       <div className="ui-app-drag-region drag-region" />
 
-      <ZenRail activeView={activeView} onNavigate={v => navigate(v)} focusMode={focusMode} />
+      <ZenRail
+        activeView={activeView}
+        onNavigate={v => navigate(v)}
+        focusMode={focusMode}
+        userTier={userTier}
+        onUpgrade={() => navigate('pricing')}
+      />
 
       <DynamicIsland
         recordingState={recordingState}
-        isOnline={isOnline}
         syncStatus={syncStatus}
-        meetingTitle={undefined}
-        elapsedTime={recordingState === 'recording' ? undefined : undefined}
         onBack={activeView === 'meeting-detail' ? () => navigate('meeting-list') : undefined}
         onStopRecording={handleStopRecording}
         audioLevel={currentVolume}
@@ -152,18 +318,69 @@ export const AppLayout: React.FC = () => {
 
       <OfflineBanner isOnline={isOnline} />
 
+      {/* Session Expiring Warning Banner */}
+      {sessionExpiringMs !== null && (
+        <div
+          style={{
+            position: 'fixed',
+            top: 56,
+            left: 88,
+            right: 0,
+            zIndex: 100,
+            background: 'linear-gradient(135deg, #b45309, #92400e)',
+            color: 'white',
+            padding: '10px 16px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            fontSize: 13,
+            fontWeight: 500,
+          }}
+        >
+          <span>
+            ⚠️ Your session will expire in {Math.ceil(sessionExpiringMs / 60_000)} minutes due to
+            inactivity.
+          </span>
+          <button
+            onClick={() => {
+              window.electronAPI?.auth?.recordActivity?.().catch(() => {})
+              setSessionExpiringMs(null)
+            }}
+            style={{
+              background: 'rgba(255,255,255,0.2)',
+              border: '1px solid rgba(255,255,255,0.3)',
+              color: 'white',
+              padding: '4px 14px',
+              borderRadius: 6,
+              cursor: 'pointer',
+              fontWeight: 600,
+              fontSize: 12,
+            }}
+          >
+            Stay Active
+          </button>
+        </div>
+      )}
+
       <main
         className="ui-app-main"
         style={{
-          marginLeft: focusMode ? 0 : 56,
-          marginTop: 64, // Island height (48) + top gap (8) + padding (8)
+          position: 'absolute',
+          left: focusMode ? 0 : 104, // 20px float + 68px pill width + 16px gap
+          right: 0,
+          top: 72, // Island height (48) + top gap (8) + spacing (16)
+          bottom: 0,
         }}
       >
-        <ErrorBoundary>
+        <ErrorBoundary viewName="Main View">
           <Suspense fallback={<div className="ui-app-loader">Loading View...</div>}>
             {activeView === 'meeting-list' && <MeetingListView />}
             {activeView === 'meeting-detail' && <MeetingDetailView />}
             {activeView === 'settings' && <SettingsView />}
+            {activeView === 'knowledge-graph' && <KnowledgeGraphView />}
+            {activeView === 'weekly-digest' && <WeeklyDigestView />}
+            {activeView === 'ask-meetings' && <AskMeetingsView />}
+            {activeView === 'pricing' && <PricingView />}
           </Suspense>
         </ErrorBoundary>
       </main>
@@ -176,10 +393,10 @@ export const AppLayout: React.FC = () => {
       <DeviceWallDialog
         open={deviceWallOpen}
         onClose={() => setDeviceWallOpen(false)}
-        currentDevices={3}
-        maxDevices={3}
+        currentDevices={deviceCount}
+        maxDevices={userTier === 'free' ? 1 : userTier === 'starter' ? 2 : 999}
         onUpgrade={() => {
-          window.electronAPI?.shell?.openExternal?.('https://piyapi.cloud/billing')
+          navigate('pricing')
           setDeviceWallOpen(false)
         }}
       />
@@ -187,13 +404,35 @@ export const AppLayout: React.FC = () => {
       <IntelligenceWallDialog
         open={intelligenceWallOpen}
         onClose={() => setIntelligenceWallOpen(false)}
-        queriesUsed={100}
-        queryLimit={100}
+        queriesUsed={quotaData.used}
+        queryLimit={quotaData.limit === Infinity ? 999 : quotaData.limit}
         onUpgrade={() => {
-          window.electronAPI?.shell?.openExternal?.('https://piyapi.cloud/billing')
+          navigate('pricing')
           setIntelligenceWallOpen(false)
         }}
       />
+
+      {/* Conflict Resolution Dialog (sync:conflict) */}
+      {conflictInfo && (
+        <ConflictMergeDialog
+          conflict={conflictInfo}
+          onResolve={async (strategy, mergedContent) => {
+            try {
+              await window.electronAPI?.sync?.resolveConflict?.({
+                noteId: conflictInfo.noteId,
+                strategy,
+                mergedContent,
+                localVersion: conflictInfo.localVersion,
+                remoteVersion: conflictInfo.remoteVersion,
+              })
+            } catch {
+              // Resolution failed — close dialog anyway
+            }
+            setConflictInfo(null)
+          }}
+          onCancel={() => setConflictInfo(null)}
+        />
+      )}
     </div>
   )
 }

@@ -17,7 +17,7 @@ export function useTranscriptStream(meetingId: string | null) {
       if (!response.success) {
         throw new Error(response.error?.message || 'Failed to fetch transcripts')
       }
-      return response.data!
+      return response.data ?? []
     },
     enabled: !!meetingId,
   })

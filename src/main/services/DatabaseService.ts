@@ -15,8 +15,6 @@ import {
 import {
   createMeeting,
   getMeetingById,
-  getAllMeetings,
-  getMeetingCount,
   updateMeeting,
   deleteMeeting,
 } from '../database/crud/meetings'
@@ -105,10 +103,62 @@ export class DatabaseService {
     endDate?: number
     tags?: string[]
   }): { meetings: Meeting[]; total: number } {
-    const meetings = getAllMeetings({ limit: params.limit, offset: params.offset })
-    const total = getMeetingCount()
+    const db = this.getDb()
+    const limit = params.limit || 50
+    const offset = params.offset || 0
 
-    return { meetings, total }
+    // Build dynamic WHERE clause from filter params
+    const conditions: string[] = []
+    const values: unknown[] = []
+
+    if (params.namespace) {
+      conditions.push('namespace = ?')
+      values.push(params.namespace)
+    }
+    if (params.startDate !== undefined) {
+      conditions.push('start_time >= ?')
+      values.push(params.startDate)
+    }
+    if (params.endDate !== undefined) {
+      conditions.push('start_time <= ?')
+      values.push(params.endDate)
+    }
+
+    const whereClause = conditions.length > 0 ? `WHERE ${conditions.join(' AND ')}` : ''
+
+    const meetings = db
+      .prepare(
+        `
+      SELECT * FROM meetings ${whereClause}
+      ORDER BY start_time DESC
+      LIMIT ? OFFSET ?
+    `
+      )
+      .all(...values, limit, offset) as Meeting[]
+
+    const totalRow = db
+      .prepare(
+        `
+      SELECT COUNT(*) as count FROM meetings ${whereClause}
+    `
+      )
+      .get(...values) as { count: number }
+
+    // Post-filter by tags if specified (tags stored as JSON array)
+    let filteredMeetings = meetings
+    if (params.tags && params.tags.length > 0) {
+      filteredMeetings = meetings.filter(m => {
+        if (!m.tags) return false
+        try {
+          const meetingTags = JSON.parse(m.tags as unknown as string) as string[]
+          return params.tags?.some(t => meetingTags.includes(t)) ?? false
+        } catch {
+          return false
+        }
+      })
+    }
+
+    return { meetings: filteredMeetings, total: totalRow.count }
   }
 
   updateMeeting(id: string, updates: UpdateMeetingInput): Meeting {
@@ -198,8 +248,12 @@ export class DatabaseService {
     return getEntitiesByMeetingId(meetingId)
   }
 
-  getEntitiesByType(_type: string, _limit?: number): Entity[] {
-    return [] // getEntitiesByType requires meetingId context
+  getEntitiesByType(type: string, limit: number = 100): Entity[] {
+    const db = this.getDb()
+    const stmt = db.prepare(`
+      SELECT * FROM entities WHERE type = ? ORDER BY created_at DESC LIMIT ?
+    `)
+    return stmt.all(type, limit) as Entity[]
   }
 
   // ============================================================================

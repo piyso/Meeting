@@ -20,7 +20,7 @@ export function registerWindowHandlers(): void {
       widgetWindow.hide()
     }
 
-    return { success: true }
+    return { success: true, data: undefined }
   })
 
   // App -> Main -> Widget: Broadcast state
@@ -37,9 +37,36 @@ export function registerWindowHandlers(): void {
         }
       } else if (!state.isRecording && widgetWindow.isVisible()) {
         // Hide when recording stops
-        widgetWindow.hide()
       }
     }
-    return { success: true }
+    return { success: true, data: undefined }
+  })
+
+  // Proxy widget bookmark requests to main window so it can show success toasts locally
+  ipcMain.handle('widget:triggerBookmark', async () => {
+    try {
+      const mainWindow = getMainWindow()
+      if (mainWindow && !mainWindow.isDestroyed()) {
+        mainWindow.webContents.send('event:bookmarkRequested')
+      }
+      return { success: true, data: undefined }
+    } catch (error) {
+      log.error('Failed to proxy widget bookmark request', error)
+      return { success: false, error: { message: 'Failed to proxy bookmark' } }
+    }
+  })
+
+  // Proxy widget quick note requests
+  ipcMain.handle('widget:submitQuickNote', async (_, note: string) => {
+    try {
+      const mainWindow = getMainWindow()
+      if (mainWindow && !mainWindow.isDestroyed()) {
+        mainWindow.webContents.send('event:quickNoteRequested', note)
+      }
+      return { success: true, data: undefined }
+    } catch (error) {
+      log.error('Failed to proxy quick note', error)
+      return { success: false, error: { message: 'Failed to proxy note' } }
+    }
   })
 }

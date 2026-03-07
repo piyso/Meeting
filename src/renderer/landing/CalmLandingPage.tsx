@@ -151,17 +151,32 @@ export const CalmLandingPage: React.FC = () => {
       {/* Ambient background with parallax */}
       <motion.div className="calm-ambient" style={{ y: backgroundY }} aria-hidden="true" />
       <div className="calm-noise" aria-hidden="true" />
+      <div className="sovereign-hero-glow" aria-hidden="true" />
+
+      {/* ── SOVEREIGN NAVBAR ── */}
+      <motion.nav
+        className="sovereign-navbar sovereign-glass"
+        initial={{ y: -100, opacity: 0 }}
+        animate={{ y: 0, opacity: 1 }}
+        transition={{ duration: 0.8, ease: [0.25, 1, 0.5, 1] }}
+      >
+        <div className="sovereign-navbar-content">
+          <div className="sovereign-logo sovereign-heading">BlueArkive</div>
+          <a href="#download" className="sovereign-btn-primary">
+            Initialize Core
+          </a>
+        </div>
+      </motion.nav>
 
       {/* ── SECTION 1: Hero ── */}
       <section
         className="calm-section calm-hero"
-        style={{ paddingTop: '160px', paddingBottom: '100px' }}
+        style={{ paddingTop: '200px', paddingBottom: '100px' }}
       >
         <FadeSection>
-          <h1 className="calm-heading calm-heading--hero">Be perfectly present.</h1>
-          <p className="calm-subheading">
-            Listen to your meetings. Engage in the conversation. We'll quietly remember every word,
-            securely on your own computer.
+          <h1 className="sovereign-heading calm-heading--hero">The Sovereign Memory Fabric.</h1>
+          <p className="sovereign-subheading calm-subheading">
+            Constructing the Autonomous Agentic Web. Local. Secure. Yours.
           </p>
 
           {/* CTA Buttons */}
@@ -204,8 +219,8 @@ export const CalmLandingPage: React.FC = () => {
       <section className="calm-section">
         <FadeSection>
           <div className="calm-divider" style={{ marginBottom: '56px' }} />
-          <h2 className="calm-heading calm-heading--section" style={{ textAlign: 'center' }}>
-            The burden of memory.
+          <h2 className="sovereign-heading calm-heading--section" style={{ textAlign: 'center' }}>
+            The burden of infinite context.
           </h2>
         </FadeSection>
 
@@ -249,11 +264,11 @@ export const CalmLandingPage: React.FC = () => {
       <section className="calm-section">
         <FadeSection>
           <div className="calm-divider" style={{ marginBottom: '56px' }} />
-          <h2 className="calm-heading calm-heading--section" style={{ textAlign: 'center' }}>
-            How it feels to use.
+          <h2 className="sovereign-heading calm-heading--section" style={{ textAlign: 'center' }}>
+            Uncompromising intelligence.
           </h2>
-          <p className="calm-subheading" style={{ marginBottom: '64px' }}>
-            Not a feature list. A feeling.
+          <p className="sovereign-subheading calm-subheading" style={{ marginBottom: '64px' }}>
+            Agentic. Autonomous. Entirely on your hardware.
           </p>
         </FadeSection>
 
@@ -412,11 +427,11 @@ export const CalmLandingPage: React.FC = () => {
       <section className="calm-section calm-section--narrow">
         <FadeSection>
           <div className="calm-divider" style={{ marginBottom: '56px' }} />
-          <h2 className="calm-heading calm-heading--section" style={{ textAlign: 'center' }}>
-            Your hands never leave the keyboard.
+          <h2 className="sovereign-heading calm-heading--section" style={{ textAlign: 'center' }}>
+            Velocity over complexity.
           </h2>
-          <p className="calm-subheading" style={{ marginBottom: '48px' }}>
-            A symphony of shortcuts keeps you in a state of flow.
+          <p className="sovereign-subheading calm-subheading" style={{ marginBottom: '48px' }}>
+            Command every agentic capability without leaving your keyboard.
           </p>
         </FadeSection>
 
@@ -449,11 +464,11 @@ export const CalmLandingPage: React.FC = () => {
       <section className="calm-section calm-section--narrow">
         <FadeSection>
           <div className="calm-divider" style={{ marginBottom: '56px' }} />
-          <h2 className="calm-heading calm-heading--section" style={{ textAlign: 'center' }}>
-            Simple, beautiful, yours.
+          <h2 className="sovereign-heading calm-heading--section" style={{ textAlign: 'center' }}>
+            Simple. Transparent. Sovereign.
           </h2>
-          <p className="calm-subheading" style={{ marginBottom: '48px' }}>
-            No hidden fees. No quotas. Your computer does the work, so the cost to us is nothing.
+          <p className="sovereign-subheading calm-subheading" style={{ marginBottom: '48px' }}>
+            No hidden quotas. Your machine powers the intelligence.
           </p>
         </FadeSection>
 
@@ -512,8 +527,8 @@ export const CalmLandingPage: React.FC = () => {
       <section className="calm-section calm-section--narrow">
         <FadeSection>
           <div className="calm-divider" style={{ marginBottom: '56px' }} />
-          <h2 className="calm-heading calm-heading--section" style={{ textAlign: 'center' }}>
-            Common questions, calmly answered.
+          <h2 className="sovereign-heading calm-heading--section" style={{ textAlign: 'center' }}>
+            Architecture Inquiries.
           </h2>
         </FadeSection>
 
@@ -544,10 +559,9 @@ export const CalmLandingPage: React.FC = () => {
       {/* ── SECTION 7: Footer CTA ── */}
       <footer className="calm-footer" id="download">
         <FadeSection>
-          <h2 className="calm-heading calm-heading--section">Close your eyes. Listen deeply.</h2>
-          <p className="calm-subheading">
-            Download BlueArkive today. Let the machine do the remembering, so you can do the
-            living.
+          <h2 className="sovereign-heading calm-heading--section">Initialize your agentic node.</h2>
+          <p className="sovereign-subheading calm-subheading">
+            Deploy BlueArkive today. Relinquish memory management to the machine.
           </p>
 
           <div className="calm-cta-group" style={{ marginTop: '40px' }}>

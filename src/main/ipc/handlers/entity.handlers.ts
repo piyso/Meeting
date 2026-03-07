@@ -1,9 +1,13 @@
 import { ipcMain } from 'electron'
 import { getEntitiesByMeetingId, getEntitiesByType } from '../../database/crud/entities'
 import { getLocalEntityExtractor } from '../../services/LocalEntityExtractor'
+import { Logger } from '../../services/Logger'
+
+const log = Logger.create('EntityHandlers')
 
 export function registerEntityHandlers(): void {
-  // entity:extract — Real-time entity extraction from text (Tier 2, <10ms)
+  // entity:extract — Real-time entity extraction from text (Tier 2, <10ms local)
+  // Pro+: Cloud enrichment via PiyAPI for higher quality NER
   ipcMain.handle('entity:extract', async (_, params) => {
     try {
       if (!params?.text) {
@@ -16,9 +20,66 @@ export function registerEntityHandlers(): void {
           },
         }
       }
+
+      // Local extraction (always runs — fast, <10ms)
       const extractor = getLocalEntityExtractor()
-      const entities = extractor.extract(params.text)
-      return { success: true, data: entities }
+      const localEntities = extractor.extract(params.text)
+
+      // Pro+: Cloud enrichment for higher quality NER
+      let cloudEntities: Array<{
+        text: string
+        type: 'PERSON' | 'DATE' | 'AMOUNT' | 'EMAIL' | 'ACTION_ITEM'
+        confidence: number
+        startOffset: number
+        endOffset: number
+      }> = []
+      try {
+        const { getCloudAccessManager } = await import('../../services/CloudAccessManager')
+        const cam = getCloudAccessManager()
+        const features = await cam.getFeatureAccess()
+
+        if (features.knowledgeGraphInteractive) {
+          const { getBackend } = await import('../handlers/graph.handlers')
+          const backend = getBackend()
+          const isHealthy = await backend.healthCheck()
+
+          // Runtime check — extractEntities may not exist on all backend versions
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          const backendAny = backend as any
+          if (isHealthy && typeof backendAny.extractEntities === 'function') {
+            const cloudResult = await backendAny.extractEntities(
+              params.text,
+              params.namespace || 'meetings'
+            )
+            if (Array.isArray(cloudResult)) {
+              cloudEntities = cloudResult.map((e: Record<string, unknown>) => ({
+                type: ((e.type as string) || 'PERSON') as
+                  | 'PERSON'
+                  | 'DATE'
+                  | 'AMOUNT'
+                  | 'EMAIL'
+                  | 'ACTION_ITEM',
+                text: (e.text as string) || (e.value as string) || '',
+                confidence: (e.confidence as number) ?? 0.9,
+                startOffset: (e.start_offset as number) ?? (e.startOffset as number) ?? 0,
+                endOffset: (e.end_offset as number) ?? (e.endOffset as number) ?? 0,
+              }))
+            }
+          }
+        }
+      } catch (err) {
+        // Cloud enrichment is non-fatal
+        log.debug('Cloud entity enrichment failed, using local only:', err)
+      }
+
+      // Merge + deduplicate (prefer cloud entities when text matches)
+      const seenTexts = new Set(cloudEntities.map(e => e.text.toLowerCase()))
+      const mergedEntities = [
+        ...cloudEntities,
+        ...localEntities.filter(e => !seenTexts.has(e.text.toLowerCase())),
+      ]
+
+      return { success: true, data: mergedEntities }
     } catch (error) {
       return {
         success: false,

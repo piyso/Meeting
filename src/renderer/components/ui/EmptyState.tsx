@@ -17,7 +17,7 @@ export const EmptyState: React.FC<EmptyStateProps> = ({
   return (
     <div className="ui-empty-state stagger-child" role="status">
       <div className="ui-empty-icon-wrapper">
-        <Icon className="ui-empty-icon" size={32} strokeWidth={1.5} />
+        <Icon className="ui-empty-icon" size={48} strokeWidth={1} />
       </div>
       <h3 className="ui-empty-title">{title}</h3>
       {description && <p className="ui-empty-desc">{description}</p>}

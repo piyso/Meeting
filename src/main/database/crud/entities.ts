@@ -4,6 +4,8 @@
 
 import { getDatabase } from '../connection'
 import type { Entity, CreateEntityInput, EntityType } from '../../../types/database'
+import { createSyncQueueItem } from './sync-queue'
+import { v4 as uuidv4 } from 'uuid'
 
 /**
  * Create a new entity
@@ -29,7 +31,20 @@ export function createEntity(input: CreateEntityInput): Entity {
     input.transcript_id || null
   )
 
-  return getEntityById(input.id)!
+  const entity = getEntityById(input.id)
+  if (!entity) {
+    throw new Error(`Failed to read back entity after INSERT: ${input.id}`)
+  }
+
+  createSyncQueueItem({
+    id: uuidv4(),
+    operation_type: 'create',
+    table_name: 'entities',
+    record_id: entity.id,
+    payload: entity as unknown as Record<string, unknown>,
+  })
+
+  return entity
 }
 
 /**
@@ -62,7 +77,22 @@ export function createEntities(inputs: CreateEntityInput[]): Entity[] {
 
   insertMany(inputs)
 
-  return inputs.map(input => getEntityById(input.id)!)
+  return inputs.map(input => {
+    const entity = getEntityById(input.id)
+    if (!entity) {
+      throw new Error(`Failed to read back entity after INSERT: ${input.id}`)
+    }
+
+    createSyncQueueItem({
+      id: uuidv4(),
+      operation_type: 'create',
+      table_name: 'entities',
+      record_id: entity.id,
+      payload: entity as unknown as Record<string, unknown>,
+    })
+
+    return entity
+  })
 }
 
 /**
@@ -183,6 +213,16 @@ export function deleteEntity(id: string): boolean {
 
   const stmt = db.prepare('DELETE FROM entities WHERE id = ?')
   const result = stmt.run(id)
+
+  if (result.changes > 0) {
+    createSyncQueueItem({
+      id: uuidv4(),
+      operation_type: 'delete',
+      table_name: 'entities',
+      record_id: id,
+      payload: { id },
+    })
+  }
 
   return result.changes > 0
 }

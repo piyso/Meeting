@@ -43,8 +43,10 @@ export interface FeatureAccess {
   cloudAI: boolean // Cloud AI for note expansion
   contextSessions: boolean // PiyAPI Context Sessions API
   semanticSearch: boolean // Cloud semantic search
+  hybridSearch: boolean // Cloud hybrid search (semantic + keyword — Pro+ only)
   crossMeetingQueries: boolean // AI queries across meetings
-  knowledgeGraph: boolean // Knowledge graph visualization
+  knowledgeGraph: boolean // Knowledge graph visualization (read-only for Starter)
+  knowledgeGraphInteractive: boolean // Interactive KG features (Pro+ only)
 
   // Sync features
   cloudSync: boolean // Sync to cloud
@@ -174,107 +176,35 @@ export class CloudAccessManager {
 
   /**
    * Get feature access based on user's tier
+   *
+   * All limits and features are imported from TierMappingService
+   * (the single source of truth for BlueArkive pricing).
    */
   async getFeatureAccess(): Promise<FeatureAccess> {
     const status = await this.getCloudAccessStatus()
-    const tier = status.tier
+    const { getTierLimits, isUnlimited } = await import('./TierMappingService')
+    const limits = getTierLimits(status.tier)
 
-    // Free tier: Local-only features
-    if (tier === 'free') {
-      return {
-        cloudAI: false,
-        contextSessions: false,
-        semanticSearch: false, // Local semantic search only
-        crossMeetingQueries: false,
-        knowledgeGraph: false,
-        cloudSync: false,
-        multiDevice: false,
-        deviceLimit: 1,
-        transcriptSizeLimit: 5000, // 5K chars
-        monthlyAIQueries: 0,
-        speakerDiarization: false,
-        weeklyDigest: false,
-        teamCollaboration: false,
-        auditLogs: false,
-      }
-    }
+    // Free tier has no cloud access regardless of online status
+    const hasCloud = limits.cloudSync && status.hasAccess
 
-    // Starter tier: Basic cloud features
-    if (tier === 'starter') {
-      return {
-        cloudAI: status.hasAccess,
-        contextSessions: status.hasAccess,
-        semanticSearch: status.hasAccess,
-        crossMeetingQueries: status.hasAccess,
-        knowledgeGraph: status.hasAccess,
-        cloudSync: status.hasAccess,
-        multiDevice: true,
-        deviceLimit: 2,
-        transcriptSizeLimit: 10000, // 10K chars
-        monthlyAIQueries: 50,
-        speakerDiarization: false,
-        weeklyDigest: false,
-        teamCollaboration: false,
-        auditLogs: false,
-      }
-    }
-
-    // Pro tier: Advanced features
-    if (tier === 'pro') {
-      return {
-        cloudAI: status.hasAccess,
-        contextSessions: status.hasAccess,
-        semanticSearch: status.hasAccess,
-        crossMeetingQueries: status.hasAccess,
-        knowledgeGraph: status.hasAccess,
-        cloudSync: status.hasAccess,
-        multiDevice: true,
-        deviceLimit: Infinity,
-        transcriptSizeLimit: 25000, // 25K chars
-        monthlyAIQueries: Infinity,
-        speakerDiarization: true,
-        weeklyDigest: true,
-        teamCollaboration: false,
-        auditLogs: false,
-      }
-    }
-
-    // Team tier: Collaboration features
-    if (tier === 'team') {
-      return {
-        cloudAI: status.hasAccess,
-        contextSessions: status.hasAccess,
-        semanticSearch: status.hasAccess,
-        crossMeetingQueries: status.hasAccess,
-        knowledgeGraph: status.hasAccess,
-        cloudSync: status.hasAccess,
-        multiDevice: true,
-        deviceLimit: Infinity,
-        transcriptSizeLimit: 50000, // 50K chars
-        monthlyAIQueries: Infinity,
-        speakerDiarization: true,
-        weeklyDigest: true,
-        teamCollaboration: true,
-        auditLogs: false,
-      }
-    }
-
-    // Enterprise tier: All features
     return {
-      cloudAI: status.hasAccess,
-      contextSessions: status.hasAccess,
-      semanticSearch: status.hasAccess,
-      crossMeetingQueries: status.hasAccess,
-      knowledgeGraph: status.hasAccess,
-      cloudSync: status.hasAccess,
-      multiDevice: true,
-      deviceLimit: Infinity,
-      transcriptSizeLimit: 100000, // 100K chars
-      monthlyAIQueries: Infinity,
-      speakerDiarization: true,
-      weeklyDigest: true,
-      teamCollaboration: true,
-      auditLogs: true,
+      cloudAI: limits.cloudAI && status.hasAccess,
+      contextSessions: limits.cloudAI && status.hasAccess,
+      semanticSearch: limits.cloudAI && status.hasAccess,
+      hybridSearch: limits.hybridSearch && status.hasAccess,
+      crossMeetingQueries: limits.cloudAI && status.hasAccess,
+      knowledgeGraph: limits.knowledgeGraph && status.hasAccess,
+      knowledgeGraphInteractive: limits.knowledgeGraphInteractive && status.hasAccess,
+      cloudSync: hasCloud,
+      multiDevice: limits.deviceLimit !== 1,
+      deviceLimit: isUnlimited(limits.deviceLimit) ? Infinity : limits.deviceLimit,
+      transcriptSizeLimit: limits.transcriptSize,
+      monthlyAIQueries: isUnlimited(limits.monthlyAIQueries) ? Infinity : limits.monthlyAIQueries,
+      speakerDiarization: limits.speakerDiarization,
+      weeklyDigest: limits.weeklyDigest,
+      teamCollaboration: limits.teamCollaboration,
+      auditLogs: limits.auditLogs,
     }
   }
 

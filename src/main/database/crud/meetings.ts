@@ -4,6 +4,8 @@
 
 import { getDatabase } from '../connection'
 import type { Meeting, CreateMeetingInput, UpdateMeetingInput } from '../../../types/database'
+import { createSyncQueueItem } from './sync-queue'
+import { v4 as uuidv4 } from 'uuid'
 
 /**
  * Create a new meeting
@@ -30,7 +32,20 @@ export function createMeeting(input: CreateMeetingInput): Meeting {
     input.performance_tier || null
   )
 
-  return getMeetingById(input.id)!
+  const meeting = getMeetingById(input.id)
+  if (!meeting) {
+    throw new Error(`Failed to read back meeting after INSERT: ${input.id}`)
+  }
+
+  createSyncQueueItem({
+    id: uuidv4(),
+    operation_type: 'create',
+    table_name: 'meetings',
+    record_id: meeting.id,
+    payload: meeting as unknown as Record<string, unknown>,
+  })
+
+  return meeting
 }
 
 /**
@@ -54,8 +69,18 @@ export function getAllMeetings(options?: {
 }): Meeting[] {
   const db = getDatabase()
 
-  const orderBy = options?.orderBy || 'start_time'
-  const order = options?.order || 'DESC'
+  // Whitelist-validate to prevent SQL injection
+  const ALLOWED_ORDER_BY = ['start_time', 'created_at'] as const
+  const ALLOWED_ORDER = ['ASC', 'DESC'] as const
+  const orderBy =
+    ALLOWED_ORDER_BY.includes(options?.orderBy as (typeof ALLOWED_ORDER_BY)[number]) &&
+    options?.orderBy
+      ? options.orderBy
+      : 'start_time'
+  const order =
+    ALLOWED_ORDER.includes(options?.order as (typeof ALLOWED_ORDER)[number]) && options?.order
+      ? options.order
+      : 'DESC'
   const limit = options?.limit || 100
   const offset = options?.offset || 0
 
@@ -151,7 +176,18 @@ export function updateMeeting(id: string, input: UpdateMeetingInput): Meeting | 
 
   stmt.run(...values)
 
-  return getMeetingById(id)
+  const updatedMeeting = getMeetingById(id)
+  if (updatedMeeting) {
+    createSyncQueueItem({
+      id: uuidv4(),
+      operation_type: 'update',
+      table_name: 'meetings',
+      record_id: updatedMeeting.id,
+      payload: updatedMeeting as unknown as Record<string, unknown>,
+    })
+  }
+
+  return updatedMeeting
 }
 
 /**
@@ -162,6 +198,16 @@ export function deleteMeeting(id: string): boolean {
 
   const stmt = db.prepare('DELETE FROM meetings WHERE id = ?')
   const result = stmt.run(id)
+
+  if (result.changes > 0) {
+    createSyncQueueItem({
+      id: uuidv4(),
+      operation_type: 'delete',
+      table_name: 'meetings',
+      record_id: id,
+      payload: { id },
+    })
+  }
 
   return result.changes > 0
 }

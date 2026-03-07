@@ -3,9 +3,9 @@ import { createPortal } from 'react-dom'
 import './ui.css'
 
 export interface MenuItem {
-  label: string
+  label?: string
   icon?: React.ReactNode
-  onClick: () => void
+  onClick?: () => void
   disabled?: boolean
   danger?: boolean
   divider?: boolean
@@ -48,7 +48,7 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({ x, y, items, onClose }
   }
 
   return createPortal(
-    <div className="ui-context-menu surface-glass-premium gpu-promoted" style={menuStyle}>
+    <div className="ui-context-menu surface-glass-premium" style={menuStyle}>
       {items.map((item, idx) => {
         if (item.divider) return <div key={`div-${idx}`} className="ui-menu-divider" />
         return (
@@ -58,7 +58,7 @@ export const ContextMenu: React.FC<ContextMenuProps> = ({ x, y, items, onClose }
             disabled={item.disabled}
             onClick={e => {
               e.stopPropagation()
-              item.onClick()
+              if (item.onClick) item.onClick()
               onClose()
             }}
           >

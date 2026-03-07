@@ -8,6 +8,7 @@
  */
 
 import React, { useState, useEffect } from 'react'
+import { Button } from './ui/Button'
 import { PermissionRequestFlow } from './PermissionRequestFlow'
 import { ScreenRecordingPermissionDialog } from './ScreenRecordingPermissionDialog'
 import type { ScreenRecordingGuidance } from '../../types/ipc'
@@ -153,20 +154,20 @@ export const AudioCaptureWithPermissions: React.FC<AudioCaptureWithPermissionsPr
           </div>
         </div>
 
-        <div className="button-group">
+        <div className="button-group flex gap-3 mt-4">
           {!isCapturing ? (
             <>
-              <button className="start-button" onClick={() => startCapture('system')}>
+              <Button variant="primary" onClick={() => startCapture('system')}>
                 Start Recording
-              </button>
-              <button className="start-button-alt" onClick={() => startCapture('microphone')}>
+              </Button>
+              <Button variant="secondary" onClick={() => startCapture('microphone')}>
                 Start with Microphone
-              </button>
+              </Button>
             </>
           ) : (
-            <button className="stop-button" onClick={stopCapture}>
+            <Button variant="secondary" onClick={stopCapture}>
               Stop Recording
-            </button>
+            </Button>
           )}
         </div>
 

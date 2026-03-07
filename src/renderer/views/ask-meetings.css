@@ -1,0 +1,273 @@
+/* src/renderer/views/ask-meetings.css */
+
+.ask-meetings-view {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  background: var(--color-bg-root);
+  position: relative;
+}
+
+.ask-meetings-messages {
+  flex-grow: 1;
+  overflow-y: auto;
+  padding: var(--space-32);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-24);
+  scroll-behavior: smooth;
+}
+
+.ask-msg {
+  display: flex;
+  flex-direction: column;
+  max-width: 80%;
+  animation: msg-slide-up 300ms var(--ease-spring);
+}
+
+@keyframes msg-slide-up {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.ask-msg--user {
+  align-self: flex-end;
+}
+
+.ask-msg--assistant {
+  align-self: flex-start;
+}
+
+.ask-msg--system {
+  align-self: center;
+  max-width: 90%;
+  text-align: center;
+}
+
+.ask-msg-bubble {
+  padding: var(--space-16) var(--space-20);
+  border-radius: var(--radius-lg);
+  font-size: var(--text-base);
+  line-height: var(--leading-relaxed);
+  position: relative;
+}
+
+.ask-msg--user .ask-msg-bubble {
+  background: linear-gradient(135deg, var(--color-violet) 0%, rgba(139, 92, 246, 0.8) 100%);
+  color: #fff;
+  border-bottom-right-radius: 4px;
+  box-shadow: 0 4px 16px var(--color-glow-violet);
+}
+
+.ask-msg--assistant .ask-msg-bubble {
+  background: var(--color-bg-panel);
+  border: 1px solid var(--color-border-subtle);
+  color: var(--color-text-primary);
+  border-bottom-left-radius: 4px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.2);
+}
+
+.ask-msg--system .ask-msg-bubble {
+  background: transparent;
+  color: var(--color-text-tertiary);
+  font-style: italic;
+  font-size: var(--text-sm);
+  padding: 0;
+}
+
+/* Markdown Styles inside Bubbles */
+.ask-msg-text {
+  margin: 0;
+  white-space: pre-wrap;
+}
+
+.ask-msg-text blockquote {
+  border-left: 2px solid var(--color-border-subtle);
+  padding-left: var(--space-8);
+  margin: var(--space-8) 0;
+  color: var(--color-text-secondary);
+}
+
+.ask-msg-text code {
+  background: rgba(0, 0, 0, 0.2);
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-family: var(--font-mono);
+  font-size: 0.9em;
+}
+
+.ask-msg-text pre.code-block {
+  background: rgba(0, 0, 0, 0.3);
+  padding: 12px;
+  border-radius: 8px;
+  margin: 8px 0;
+  overflow-x: auto;
+  border: 1px solid var(--color-border-inset);
+}
+.ask-msg-text pre.code-block code {
+  background: transparent;
+  padding: 0;
+}
+
+.ask-msg-text b,
+.ask-msg-text strong {
+  font-weight: 600;
+  color: inherit;
+}
+
+/* Streaming Dots */
+.ask-msg-streaming {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  height: 24px;
+}
+
+.ask-msg-dot {
+  width: 6px;
+  height: 6px;
+  background: var(--color-text-secondary);
+  border-radius: 50%;
+  animation: pulse-dot 1s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+.ask-msg-dot:nth-child(2) {
+  animation-delay: 200ms;
+}
+.ask-msg-dot:nth-child(3) {
+  animation-delay: 400ms;
+}
+
+@keyframes pulse-dot {
+  0%,
+  100% {
+    opacity: 0.4;
+    transform: scale(0.8);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.2);
+  }
+}
+
+/* Sources */
+.ask-sources {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-8);
+  margin-top: var(--space-12);
+  padding-left: var(--space-4);
+}
+
+.ask-sources-label {
+  font-size: var(--text-xs);
+  color: var(--color-text-tertiary);
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-wide);
+  align-self: center;
+  font-weight: 600;
+}
+
+.ask-source-chip {
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--color-border-subtle);
+  color: var(--color-text-secondary);
+  font-size: 11px;
+  padding: 4px 10px;
+  border-radius: var(--radius-full);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.ask-source-chip:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--color-text-primary);
+  border-color: rgba(255, 255, 255, 0.15);
+  transform: translateY(-1px);
+}
+
+/* Input Form */
+.ask-meetings-input {
+  flex-shrink: 0;
+  padding: var(--space-24) var(--space-32);
+  background: linear-gradient(to top, var(--color-bg-root) 60%, transparent);
+  display: flex;
+  gap: var(--space-12);
+  align-items: flex-end;
+  position: relative;
+}
+
+.ask-meetings-textarea {
+  flex-grow: 1;
+  background: linear-gradient(145deg, rgba(255, 255, 255, 0.03) 0%, rgba(255, 255, 255, 0.01) 100%);
+  backdrop-filter: blur(24px) saturate(120%);
+  -webkit-backdrop-filter: blur(24px) saturate(120%);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: var(--radius-xl);
+  padding: 14px 16px;
+  color: var(--color-text-primary);
+  font-family: inherit;
+  font-size: var(--text-base);
+  line-height: 1.5;
+  resize: none;
+  min-height: 52px;
+  max-height: 200px;
+  outline: none;
+  transition: all var(--transition-fast);
+  box-shadow:
+    0 4px 24px -1px rgba(0, 0, 0, 0.4),
+    0 1px 0 0 rgba(255, 255, 255, 0.1) inset,
+    0 0 0 1px rgba(255, 255, 255, 0.05);
+}
+
+.ask-meetings-textarea:focus {
+  border-color: rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.05);
+  box-shadow:
+    0 8px 32px rgba(0, 0, 0, 0.3),
+    0 1px 0 0 rgba(255, 255, 255, 0.15) inset,
+    0 0 0 1px rgba(255, 255, 255, 0.1);
+}
+
+.ask-meetings-textarea::placeholder {
+  color: var(--color-text-tertiary);
+}
+
+.ask-meetings-send {
+  background: linear-gradient(145deg, rgba(139, 92, 246, 0.2) 0%, rgba(139, 92, 246, 0.05) 100%);
+  border: 1px solid rgba(139, 92, 246, 0.3);
+  color: var(--color-text-primary);
+  width: 52px;
+  height: 52px;
+  border-radius: var(--radius-xl);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  font-size: 20px;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+
+.ask-meetings-send:hover:not(:disabled) {
+  background: linear-gradient(145deg, rgba(139, 92, 246, 0.3) 0%, rgba(139, 92, 246, 0.1) 100%);
+  border-color: rgba(139, 92, 246, 0.5);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 16px rgba(139, 92, 246, 0.4);
+}
+
+.ask-meetings-send:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}

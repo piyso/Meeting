@@ -43,7 +43,13 @@ Thumbs.db
 # Models (large files - download via scripts)
 resources/models/*.bin
 resources/models/*.onnx
+resources/models/*.gguf
 !resources/models/README.md
+
+# Scratch / temp files
+lint_output.txt
+suggestion.md
+suggrestion.md
 
 # Stale TypeScript declaration files (build artifacts emitted into source)
 src/main/**/*.d.ts

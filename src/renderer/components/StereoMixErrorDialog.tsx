@@ -10,6 +10,8 @@
 
 import React from 'react'
 import type { StereoMixGuidance } from '../../types/ipc'
+import { Button } from './ui/Button'
+import { IconButton } from './ui/IconButton'
 
 import { rendererLog } from '../utils/logger'
 const log = rendererLog.create('StereoMix')
@@ -44,11 +46,14 @@ export const StereoMixErrorDialog: React.FC<StereoMixErrorDialogProps> = ({
     <div className="stereo-mix-error-dialog-overlay">
       <div className="stereo-mix-error-dialog">
         {/* Header */}
-        <div className="dialog-header">
+        <div className="dialog-header flex justify-between items-center mb-4">
           <h2>⚠️ System Audio Not Available</h2>
-          <button className="close-button" onClick={onClose} aria-label="Close">
-            ×
-          </button>
+          <IconButton
+            icon={<span style={{ fontSize: 16 }}>✕</span>}
+            onClick={onClose}
+            tooltip="Close"
+            aria-label="Close"
+          />
         </div>
 
         {/* Error Message */}
@@ -70,11 +75,15 @@ export const StereoMixErrorDialog: React.FC<StereoMixErrorDialogProps> = ({
           </div>
 
           {/* Quick Action Button */}
-          <div className="action-section">
-            <button className="primary-button" onClick={handleOpenSettings}>
+          <div className="action-section mt-6">
+            <Button
+              variant="primary"
+              onClick={handleOpenSettings}
+              className="w-full justify-center"
+            >
               🔊 Open Windows Sound Settings
-            </button>
-            <p className="help-text">
+            </Button>
+            <p className="help-text mt-2 text-sm">
               This will open Windows Sound settings where you can enable Stereo Mix.
             </p>
           </div>
@@ -90,13 +99,14 @@ export const StereoMixErrorDialog: React.FC<StereoMixErrorDialogProps> = ({
                       ? '🎤 Use Microphone'
                       : '☁️ Use Cloud Transcription'}
                   </h4>
-                  <p>{option.description}</p>
-                  <button
-                    className="secondary-button"
+                  <p className="text-sm mb-4">{option.description}</p>
+                  <Button
+                    variant="secondary"
                     onClick={option.type === 'microphone' ? onUseMicrophone : onUseCloud}
+                    className="w-full justify-center"
                   >
                     {option.type === 'microphone' ? 'Use Microphone' : 'Use Cloud Transcription'}
-                  </button>
+                  </Button>
                 </div>
               ))}
             </div>
@@ -105,9 +115,10 @@ export const StereoMixErrorDialog: React.FC<StereoMixErrorDialogProps> = ({
           {/* Documentation and Video Tutorial Links */}
           <div className="resources-section">
             <h3>Need More Help?</h3>
-            <div className="resource-links">
-              <button
-                className="resource-link"
+            <div className="resource-links flex gap-4 mt-4 mb-2">
+              <Button
+                variant="ghost"
+                className="resource-link text-[var(--color-violet)]"
                 onClick={() => {
                   // Open the comprehensive documentation
                   window.electronAPI.shell?.openExternal(
@@ -116,7 +127,7 @@ export const StereoMixErrorDialog: React.FC<StereoMixErrorDialogProps> = ({
                 }}
               >
                 📖 View Complete Guide
-              </button>
+              </Button>
               {guidance.videoTutorialUrl && (
                 <a
                   href={guidance.videoTutorialUrl}

@@ -42,16 +42,10 @@ const ALLOWED_TABLES = ['meetings', 'transcripts', 'notes', 'entities'] as const
 type AllowedTable = (typeof ALLOWED_TABLES)[number]
 
 /**
- * Content size limits by plan tier (GAP-N15)
+ * Content size limits imported from TierMappingService (single source of truth)
  * Task 30.11: Content size limits and chunking
  */
-const CONTENT_SIZE_LIMITS = {
-  free: 5000, // 5K characters
-  starter: 10000, // 10K characters
-  pro: 25000, // 25K characters
-  team: 50000, // 50K characters
-  enterprise: 100000, // 100K characters
-} as const
+import { getContentSizeLimit, type PiyNotesTier } from './TierMappingService'
 
 /**
  * Exponential backoff delays (in milliseconds)
@@ -102,6 +96,7 @@ export class SyncManager {
   private password: string | null = null
   private syncInterval: NodeJS.Timeout | null = null
   private isSyncing: boolean = false
+  private retryPending: boolean = false
   private cachedPlanTier: string | null = null
   private log = Logger.create('SyncManager')
 
@@ -225,6 +220,12 @@ export class SyncManager {
       return { success: true, syncedCount: 0, failedCount: 0, errors: [] }
     }
 
+    // Guard against re-entry during pending retry (prevents duplicate processing)
+    if (this.retryPending) {
+      this.log.debug('Retry pending, skipping auto-sync')
+      return { success: true, syncedCount: 0, failedCount: 0, errors: [] }
+    }
+
     if (!this.userId || !this.password) {
       this.log.debug('Not initialized, skipping sync')
       return { success: false, syncedCount: 0, failedCount: 0, errors: ['Not initialized'] }
@@ -277,7 +278,7 @@ export class SyncManager {
             // Task 30.4: Encrypt payload before upload
             const encryptedPayload = await EncryptionService.encrypt(
               JSON.stringify(chunkPayload),
-              this.password!
+              this.password ?? ''
             )
 
             // Convert to Memory format for PiyAPI
@@ -300,20 +301,78 @@ export class SyncManager {
               eventTime: new Date(event.created_at * 1000).toISOString(),
             }
 
-            // Task 30.5: POST to /api/v1/memories
-            const memoryResult = await this.backend.createMemory(memory)
+            // Route to correct PiyAPI operation based on event type
+            switch (event.operation_type) {
+              case 'create': {
+                // Task 30.5: POST to /api/v1/memories
+                const memoryResult = await this.backend.createMemory(memory)
 
-            // Wait for PiyAPI to generate embeddings (async, ~2-4s)
-            // Without this, immediate search returns zero semantic results
-            if (memoryResult?.id) {
-              this.waitForEmbedding(memoryResult.id).catch(() => {
-                // Non-blocking — search may return incomplete results
-              })
+                // Wait for PiyAPI to generate embeddings (async, ~2-4s)
+                // Without this, immediate search returns zero semantic results
+                if (memoryResult?.id) {
+                  this.waitForEmbedding(memoryResult.id).catch(() => {
+                    // Non-blocking — search may return incomplete results
+                  })
+                }
+                break
+              }
+
+              case 'update': {
+                // Find existing cloud memory by record_id, then update
+                const existingMemories = await this.backend.getMemories(
+                  `meetings.${event.table_name}`,
+                  1,
+                  0
+                )
+                const existing = existingMemories.find(
+                  (m: Memory) => m.metadata?.record_id === event.record_id
+                )
+
+                if (existing?.id) {
+                  await this.backend.updateMemory(existing.id, memory)
+                } else {
+                  // Fallback: record not found in cloud — create instead
+                  this.log.warn(
+                    `Update target not found in cloud for ${event.record_id}, creating new`
+                  )
+                  await this.backend.createMemory(memory)
+                }
+                break
+              }
+
+              case 'delete': {
+                // Find existing cloud memory by record_id, then delete
+                const deleteMemories = await this.backend.getMemories(
+                  `meetings.${event.table_name}`,
+                  1,
+                  0
+                )
+                const toDelete = deleteMemories.find(
+                  (m: Memory) => m.metadata?.record_id === event.record_id
+                )
+
+                if (toDelete?.id) {
+                  await this.backend.deleteMemory(toDelete.id)
+                } else {
+                  // Already deleted or never synced — safe to skip
+                  this.log.debug(
+                    `Delete target not found in cloud for ${event.record_id}, skipping`
+                  )
+                }
+                break
+              }
+
+              default:
+                this.log.warn(
+                  `Unknown operation type: ${event.operation_type}, defaulting to create`
+                )
+                await this.backend.createMemory(memory)
             }
           }
 
           // Task 30.6: Mark synced_at on success (atomic with queue deletion)
           this.markSyncedAtomic(event.table_name, event.record_id, event.id)
+          syncedIds.push(event.id)
 
           this.log.info(`Synced ${event.operation_type} ${event.table_name}:${event.record_id}`)
         } catch (error: unknown) {
@@ -355,12 +414,16 @@ export class SyncManager {
           incrementSyncRetry(event.id)
           errors.push(`${event.table_name}:${event.record_id} - ${errorMsg}`)
 
-          // Schedule retry with exponential backoff
-          setTimeout(() => {
-            this.syncPendingEvents().catch(err => {
-              this.log.error('Retry sync failed:', err)
-            })
-          }, retryDelay)
+          // Schedule retry with exponential backoff (guard against cascading retries)
+          if (!this.retryPending) {
+            this.retryPending = true
+            setTimeout(() => {
+              this.retryPending = false
+              this.syncPendingEvents().catch(err => {
+                this.log.error('Retry sync failed:', err)
+              })
+            }, retryDelay)
+          }
         }
       }
 
@@ -399,16 +462,35 @@ export class SyncManager {
 
     for (let attempt = 0; attempt < maxAttempts; attempt++) {
       try {
-        // Get memory from backend
-        const memories = await this.backend.getMemories('meetings', 1, 0)
-        const memory = memories.find(m => m.id === memoryId)
-
-        if (!memory) {
-          this.log.error(`Memory not found: ${memoryId}`)
-          return 'failed'
+        // Fetch this specific memory by ID via direct API call
+        const token = this.backend.getAccessToken?.()
+        if (!token) {
+          this.log.debug('No access token for embedding poll')
+          return 'pending'
         }
 
-        const embeddingStatus = (memory.metadata?.embedding_status as EmbeddingStatus) || 'pending'
+        // Use backend's base URL — already correctly set for both proxy and direct modes
+        // Proxy mode: baseUrl = .../piyapi-proxy → .../piyapi-proxy/memories/{id}
+        // Direct mode: baseUrl = .../api/v1 → .../api/v1/memories/{id}
+        const baseUrl = this.backend.getBaseUrl?.()
+        const memoryUrl = baseUrl
+          ? `${baseUrl}/memories/${memoryId}`
+          : `${config.PIYAPI_BASE_URL}/api/v1/memories/${memoryId}`
+
+        const res = await fetch(memoryUrl, { headers: { Authorization: `Bearer ${token}` } })
+
+        if (!res.ok) {
+          this.log.debug(`Memory fetch returned ${res.status}`)
+          if (res.status === 404) return 'failed'
+          // Transient error — wait and retry
+          await new Promise(resolve => setTimeout(resolve, intervalMs))
+          continue
+        }
+
+        const memory = await res.json()
+        const embeddingStatus = (memory?.embedding_status ||
+          memory?.metadata?.embedding_status ||
+          'pending') as EmbeddingStatus
 
         this.log.debug(`Embedding status (attempt ${attempt + 1}): ${embeddingStatus}`)
 
@@ -460,7 +542,7 @@ export class SyncManager {
    */
   private getBackoffDelay(retryCount: number): number {
     const index = Math.min(retryCount, BACKOFF_DELAYS.length - 1)
-    return BACKOFF_DELAYS[index]!
+    return BACKOFF_DELAYS[index] ?? BACKOFF_DELAYS[BACKOFF_DELAYS.length - 1] ?? 30000
   }
 
   /**
@@ -505,33 +587,13 @@ export class SyncManager {
   }
 
   /**
-   * Wait for PiyAPI to generate embeddings for a memory
-   * Embeddings are generated asynchronously (~2-4s after creation).
-   * Status value is 'ready', NOT 'completed' (API quirk).
+   * Wait for PiyAPI to generate embeddings for a memory.
+   * Consolidated to delegate to pollEmbeddingStatus (NEW-09 fix).
    */
   private async waitForEmbedding(memoryId: string, maxWaitMs = 10_000): Promise<boolean> {
-    const start = Date.now()
-    while (Date.now() - start < maxWaitMs) {
-      try {
-        // Access token from backend internal state
-        const token = this.backend.getAccessToken?.()
-        if (!token) return false
-        const res = await fetch(
-          `${this.backend.getBaseUrl?.() || config.PIYAPI_BASE_URL}/api/v1/memories/${memoryId}`,
-          { headers: { Authorization: `Bearer ${token}` } }
-        )
-        if (res.ok) {
-          const memory = await res.json()
-          if (memory?.embedding_status === 'ready') return true
-        }
-      } catch (err) {
-        this.log.debug('Embedding poll failed', err)
-        return false
-      }
-      await new Promise(resolve => setTimeout(resolve, 1000))
-    }
-    this.log.warn(`Embedding timeout for memory ${memoryId}`)
-    return false
+    const maxAttempts = Math.max(1, Math.ceil(maxWaitMs / 1000))
+    const status = await this.pollEmbeddingStatus(memoryId, maxAttempts, 1000)
+    return status === 'ready'
   }
 
   /**
@@ -547,7 +609,7 @@ export class SyncManager {
   private chunkContentIfNeeded(payload: Record<string, unknown>): Record<string, unknown>[] {
     // Get user's plan tier
     const planTier = this.getUserPlanTier()
-    const sizeLimit = CONTENT_SIZE_LIMITS[planTier]
+    const sizeLimit = getContentSizeLimit(planTier)
 
     // Check if content field exists and needs chunking
     const content = payload.text || payload.content || payload.original_text
@@ -596,7 +658,7 @@ export class SyncManager {
    *
    * @returns Plan tier
    */
-  private getUserPlanTier(): keyof typeof CONTENT_SIZE_LIMITS {
+  private getUserPlanTier(): PiyNotesTier {
     if (!this.userId) {
       return 'free'
     }
@@ -605,7 +667,7 @@ export class SyncManager {
       // Synchronous check — KeyStorageService is async so we cache the tier
       // during login and use the cached value here
       if (this.cachedPlanTier) {
-        return this.cachedPlanTier as keyof typeof CONTENT_SIZE_LIMITS
+        return this.cachedPlanTier as PiyNotesTier
       }
       return 'free'
     } catch (err) {

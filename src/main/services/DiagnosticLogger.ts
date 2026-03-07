@@ -221,7 +221,7 @@ class DiagnosticLogger {
   /**
    * Get system information for diagnostics
    */
-  private getSystemInfo(): Record<string, string | number> {
+  public getSystemInfo(): Record<string, string | number> {
     return {
       os: os.platform(),
       osVersion: os.release(),

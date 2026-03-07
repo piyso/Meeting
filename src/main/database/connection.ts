@@ -14,6 +14,7 @@ import { Logger } from '../services/Logger'
 const log = Logger.create('Database')
 
 let db: Database.Database | null = null
+let walCheckpointTimer: ReturnType<typeof setInterval> | null = null
 
 /**
  * Database configuration options
@@ -81,6 +82,19 @@ export function initializeDatabase(config?: Partial<DatabaseConfig>): Database.D
   // Initialize schema
   initializeSchema(db)
 
+  // Periodic WAL checkpoint to prevent .db-wal file explosion during long recordings.
+  // Without this, if a read transaction is held (e.g., FTS5 search) while TranscriptService
+  // writes hundreds of rows per minute, the WAL file can grow to multiple GB.
+  walCheckpointTimer = setInterval(() => {
+    try {
+      if (db) {
+        db.pragma('wal_checkpoint(PASSIVE)')
+      }
+    } catch {
+      // Non-critical — checkpoint will be retried next interval
+    }
+  }, 300_000) // Every 5 minutes
+
   log.info('Database initialized successfully')
 
   return db
@@ -142,8 +156,18 @@ export function getDatabase(): Database.Database {
  * Close database connection
  */
 export function closeDatabase(): void {
+  if (walCheckpointTimer) {
+    clearInterval(walCheckpointTimer)
+    walCheckpointTimer = null
+  }
   if (db) {
     log.info('Closing database connection...')
+    // Final checkpoint before close to flush WAL
+    try {
+      db.pragma('wal_checkpoint(TRUNCATE)')
+    } catch {
+      // Best-effort
+    }
     db.close()
     db = null
     log.info('Database connection closed')
@@ -182,10 +206,14 @@ export function checkDatabaseHealth(): {
 
   const fileSize = pageCount * pageSize
 
+  const walEnabled = journalMode === 'wal'
+  const fkEnabled = foreignKeys === 1
+  const isHealthy = walEnabled && fkEnabled
+
   return {
-    isHealthy: true,
-    walMode: journalMode === 'wal',
-    foreignKeys: foreignKeys === 1,
+    isHealthy,
+    walMode: walEnabled,
+    foreignKeys: fkEnabled,
     cacheSize,
     pageCount,
     pageSize,

@@ -97,7 +97,7 @@ export function registerSyncHandlers(): void {
         syncManager.stopAutoSync()
         syncManager = null
       }
-      return { success: true }
+      return { success: true, data: undefined }
     } catch (error) {
       return {
         success: false,
@@ -111,19 +111,15 @@ export function registerSyncHandlers(): void {
   })
 
   // sync:googleAuth — Google OAuth login flow (Blueprint §2.7, L1641)
-  // Opens external browser for Google sign-in, exchanges code for tokens
+  // Opens external browser for Google sign-in via Supabase Auth
   ipcMain.handle('sync:googleAuth', async () => {
     try {
-      const { shell } = await import('electron')
-      const backend = new PiyAPIBackend()
+      const { getAuthService } = await import('../../services/AuthService')
+      const authService = getAuthService()
+      await authService.startGoogleAuth()
 
-      // Open Google OAuth URL in default browser
-      const oauthUrl = `${backend.getBaseUrl()}/auth/google`
-      await shell.openExternal(oauthUrl)
-
-      // The callback will be handled via deep link (bluearkive://oauth/callback)
-      // For now, return pending status — the actual token exchange happens via
-      // a deep link handler registered in main.ts
+      // The callback will be handled via deep link (bluearkive://auth/callback)
+      // handleOAuthCallback() is called from app.on('open-url') in main.ts
       return {
         success: true,
         data: {
@@ -136,6 +132,53 @@ export function registerSyncHandlers(): void {
         success: false,
         error: {
           code: 'GOOGLE_AUTH_FAILED',
+          message: (error as Error).message,
+          timestamp: Date.now(),
+        },
+      }
+    }
+  })
+
+  // sync:resolveConflict — Apply user's conflict resolution choice
+  ipcMain.handle('sync:resolveConflict', async (_, params) => {
+    try {
+      if (!params?.noteId || !params?.strategy) {
+        return {
+          success: false,
+          error: {
+            code: 'INVALID_PARAMS',
+            message: 'noteId and strategy are required',
+            timestamp: Date.now(),
+          },
+        }
+      }
+
+      const os = await import('os')
+      const { getConflictResolver } = await import('../../services/ConflictResolver')
+      const resolver = getConflictResolver(os.hostname())
+
+      // Build ConflictInfo for manualResolve
+      const conflictInfo = {
+        noteId: params.noteId as string,
+        localVersion: (params.localVersion ?? '') as string,
+        remoteVersion: (params.remoteVersion ?? '') as string,
+        localClock: (params.localClock ?? {}) as Record<string, number>,
+        remoteClock: (params.remoteClock ?? {}) as Record<string, number>,
+        comparison: 'concurrent' as const,
+        autoResolved: false,
+      }
+
+      const resolution = await resolver.manualResolve(
+        conflictInfo,
+        params.strategy,
+        params.mergedContent
+      )
+      return { success: true, data: resolution }
+    } catch (error) {
+      return {
+        success: false,
+        error: {
+          code: 'SYNC_RESOLVE_FAILED',
           message: (error as Error).message,
           timestamp: Date.now(),
         },

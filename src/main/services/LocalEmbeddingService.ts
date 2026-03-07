@@ -105,10 +105,25 @@ export class LocalEmbeddingService {
         graphOptimizationLevel: 'all',
       })
 
-      // Parse tokenizer (not stored as class property since vocab is enough for simple tokenization)
+      // Parse tokenizer and extract special token mappings
       log.info('[LocalEmbeddingService] Loading tokenizer...')
       const tokenizerData = fs.readFileSync(this.tokenizerPath, 'utf-8')
-      JSON.parse(tokenizerData)
+      const tokenizer = JSON.parse(tokenizerData) as Record<string, unknown>
+
+      // Extract special token IDs from tokenizer config if available
+      const addedTokens = tokenizer.added_tokens as
+        | Array<{ id: number; content: string }>
+        | undefined
+      if (addedTokens && Array.isArray(addedTokens)) {
+        for (const token of addedTokens) {
+          if (token.content && typeof token.id === 'number') {
+            this.vocab.set(token.content, token.id)
+          }
+        }
+        log.info(
+          `[LocalEmbeddingService] Loaded ${addedTokens.length} special tokens from tokenizer`
+        )
+      }
 
       // Load vocabulary
       log.info('[LocalEmbeddingService] Loading vocabulary...')
@@ -161,7 +176,8 @@ export class LocalEmbeddingService {
         attention_mask: attentionMask,
       }
 
-      const results = await this.session!.run(feeds)
+      if (!this.session) throw new Error('ONNX session not initialized')
+      const results = await this.session.run(feeds)
       const output = results['last_hidden_state']
 
       if (!output) {
@@ -215,8 +231,8 @@ export class LocalEmbeddingService {
     let normB = 0
 
     for (let i = 0; i < a.length; i++) {
-      const aVal = a[i]!
-      const bVal = b[i]!
+      const aVal = a[i] ?? 0
+      const bVal = b[i] ?? 0
       dotProduct += aVal * bVal
       normA += aVal * aVal
       normB += bVal * bVal
@@ -294,7 +310,7 @@ export class LocalEmbeddingService {
 
       // Try full word first
       if (this.vocab.has(word)) {
-        inputIds.push(this.vocab.get(word)!)
+        inputIds.push(this.vocab.get(word) ?? 100)
         attentionMask.push(1)
         continue
       }
@@ -307,7 +323,7 @@ export class LocalEmbeddingService {
         for (let end = remaining.length; end > 0; end--) {
           const subword = isFirst ? remaining.substring(0, end) : '##' + remaining.substring(0, end)
           if (this.vocab.has(subword)) {
-            inputIds.push(this.vocab.get(subword)!)
+            inputIds.push(this.vocab.get(subword) ?? 100)
             attentionMask.push(1)
             remaining = remaining.substring(end)
             isFirst = false

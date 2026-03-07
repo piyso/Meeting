@@ -41,6 +41,7 @@ export const MicrophoneTest: React.FC<MicrophoneTestProps> = ({ onTestComplete }
     return () => {
       stopTest()
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   const startTest = async () => {
@@ -127,7 +128,7 @@ export const MicrophoneTest: React.FC<MicrophoneTestProps> = ({ onTestComplete }
       // Calculate RMS level
       let sum = 0
       for (let i = 0; i < dataArray.length; i++) {
-        const normalized = dataArray[i]! / 255
+        const normalized = (dataArray[i] ?? 0) / 255
         sum += normalized * normalized
       }
       const rms = Math.sqrt(sum / dataArray.length)

@@ -8,6 +8,7 @@ import * as Y from 'yjs'
 
 import { IndexeddbPersistence } from 'y-indexeddb'
 import { useNotes } from '../../hooks/queries/useNotes'
+import { ModelSpinupIndicator } from '../ui/ModelSpinupIndicator'
 
 interface NoteEditorProps {
   meetingId: string
@@ -16,6 +17,7 @@ interface NoteEditorProps {
 export const NoteEditor: React.FC<NoteEditorProps> = ({ meetingId }) => {
   const { data: notes, createNote, updateNote } = useNotes(meetingId)
   const [providerOrDoc, setProviderOrDoc] = useState<Y.Doc | null>(null)
+  const [isAIExpanding, setIsAIExpanding] = useState(false)
   const saveTimeoutRef = React.useRef<NodeJS.Timeout | null>(null)
 
   useEffect(() => {
@@ -44,6 +46,7 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({ meetingId }) => {
 
       // Dispatch custom event to let the user know
       // Note expansion triggered
+      setIsAIExpanding(true)
 
       try {
         const res = await window.electronAPI.note.expand({
@@ -73,12 +76,24 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({ meetingId }) => {
         }
       } catch (err) {
         // Expansion failed silently — user sees no change
+      } finally {
+        setIsAIExpanding(false)
       }
     }
 
     window.addEventListener('trigger-ai-expansion', handleExpand)
     return () => window.removeEventListener('trigger-ai-expansion', handleExpand)
   }, [providerOrDoc, notes, meetingId])
+
+  // Use refs for values needed in onUpdate callback — avoids unstable deps in useEditor
+  const notesRef = React.useRef(notes)
+  const createNoteRef = React.useRef(createNote)
+  const updateNoteRef = React.useRef(updateNote)
+  React.useEffect(() => {
+    notesRef.current = notes
+    createNoteRef.current = createNote
+    updateNoteRef.current = updateNote
+  }, [notes, createNote, updateNote])
 
   const editor = useEditor(
     {
@@ -123,14 +138,17 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({ meetingId }) => {
 
         saveTimeoutRef.current = setTimeout(async () => {
           const text = editor.getHTML()
+          // Update dedup ref so periodic save skips duplicate
+          lastSavedHtmlRef.current = text
+          const currentNotes = notesRef.current
           // Map to central note or create one if none exists
-          if (notes && notes.length > 0) {
-            updateNote.mutate({
-              noteId: notes[0]?.id ?? '',
+          if (currentNotes && currentNotes.length > 0) {
+            updateNoteRef.current.mutate({
+              noteId: currentNotes[0]?.id ?? '',
               updates: { original_text: text },
             })
           } else {
-            createNote.mutate({
+            createNoteRef.current.mutate({
               meetingId,
               timestamp: Math.floor(Date.now() / 1000),
               text,
@@ -139,8 +157,42 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({ meetingId }) => {
         }, 1500)
       },
     },
-    [providerOrDoc, meetingId, notes, createNote, updateNote]
+    [providerOrDoc, meetingId] // Only stable deps — editor recreated only when doc or meeting changes
   )
+
+  // Keep editorRef in sync for the periodic auto-save timer
+  const editorRef = React.useRef<ReturnType<typeof useEditor> | null>(null)
+  React.useEffect(() => {
+    editorRef.current = editor
+  }, [editor])
+
+  // ── Periodic auto-save timer ─────────────────────────────────
+  // Separate from the debounced save-on-edit (1500ms).
+  // This ensures content is flushed to DB even if the user stops typing,
+  // protecting against data loss on crash.
+  const lastSavedHtmlRef = React.useRef('')
+  useEffect(() => {
+    const autoSaveIntervalMs = 30_000 // 30s
+    const timer = setInterval(() => {
+      const ed = editorRef.current
+      if (!ed || ed.isEmpty) return
+
+      const text = ed.getHTML()
+      // Skip save if content hasn't changed since last save (prevents race with debounced save)
+      if (text === lastSavedHtmlRef.current) return
+      lastSavedHtmlRef.current = text
+
+      const currentNotes = notesRef.current
+      if (currentNotes && currentNotes.length > 0) {
+        updateNoteRef.current.mutate({
+          noteId: currentNotes[0]?.id ?? '',
+          updates: { original_text: text },
+        })
+      }
+    }, autoSaveIntervalMs)
+
+    return () => clearInterval(timer)
+  }, []) // No deps — refs are stable
 
   useEffect(() => {
     const handleInsert = (e: Event) => {
@@ -170,10 +222,15 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({ meetingId }) => {
   }
 
   return (
-    <div className="ui-note-editor-panel">
+    <div className="ui-note-editor-panel relative">
       <div className="ui-note-editor-scroll scrollbar-webkit">
         <EditorContent editor={editor} className="h-full" />
       </div>
+      {isAIExpanding && (
+        <div className="absolute bottom-4 right-6 z-50">
+          <ModelSpinupIndicator />
+        </div>
+      )}
     </div>
   )
 }

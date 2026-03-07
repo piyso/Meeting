@@ -2,7 +2,10 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self' https://api.piyapi.cloud https://api.deepgram.com http://localhost:11434; font-src 'self'" />
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'self' https://*.supabase.co https://api.piyapi.cloud https://api.deepgram.com; font-src 'self'"
+    />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>BlueArkive</title>
     <style>
@@ -28,8 +31,15 @@
         animation: pulse 2s ease-in-out infinite;
       }
       @keyframes pulse {
-        0%, 100% { opacity: 0.4; transform: scale(1); }
-        50% { opacity: 1; transform: scale(1.05); }
+        0%,
+        100% {
+          opacity: 0.4;
+          transform: scale(1);
+        }
+        50% {
+          opacity: 1;
+          transform: scale(1.05);
+        }
       }
     </style>
   </head>

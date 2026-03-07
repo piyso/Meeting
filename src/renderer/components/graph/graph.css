@@ -1,0 +1,212 @@
+/**
+ * Knowledge Graph specific CSS
+ * Sovereign Design System implementation
+ */
+
+.graph-view-container {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.graph-header-shrink {
+  flex-shrink: 0;
+}
+
+.graph-offline-badge {
+  margin-left: auto;
+  background: var(--color-bg-active);
+  padding: 4px 8px;
+  border-radius: var(--radius-sm);
+  font-size: var(--text-xs);
+  border: 1px solid var(--color-border-subtle);
+}
+
+.graph-main-area {
+  display: flex;
+  flex-grow: 1;
+  position: relative;
+  overflow: hidden;
+}
+
+.graph-canvas-container {
+  flex-grow: 1;
+  background: var(--color-bg-root);
+  position: relative;
+}
+
+.graph-loading-state {
+  padding: var(--space-24);
+  text-align: center;
+  color: var(--color-text-secondary);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  gap: var(--space-12);
+}
+
+.graph-error-state {
+  padding: var(--space-24);
+  color: var(--color-rose);
+  text-align: center;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* ── Details Panel Sidebar ── */
+.graph-sidebar {
+  width: 320px;
+  background: rgba(15, 15, 17, 0.6);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  border-left: 1px solid var(--color-border-inset);
+  padding: var(--space-16);
+  overflow-y: auto;
+  transform: translateX(100%);
+  animation: slide-in-right 300ms var(--ease-spring) forwards;
+  position: relative;
+  z-index: 10;
+}
+
+@keyframes slide-in-right {
+  to {
+    transform: translateX(0);
+  }
+}
+
+.graph-sidebar-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: var(--space-16);
+  border-bottom: 1px solid var(--color-border-subtle);
+  padding-bottom: var(--space-12);
+}
+
+.graph-sidebar-title {
+  margin: 0;
+  font-size: var(--text-base);
+  font-weight: 500;
+  color: var(--color-text-primary);
+}
+
+.graph-sidebar-close {
+  background: transparent;
+  border: none;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  padding: 4px;
+  border-radius: var(--radius-sm);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all var(--transition-fast);
+}
+
+.graph-sidebar-close:hover {
+  background: var(--color-bg-glass-hover);
+  color: var(--color-text-primary);
+}
+
+.graph-detail-group {
+  margin-bottom: var(--space-16);
+}
+
+.graph-detail-label {
+  font-size: var(--text-xs);
+  text-transform: uppercase;
+  color: var(--color-text-secondary);
+  margin-bottom: var(--space-4);
+  letter-spacing: var(--tracking-wide);
+  font-weight: 600;
+}
+
+.graph-detail-value {
+  font-weight: 500;
+  color: var(--color-text-primary);
+  line-height: var(--leading-relaxed);
+}
+
+.graph-type-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 10px;
+  border-radius: var(--radius-full);
+  font-size: var(--text-xs);
+  font-weight: 500;
+  background: var(--color-bg-glass);
+  border: 1px solid var(--color-border-subtle);
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-wide);
+}
+
+.graph-open-meeting-btn {
+  width: 100%;
+  padding: var(--space-8) var(--space-12);
+  background: linear-gradient(135deg, var(--color-violet) 0%, rgba(167, 139, 250, 0.8) 100%);
+  color: #000;
+  border: none;
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  font-weight: 600;
+  margin-top: var(--space-8);
+  transition: all var(--transition-fast);
+  box-shadow: 0 4px 12px var(--color-glow-violet);
+}
+
+.graph-open-meeting-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 16px rgba(167, 139, 250, 0.4);
+}
+
+.graph-open-meeting-btn:active {
+  transform: translateY(1px);
+}
+
+.graph-metadata-pre {
+  font-size: 11px;
+  background: rgba(0, 0, 0, 0.4);
+  padding: var(--space-12);
+  border-radius: var(--radius-sm);
+  overflow-x: auto;
+  border: 1px solid var(--color-border-inset);
+  color: var(--color-text-secondary);
+  font-family: var(--font-mono);
+}
+
+/* ── GraphCanvas Legend ── */
+.graph-legend {
+  position: absolute;
+  bottom: var(--space-16);
+  left: var(--space-16);
+  background: rgba(15, 15, 17, 0.6);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-md);
+  padding: var(--space-12);
+  pointer-events: none;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-8);
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.4);
+}
+
+.graph-legend-item {
+  display: flex;
+  align-items: center;
+  gap: var(--space-8);
+  font-size: var(--text-xs);
+  color: var(--color-text-secondary);
+}
+
+.graph-legend-color {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.2);
+}

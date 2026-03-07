@@ -24,7 +24,11 @@ export function usePowerMode() {
       // Fallback: try Web Battery API (may work in some Electron versions)
       if ('getBattery' in navigator) {
         try {
-          const battery = await (navigator as any).getBattery()
+          const battery = await (
+            navigator as unknown as {
+              getBattery: () => Promise<{ charging: boolean; level: number }>
+            }
+          ).getBattery()
           setIsOnBattery(!battery.charging)
           setIsPowerSaveMode(!battery.charging && battery.level < 0.3)
         } catch {

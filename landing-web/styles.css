@@ -1197,4 +1197,15 @@ kbd {
   .download h2 {
     font-size: 2.5rem;
   }
+
+  .mac-body {
+    padding: 32px 16px;
+    min-height: 200px;
+    overflow: hidden;
+  }
+
+  .drag-animation {
+    transform: scale(0.75);
+    transform-origin: center center;
+  }
 }

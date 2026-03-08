@@ -465,80 +465,107 @@
             </a>
           </div>
 
-          <!-- Install steps for manual -->
-          <div style="max-width: 580px; margin: 32px auto 0; text-align: left">
-            <p
-              style="
-                font-size: 0.9rem;
-                color: var(--text-muted);
-                margin-bottom: 16px;
-                text-align: center;
-              "
-            >
-              After downloading, follow these steps:
+          <!-- Visual Install Guide (Zero Friction) -->
+          <div style="max-width: 580px; margin: 40px auto 0; text-align: center">
+            <p style="font-size: 0.95rem; color: var(--text-muted); margin-bottom: 24px">
+              Simply drag to install, then <strong>Right-Click → Open</strong> the first time.
             </p>
-            <div class="install-steps">
-              <div class="install-step">
-                <div class="step-number">1</div>
-                <div class="step-content">
-                  <h4>Open the .dmg and drag to Applications</h4>
-                  <p>
-                    Double-click the downloaded file and drag BlueArkive into your Applications
-                    folder.
-                  </p>
+
+            <div class="visual-guide-container">
+              <div class="mac-window">
+                <div class="mac-header">
+                  <div class="mac-dots">
+                    <span class="dot red"></span>
+                    <span class="dot yellow"></span>
+                    <span class="dot green"></span>
+                  </div>
+                  <div class="mac-title">BlueArkive Installer</div>
                 </div>
-              </div>
-              <div class="install-step">
-                <div class="step-number">2</div>
-                <div class="step-content">
-                  <h4>Right-click → Open</h4>
-                  <p>
-                    In Applications, <strong>right-click</strong> BlueArkive and select
-                    <strong>"Open"</strong>. Don't double-click — right-click.
-                  </p>
-                </div>
-              </div>
-              <div class="install-step">
-                <div class="step-number">3</div>
-                <div class="step-content">
-                  <h4>Click "Open" in the dialog</h4>
-                  <p>Click <strong>"Open"</strong> when asked. You only need to do this once.</p>
+                <div class="mac-body">
+                  <div class="drag-animation">
+                    <!-- App Icon (Animates) -->
+                    <div class="app-icon drag-source">
+                      <div class="app-logo">
+                        <svg
+                          width="24"
+                          height="24"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          class="animate-pulse-slow"
+                        >
+                          <path d="M12 2L2 7L12 12L22 7L12 2Z" fill="currentColor" opacity="0.8" />
+                          <path d="M2 17L12 22L22 17" stroke="currentColor" stroke-width="2" />
+                        </svg>
+                      </div>
+                      <span class="icon-label">BlueArkive</span>
+                    </div>
+
+                    <!-- Arrow -->
+                    <div class="drag-arrow">
+                      <svg
+                        width="24"
+                        height="24"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        stroke-width="2"
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                      >
+                        <path d="M5 12h14M12 5l7 7-7 7" />
+                      </svg>
+                    </div>
+
+                    <!-- Applications Folder -->
+                    <div class="app-icon drag-target">
+                      <div class="folder-icon">
+                        <svg width="32" height="32" viewBox="0 0 24 24" fill="currentColor">
+                          <path
+                            d="M10 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2h-8l-2-2z"
+                          />
+                        </svg>
+                      </div>
+                      <span class="icon-label">Applications</span>
+                    </div>
+
+                    <!-- Context Menu (Animates in) -->
+                    <div class="context-menu">
+                      <div class="menu-item highlight">Open</div>
+                      <div class="menu-item">Show Package Contents</div>
+                      <div class="menu-item">Move to Trash</div>
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
+
             <div
               style="
-                margin-top: 16px;
-                padding: 14px 18px;
-                background: #1a1a2e;
-                border-radius: 8px;
-                display: flex;
+                margin-top: 24px;
+                display: inline-flex;
                 align-items: center;
                 gap: 8px;
-                font-family: 'SF Mono', Monaco, monospace;
-                font-size: 0.82rem;
-                color: #e2e8f0;
+                background: rgba(56, 189, 248, 0.1);
+                padding: 8px 16px;
+                border-radius: 999px;
+                color: #38bdf8;
+                font-size: 0.85rem;
+                border: 1px solid rgba(56, 189, 248, 0.2);
               "
             >
-              <span style="color: var(--text-light)">Or run:</span>
-              <code style="flex: 1">sudo xattr -cr /Applications/BlueArkive.app</code>
-              <button
-                onclick="
-                  navigator.clipboard.writeText('sudo xattr -cr /Applications/BlueArkive.app')
-                  this.textContent = '✓'
-                "
-                style="
-                  background: rgba(255, 255, 255, 0.1);
-                  border: none;
-                  color: #a78bfa;
-                  padding: 3px 10px;
-                  border-radius: 6px;
-                  cursor: pointer;
-                  font-size: 0.78rem;
-                "
+              <svg
+                width="16"
+                height="16"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
               >
-                Copy
-              </button>
+                <circle cx="12" cy="12" r="10" />
+                <path d="M12 16v-4" />
+                <path d="M12 8h.01" />
+              </svg>
+              <span>By right-clicking, you bypass Apple's unsigned app warning.</span>
             </div>
           </div>
         </div>

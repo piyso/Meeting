@@ -131,8 +131,9 @@
       <p>
         Audio is captured via <strong>macOS CoreAudio APIs</strong> (system audio) and standard
         WebRTC (microphone input). The raw PCM audio is processed in 30-second chunks and fed
-        directly to a local Whisper model running on the device's GPU via ONNX Runtime. No audio
-        buffers are written to temporary files — processing happens entirely in memory.
+        directly to a local speech recognition model running on the device's GPU via a
+        hardware-accelerated runtime. No audio buffers are written to temporary files — processing
+        happens entirely in memory.
       </p>
       <ul>
         <li>System audio capture uses macOS Screen Recording permission</li>
@@ -144,17 +145,17 @@
       <p>BlueArkive uses two on-device AI models:</p>
       <ul>
         <li>
-          <strong>Whisper Turbo</strong> (OpenAI) — Speech-to-text transcription, running via ONNX
-          Runtime on Apple Silicon GPUs
+          <strong>Speech Recognition Engine</strong> — State-of-the-art speech-to-text
+          transcription, running via a GPU-accelerated runtime on Apple Silicon
         </li>
         <li>
-          <strong>Qwen 2.5 3B</strong> (Alibaba) — Note expansion and summarization, running via
-          llama.cpp
+          <strong>Language Model</strong> — Note expansion and summarization, running via a local
+          inference engine
         </li>
       </ul>
       <p>
-        Both models are downloaded from HuggingFace during the onboarding process and stored locally
-        in <code>~/Library/Application Support/BlueArkive/models/</code>. Model files are verified
+        Both models are downloaded securely during the onboarding process and stored locally in
+        <code>~/Library/Application Support/BlueArkive/models/</code>. Model files are verified
         using SHA-256 checksums before use. No inference requests are sent to any cloud API.
       </p>
 
@@ -226,7 +227,7 @@
       </p>
       <ul>
         <li>
-          <strong>First launch:</strong> AI model downloads from HuggingFace (~500MB one-time)
+          <strong>First launch:</strong> AI model downloads from our secure CDN (~500MB one-time)
         </li>
         <li>
           <strong>Auto-updates:</strong> Checks for new versions (configurable, can be disabled)

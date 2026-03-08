@@ -193,7 +193,7 @@ export const GhostMeetingTutorial: React.FC<GhostMeetingTutorialProps> = ({ onCo
       if (curr < rawSegments.length) {
         setSegments(rawSegments.slice(0, curr + 1))
         setStep(curr)
-        setDemoElapsedTime(`00:0${(curr * 5).toString().padStart(2, '0')}`)
+        setDemoElapsedTime(`00:${(curr * 5).toString().padStart(2, '0')}`)
         curr++
       } else {
         clearInterval(interval)
@@ -253,11 +253,19 @@ export const GhostMeetingTutorial: React.FC<GhostMeetingTutorialProps> = ({ onCo
               <div>
                 <SilentPrompter
                   suggestion={
-                    step < 2
-                      ? 'Waiting for conversation...'
-                      : 'Ask John to clarify API limits starting Q3'
+                    step === 0
+                      ? 'Initializing your meeting…'
+                      : step === 1
+                        ? 'Waiting for conversation…'
+                        : step === 2
+                          ? 'Analyzing transcript context…'
+                          : step === 3
+                            ? 'Ask John to clarify API limits starting Q3'
+                            : 'Summarizing meeting context…'
                   }
-                  onDismiss={() => {}}
+                  onDismiss={() => {
+                    // No-op: prevent auto-dismiss during tutorial so Pointer 1 always has a visible target
+                  }}
                 />
               </div>
             </Tooltip>
@@ -295,7 +303,10 @@ export const GhostMeetingTutorial: React.FC<GhostMeetingTutorialProps> = ({ onCo
           <div className="ui-view-meeting-detail-columns h-full pb-[var(--space-32)] relative">
             <div className={`ui-view-meeting-detail-main full h-full relative`}>
               {/* The Sovereign Glass Panel containing the SplitPane */}
-              <div className="ui-view-meeting-detail-panel sovereign-glass-panel border border-[var(--color-border-subtle)] shadow-[0_25px_50px_-12px_rgba(0,0,0,0.5)] transition-all duration-1000 h-full bg-[var(--color-bg-panel)] rounded-2xl overflow-hidden relative mt-0">
+              <div
+                className="ui-view-meeting-detail-panel sovereign-glass-panel border border-[var(--color-border-subtle)] shadow-[0_25px_50px_-12px_rgba(0,0,0,0.5)] transition-all duration-1000 h-full bg-[var(--color-bg-panel)] rounded-2xl relative mt-0"
+                style={{ overflow: 'visible' }}
+              >
                 <SplitPane
                   defaultRatio={0.55}
                   minTopHeight={200}

@@ -569,7 +569,7 @@
   background: transparent;
   color: var(--color-text-secondary);
   border: 1px solid transparent;
-  border-radius: var(--radius-sm);
+  border-radius: var(--radius-md);
   cursor: pointer;
   transition: all var(--transition-fast);
   outline: none;
@@ -682,6 +682,9 @@
   min-height: 0;
   display: flex;
   flex-direction: column;
+}
+.ui-split-pane.bottom-pane {
+  overflow: visible; /* Allow tutorial pointers to escape upward */
 }
 .ui-split-divider {
   position: relative;

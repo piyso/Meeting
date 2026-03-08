@@ -475,7 +475,7 @@ export class SyncManager {
         const baseUrl = this.backend.getBaseUrl?.()
         const memoryUrl = baseUrl
           ? `${baseUrl}/memories/${memoryId}`
-          : `${config.PIYAPI_BASE_URL}/api/v1/memories/${memoryId}`
+          : `${config.BLUEARKIVE_API_URL}/api/v1/memories/${memoryId}`
 
         const res = await fetch(memoryUrl, { headers: { Authorization: `Bearer ${token}` } })
 

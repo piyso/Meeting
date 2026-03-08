@@ -26,14 +26,14 @@ export class PiyAPIBackend implements IBackendProvider {
   private userId: string | null = null
   private proxyMode: boolean = false
 
-  constructor(baseUrl: string = config.BLUEARKIVE_FUNCTIONS_URL || config.PIYAPI_BASE_URL) {
+  constructor(baseUrl: string = config.BLUEARKIVE_FUNCTIONS_URL || config.BLUEARKIVE_API_URL) {
     // Edge Functions proxy: requests go to /piyapi-proxy/memories etc.
     // Direct PiyAPI: requests go to /api/v1/memories etc.
     if (baseUrl && (baseUrl.includes('supabase') || baseUrl.includes('functions'))) {
       this.baseUrl = baseUrl.endsWith('/piyapi-proxy') ? baseUrl : `${baseUrl}/piyapi-proxy`
       this.proxyMode = true
     } else {
-      const url = baseUrl || config.PIYAPI_BASE_URL
+      const url = baseUrl || config.BLUEARKIVE_API_URL
       this.baseUrl = url.endsWith('/api/v1') ? url : `${url}/api/v1`
     }
   }

@@ -6,7 +6,7 @@
  *
  * Usage:
  *   import { config } from '../config/environment'
- *   fetch(`${config.PIYAPI_BASE_URL}/...`, ...)
+ *   fetch(`${config.BLUEARKIVE_API_URL}/...`, ...)
  */
 
 export const config = {
@@ -20,8 +20,9 @@ export const config = {
   /** BlueArkive Edge Functions URL (PiyAPI proxy) */
   BLUEARKIVE_FUNCTIONS_URL: process.env.BLUEARKIVE_FUNCTIONS_URL || '',
 
-  /** PiyAPI cloud backend (fallback / direct access) */
-  PIYAPI_BASE_URL: process.env.PIYAPI_BASE_URL || 'https://api.piyapi.cloud',
+  /** BlueArkive cloud API backend */
+  BLUEARKIVE_API_URL:
+    process.env.BLUEARKIVE_API_URL || process.env.PIYAPI_BASE_URL || 'https://api.piyapi.cloud',
 
   /** Deepgram cloud transcription API */
   DEEPGRAM_API_URL: process.env.DEEPGRAM_API_URL || 'https://api.deepgram.com/v1',

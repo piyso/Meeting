@@ -70,91 +70,19 @@ jobs:
           if-no-files-found: error
           retention-days: 5
 
-  # ─── Windows Build ──────────────────────────────────────────
-  build-win:
-    runs-on: windows-latest
-    timeout-minutes: 30
-    steps:
-      - uses: actions/checkout@v4
+  # ─── Windows Build (disabled — macOS only for now) ───────────
+  # build-win:
+  #   runs-on: windows-latest
+  #   ... (re-enable when Windows releases are needed)
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: 20
-          cache: 'npm'
-
-      - name: Cache Electron
-        uses: actions/cache@v4
-        with:
-          path: ~/AppData/Local/electron/Cache
-          key: electron-win-${{ hashFiles('package-lock.json') }}
-
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Build and package (x64)
-        run: npm run build:win:x64
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Upload Windows artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: win-builds
-          path: |
-            release/*.exe
-            release/*.blockmap
-            release/latest.yml
-          if-no-files-found: error
-          retention-days: 5
-
-  # ─── Linux Build ────────────────────────────────────────────
-  build-linux:
-    runs-on: ubuntu-latest
-    timeout-minutes: 30
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: 20
-          cache: 'npm'
-
-      - name: Install Linux build dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y libsecret-1-dev rpm
-
-      - name: Cache Electron
-        uses: actions/cache@v4
-        with:
-          path: ~/.cache/electron
-          key: electron-linux-${{ hashFiles('package-lock.json') }}
-
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Build and package (x64)
-        run: npm run build:linux
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Upload Linux artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: linux-builds
-          path: |
-            release/*.AppImage
-            release/*.deb
-            release/*.rpm
-            release/latest-linux.yml
-          if-no-files-found: error
-          retention-days: 5
+  # ─── Linux Build (disabled — macOS only for now) ─────────────
+  # build-linux:
+  #   runs-on: ubuntu-latest
+  #   ... (re-enable when Linux releases are needed)
 
   # ─── Create GitHub Release ──────────────────────────────────
   release:
-    needs: [build-mac, build-win, build-linux]
+    needs: [build-mac]
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -179,14 +107,12 @@ jobs:
           name: BlueArkive ${{ github.ref_name }}
           files: |
             artifacts/mac-builds/*
-            artifacts/win-builds/*
-            artifacts/linux-builds/*
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   # ─── Auto-Deploy Downloads to Hetzner ────────────────────────
-  # The dl.bluearkive.com nginx container has NO volume mounts.
-  # Files must be docker-cp'd into /usr/share/nginx/html/.
+  # dl.bluearkive.com nginx has a volume mount at /data/bluearkive-downloads
+  # SCP directly to the host path — no docker-cp needed.
   deploy-downloads:
     needs: [build-mac]
     runs-on: ubuntu-latest
@@ -200,28 +126,25 @@ jobs:
       - name: List all release files
         run: ls -lh mac-builds/
 
-      - name: Upload files to Hetzner host
+      - name: Deploy to Hetzner (direct to volume)
         uses: appleboy/scp-action@v0.1.7
         with:
           host: 89.167.57.32
           username: root
           key: ${{ secrets.HETZNER_SSH_KEY }}
           source: 'mac-builds/*'
-          target: '/tmp/bluearkive-release/'
+          target: '/data/bluearkive-downloads/'
           strip_components: 1
 
-      - name: Copy files into nginx container
+      - name: Verify deployment
         uses: appleboy/ssh-action@v1.0.3
         with:
           host: 89.167.57.32
           username: root
           key: ${{ secrets.HETZNER_SSH_KEY }}
           script: |
-            CONTAINER="downloads-fwog8gc4koo4kkw08kwwoo8o"
-            for f in /tmp/bluearkive-release/*; do
-              docker cp "$f" "$CONTAINER:/usr/share/nginx/html/"
-              echo "Copied $(basename $f)"
-            done
-            docker exec "$CONTAINER" ls -lh /usr/share/nginx/html/
-            rm -rf /tmp/bluearkive-release
-            echo "Deploy complete"
+            echo "=== Download server files ==="
+            ls -lh /data/bluearkive-downloads/
+            echo "=== Verify latest-mac.yml ==="
+            cat /data/bluearkive-downloads/latest-mac.yml | head -2
+            echo "Deploy verified"

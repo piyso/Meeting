@@ -51,8 +51,8 @@ export const config = {
 
   // ─── BlueArkive Billing ────────────────────────────────────
   /** BlueArkive billing page URL (user-facing, NOT PiyAPI) */
-  PIYNOTES_BILLING_URL:
-    process.env.PIYNOTES_BILLING_URL ||
+  BLUEARKIVE_BILLING_URL:
+    process.env.BLUEARKIVE_BILLING_URL ||
     (process.env.VITE_DEV_SERVER_URL
       ? `${process.env.VITE_DEV_SERVER_URL}billing-web/index.html`
       : 'https://bluearkive.com/billing'),

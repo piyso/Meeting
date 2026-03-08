@@ -296,7 +296,7 @@ export const DynamicIsland: React.FC<DynamicIslandProps> = ({
             onPointerUp={handlePointerUp}
             onPointerLeave={handlePointerUp}
             className={`ui-dynamic-island-stop-btn ${isHolding ? 'is-holding' : ''}`}
-            aria-label="Hold to stop recording"
+            aria-label="Hold to stop archiving"
           >
             {isHolding ? (
               <svg className="ui-di-hold-ring" viewBox="0 0 24 24">

@@ -45,7 +45,7 @@ export const CommandPalette: React.FC = () => {
       type: 'action',
       icon: <Mic size={16} />,
       label: 'Start New Meeting',
-      description: 'Create a new recording session',
+      description: 'Create a new archiving session',
       shortcut: 'Cmd+N',
       onSelect: () => {
         window.dispatchEvent(new CustomEvent('open-new-meeting'))
@@ -80,8 +80,8 @@ export const CommandPalette: React.FC = () => {
       id: 'a4',
       type: 'action',
       icon: <Mic size={16} />,
-      label: 'Start Recording',
-      description: 'Start or stop the current recording session',
+      label: 'Start Archiving',
+      description: 'Start or stop the current archiving session',
       shortcut: 'Cmd+Shift+R',
       onSelect: () => {
         window.dispatchEvent(new CustomEvent('toggle-recording'))

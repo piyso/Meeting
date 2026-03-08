@@ -139,7 +139,7 @@ export const AudioTestUI: React.FC<AudioTestUIProps> = ({
       <div className="audio-test-header">
         <h3>Audio Capture Test</h3>
         <p className="audio-test-description">
-          Test your audio devices to ensure optimal recording quality
+          Test your audio devices to ensure optimal archiving quality
         </p>
         <div className="platform-indicator">
           <span className="platform-label">Platform:</span>

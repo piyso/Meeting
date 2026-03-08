@@ -45,7 +45,7 @@ type AllowedTable = (typeof ALLOWED_TABLES)[number]
  * Content size limits imported from TierMappingService (single source of truth)
  * Task 30.11: Content size limits and chunking
  */
-import { getContentSizeLimit, type PiyNotesTier } from './TierMappingService'
+import { getContentSizeLimit, type BlueArkiveTier } from './TierMappingService'
 
 /**
  * Exponential backoff delays (in milliseconds)
@@ -658,7 +658,7 @@ export class SyncManager {
    *
    * @returns Plan tier
    */
-  private getUserPlanTier(): PiyNotesTier {
+  private getUserPlanTier(): BlueArkiveTier {
     if (!this.userId) {
       return 'free'
     }
@@ -667,7 +667,7 @@ export class SyncManager {
       // Synchronous check — KeyStorageService is async so we cache the tier
       // during login and use the cached value here
       if (this.cachedPlanTier) {
-        return this.cachedPlanTier as PiyNotesTier
+        return this.cachedPlanTier as BlueArkiveTier
       }
       return 'free'
     } catch (err) {

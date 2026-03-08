@@ -11,7 +11,7 @@
 // ─── Canonical Tier Type ─────────────────────────────────────
 
 /** BlueArkive subscription tiers — matches CloudAccessManager's PlanTier */
-export type PiyNotesTier = 'free' | 'starter' | 'pro' | 'team' | 'enterprise'
+export type BlueArkiveTier = 'free' | 'starter' | 'pro' | 'team' | 'enterprise'
 
 // ─── Limit Definitions ───────────────────────────────────────
 
@@ -83,7 +83,7 @@ export type BillingStatus = 'active' | 'past_due' | 'cancelled' | 'trial' | 'unk
 /** Billing info returned by billing IPC calls */
 export interface BillingInfo {
   status: BillingStatus
-  tier: PiyNotesTier
+  tier: BlueArkiveTier
   nextBillingDate?: string
 }
 
@@ -92,7 +92,7 @@ export interface BillingConfig {
   billingUrl: string
   appName: string
   tiers: Array<{
-    id: PiyNotesTier
+    id: BlueArkiveTier
     name: string
     price: string
     priceINR: string

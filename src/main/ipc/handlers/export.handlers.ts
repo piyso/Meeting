@@ -95,7 +95,7 @@ export function registerExportHandlers(): void {
 
       if (format === 'markdown') {
         // Generate Markdown format
-        let md = `# PiyNotes Data Export\n\nExported: ${exportData.exportedAt}\n\n`
+        let md = `# Blue Arkive Data Export\n\nExported: ${exportData.exportedAt}\n\n`
         md += `## Summary\n\n`
         md += `- **Meetings:** ${meetings.length}\n`
         md += `- **Transcripts:** ${transcripts.length}\n`

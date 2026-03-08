@@ -310,7 +310,7 @@ kbd {
   width: 14px;
   height: 14px;
   border-radius: 50%;
-  background: var(--brand-sage);
+  background: #22d3ee;
   position: absolute;
   animation: pulse 3s infinite;
 }
@@ -319,8 +319,8 @@ kbd {
   width: 14px;
   height: 14px;
   border-radius: 50%;
-  background: var(--brand-sage);
-  box-shadow: 0 0 10px var(--brand-sage);
+  background: #22d3ee;
+  box-shadow: 0 0 10px #22d3ee;
   position: relative;
   z-index: 2;
 }

@@ -1,6 +1,21 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <svg width="1024" height="1024" xmlns="http://www.w3.org/2000/svg">
+  <!-- Background -->
   <rect width="1024" height="1024" rx="200" fill="#0F172A"/>
-  <rect x="372" y="372" width="280" height="280" rx="40" fill="white"/>
-  <rect x="442" y="442" width="140" height="140" rx="16" fill="#0F172A"/>
+
+  <!-- Outer ring (cyan glow) -->
+  <circle cx="512" cy="512" r="280" fill="none" stroke="rgba(6,182,212,0.25)" stroke-width="8"/>
+
+  <!-- Inner spinning ring -->
+  <circle cx="512" cy="512" r="220" fill="none" stroke="rgba(59,130,246,0.4)" stroke-width="12"/>
+
+  <!-- Wave arcs (left and right) -->
+  <path d="M 292 512 A 220 220 0 0 1 512 292" fill="none" stroke="rgba(34,211,238,0.6)" stroke-width="12" stroke-linecap="round"/>
+  <path d="M 732 512 A 220 220 0 0 1 512 732" fill="none" stroke="rgba(34,211,238,0.6)" stroke-width="12" stroke-linecap="round"/>
+
+  <!-- Center recording dot -->
+  <circle cx="512" cy="512" r="80" fill="#22D3EE"/>
+
+  <!-- Dot inner highlight -->
+  <circle cx="512" cy="512" r="50" fill="#0EA5E9" opacity="0.6"/>
 </svg>

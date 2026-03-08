@@ -13,7 +13,7 @@
 import { ipcMain } from 'electron'
 import { IPC_CHANNELS } from '../../../types/ipcChannels'
 import { config } from '../../config/environment'
-import { PIYNOTES_TIERS, TIER_HIERARCHY } from '../../services/TierMappingService'
+import { BLUEARKIVE_TIERS, TIER_HIERARCHY } from '../../services/TierMappingService'
 import { Logger } from '../../services/Logger'
 
 const log = Logger.create('BillingHandler')
@@ -31,7 +31,7 @@ export function registerBillingHandlers(): void {
   ipcMain.handle(IPC_CHANNELS.billing.getConfig, async () => {
     try {
       const tiers = TIER_HIERARCHY.map(tierId => {
-        const tier = PIYNOTES_TIERS[tierId]
+        const tier = BLUEARKIVE_TIERS[tierId]
         return {
           id: tierId,
           name: tier.name,
@@ -47,7 +47,7 @@ export function registerBillingHandlers(): void {
       return {
         success: true,
         data: {
-          billingUrl: config.PIYNOTES_BILLING_URL,
+          billingUrl: config.BLUEARKIVE_BILLING_URL,
           functionsUrl: config.BLUEARKIVE_FUNCTIONS_URL,
           appName: config.APP_NAME,
           tiers,
@@ -129,7 +129,7 @@ export function registerBillingHandlers(): void {
       const isDevMode = !!process.env.VITE_DEV_SERVER_URL
       const billingUrl = isDevMode
         ? `${process.env.VITE_DEV_SERVER_URL}billing-web/index.html`
-        : config.PIYNOTES_BILLING_URL || 'https://bluearkive.com/billing'
+        : config.BLUEARKIVE_BILLING_URL || 'https://bluearkive.com/billing'
 
       const url = new URL(billingUrl)
 

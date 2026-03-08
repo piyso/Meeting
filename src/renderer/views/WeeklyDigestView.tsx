@@ -247,7 +247,7 @@ export default function WeeklyDigestView() {
               <div>
                 <h3 className="text-[#e2e8f0] font-medium mb-2 text-lg">No Meetings This Week</h3>
                 <p className="text-sm m-0 leading-relaxed opacity-80">
-                  You haven't recorded any meetings during this week. Your weekly summary and
+                  You haven't archived any sessions during this week. Your weekly summary and
                   intelligence synthesis requires at least one meeting to process.
                 </p>
               </div>

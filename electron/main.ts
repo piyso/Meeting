@@ -5,6 +5,7 @@ import { getDatabaseService } from '../src/main/services/DatabaseService'
 import { closeDatabase } from '../src/main/database/connection'
 import { Logger } from '../src/main/services/Logger'
 import { CrashReporter } from '../src/main/services/CrashReporter'
+import { migrateIfNeeded } from '../src/main/services/MigrationService'
 
 const log = Logger.create('Main')
 
@@ -190,7 +191,7 @@ const createWidgetWindow = () => {
 }
 
 // This method will be called when Electron has finished initialization
-app.whenReady().then(() => {
+app.whenReady().then(async () => {
   // Initialize crash reporting first (catches errors during init)
   CrashReporter.init()
 
@@ -204,6 +205,11 @@ app.whenReady().then(() => {
     electron: process.versions.electron,
     node: process.versions.node,
   })
+
+  // Migrate data from old app name (piyapi-notes → bluearkive)
+  // MUST run before database initialization to copy old DB if it exists
+  await migrateIfNeeded()
+  CrashReporter.addBreadcrumb('lifecycle', 'Migration check complete')
 
   // Initialize services
   log.info('Initializing services...')

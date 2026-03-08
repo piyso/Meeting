@@ -7,7 +7,7 @@ import { PricingView } from './settings/PricingView'
 import { GhostMeetingTutorial } from './meeting/GhostMeetingTutorial'
 import { ModelDownloadProgress } from './ModelDownloadProgress'
 import { Key } from 'lucide-react'
-import { Logo } from './ui/Logo'
+import { Logo3D } from './ui/Logo3D'
 
 import { rendererLog } from '../utils/logger'
 const log = rendererLog.create('Onboarding')
@@ -238,7 +238,7 @@ export const OnboardingFlow: React.FC = () => {
         <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-blue-600/10 blur-[100px] rounded-full pointer-events-none translate-x-1/3 -translate-y-1/3" />
 
         <div className="relative z-10">
-          <Logo size="md" />
+          <Logo3D />
         </div>
 
         <div className="relative z-10 max-w-md mt-12">
@@ -285,8 +285,8 @@ export const OnboardingFlow: React.FC = () => {
         {step === 'auth' && (
           <div className="w-full max-w-[420px] flex flex-col animate-slide-up relative z-10">
             <div className="flex flex-col mb-10 lg:hidden items-center">
-              <div className="mb-6">
-                <Logo size="md" />
+              <div className="mb-6 -mt-8">
+                <Logo3D className="transform scale-75 origin-center" />
               </div>
               <h1 className="text-2xl font-semibold tracking-wide text-center text-white">
                 {authMode === 'register' ? 'Initialize Core' : 'Welcome Back'}

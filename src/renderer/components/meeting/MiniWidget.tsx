@@ -92,7 +92,7 @@ export const MiniWidget: React.FC<MiniWidgetProps> = ({
       >
         <div className="flex items-center gap-2">
           {isRecording ? (
-            <div className="w-2 h-2 rounded-full bg-[var(--color-rose)] animate-pulse shadow-[0_0_8px_var(--color-glow-rose)]" />
+            <div className="w-2 h-2 rounded-full bg-[var(--color-blue)] animate-pulse shadow-[0_0_8px_var(--color-blue)]" />
           ) : (
             <div className="w-2 h-2 rounded-full bg-[var(--color-emerald)]" />
           )}
@@ -107,7 +107,7 @@ export const MiniWidget: React.FC<MiniWidgetProps> = ({
                 className={
                   syncStatus === 'syncing'
                     ? 'animate-spin text-[var(--color-emerald)]'
-                    : 'text-[var(--color-rose)]'
+                    : 'text-[var(--color-blue)]'
                 }
               />
             )}
@@ -167,8 +167,8 @@ export const MiniWidget: React.FC<MiniWidgetProps> = ({
                 e.stopPropagation()
                 onStop()
               }}
-              className="w-6 h-6 rounded-md bg-[var(--color-rose)] flex items-center justify-center text-white hover:bg-white hover:text-black transition-colors widget-nodrag ml-0.5"
-              title="Stop Recording"
+              className="w-6 h-6 rounded-md bg-[var(--color-blue)] flex items-center justify-center text-white hover:bg-white hover:text-black transition-colors widget-nodrag ml-0.5"
+              title="Stop Archiving"
             >
               <Square size={10} fill="currentColor" />
             </motion.button>

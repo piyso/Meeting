@@ -14,18 +14,18 @@
  *   - CloudAccessManager: imports getTierConfig() for feature gating
  *   - SyncManager: imports getContentSizeLimit() for chunking
  *   - TranscriptChunker: imports getUpgradeMessage() for UI prompts
- *   - Billing IPC handler: imports PIYNOTES_TIERS for config response
+ *   - Billing IPC handler: imports BLUEARKIVE_TIERS for config response
  *   - UpgradePrompt/PricingView (via IPC): dynamic tier data
  */
 
-import type { PiyNotesTier, TierConfig, TierLimits } from '../../types/tiers'
+import type { BlueArkiveTier, TierConfig, TierLimits } from '../../types/tiers'
 
 // Re-export types for convenience
-export type { PiyNotesTier, TierConfig, TierLimits }
+export type { BlueArkiveTier, TierConfig, TierLimits }
 
 // ─── Tier Definitions ────────────────────────────────────────
 
-export const PIYNOTES_TIERS: Record<PiyNotesTier, TierConfig> = {
+export const BLUEARKIVE_TIERS: Record<BlueArkiveTier, TierConfig> = {
   free: {
     name: 'Free',
     price: '$0',
@@ -195,7 +195,7 @@ export const PIYNOTES_TIERS: Record<PiyNotesTier, TierConfig> = {
 // ─── Tier Hierarchy ──────────────────────────────────────────
 
 /** Ordered tier hierarchy (lowest → highest) */
-export const TIER_HIERARCHY: readonly PiyNotesTier[] = [
+export const TIER_HIERARCHY: readonly BlueArkiveTier[] = [
   'free',
   'starter',
   'pro',
@@ -209,8 +209,8 @@ export const TIER_HIERARCHY: readonly PiyNotesTier[] = [
  * Get tier configuration by name (safe — defaults to 'free')
  */
 export function getTierConfig(tier: string): TierConfig {
-  const normalized = tier.toLowerCase().trim() as PiyNotesTier
-  return PIYNOTES_TIERS[normalized] || PIYNOTES_TIERS.free
+  const normalized = tier.toLowerCase().trim() as BlueArkiveTier
+  return BLUEARKIVE_TIERS[normalized] || BLUEARKIVE_TIERS.free
 }
 
 /**

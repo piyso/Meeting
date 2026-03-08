@@ -146,7 +146,7 @@ export const AudioCaptureWithPermissions: React.FC<AudioCaptureWithPermissionsPr
               <strong>Mode:</strong> {captureMode}
             </p>
             <p>
-              <strong>Status:</strong> {isCapturing ? 'Recording' : 'Stopped'}
+              <strong>Status:</strong> {isCapturing ? 'Archiving' : 'Stopped'}
             </p>
             <p>
               <strong>Permission:</strong> {permissionStatus}
@@ -158,7 +158,7 @@ export const AudioCaptureWithPermissions: React.FC<AudioCaptureWithPermissionsPr
           {!isCapturing ? (
             <>
               <Button variant="primary" onClick={() => startCapture('system')}>
-                Start Recording
+                Start Archiving
               </Button>
               <Button variant="secondary" onClick={() => startCapture('microphone')}>
                 Start with Microphone
@@ -166,7 +166,7 @@ export const AudioCaptureWithPermissions: React.FC<AudioCaptureWithPermissionsPr
             </>
           ) : (
             <Button variant="secondary" onClick={stopCapture}>
-              Stop Recording
+              Stop Archiving
             </Button>
           )}
         </div>

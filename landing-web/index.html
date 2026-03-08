@@ -303,159 +303,300 @@
     <!-- Download Block -->
     <section class="download" id="download">
       <div class="container text-center">
-        <h2>Install BlueArkive.</h2>
-        <p>One command. Zero friction. Yours forever.</p>
+        <h2>Download BlueArkive.</h2>
+        <p style="max-width: 520px; margin: 0 auto">
+          One click to download. One right-click to open. Yours forever.
+        </p>
 
-        <!-- Tab Switcher -->
-        <div
-          style="
-            display: flex;
-            justify-content: center;
-            gap: 4px;
-            margin-top: 32px;
-            background: var(--bg-subtle);
-            border-radius: 10px;
-            padding: 4px;
-            max-width: 340px;
-            margin-left: auto;
-            margin-right: auto;
-          "
-        >
-          <button id="tab-auto" onclick="showTab('auto')" class="tab-btn tab-active">
-            ✨ Recommended
-          </button>
-          <button id="tab-manual" onclick="showTab('manual')" class="tab-btn">
-            Manual Download
-          </button>
-        </div>
-
-        <!-- Auto Install Tab -->
-        <div id="panel-auto" class="tab-panel reveal" style="margin-top: 28px">
-          <p style="font-size: 0.95rem; color: var(--text-muted); margin-bottom: 20px">
-            Open <strong>Terminal</strong> and paste this command. It auto-detects your chip,
-            downloads, installs, and launches — no warnings.
-          </p>
-          <div
-            style="
-              display: flex;
-              flex-direction: column;
-              background: #1a1a2e;
-              border-radius: 12px;
-              box-shadow: 0 4px 24px rgba(0, 0, 0, 0.2);
-              border: 1px solid rgba(255, 255, 255, 0.05);
-              font-family: 'SF Mono', Monaco, monospace;
-              font-size: 0.9rem;
-              color: #e2e8f0;
-              max-width: 580px;
-              margin: 0 auto;
-              overflow: hidden;
-            "
+        <!-- PRIMARY: Auto-detected Download Button -->
+        <div style="margin-top: 40px">
+          <a
+            id="dl-primary"
+            href="https://dl.bluearkive.com/BlueArkive-0.1.1-mac-arm64.dmg"
+            class="btn btn-primary btn-lg"
+            style="padding: 20px 48px; font-size: 1.2rem"
           >
-            <!-- Mac Window Header -->
-            <div
+            ↓ Download for Mac
+            <span class="btn-subtext" id="dl-chip-label">Apple Silicon · arm64 · 275 MB</span>
+          </a>
+          <p style="margin-top: 12px">
+            <a
+              id="dl-alt-link"
+              href="https://dl.bluearkive.com/BlueArkive-0.1.1-mac-x64.dmg"
               style="
-                background: rgba(0, 0, 0, 0.2);
-                padding: 12px 16px;
-                display: flex;
-                align-items: center;
-                border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+                font-size: 0.85rem;
+                color: var(--text-muted);
+                text-decoration: underline;
+                cursor: pointer;
               "
             >
-              <div style="display: flex; gap: 8px">
-                <div
-                  style="
-                    width: 12px;
-                    height: 12px;
-                    border-radius: 50%;
-                    background: #ff5f56;
-                    box-shadow: 0 0 2px rgba(0, 0, 0, 0.2);
-                  "
-                ></div>
-                <div
-                  style="
-                    width: 12px;
-                    height: 12px;
-                    border-radius: 50%;
-                    background: #ffbd2e;
-                    box-shadow: 0 0 2px rgba(0, 0, 0, 0.2);
-                  "
-                ></div>
-                <div
-                  style="
-                    width: 12px;
-                    height: 12px;
-                    border-radius: 50%;
-                    background: #27c93f;
-                    box-shadow: 0 0 2px rgba(0, 0, 0, 0.2);
-                  "
-                ></div>
-              </div>
-              <div
-                style="
-                  flex: 1;
-                  text-align: center;
-                  font-family: var(--font-sans);
-                  font-size: 0.75rem;
-                  color: rgba(255, 255, 255, 0.4);
-                  font-weight: 500;
-                "
-              >
-                bash — 80x24
-              </div>
-            </div>
+              Download for Intel Mac instead (x64 · 544 MB)
+            </a>
+          </p>
+        </div>
 
-            <!-- Terminal Body -->
-            <div style="padding: 16px 20px; display: flex; align-items: center; gap: 12px">
-              <span style="color: var(--brand-sage); font-weight: 600">$</span>
-              <code id="curl-cmd" style="flex: 1; overflow-x: auto; white-space: nowrap"
-                >curl -fsSL https://dl.bluearkive.com/install.sh | bash</code
-              >
-              <button
-                onclick="
-                  navigator.clipboard.writeText(document.getElementById('curl-cmd').textContent)
-                  this.textContent = '✓ Copied'
-                  setTimeout(() => (this.textContent = 'Copy'), 2000)
-                "
-                style="
-                  background: rgba(255, 255, 255, 0.1);
-                  border: none;
-                  color: #a78bfa;
-                  padding: 6px 16px;
-                  border-radius: 8px;
-                  cursor: pointer;
-                  font-size: 0.85rem;
-                  white-space: nowrap;
-                  transition: background 0.2s;
-                "
-              >
-                Copy
-              </button>
-            </div>
-          </div>
-          <div
+        <!-- VISUAL: How to install (inline, no tabs) -->
+        <div style="max-width: 580px; margin: 48px auto 0">
+          <h3
             style="
-              margin-top: 24px;
-              text-align: left;
-              max-width: 580px;
-              margin-left: auto;
-              margin-right: auto;
-              background: rgba(255, 255, 255, 0.02);
-              border: 1px solid var(--border-strong);
-              border-radius: 12px;
-              padding: 20px;
+              font-size: 1.1rem;
+              font-weight: 600;
+              margin-bottom: 24px;
+              color: var(--text-main);
             "
           >
+            After downloading — two quick steps:
+          </h3>
+
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; text-align: center">
+            <!-- Step 1 -->
+            <div
+              style="
+                background: var(--bg-surface);
+                border: 1px solid var(--border-light);
+                border-radius: 16px;
+                padding: 28px 20px;
+              "
+            >
+              <div
+                style="
+                  width: 48px;
+                  height: 48px;
+                  border-radius: 12px;
+                  background: linear-gradient(135deg, var(--brand-lavender), #c4b5fd);
+                  display: flex;
+                  align-items: center;
+                  justify-content: center;
+                  margin: 0 auto 16px;
+                  color: white;
+                  font-size: 1.2rem;
+                  font-weight: 700;
+                "
+              >
+                1
+              </div>
+              <h4
+                style="
+                  font-size: 0.95rem;
+                  font-weight: 600;
+                  margin-bottom: 8px;
+                  color: var(--text-main);
+                "
+              >
+                Drag to Applications
+              </h4>
+              <p style="font-size: 0.85rem; color: var(--text-muted); line-height: 1.5; margin: 0">
+                Open the downloaded <code>.dmg</code> file and drag BlueArkive into your
+                Applications folder.
+              </p>
+            </div>
+
+            <!-- Step 2 -->
+            <div
+              style="
+                background: var(--bg-surface);
+                border: 1px solid var(--border-light);
+                border-radius: 16px;
+                padding: 28px 20px;
+              "
+            >
+              <div
+                style="
+                  width: 48px;
+                  height: 48px;
+                  border-radius: 12px;
+                  background: linear-gradient(135deg, var(--brand-sage), #86efac);
+                  display: flex;
+                  align-items: center;
+                  justify-content: center;
+                  margin: 0 auto 16px;
+                  color: white;
+                  font-size: 1.2rem;
+                  font-weight: 700;
+                "
+              >
+                2
+              </div>
+              <h4
+                style="
+                  font-size: 0.95rem;
+                  font-weight: 600;
+                  margin-bottom: 8px;
+                  color: var(--text-main);
+                "
+              >
+                Right-click → Open
+              </h4>
+              <p style="font-size: 0.85rem; color: var(--text-muted); line-height: 1.5; margin: 0">
+                In Applications, <strong>right-click</strong> BlueArkive → click
+                <strong>"Open"</strong>. You only need to do this once.
+              </p>
+            </div>
+          </div>
+
+          <div
+            style="
+              margin-top: 16px;
+              display: inline-flex;
+              align-items: center;
+              gap: 8px;
+              background: rgba(56, 189, 248, 0.08);
+              padding: 10px 20px;
+              border-radius: 999px;
+              color: #38bdf8;
+              font-size: 0.85rem;
+              border: 1px solid rgba(56, 189, 248, 0.15);
+            "
+          >
+            <svg
+              width="14"
+              height="14"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+            >
+              <circle cx="12" cy="12" r="10" />
+              <path d="M12 16v-4" />
+              <path d="M12 8h.01" />
+            </svg>
+            <span>Right-clicking bypasses Apple's warning for free apps. You only do it once.</span>
+          </div>
+        </div>
+
+        <!-- SECONDARY: Power User / curl option -->
+        <details style="max-width: 580px; margin: 40px auto 0; text-align: left">
+          <summary
+            style="
+              cursor: pointer;
+              font-size: 0.95rem;
+              font-weight: 500;
+              color: var(--text-muted);
+              list-style: none;
+              display: flex;
+              align-items: center;
+              justify-content: center;
+              gap: 8px;
+              padding: 12px;
+              border-radius: 10px;
+              transition: color 0.2s;
+            "
+          >
+            <svg
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <polyline points="4 17 10 11 4 5" />
+              <line x1="12" y1="19" x2="20" y2="19" />
+            </svg>
+            Power user? Install via Terminal instead
+          </summary>
+          <div style="margin-top: 16px">
+            <p
+              style="
+                font-size: 0.9rem;
+                color: var(--text-muted);
+                margin-bottom: 16px;
+                text-align: center;
+              "
+            >
+              This single command auto-detects your chip, downloads, installs, bypasses Gatekeeper,
+              and launches — zero friction.
+            </p>
+            <div
+              style="
+                display: flex;
+                flex-direction: column;
+                background: #1a1a2e;
+                border-radius: 12px;
+                box-shadow: 0 4px 24px rgba(0, 0, 0, 0.2);
+                border: 1px solid rgba(255, 255, 255, 0.05);
+                font-family: 'SF Mono', Monaco, monospace;
+                font-size: 0.9rem;
+                color: #e2e8f0;
+                overflow: hidden;
+              "
+            >
+              <!-- Mac Window Header -->
+              <div
+                style="
+                  background: rgba(0, 0, 0, 0.2);
+                  padding: 12px 16px;
+                  display: flex;
+                  align-items: center;
+                  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+                "
+              >
+                <div style="display: flex; gap: 8px">
+                  <div
+                    style="width: 12px; height: 12px; border-radius: 50%; background: #ff5f56"
+                  ></div>
+                  <div
+                    style="width: 12px; height: 12px; border-radius: 50%; background: #ffbd2e"
+                  ></div>
+                  <div
+                    style="width: 12px; height: 12px; border-radius: 50%; background: #27c93f"
+                  ></div>
+                </div>
+                <div
+                  style="
+                    flex: 1;
+                    text-align: center;
+                    font-family: var(--font-sans);
+                    font-size: 0.75rem;
+                    color: rgba(255, 255, 255, 0.4);
+                    font-weight: 500;
+                  "
+                >
+                  Terminal
+                </div>
+              </div>
+              <!-- Terminal Body -->
+              <div style="padding: 16px 20px; display: flex; align-items: center; gap: 12px">
+                <span style="color: var(--brand-sage); font-weight: 600">$</span>
+                <code id="curl-cmd" style="flex: 1; overflow-x: auto; white-space: nowrap"
+                  >curl -fsSL https://dl.bluearkive.com/install.sh | bash</code
+                >
+                <button
+                  onclick="
+                    navigator.clipboard.writeText(document.getElementById('curl-cmd').textContent)
+                    this.textContent = '✓ Copied'
+                    setTimeout(() => (this.textContent = 'Copy'), 2000)
+                  "
+                  style="
+                    background: rgba(255, 255, 255, 0.1);
+                    border: none;
+                    color: #a78bfa;
+                    padding: 6px 16px;
+                    border-radius: 8px;
+                    cursor: pointer;
+                    font-size: 0.85rem;
+                    white-space: nowrap;
+                    transition: background 0.2s;
+                  "
+                >
+                  Copy
+                </button>
+              </div>
+            </div>
             <div
               style="
                 display: flex;
                 align-items: center;
                 justify-content: space-between;
-                margin-bottom: 16px;
+                margin-top: 12px;
+                padding: 0 4px;
               "
             >
-              <h4 style="font-size: 0.95rem; font-weight: 600; color: var(--text-main); margin: 0">
-                Why use this command?
-              </h4>
+              <span style="font-size: 0.8rem; color: var(--text-light)"
+                >Zero telemetry. Nothing sent anywhere.</span
+              >
               <a
                 href="https://dl.bluearkive.com/install.sh"
                 target="_blank"
@@ -464,13 +605,8 @@
                   color: var(--brand-lavender-dark);
                   display: flex;
                   align-items: center;
-                  gap: 6px;
-                  border: 1px solid rgba(167, 139, 250, 0.3);
-                  padding: 4px 12px;
-                  border-radius: 999px;
+                  gap: 4px;
                   text-decoration: none;
-                  transition: background 0.2s;
-                  background: rgba(167, 139, 250, 0.05);
                 "
               >
                 <svg
@@ -481,170 +617,97 @@
                   stroke="currentColor"
                   stroke-width="2"
                 >
-                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
-                  <polyline points="14 2 14 8 20 8"></polyline>
-                  <line x1="16" y1="13" x2="8" y2="13"></line>
-                  <line x1="16" y1="17" x2="8" y2="17"></line>
-                  <polyline points="10 9 9 9 8 9"></polyline>
+                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+                  <polyline points="14 2 14 8 20 8" />
                 </svg>
-                View Source Code
+                View source
               </a>
             </div>
-            <ul class="check-list" style="margin-bottom: 0">
-              <li style="font-size: 0.9rem; margin-bottom: 10px">
-                Downloads the correct app for your chip natively.
-              </li>
-              <li style="font-size: 0.9rem; margin-bottom: 10px">
-                Safely bypasses Apple's "Unsigned App" Gatekeeper warnings.
-              </li>
-              <li style="font-size: 0.9rem; margin-bottom: 0">
-                100% open-source script. Zero telemetry. No tracking strings.
-              </li>
-            </ul>
+          </div>
+        </details>
+
+        <!-- Trust Bar -->
+        <div
+          style="
+            margin-top: 40px;
+            display: flex;
+            justify-content: center;
+            gap: 32px;
+            flex-wrap: wrap;
+          "
+        >
+          <div
+            style="
+              display: flex;
+              align-items: center;
+              gap: 8px;
+              font-size: 0.9rem;
+              color: var(--text-muted);
+            "
+          >
+            <svg
+              width="18"
+              height="18"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+            >
+              <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+              <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+            </svg>
+            AES-256 Encryption
+          </div>
+          <div
+            style="
+              display: flex;
+              align-items: center;
+              gap: 8px;
+              font-size: 0.9rem;
+              color: var(--text-muted);
+            "
+          >
+            <svg
+              width="18"
+              height="18"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+            >
+              <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+            </svg>
+            100% Offline
+          </div>
+          <div
+            style="
+              display: flex;
+              align-items: center;
+              gap: 8px;
+              font-size: 0.9rem;
+              color: var(--text-muted);
+            "
+          >
+            <svg
+              width="18"
+              height="18"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+            >
+              <path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+              <circle cx="8.5" cy="7" r="4" />
+              <line x1="20" y1="8" x2="20" y2="14" />
+              <line x1="23" y1="11" x2="17" y2="11" />
+            </svg>
+            No Account Required
           </div>
         </div>
-
-        <!-- Manual Download Tab -->
-        <div id="panel-manual" class="tab-panel" style="margin-top: 28px; display: none">
-          <div style="display: flex; gap: 12px; justify-content: center; flex-wrap: wrap">
-            <a
-              id="dl-arm64"
-              href="https://dl.bluearkive.com/BlueArkive-0.1.1-mac-arm64.dmg"
-              class="btn btn-primary btn-lg"
-            >
-              ↓ Apple Silicon (M1/M2/M3/M4)
-              <span class="btn-subtext">arm64 · 275 MB</span>
-            </a>
-            <a
-              id="dl-x64"
-              href="https://dl.bluearkive.com/BlueArkive-0.1.1-mac-x64.dmg"
-              class="btn btn-outline btn-lg"
-            >
-              ↓ Intel Mac
-              <span class="btn-subtext">x64 · 544 MB</span>
-            </a>
-          </div>
-
-          <!-- Visual Install Guide (Zero Friction) -->
-          <div style="max-width: 580px; margin: 40px auto 0; text-align: center">
-            <p style="font-size: 0.95rem; color: var(--text-muted); margin-bottom: 24px">
-              Simply drag to install, then <strong>Right-Click → Open</strong> the first time.
-            </p>
-
-            <div class="visual-guide-container">
-              <div class="mac-window">
-                <div class="mac-header">
-                  <div class="mac-dots">
-                    <span class="dot red"></span>
-                    <span class="dot yellow"></span>
-                    <span class="dot green"></span>
-                  </div>
-                  <div class="mac-title">BlueArkive Installer</div>
-                </div>
-                <div class="mac-body">
-                  <div class="drag-animation">
-                    <!-- App Icon (Animates) -->
-                    <div class="app-icon drag-source">
-                      <div class="app-logo">
-                        <svg
-                          width="24"
-                          height="24"
-                          viewBox="0 0 24 24"
-                          fill="none"
-                          class="animate-pulse-slow"
-                        >
-                          <path d="M12 2L2 7L12 12L22 7L12 2Z" fill="currentColor" opacity="0.8" />
-                          <path d="M2 17L12 22L22 17" stroke="currentColor" stroke-width="2" />
-                        </svg>
-                      </div>
-                      <span class="icon-label">BlueArkive</span>
-                    </div>
-
-                    <!-- Arrow -->
-                    <div class="drag-arrow">
-                      <svg
-                        width="24"
-                        height="24"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        stroke-width="2"
-                        stroke-linecap="round"
-                        stroke-linejoin="round"
-                      >
-                        <path d="M5 12h14M12 5l7 7-7 7" />
-                      </svg>
-                    </div>
-
-                    <!-- Applications Folder -->
-                    <div class="app-icon drag-target">
-                      <div class="folder-icon">
-                        <svg width="32" height="32" viewBox="0 0 24 24" fill="currentColor">
-                          <path
-                            d="M10 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2h-8l-2-2z"
-                          />
-                        </svg>
-                      </div>
-                      <span class="icon-label">Applications</span>
-                    </div>
-
-                    <!-- Context Menu (Animates in) -->
-                    <div class="context-menu">
-                      <div class="menu-item highlight">Open</div>
-                      <div class="menu-item">Show Package Contents</div>
-                      <div class="menu-item">Move to Trash</div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <div
-              style="
-                margin-top: 24px;
-                display: inline-flex;
-                align-items: center;
-                gap: 8px;
-                background: rgba(56, 189, 248, 0.1);
-                padding: 8px 16px;
-                border-radius: 999px;
-                color: #38bdf8;
-                font-size: 0.85rem;
-                border: 1px solid rgba(56, 189, 248, 0.2);
-              "
-            >
-              <svg
-                width="16"
-                height="16"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="2"
-              >
-                <circle cx="12" cy="12" r="10" />
-                <path d="M12 16v-4" />
-                <path d="M12 8h.01" />
-              </svg>
-              <span>By right-clicking, you bypass Apple's unsigned app warning.</span>
-            </div>
-          </div>
-        </div>
-
-        <p style="margin-top: 24px; font-size: 0.85rem; color: var(--text-light)">
-          🔒 Military-grade AES-256 encryption · Runs 100% offline · No account required
-        </p>
       </div>
     </section>
 
     <script>
-      // Tab switcher
-      function showTab(tab) {
-        document.getElementById('panel-auto').style.display = tab === 'auto' ? 'block' : 'none'
-        document.getElementById('panel-manual').style.display = tab === 'manual' ? 'block' : 'none'
-        document.getElementById('tab-auto').classList.toggle('tab-active', tab === 'auto')
-        document.getElementById('tab-manual').classList.toggle('tab-active', tab === 'manual')
-      }
-
       // Scroll Reveal Animations
       document.addEventListener('DOMContentLoaded', () => {
         const reveals = document.querySelectorAll('.reveal')
@@ -659,23 +722,26 @@
           },
           { threshold: 0.1 }
         )
-
         reveals.forEach(el => observer.observe(el))
       })
 
-      // Auto-detect Apple Silicon vs Intel and highlight the right button
+      // Auto-detect Apple Silicon vs Intel and configure the single download button
       ;(function () {
         try {
           const isARM =
             navigator.userAgent.includes('ARM') ||
             (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 0)
-          if (!isARM) {
-            const arm = document.getElementById('dl-arm64')
-            const x64 = document.getElementById('dl-x64')
-            if (arm && x64) {
-              arm.className = 'btn btn-outline btn-lg'
-              x64.className = 'btn btn-primary btn-lg'
-            }
+
+          const primary = document.getElementById('dl-primary')
+          const chipLabel = document.getElementById('dl-chip-label')
+          const altLink = document.getElementById('dl-alt-link')
+
+          if (!isARM && primary && chipLabel && altLink) {
+            // Intel Mac detected — swap the primary button to x64
+            primary.href = 'https://dl.bluearkive.com/BlueArkive-0.1.1-mac-x64.dmg'
+            chipLabel.textContent = 'Intel Mac · x64 · 544 MB'
+            altLink.href = 'https://dl.bluearkive.com/BlueArkive-0.1.1-mac-arm64.dmg'
+            altLink.textContent = 'Download for Apple Silicon instead (arm64 · 275 MB)'
           }
         } catch (e) {}
       })()

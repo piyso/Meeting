@@ -53,7 +53,7 @@ echo -e "  ${GREEN}✓${NC} Download complete"
 # ── Step 3: Mount & Install ──
 echo ""
 echo -e "${BOLD}[3/5]${NC} Installing to ${INSTALL_DIR}..."
-MOUNT_DIR=$(hdiutil attach "$TMP_DMG" -nobrowse -quiet | grep "/Volumes" | awk -F'\t' '{print $NF}')
+MOUNT_DIR=$(hdiutil attach "$TMP_DMG" -nobrowse 2>/dev/null | sed -n 's/.*\(\/Volumes\/.*\)/\1/p' | head -1)
 
 if [ -z "$MOUNT_DIR" ]; then
     echo "Error: Could not mount the DMG file."

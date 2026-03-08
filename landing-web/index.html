@@ -1,0 +1,462 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>BlueArkive — Your Meetings, Your Memory</title>
+    <meta
+      name="description"
+      content="BlueArkive captures your meetings locally, transcribes with AI, and turns conversations into searchable knowledge. 100% private. No cloud required."
+    />
+    <meta property="og:title" content="BlueArkive — Your Meetings, Your Memory" />
+    <meta
+      property="og:description"
+      content="Local-first meeting transcription with AI-powered notes. Private. Offline. Beautiful."
+    />
+    <meta property="og:type" content="website" />
+    <link rel="preconnect" href="https://rsms.me/" />
+    <link rel="stylesheet" href="https://rsms.me/inter/inter.css" />
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <!-- Ambient Background -->
+    <div class="ambient-bg">
+      <div class="gradient-orb orb-1"></div>
+      <div class="gradient-orb orb-2"></div>
+      <div class="gradient-orb orb-3"></div>
+    </div>
+    <div class="noise-overlay"></div>
+
+    <!-- Navigation -->
+    <nav class="nav">
+      <div class="nav-inner">
+        <a href="/" class="nav-brand">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+            <path
+              d="M12 2L2 7L12 12L22 7L12 2Z"
+              stroke="currentColor"
+              stroke-width="1.5"
+              stroke-linejoin="round"
+            />
+            <path
+              d="M2 17L12 22L22 17"
+              stroke="currentColor"
+              stroke-width="1.5"
+              stroke-linejoin="round"
+            />
+            <path
+              d="M2 12L12 17L22 12"
+              stroke="currentColor"
+              stroke-width="1.5"
+              stroke-linejoin="round"
+            />
+          </svg>
+          <span>BlueArkive</span>
+        </a>
+        <div class="nav-links">
+          <a href="#features">Features</a>
+          <a href="#how-it-works">How it Works</a>
+          <a href="#privacy">Privacy</a>
+          <a
+            href="https://github.com/piyso/piynoteskiro"
+            target="_blank"
+            rel="noopener"
+            class="nav-github"
+          >
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+              <path
+                d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"
+              />
+            </svg>
+          </a>
+          <a href="#download" class="nav-cta">Download Free</a>
+        </div>
+
+        <!-- Mobile menu -->
+        <button class="nav-mobile-toggle" id="mobile-toggle" aria-label="Toggle menu">
+          <span></span><span></span><span></span>
+        </button>
+      </div>
+    </nav>
+
+    <!-- Hero Section -->
+    <section class="hero" id="hero">
+      <div class="container">
+        <div class="hero-badge animate-in" style="--delay: 0s">
+          <span class="badge-dot"></span>
+          100% Local &amp; Private — No Cloud Required
+        </div>
+
+        <h1 class="hero-title animate-in" style="--delay: 0.1s">
+          Your meetings.<br />
+          <span class="gradient-text">Your memory.</span>
+        </h1>
+
+        <p class="hero-subtitle animate-in" style="--delay: 0.2s">
+          BlueArkive captures every meeting, transcribes with on-device AI, and turns conversations
+          into searchable knowledge — all without leaving your machine.
+        </p>
+
+        <div class="hero-actions animate-in" style="--delay: 0.3s">
+          <a href="#download" class="btn btn-primary">
+            <svg
+              width="18"
+              height="18"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+            >
+              <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3" />
+            </svg>
+            Download for Mac
+          </a>
+          <a
+            href="https://github.com/piyso/piynoteskiro"
+            target="_blank"
+            rel="noopener"
+            class="btn btn-ghost"
+          >
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+              <path
+                d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z"
+              />
+            </svg>
+            View on GitHub
+          </a>
+        </div>
+
+        <div class="hero-stats animate-in" style="--delay: 0.4s">
+          <div class="stat">
+            <span class="stat-value">100%</span>
+            <span class="stat-label">Private</span>
+          </div>
+          <div class="stat-divider"></div>
+          <div class="stat">
+            <span class="stat-value">0</span>
+            <span class="stat-label">Data sent to cloud</span>
+          </div>
+          <div class="stat-divider"></div>
+          <div class="stat">
+            <span class="stat-value">∞</span>
+            <span class="stat-label">Meetings stored</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Features Section -->
+    <section class="features" id="features">
+      <div class="container">
+        <div class="section-header animate-in">
+          <span class="section-tag">FEATURES</span>
+          <h2>Everything happens<br /><span class="gradient-text">on your machine.</span></h2>
+        </div>
+
+        <div class="feature-grid">
+          <div class="feature-card animate-in" style="--delay: 0.1s">
+            <div class="feature-icon">
+              <svg
+                width="24"
+                height="24"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.5"
+              >
+                <path d="M12 2a3 3 0 00-3 3v7a3 3 0 006 0V5a3 3 0 00-3-3z" />
+                <path d="M19 10v2a7 7 0 01-14 0v-2M12 19v3M8 22h8" />
+              </svg>
+            </div>
+            <h3>Real-time Transcription</h3>
+            <p>
+              Whisper Turbo runs locally on your GPU. System audio + microphone captured
+              simultaneously. No internet needed.
+            </p>
+          </div>
+
+          <div class="feature-card animate-in" style="--delay: 0.15s">
+            <div class="feature-icon">
+              <svg
+                width="24"
+                height="24"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.5"
+              >
+                <path
+                  d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"
+                />
+              </svg>
+            </div>
+            <h3>AI-Powered Notes</h3>
+            <p>
+              Qwen 2.5 LLM expands your bullet points into full meeting notes. One shortcut:
+              Ctrl+Enter. All on-device.
+            </p>
+          </div>
+
+          <div class="feature-card animate-in" style="--delay: 0.2s">
+            <div class="feature-icon">
+              <svg
+                width="24"
+                height="24"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.5"
+              >
+                <path d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+              </svg>
+            </div>
+            <h3>Semantic Search</h3>
+            <p>
+              Find any moment from any meeting. Search by meaning, not just keywords. "What did we
+              decide about pricing?"
+            </p>
+          </div>
+
+          <div class="feature-card animate-in" style="--delay: 0.25s">
+            <div class="feature-icon">
+              <svg
+                width="24"
+                height="24"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.5"
+              >
+                <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+              </svg>
+            </div>
+            <h3>Zero Data Leaks</h3>
+            <p>
+              E2E encrypted. AES-256. Your recordings never leave your machine. Not even we can
+              access them.
+            </p>
+          </div>
+
+          <div class="feature-card animate-in" style="--delay: 0.3s">
+            <div class="feature-icon">
+              <svg
+                width="24"
+                height="24"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.5"
+              >
+                <path
+                  d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"
+                />
+              </svg>
+            </div>
+            <h3>Smart Hardware Adapt</h3>
+            <p>
+              Auto-detects your Mac's RAM and selects the optimal AI model. 8GB to 64GB — it just
+              works.
+            </p>
+          </div>
+
+          <div class="feature-card animate-in" style="--delay: 0.35s">
+            <div class="feature-icon">
+              <svg
+                width="24"
+                height="24"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.5"
+              >
+                <path
+                  d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
+                />
+              </svg>
+            </div>
+            <h3>Auto-Updates</h3>
+            <p>
+              Seamless background updates. New AI models and features delivered automatically via
+              GitHub Releases.
+            </p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- How it Works -->
+    <section class="how-it-works" id="how-it-works">
+      <div class="container">
+        <div class="section-header animate-in">
+          <span class="section-tag">HOW IT WORKS</span>
+          <h2>Three steps.<br /><span class="gradient-text">Zero complexity.</span></h2>
+        </div>
+
+        <div class="steps">
+          <div class="step animate-in" style="--delay: 0.1s">
+            <div class="step-number">01</div>
+            <h3>Download &amp; Install</h3>
+            <p>
+              275MB download. Open the DMG, drag to Applications. AI models download automatically
+              on first launch.
+            </p>
+          </div>
+          <div class="step-connector"></div>
+          <div class="step animate-in" style="--delay: 0.2s">
+            <div class="step-number">02</div>
+            <h3>Start Recording</h3>
+            <p>
+              Hit ⌘+Shift+Space or click Record. BlueArkive captures system audio and microphone
+              simultaneously.
+            </p>
+          </div>
+          <div class="step-connector"></div>
+          <div class="step animate-in" style="--delay: 0.3s">
+            <div class="step-number">03</div>
+            <h3>Search &amp; Expand</h3>
+            <p>
+              Every word is searchable. Select a note, hit Ctrl+Enter — AI expands it into polished
+              meeting notes.
+            </p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Privacy Section -->
+    <section class="privacy-section" id="privacy">
+      <div class="container">
+        <div class="privacy-card animate-in">
+          <div class="privacy-icon-grid">
+            <div class="privacy-icon">🔒</div>
+            <div class="privacy-icon">🖥️</div>
+            <div class="privacy-icon">🧠</div>
+          </div>
+          <h2>Built for the privacy-conscious.</h2>
+          <p>
+            Unlike Otter.ai, Fireflies, and Grain — BlueArkive never sends your audio or transcripts
+            to any server. Every AI model runs locally on your hardware. Your data stays yours.
+          </p>
+          <div class="privacy-badges">
+            <span class="privacy-badge">AES-256 Encryption</span>
+            <span class="privacy-badge">Local AI Only</span>
+            <span class="privacy-badge">No Telemetry</span>
+            <span class="privacy-badge">Open Source</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Download Section -->
+    <section class="download-section" id="download">
+      <div class="container">
+        <div class="section-header animate-in">
+          <span class="section-tag">DOWNLOAD</span>
+          <h2>Ready to own your meetings?</h2>
+        </div>
+
+        <div class="download-grid animate-in" style="--delay: 0.1s">
+          <a href="https://github.com/piyso/piynoteskiro/releases/latest" class="download-card">
+            <div class="download-icon">
+              <svg
+                width="40"
+                height="40"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.2"
+              >
+                <path
+                  d="M18.71 19.5c-.83 1.24-1.71 2.45-3.05 2.47-1.34.03-1.77-.79-3.29-.79-1.53 0-2 .77-3.27.82-1.31.05-2.3-1.32-3.14-2.53C4.25 17 2.94 12.45 4.7 9.39c.87-1.52 2.43-2.48 4.12-2.51 1.28-.02 2.5.87 3.29.87.78 0 2.26-1.07 3.8-.91.65.03 2.47.26 3.64 1.98-.09.06-2.17 1.28-2.15 3.81.03 3.02 2.65 4.03 2.68 4.04-.03.07-.42 1.44-1.38 2.83M13 3.5c.73-.83 1.94-1.46 2.94-1.5.13 1.17-.34 2.35-1.04 3.19-.69.85-1.83 1.51-2.95 1.42-.15-1.15.41-2.35 1.05-3.11z"
+                />
+              </svg>
+            </div>
+            <div class="download-info">
+              <h3>macOS</h3>
+              <p>Apple Silicon &amp; Intel</p>
+              <span class="download-size">275 MB</span>
+            </div>
+            <div class="download-arrow">→</div>
+          </a>
+
+          <a href="https://github.com/piyso/piynoteskiro/releases/latest" class="download-card">
+            <div class="download-icon">
+              <svg
+                width="40"
+                height="40"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.2"
+              >
+                <path d="M3 3h7l2 2h9v14H3V3z" />
+                <path d="M8 13h8M8 17h5" />
+              </svg>
+            </div>
+            <div class="download-info">
+              <h3>Windows</h3>
+              <p>x64 Installer + Portable</p>
+              <span class="download-size">Coming Soon</span>
+            </div>
+            <div class="download-arrow">→</div>
+          </a>
+
+          <a href="https://github.com/piyso/piynoteskiro/releases/latest" class="download-card">
+            <div class="download-icon">
+              <svg
+                width="40"
+                height="40"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="1.2"
+              >
+                <circle cx="12" cy="12" r="3" />
+                <path d="M12 2a10 10 0 0110 10H12V2zM12 22a10 10 0 01-10-10h10v10z" />
+              </svg>
+            </div>
+            <div class="download-info">
+              <h3>Linux</h3>
+              <p>AppImage, .deb, .rpm</p>
+              <span class="download-size">Coming Soon</span>
+            </div>
+            <div class="download-arrow">→</div>
+          </a>
+        </div>
+      </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="footer">
+      <div class="container">
+        <div class="footer-inner">
+          <div class="footer-brand">
+            <svg
+              width="20"
+              height="20"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="1.5"
+            >
+              <path d="M12 2L2 7L12 12L22 7L12 2Z" stroke-linejoin="round" />
+              <path d="M2 17L12 22L22 17" stroke-linejoin="round" />
+              <path d="M2 12L12 17L22 12" stroke-linejoin="round" />
+            </svg>
+            <span>BlueArkive</span>
+          </div>
+          <div class="footer-links">
+            <a href="/privacy.html">Privacy</a>
+            <a href="/terms.html">Terms</a>
+            <a href="https://github.com/piyso/piynoteskiro" target="_blank" rel="noopener"
+              >GitHub</a
+            >
+          </div>
+          <p class="footer-copy">© 2026 BlueArkive. Your data stays yours.</p>
+        </div>
+      </div>
+    </footer>
+
+    <script src="app.js"></script>
+  </body>
+</html>

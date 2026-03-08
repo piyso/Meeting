@@ -185,6 +185,8 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   # ─── Auto-Deploy Downloads to Hetzner ────────────────────────
+  # The dl.bluearkive.com nginx container has NO volume mounts.
+  # Files must be docker-cp'd into /usr/share/nginx/html/.
   deploy-downloads:
     needs: [build-mac]
     runs-on: ubuntu-latest
@@ -198,12 +200,28 @@ jobs:
       - name: List all release files
         run: ls -lh mac-builds/
 
-      - name: Deploy to Hetzner download server
+      - name: Upload files to Hetzner host
         uses: appleboy/scp-action@v0.1.7
         with:
           host: 89.167.57.32
           username: root
           key: ${{ secrets.HETZNER_SSH_KEY }}
           source: 'mac-builds/*'
-          target: '/data/coolify/services/service-j80w0wckko0wsogk4kckc0so/files/'
+          target: '/tmp/bluearkive-release/'
           strip_components: 1
+
+      - name: Copy files into nginx container
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: 89.167.57.32
+          username: root
+          key: ${{ secrets.HETZNER_SSH_KEY }}
+          script: |
+            CONTAINER="downloads-fwog8gc4koo4kkw08kwwoo8o"
+            for f in /tmp/bluearkive-release/*; do
+              docker cp "$f" "$CONTAINER:/usr/share/nginx/html/"
+              echo "Copied $(basename $f)"
+            done
+            docker exec "$CONTAINER" ls -lh /usr/share/nginx/html/
+            rm -rf /tmp/bluearkive-release
+            echo "Deploy complete"

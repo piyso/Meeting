@@ -25,7 +25,7 @@ process.on('unhandledRejection', (reason, promise) => {
   log.error('UNHANDLED PROMISE REJECTION:', { reason, promise })
 })
 
-// ─── Auto-updater (checks GitHub Releases) ───────────────
+// ─── Auto-updater (checks dl.bluearkive.com via generic provider) ───────────────
 let autoUpdater: { checkForUpdatesAndNotify: () => Promise<unknown> } | null = null
 try {
   // electron-updater is optional — skip in dev or if not installed

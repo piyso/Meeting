@@ -1,6 +1,6 @@
 {
   "name": "bluearkive",
-  "version": "0.1.1",
+  "version": "0.2.0",
   "description": "Local-first meeting transcription application with AI-powered note expansion",
   "main": "dist-electron/main.js",
   "author": "BlueArkive",
@@ -140,7 +140,28 @@
       "!**/node_modules/node-llama-cpp/bins/**",
       "!**/node_modules/node-llama-cpp/dist/cli/**",
       "!**/node_modules/onnxruntime-node/bin/napi-v6/linux/**",
-      "!**/node_modules/onnxruntime-node/bin/napi-v6/win32/**"
+      "!**/node_modules/onnxruntime-node/bin/napi-v6/win32/**",
+      "!**/node_modules/three/**",
+      "!**/node_modules/@react-three/**",
+      "!**/node_modules/lucide-react/**",
+      "!**/node_modules/three-stdlib/**",
+      "!**/node_modules/stats-gl/**",
+      "!**/node_modules/hls.js/**",
+      "!**/node_modules/@mediapipe/**",
+      "!**/node_modules/date-fns/**",
+      "!**/node_modules/react-dom/**",
+      "!**/node_modules/react/**",
+      "!**/node_modules/@tiptap/**",
+      "!**/node_modules/prosemirror-*/**",
+      "!**/node_modules/recharts/**",
+      "!**/node_modules/d3-*/**",
+      "!**/node_modules/lodash/**",
+      "!**/node_modules/yjs/**",
+      "!**/node_modules/typescript/**",
+      "!**/release/**",
+      "!**/landing-web/**",
+      "!**/billing-web/**",
+      "!**/*.md"
     ],
     "extraResources": [
       {

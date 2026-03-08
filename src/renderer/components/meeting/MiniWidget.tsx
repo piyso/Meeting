@@ -218,13 +218,13 @@ export const MiniWidget: React.FC<MiniWidgetProps> = ({
               animate={{ opacity: 1, y: 0, scale: 1 }}
               exit={{ opacity: 0, scale: 0.95 }}
               transition={springSpec}
-              className="flex items-start gap-2 bg-[rgba(139,92,246,0.15)] border border-[rgba(139,92,246,0.3)] rounded-lg p-2 mt-1 shadow-[0_0_12px_rgba(139,92,246,0.1)]"
+              className="flex items-center gap-2 bg-[rgba(139,92,246,0.15)] border border-[rgba(139,92,246,0.3)] rounded-lg p-2 mt-1 shadow-[0_0_12px_rgba(139,92,246,0.1)] min-w-0"
             >
               <Sparkles
                 size={14}
-                className="text-[var(--color-violet)] mt-0.5 flex-shrink-0 animate-pulse"
+                className="text-[var(--color-violet)] flex-shrink-0 animate-pulse"
               />
-              <p className="text-[12px] text-[var(--color-violet-light)] leading-snug font-medium line-clamp-2">
+              <p className="text-[12px] text-[var(--color-violet-light)] font-medium truncate">
                 {liveCoachTip}
               </p>
             </motion.div>

@@ -6,7 +6,7 @@ import { Input } from './ui/Input'
 import { PricingView } from './settings/PricingView'
 import { GhostMeetingTutorial } from './meeting/GhostMeetingTutorial'
 import { ModelDownloadProgress } from './ModelDownloadProgress'
-import { Key } from 'lucide-react'
+import { Key, Unlock, ShieldAlert, Copy, Download } from 'lucide-react'
 import { Logo3D } from './ui/Logo3D'
 
 import { rendererLog } from '../utils/logger'
@@ -73,6 +73,7 @@ export const OnboardingFlow: React.FC = () => {
   const [authError, setAuthError] = useState<string | null>(null)
   const [authLoading, setAuthLoading] = useState(false)
   const [authMode, setAuthMode] = useState<'register' | 'login'>('register')
+  const [isNewUser, setIsNewUser] = useState(false)
   const copyTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   // Cleanup copy timer on unmount
@@ -103,9 +104,14 @@ export const OnboardingFlow: React.FC = () => {
   // Auto-trigger hardware detection + model download when entering 'setup' step
   useEffect(() => {
     if (step === 'setup') {
-      detectHardwareTier()
+      if (isNewUser) {
+        detectHardwareTier()
+      } else {
+        // Returning user — skip onboarding setup, go straight to plan selection
+        setStep('plan-selection' as OnboardingStep)
+      }
     }
-  }, [step])
+  }, [step, isNewUser])
 
   const detectHardwareTier = async () => {
     const result = await window.electronAPI?.model?.detectHardwareTier()
@@ -191,6 +197,7 @@ export const OnboardingFlow: React.FC = () => {
           : await window.electronAPI?.auth?.login?.({ email: authEmail, password: authPass })
 
       if (result?.success) {
+        setIsNewUser(authMode === 'register')
         setStep('setup')
       } else if (result) {
         const errMsg = result?.error?.message || ''
@@ -204,11 +211,13 @@ export const OnboardingFlow: React.FC = () => {
         ) {
           // Backend not configured — skip auth and proceed (offline-first mode)
           log.warn('Auth backend unavailable, proceeding in offline mode')
+          setIsNewUser(authMode === 'register')
           setStep('setup')
         } else {
           setAuthError(errMsg || 'Authentication failed')
         }
       } else {
+        setIsNewUser(authMode === 'register')
         setStep('setup')
       }
     } catch (err) {
@@ -270,55 +279,59 @@ export const OnboardingFlow: React.FC = () => {
 
   return (
     <div className="w-full h-full flex bg-[#020617] text-[var(--color-text-primary)] relative">
-      {/* Left Visual Art Panel (Hidden on mobile) */}
-      <div className="hidden lg:flex w-1/2 h-full bg-slate-950 p-12 flex-col justify-between relative overflow-hidden border-r border-white/5">
-        <div className="absolute inset-0 with-noise opacity-[0.03] pointer-events-none" />
-        <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-blue-600/10 blur-[100px] rounded-full pointer-events-none translate-x-1/3 -translate-y-1/3" />
+      {/* Left Visual Art Panel (Hidden on mobile, and hidden during wide steps) */}
+      {step !== 'plan-selection' && step !== 'ghost-meeting' && (
+        <div className="hidden lg:flex w-1/2 h-full bg-slate-950 p-12 flex-col justify-between relative overflow-hidden border-r border-white/5">
+          <div className="absolute inset-0 with-noise opacity-[0.03] pointer-events-none" />
+          <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-blue-600/10 blur-[100px] rounded-full pointer-events-none translate-x-1/3 -translate-y-1/3" />
 
-        <div className="relative z-10">
-          <Logo3DErrorBoundary>
-            <Logo3D />
-          </Logo3DErrorBoundary>
-        </div>
+          <div className="relative z-10">
+            <Logo3DErrorBoundary>
+              <Logo3D />
+            </Logo3DErrorBoundary>
+          </div>
 
-        <div className="relative z-10 max-w-md mt-12">
-          <h1 className="text-4xl font-heading font-medium tracking-wide text-white mb-6">
-            {step === 'auth'
-              ? authMode === 'register'
-                ? 'The Sovereign Memory Fabric.'
-                : 'Welcome Back.'
-              : ''}
-            {step === 'setup' ? 'Initializing Core.' : ''}
-            {step === 'recovery-key' ? 'Absolute Sovereignty.' : ''}
-            {step === 'plan-selection' ? 'Systems Ready.' : ''}
-            {step === 'ghost-meeting' ? 'Simulation Mode.' : ''}
-          </h1>
-          <p className="text-slate-400 font-serif italic text-lg leading-relaxed">
-            {step === 'auth'
-              ? 'Constructing the autonomous agentic web. Infinite recall, zero dependencies.'
-              : ''}
-            {step === 'setup'
-              ? 'Injecting AI models directly into your secure local environment.'
-              : ''}
-            {step === 'recovery-key'
-              ? 'You are the only one holding the keys. True ownership of your data.'
-              : ''}
-            {step === 'plan-selection'
-              ? 'Choose the cognitive capacity required for your workflows.'
-              : ''}
-            {step === 'ghost-meeting'
-              ? 'Your first session. Experiencing the intelligence locally.'
-              : ''}
-          </p>
-        </div>
+          <div className="relative z-10 max-w-md mt-12">
+            <h1 className="text-4xl font-heading font-medium tracking-wide text-white mb-6">
+              {step === 'auth'
+                ? authMode === 'register'
+                  ? 'The Sovereign Memory Fabric.'
+                  : 'Welcome Back.'
+                : ''}
+              {step === 'setup' ? 'Initializing Core.' : ''}
+              {step === 'recovery-key' ? 'Absolute Sovereignty.' : ''}
+              {(step as string) === 'plan-selection' ? 'Systems Ready.' : ''}
+              {(step as string) === 'ghost-meeting' ? 'Simulation Mode.' : ''}
+            </h1>
+            <p className="text-slate-400 font-serif italic text-lg leading-relaxed">
+              {step === 'auth'
+                ? 'Constructing the autonomous agentic web. Infinite recall, zero dependencies.'
+                : ''}
+              {step === 'setup'
+                ? 'Injecting AI models directly into your secure local environment.'
+                : ''}
+              {step === 'recovery-key'
+                ? 'You are the only one holding the keys. True ownership of your data.'
+                : ''}
+              {(step as string) === 'plan-selection'
+                ? 'Choose the cognitive capacity required for your workflows.'
+                : ''}
+              {(step as string) === 'ghost-meeting'
+                ? 'Your first session. Experiencing the intelligence locally.'
+                : ''}
+            </p>
+          </div>
 
-        <div className="relative z-10 text-[10px] font-mono tracking-widest text-slate-600 uppercase">
-          All processing happens locally.
+          <div className="relative z-10 text-[10px] font-mono tracking-widest text-slate-600 uppercase">
+            All processing happens locally.
+          </div>
         </div>
-      </div>
+      )}
 
       {/* Right Control Panel (Form) */}
-      <div className="w-full lg:w-1/2 h-full flex items-center justify-center p-8 relative overflow-y-auto pt-[env(titlebar-area-height,32px)]">
+      <div
+        className={`w-full ${step === 'plan-selection' || step === 'ghost-meeting' ? '' : 'lg:w-1/2'} h-full flex items-center justify-center p-8 relative overflow-y-auto pt-[env(titlebar-area-height,32px)]`}
+      >
         {/* Subtle global noise texture for right side too */}
         <div className="absolute inset-0 with-noise opacity-[0.015] pointer-events-none" />
 
@@ -363,8 +376,25 @@ export const OnboardingFlow: React.FC = () => {
               </div>
 
               {authError && (
-                <div className="flex items-center gap-3 p-3.5 rounded-xl bg-[rgba(244,63,94,0.06)] border border-[rgba(244,63,94,0.3)] shadow-[0_0_15px_rgba(244,63,94,0.15),inset_0_0_0_1px_rgba(255,255,255,0.05)] text-rose-300 text-sm font-medium backdrop-blur-xl ">
-                  <div className="w-2 h-2 rounded-full bg-rose-500 shadow-[0_0_8px_rgba(244,63,94,1)] animate-pulse" />
+                <div
+                  className={`flex items-center gap-3 p-3.5 rounded-xl text-sm font-medium backdrop-blur-xl ${
+                    authError.startsWith('✓')
+                      ? 'bg-[rgba(16,185,129,0.06)] border border-[rgba(16,185,129,0.3)] text-emerald-300'
+                      : authError.includes('email confirmation') || authError.includes('check your')
+                        ? 'bg-[rgba(14,165,233,0.06)] border border-[rgba(14,165,233,0.3)] text-sky-300'
+                        : 'bg-[rgba(244,63,94,0.06)] border border-[rgba(244,63,94,0.3)] text-rose-300'
+                  }`}
+                >
+                  <div
+                    className={`w-2 h-2 rounded-full ${
+                      authError.startsWith('✓')
+                        ? 'bg-emerald-500'
+                        : authError.includes('email confirmation') ||
+                            authError.includes('check your')
+                          ? 'bg-sky-500'
+                          : 'bg-rose-500 animate-pulse'
+                    }`}
+                  />
                   <span className="flex-1 tracking-wide">{authError}</span>
                 </div>
               )}
@@ -383,6 +413,47 @@ export const OnboardingFlow: React.FC = () => {
                       ? 'Initialize Core'
                       : 'Sign In'}
                 </Button>
+
+                {/* Divider */}
+                <div className="flex items-center gap-3 my-5">
+                  <div className="flex-1 h-px bg-white/10" />
+                  <span className="text-xs text-slate-500 tracking-widest uppercase">or</span>
+                  <div className="flex-1 h-px bg-white/10" />
+                </div>
+
+                {/* Google Sign-in */}
+                <button
+                  onClick={async () => {
+                    try {
+                      setAuthError(null)
+                      await window.electronAPI?.auth?.googleAuth?.()
+                      setAuthError('Google sign-in opened in browser — complete the flow there')
+                    } catch (err: unknown) {
+                      setAuthError(err instanceof Error ? err.message : 'Google sign-in failed')
+                    }
+                  }}
+                  className="w-full flex items-center justify-center gap-3 py-3 px-4 rounded-xl border border-white/10 bg-white/5 hover:bg-white/10 text-sm text-slate-300 font-medium transition-all cursor-pointer"
+                >
+                  <svg width="18" height="18" viewBox="0 0 24 24">
+                    <path
+                      d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 0 1-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z"
+                      fill="#4285F4"
+                    />
+                    <path
+                      d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
+                      fill="#34A853"
+                    />
+                    <path
+                      d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"
+                      fill="#FBBC05"
+                    />
+                    <path
+                      d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"
+                      fill="#EA4335"
+                    />
+                  </svg>
+                  Continue with Google
+                </button>
               </div>
             </div>
 
@@ -482,72 +553,99 @@ export const OnboardingFlow: React.FC = () => {
         )}
 
         {step === 'recovery-key' && (
-          <div className="w-full max-w-[480px] flex flex-col  relative z-10">
-            <div className="flex items-center gap-3 mb-6 flex-col lg:flex-row lg:items-center text-center lg:text-left">
-              <Key size={32} className="text-amber-500" />
-              <div>
-                <h2 className="text-2xl font-semibold tracking-wide text-white">Recovery Key</h2>
-                <p className="text-sm text-slate-400 mt-1">
-                  This is the ONLY way to recover your data if you reinstall.
-                </p>
+          <div className="w-full max-w-[520px] flex flex-col relative z-10 animate-fade-in">
+            {/* Header with dynamic lock state */}
+            <div className="flex flex-col items-center text-center mb-8">
+              <div
+                className={`w-16 h-16 rounded-2xl flex items-center justify-center mb-5 transition-all duration-700 ${keySaved ? 'bg-emerald-500/10 border border-emerald-500/30' : 'bg-amber-500/10 border border-amber-500/30'}`}
+              >
+                {keySaved ? (
+                  <Unlock size={32} className="text-emerald-400 animate-slide-up" />
+                ) : (
+                  <Key size={32} className="text-amber-400 animate-pulse-slow" />
+                )}
               </div>
+              <h2 className="text-3xl font-heading font-semibold tracking-wide text-white">
+                Your Recovery Key
+              </h2>
+              <p className="text-sm text-slate-400 mt-3 max-w-sm leading-relaxed">
+                This is the cryptographic seed to your sovereign data. <br />
+                If you lose this, your data cannot be recovered.
+              </p>
             </div>
 
-            <div className="flex items-center gap-3 mb-8 p-3 rounded-lg bg-amber-500/10 border border-amber-500/20 text-amber-500 text-sm">
-              <span className="text-lg">⚠️</span>
+            {/* Warning banner */}
+            <div className="flex items-start gap-4 mb-8 px-5 py-4 rounded-xl bg-amber-950/40 border border-amber-500/20 text-amber-200/90 text-[13px] leading-relaxed relative overflow-hidden">
+              <div className="absolute top-0 left-0 w-1 h-full bg-amber-500" />
+              <ShieldAlert size={20} className="shrink-0 text-amber-500 mt-0.5" />
               <span>
-                We can NEVER recover your data without this key. Store it securely. Do NOT share it.
+                We <strong>cannot</strong> recover your data without this key. Never share it with
+                anyone. Our team will never ask for it.
               </span>
             </div>
 
-            <div className="grid grid-cols-2 lg:grid-cols-3 gap-2 mb-8 w-full">
+            {/* Word grid - Vault style */}
+            <div className="grid grid-cols-3 gap-3 mb-8 w-full p-5 rounded-2xl bg-[#0a0f1d] border border-white/5 shadow-inner">
               {recoveryPhrase.map((word, i) => (
                 <div
                   key={i}
-                  className="flex items-center gap-2 bg-white/5 border border-white/10 px-3 py-2 rounded-md font-mono text-sm shadow-sm"
+                  className="flex items-center gap-2.5 px-3 py-2.5 rounded-lg bg-white/[0.03] border border-white/[0.03] hover:bg-white/[0.06] transition-colors"
                 >
-                  <span className="text-slate-500 text-xs select-none">
+                  <span className="text-slate-500 text-[10px] font-mono opacity-60 w-4 shrink-0 select-none">
                     {(i + 1).toString().padStart(2, '0')}
                   </span>
-                  <span className="text-slate-200 font-medium select-all space-x-0 tracking-wider mix-blend-screen">
+                  <span className="text-slate-200 font-mono text-[14px] font-medium tracking-widest select-all">
                     {word}
                   </span>
                 </div>
               ))}
             </div>
 
-            <div className="flex gap-3 w-full mb-8">
+            {/* Action buttons */}
+            <div className="flex gap-4 w-full mb-6">
               <Button
                 variant="secondary"
-                className="flex-1 bg-white/5 border-white/10 hover:bg-white/10"
+                className={`flex-1 bg-white/5 border-white/10 hover:bg-white/10 gap-2 h-12 transition-all ${
+                  !keySaved ? 'animate-pulse-slow shadow-[0_0_15px_rgba(255,255,255,0.05)]' : ''
+                }`}
                 onClick={handleCopyKey}
               >
-                {keyCopied ? '✓ Copied' : 'Copy'}
+                {keyCopied ? (
+                  '✓ Copied!'
+                ) : (
+                  <>
+                    <Copy size={16} /> Copy to Clipboard
+                  </>
+                )}
               </Button>
               <Button
                 variant="secondary"
-                className="flex-1 bg-white/5 border-white/10 hover:bg-white/10"
+                className="flex-1 bg-white/5 border-white/10 hover:bg-white/10 gap-2 h-12"
                 onClick={handleDownloadKey}
               >
-                Save as File
+                <Download size={16} /> Save as Text File
               </Button>
             </div>
 
             <Button
               variant="primary"
               size="lg"
-              className="w-full bg-white text-slate-950 hover:bg-slate-200 border-none transition-colors"
+              className={`w-full border-none transition-all duration-500 h-14 text-base font-medium tracking-wide shadow-xl ${
+                keySaved
+                  ? 'bg-white text-slate-950 hover:bg-slate-200 shadow-[0_0_30px_rgba(255,255,255,0.15)]'
+                  : 'bg-white/5 text-slate-500 cursor-not-allowed opacity-70'
+              }`}
               disabled={!keySaved}
               onClick={() => setStep('plan-selection')}
             >
-              I've Saved It Securely →
+              {keySaved ? "I've Saved It Securely →" : 'Copy or Download to Continue'}
             </Button>
           </div>
         )}
 
         {step === 'plan-selection' && (
-          <div className="w-full max-w-[600px] flex flex-col  relative z-10 pt-10">
-            <h2 className="text-2xl font-semibold tracking-wide text-white mb-8 text-center">
+          <div className="w-full max-w-[1000px] flex flex-col items-center relative z-10 pt-10">
+            <h2 className="text-3xl font-semibold tracking-wide text-white mb-8 text-center animate-fade-in font-heading">
               Select Cognitive Capacity
             </h2>
             <PricingView onPlanSelect={() => setStep('ghost-meeting')} />

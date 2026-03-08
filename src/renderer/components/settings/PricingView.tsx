@@ -1,5 +1,4 @@
 import React from 'react'
-import { Badge } from '../ui/Badge'
 import { Button } from '../ui/Button'
 import { Check } from 'lucide-react'
 
@@ -76,7 +75,7 @@ export const PricingView: React.FC<{ onPlanSelect?: (plan: string) => void }> = 
   }
 
   return (
-    <div className="w-full h-full flex flex-col items-center justify-center p-[var(--space-24)] bg-[var(--color-bg-root)] overflow-x-auto scrollbar-webkit">
+    <div className="w-full flex flex-col items-center p-4 overflow-y-auto scrollbar-webkit">
       {/* Currency Toggle */}
       <div className="flex items-center gap-2 mb-8 bg-[var(--color-bg-elevated)] p-1 rounded-full border border-[var(--color-border-subtle)] animate-fade-in">
         <button
@@ -93,61 +92,74 @@ export const PricingView: React.FC<{ onPlanSelect?: (plan: string) => void }> = 
         </button>
       </div>
 
-      <div className="flex gap-[var(--space-16)] min-w-max pb-4">
-        {tiers.map((t, i) => (
-          <div
-            key={i}
-            className={`
-              w-[220px] rounded-[var(--radius-lg)] p-[var(--space-24)] flex flex-col relative
+      {/* Cards Layout - 3 on top, 2 wider on bottom */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-4 w-full max-w-5xl pb-10">
+        {tiers.map((t, i) => {
+          // Calculate grid boundaries based on index
+          // 0: Free (col 1-2), 1: Starter (col 3-4), 2: Pro (col 5-6)
+          // 3: Team (col 2-4), 4: Enterprise (col 4-6)
+          let gridClass = ''
+          if (i === 0) gridClass = 'lg:col-span-2'
+          if (i === 1) gridClass = 'lg:col-span-2'
+          if (i === 2) gridClass = 'lg:col-span-2 transform lg:-translate-y-2' // Elevate recommended tier
+          if (i === 3) gridClass = 'lg:col-span-3 lg:col-start-1 mt-4'
+          if (i === 4) gridClass = 'lg:col-span-3 lg:col-start-4 mt-4'
+
+          return (
+            <div
+              key={i}
+              className={`
+              rounded-2xl p-6 flex flex-col relative transition-all duration-300 hover:scale-[1.02]
               bg-[var(--color-bg-glass)] border 
-              ${t.recommended ? 'border-[var(--color-violet)] shadow-[0_0_24px_rgba(167,139,250,0.1)]' : 'border-[var(--color-border-subtle)]'}
+              ${
+                t.recommended
+                  ? 'border-[var(--color-violet)] shadow-[0_8px_32px_rgba(167,139,250,0.15)] bg-slate-900/40 z-10'
+                  : 'border-white/10 hover:border-white/20 shadow-lg'
+              }
               animate-slide-up
+              ${gridClass}
             `}
-            style={{ animationDelay: `${i * 100}ms`, animationFillMode: 'both' }}
-          >
-            {t.recommended && (
-              <Badge
-                variant="default"
-                className="absolute -top-3 right-[var(--space-24)] px-2 bg-[var(--color-violet)] text-white border-none"
-              >
-                ⭐ Recommended
-              </Badge>
-            )}
-
-            <h3 className="text-[var(--text-lg)] font-semibold text-[var(--color-text-primary)] mb-2">
-              {t.name}
-            </h3>
-
-            <div className="mb-[var(--space-24)] border-b border-[var(--color-border-subtle)] pb-[var(--space-16)] flex items-baseline">
-              <span className="text-[var(--text-3xl)] font-bold text-[var(--color-text-primary)] tracking-tight">
-                {currency === 'INR' && t.priceINR ? t.priceINR : t.price}
-              </span>
-              <span className="text-[var(--text-sm)] text-[var(--color-text-tertiary)] ml-1 font-medium">
-                {t.period}
-              </span>
-            </div>
-
-            <ul className="space-y-[var(--space-12)] flex-1 mb-[var(--space-24)]">
-              {t.features.map((f: string, j: number) => (
-                <li
-                  key={j}
-                  className="flex gap-2 items-start text-[var(--text-sm)] text-[var(--color-text-secondary)] leading-tight"
-                >
-                  <Check size={14} className="mt-0.5 shrink-0 text-[var(--color-violet)]" />
-                  <span>{f}</span>
-                </li>
-              ))}
-            </ul>
-
-            <Button
-              variant={t.variant}
-              className="w-full shadow-sm"
-              onClick={() => onPlanSelect?.(t.name)}
+              style={{ animationDelay: `${i * 80}ms`, animationFillMode: 'both' }}
             >
-              {t.cta}
-            </Button>
-          </div>
-        ))}
+              {t.recommended && (
+                <div className="absolute -top-3 left-1/2 -translate-x-1/2 px-3 py-1 bg-gradient-to-r from-violet-500 to-fuchsia-500 text-white text-[10px] font-bold uppercase tracking-widest rounded-full shadow-md whitespace-nowrap">
+                  ⭐ Recommended
+                </div>
+              )}
+
+              <h3 className="text-base font-semibold text-slate-200 mb-2">{t.name}</h3>
+
+              <div className="mb-4 border-b border-white/10 pb-4 flex items-baseline">
+                <span className="text-3xl font-bold text-white tracking-tight">
+                  {currency === 'INR' && t.priceINR ? t.priceINR : t.price}
+                </span>
+                <span className="text-sm text-slate-400 ml-1.5 font-medium">{t.period}</span>
+              </div>
+
+              <ul className="space-y-3 flex-1 mb-6">
+                {t.features.map((f: string, j: number) => (
+                  <li
+                    key={j}
+                    className="flex gap-2.5 items-start text-sm text-slate-300 leading-tight"
+                  >
+                    <Check size={14} className="mt-0.5 shrink-0 text-violet-400" />
+                    <span>{f}</span>
+                  </li>
+                ))}
+              </ul>
+
+              <Button
+                variant={t.variant}
+                className={`w-full shadow-sm py-4 rounded-xl font-medium tracking-wide ${
+                  t.recommended ? 'bg-violet-600 hover:bg-violet-500 text-white border-none' : ''
+                } ${t.variant === 'ghost' ? 'bg-white/5 hover:bg-white/10 text-white border-white/10' : ''}`}
+                onClick={() => onPlanSelect?.(t.name)}
+              >
+                {t.cta}
+              </Button>
+            </div>
+          )
+        })}
       </div>
     </div>
   )

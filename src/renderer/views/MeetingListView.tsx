@@ -295,21 +295,21 @@ export default function MeetingListView() {
         </button>
 
         <div className="flex items-center gap-4 no-drag shrink-0">
-          <div className="text-[13px] font-medium text-[var(--color-text-secondary)] tracking-wide">
+          <div className="flex items-center px-3 py-1.5 rounded-full bg-[rgba(255,255,255,0.03)] border border-[rgba(255,255,255,0.08)] text-[12px] font-medium text-[var(--color-text-secondary)] tracking-wide shadow-sm">
             {meetings.length} meeting{meetings.length !== 1 ? 's' : ''} total
           </div>
           <SyncStatusBadge />
           <div className="relative w-64 group shrink-0">
             <Search
               size={14}
-              className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[var(--color-text-tertiary)] transition-colors group-focus-within:text-[var(--color-text-secondary)]"
+              className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[var(--color-text-secondary)] opacity-70 transition-colors group-focus-within:opacity-100 group-focus-within:text-[var(--color-text-primary)]"
             />
             <input
               type="text"
               placeholder="Search meetings..."
               value={searchQuery}
               onChange={e => setSearchQuery(e.target.value)}
-              className="w-full surface-glass-premium border border-[rgba(255,255,255,0.06)] rounded-full pl-9 pr-4 py-2.5 text-[13px] text-[var(--color-text-primary)] placeholder-[var(--color-text-tertiary)] outline-none transition-all hover:bg-[rgba(255,255,255,0.02)] focus:border-[rgba(255,255,255,0.12)] focus:shadow-[0_4px_24px_rgba(0,0,0,0.2)]"
+              className="w-full bg-[rgba(255,255,255,0.04)] backdrop-blur-md border border-[rgba(255,255,255,0.12)] rounded-full pl-9 pr-4 py-2 text-[13px] text-[var(--color-text-primary)] placeholder-[rgba(255,255,255,0.4)] outline-none transition-all hover:bg-[rgba(255,255,255,0.06)] hover:border-[rgba(255,255,255,0.18)] focus:bg-[rgba(255,255,255,0.08)] focus:border-[rgba(255,255,255,0.25)] focus:shadow-[0_4px_24px_rgba(0,0,0,0.3)]"
             />
           </div>
         </div>

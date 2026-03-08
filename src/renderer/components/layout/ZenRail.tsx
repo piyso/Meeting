@@ -30,7 +30,6 @@ export const ZenRail: React.FC<ZenRailProps> = ({
   return (
     <nav className={`ui-zen-rail ${focusMode ? 'focus-mode' : ''}`}>
       <div className="ui-zen-rail-item">
-        {activeView === 'meeting-list' && <div className="ui-zen-rail-active-indicator" />}
         <IconButton
           icon={<FileText size={18} />}
           active={activeView === 'meeting-list'}
@@ -40,7 +39,6 @@ export const ZenRail: React.FC<ZenRailProps> = ({
       </div>
 
       <div className="ui-zen-rail-item">
-        {activeView === 'knowledge-graph' && <div className="ui-zen-rail-active-indicator" />}
         <div className="relative">
           <IconButton
             icon={<Brain size={18} />}
@@ -57,7 +55,6 @@ export const ZenRail: React.FC<ZenRailProps> = ({
       </div>
 
       <div className="ui-zen-rail-item">
-        {activeView === 'weekly-digest' && <div className="ui-zen-rail-active-indicator" />}
         <div className="relative">
           <IconButton
             icon={<CalendarDays size={18} />}
@@ -74,7 +71,6 @@ export const ZenRail: React.FC<ZenRailProps> = ({
       </div>
 
       <div className="ui-zen-rail-item">
-        {activeView === 'ask-meetings' && <div className="ui-zen-rail-active-indicator" />}
         <IconButton
           icon={<MessageSquare size={18} />}
           active={activeView === 'ask-meetings'}
@@ -145,7 +141,6 @@ export const ZenRail: React.FC<ZenRailProps> = ({
       )}
 
       <div className="ui-zen-rail-item ui-zen-rail-bottom">
-        {activeView === 'settings' && <div className="ui-zen-rail-active-indicator" />}
         <IconButton
           icon={<Settings size={18} />}
           active={activeView === 'settings'}

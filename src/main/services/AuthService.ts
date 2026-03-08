@@ -156,7 +156,7 @@ export class AuthService {
     }
 
     if (!data.session || !data.user) {
-      throw new Error('Registration successful but email confirmation may be required')
+      throw new Error('Account created — please check your email to confirm before signing in')
     }
 
     const result = await this.buildAuthResult(data.session)

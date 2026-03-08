@@ -4,6 +4,27 @@ import electron from 'vite-plugin-electron'
 import renderer from 'vite-plugin-electron-renderer'
 import path from 'path'
 import { builtinModules } from 'module'
+import { config as dotenvConfig } from 'dotenv'
+
+// Load .env file so we can inject vars into the Electron main process build
+const envResult = dotenvConfig({ path: path.resolve(__dirname, '.env') })
+const envVars = envResult.parsed || {}
+
+// Build a define map that replaces process.env.X with the actual values at bundle time
+const envKeys = [
+  'SUPABASE_URL',
+  'SUPABASE_ANON_KEY',
+  'BLUEARKIVE_API_URL',
+  'BLUEARKIVE_FUNCTIONS_URL',
+  'DEEPGRAM_API_URL',
+  'SENTRY_DSN',
+  'LOG_LEVEL',
+  'BLUEARKIVE_BILLING_URL',
+]
+const electronDefine: Record<string, string> = {}
+for (const key of envKeys) {
+  electronDefine[`process.env.${key}`] = JSON.stringify(envVars[key] || process.env[key] || '')
+}
 
 // All native Node.js built-in modules (with and without node: prefix)
 const nodeBuiltins = [...builtinModules, ...builtinModules.map(m => `node:${m}`)]
@@ -38,6 +59,7 @@ export default defineConfig({
           startup()
         },
         vite: {
+          define: electronDefine,
           build: {
             outDir: 'dist-electron',
             rollupOptions: {

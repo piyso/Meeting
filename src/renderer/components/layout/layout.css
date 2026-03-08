@@ -87,24 +87,7 @@
   display: flex;
   justify-content: center;
 }
-.ui-zen-rail-active-indicator {
-  position: absolute;
-  left: 4px;
-  top: 50%;
-  transform: translateY(-50%);
-  width: 4px;
-  height: 20px;
-  border-radius: var(--radius-full);
-  background: linear-gradient(
-    180deg,
-    var(--color-lavender, #d8b4fe) 0%,
-    var(--color-violet, #a78bfa) 100%
-  );
-  box-shadow:
-    0 0 12px var(--color-glow-violet),
-    inset 0 0 4px rgba(167, 139, 250, 0.5);
-  z-index: 10;
-}
+
 .ui-zen-rail-bottom {
   margin-top: auto;
 }

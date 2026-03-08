@@ -10,7 +10,8 @@ declare global {
   }
 }
 
-// The WidgetApp is a completely separate React tree specifically for the transparent floating window.
+import { motion } from 'framer-motion'
+
 export const WidgetApp: React.FC = () => {
   const [isRecording, setIsRecording] = useState(false)
   const [elapsedTime, setElapsedTime] = useState('00:00:00')
@@ -43,11 +44,10 @@ export const WidgetApp: React.FC = () => {
   }
 
   const handleStop = () => {
-    window.electronAPI.audio.stopCapture({ meetingId: 'current' }) // Assuming backend handles empty or 'current' id mapping when resolving active meetings gracefully, or we'll need to pass meetingId in state.
+    window.electronAPI.audio.stopCapture({ meetingId: 'current' })
   }
 
   const handleBookmark = () => {
-    // We send a generic event to the main window to trigger bookmark globally
     window.electronAPI.widget.triggerBookmark()
   }
 
@@ -56,21 +56,34 @@ export const WidgetApp: React.FC = () => {
   }
 
   return (
-    <div className="w-screen h-screen bg-transparent flex items-end justify-end p-4 widget-draggable overflow-hidden text-[var(--color-text-primary)]">
-      <MiniWidget
-        isRecording={isRecording}
-        elapsedTime={elapsedTime}
-        lastTranscriptLine={lastTranscriptLine}
-        audioMode={audioMode}
-        syncStatus={syncStatus}
-        liveCoachTip={liveCoachTip}
-        entityCount={entityCount}
-        noteCount={noteCount}
-        onRestore={handleRestore}
-        onStop={handleStop}
-        onBookmark={handleBookmark}
-        onQuickNote={handleQuickNote}
-      />
+    <div className="w-screen h-screen bg-transparent flex items-start justify-center pt-8 p-4 widget-draggable overflow-hidden text-[var(--color-text-primary)]">
+      <motion.div
+        initial={{ y: -100, opacity: 0, scale: 0.85, filter: 'blur(10px)' }}
+        animate={{ y: 0, opacity: 1, scale: 1, filter: 'blur(0px)' }}
+        transition={{
+          type: 'spring',
+          stiffness: 350,
+          damping: 25,
+          mass: 1.2,
+          bounce: 0.4,
+        }}
+        className="relative pointer-events-auto"
+      >
+        <MiniWidget
+          isRecording={isRecording}
+          elapsedTime={elapsedTime}
+          lastTranscriptLine={lastTranscriptLine}
+          audioMode={audioMode}
+          syncStatus={syncStatus}
+          liveCoachTip={liveCoachTip}
+          entityCount={entityCount}
+          noteCount={noteCount}
+          onRestore={handleRestore}
+          onStop={handleStop}
+          onBookmark={handleBookmark}
+          onQuickNote={handleQuickNote}
+        />
+      </motion.div>
     </div>
   )
 }

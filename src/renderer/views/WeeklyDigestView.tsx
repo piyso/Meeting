@@ -198,26 +198,24 @@ export default function WeeklyDigestView() {
             {digest ? `For week of ${formatDate(digest.startDate)}` : 'Your personalized summary'}
           </span>
         </div>
-        <div className="ml-auto flex items-center gap-3">
+        <div className="ml-auto flex items-center gap-4">
           {aiStatusText && (
             <div
-              className={`flex items-center gap-2 px-3.5 py-1.5 rounded-full border surface-glass-premium transition-colors ${
-                aiReady === false
-                  ? 'bg-[rgba(245,158,11,0.05)] border-[rgba(245,158,11,0.3)] text-[var(--color-amber)] shadow-[0_0_12px_rgba(245,158,11,0.15)]'
-                  : 'bg-[rgba(255,255,255,0.02)] border-[rgba(255,255,255,0.05)] text-[var(--color-text-tertiary)]'
-              }`}
+              className={`flex items-center gap-2 px-3 py-1.5 rounded-full border border-[rgba(245,158,11,0.2)] bg-[rgba(245,158,11,0.05)] text-[var(--color-amber)] text-xs font-medium tracking-wide shadow-sm transition-all duration-300 ${aiReady === false ? 'opacity-100' : 'opacity-0'}`}
             >
-              <div
-                className={`w-2 h-2 rounded-full ${aiReady === false ? 'bg-[var(--color-amber)] shadow-[0_0_8px_rgba(245,158,11,0.8)] animate-pulse' : 'bg-[var(--color-border-subtle)]'}`}
-              />
-              <span className="text-[11px] font-medium tracking-wide">{aiStatusText}</span>
+              {aiStatusText}
             </div>
           )}
 
           <Button
-            variant={aiReady === false ? 'danger' : 'primary'}
+            variant={aiReady === false ? 'secondary' : 'primary'}
             onClick={handleGenerate}
             disabled={isGenerating || isLoading}
+            className={
+              aiReady === false
+                ? 'opacity-75 cursor-not-allowed hover:opacity-75 hover:bg-[var(--color-bg-elevated)]'
+                : ''
+            }
             title={
               aiReady === false
                 ? 'AI engine is still loading — generation may be slower or fail'

@@ -579,9 +579,10 @@
   color: #ffffff;
 }
 .ui-icon-btn.active {
-  background: var(--color-bg-glass);
-  border-color: var(--color-border-subtle);
+  background: rgba(167, 139, 250, 0.2); /* Slightly stronger violet glass */
   color: #ffffff;
+  border-color: transparent; /* Remove the hard border */
+  box-shadow: 0 0 20px rgba(167, 139, 250, 0.3); /* Pure outer aura glow, no inset lines */
 }
 .ui-icon-btn:disabled {
   opacity: 0.5;

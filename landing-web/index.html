@@ -308,8 +308,8 @@
           Free. Private. No account needed. Yours forever.
         </p>
 
-        <!-- PRIMARY: Auto-detected Download Button -->
-        <div style="margin-top: 40px">
+        <!-- Mac Download (shown by default) -->
+        <div id="mac-download" style="margin-top: 40px">
           <a
             id="dl-primary"
             href="https://dl.bluearkive.com/BlueArkive-0.1.1-mac-arm64.dmg"
@@ -333,6 +333,120 @@
               Download for Intel Mac instead (x64 · 544 MB)
             </a>
           </p>
+        </div>
+
+        <!-- Windows / Linux Coming Soon (hidden by default, shown via JS) -->
+        <div
+          id="other-os-download"
+          style="
+            display: none;
+            margin-top: 40px;
+            max-width: 480px;
+            margin-left: auto;
+            margin-right: auto;
+          "
+        >
+          <div
+            style="
+              background: var(--bg-surface);
+              border: 1px solid var(--border-light);
+              border-radius: 16px;
+              padding: 36px 28px;
+            "
+          >
+            <div
+              style="
+                width: 56px;
+                height: 56px;
+                border-radius: 14px;
+                background: linear-gradient(135deg, var(--brand-lavender), #c4b5fd);
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                margin: 0 auto 20px;
+                color: white;
+              "
+            >
+              <svg
+                width="24"
+                height="24"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+              >
+                <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+              </svg>
+            </div>
+            <h3
+              style="
+                font-size: 1.2rem;
+                font-weight: 600;
+                margin-bottom: 8px;
+                color: var(--text-main);
+              "
+              id="other-os-title"
+            >
+              Windows version coming soon.
+            </h3>
+            <p
+              style="
+                font-size: 0.9rem;
+                color: var(--text-muted);
+                margin-bottom: 24px;
+                line-height: 1.5;
+              "
+            >
+              We're building BlueArkive for <span id="other-os-name">Windows</span>. Leave your
+              email and we'll notify you the moment it's ready.
+            </p>
+            <form
+              onsubmit="
+                event.preventDefault()
+                this.querySelector('button').textContent = '✓ You\'re on the list!'
+                this.querySelector('button').style.background = 'var(--brand-sage)'
+                this.querySelector('input').disabled = true
+              "
+              style="display: flex; gap: 8px; max-width: 360px; margin: 0 auto"
+            >
+              <input
+                type="email"
+                placeholder="you@email.com"
+                required
+                style="
+                  flex: 1;
+                  padding: 12px 16px;
+                  border-radius: 10px;
+                  border: 1px solid var(--border-light);
+                  background: var(--bg-page);
+                  color: var(--text-main);
+                  font-size: 0.9rem;
+                  outline: none;
+                "
+              />
+              <button
+                type="submit"
+                class="btn btn-primary"
+                style="padding: 12px 24px; white-space: nowrap; font-size: 0.9rem"
+              >
+                Notify Me
+              </button>
+            </form>
+            <p style="margin-top: 16px; font-size: 0.8rem; color: var(--text-light)">
+              Currently available for
+              <a
+                href="#"
+                onclick="
+                  document.getElementById('other-os-download').style.display = 'none'
+                  document.getElementById('mac-download').style.display = 'block'
+                  return false
+                "
+                style="color: var(--brand-lavender-dark); text-decoration: underline"
+                >macOS</a
+              >
+              · No spam, ever.
+            </p>
+          </div>
         </div>
 
         <!-- VISUAL: How to install (inline, honest, works on ALL macOS) -->
@@ -835,6 +949,57 @@
         )
         reveals.forEach(el => observer.observe(el))
       })
+
+      // OS Detection to show "Coming Soon" for non-Mac users
+      ;(function () {
+        try {
+          // A rough but effective OS detection
+          const userAgent = window.navigator.userAgent || window.navigator.vendor || window.opera
+          const platform = window.navigator.platform
+          const macosPlatforms = ['Macintosh', 'MacIntel', 'MacPPC', 'Mac68K']
+          const windowsPlatforms = ['Win32', 'Win64', 'Windows', 'WinCE']
+          const iosPlatforms = ['iPhone', 'iPad', 'iPod']
+
+          let os = null
+
+          if (
+            macosPlatforms.indexOf(platform) !== -1 ||
+            (userAgent.includes('Mac') &&
+              !userAgent.includes('iPhone') &&
+              !userAgent.includes('iPad'))
+          ) {
+            os = 'macOS'
+          } else if (
+            iosPlatforms.indexOf(platform) !== -1 ||
+            userAgent.includes('iPhone') ||
+            userAgent.includes('iPad')
+          ) {
+            os = 'iOS'
+          } else if (windowsPlatforms.indexOf(platform) !== -1 || userAgent.includes('Windows')) {
+            os = 'Windows'
+          } else if (/Android/.test(userAgent)) {
+            os = 'Android'
+          } else if (!os && /Linux/.test(platform)) {
+            os = 'Linux'
+          }
+
+          if (os && os !== 'macOS') {
+            const macSection = document.getElementById('mac-download')
+            const otherSection = document.getElementById('other-os-download')
+            const osNameSpan = document.getElementById('other-os-name')
+            const osTitle = document.getElementById('other-os-title')
+
+            if (macSection && otherSection && osNameSpan && osTitle) {
+              macSection.style.display = 'none'
+              otherSection.style.display = 'block'
+              osNameSpan.textContent = os
+              osTitle.textContent = `${os} version coming soon.`
+            }
+          }
+        } catch (e) {
+          // If detection fails, default to Mac behavior (already visible)
+        }
+      })()
     </script>
 
     <!-- Footer -->

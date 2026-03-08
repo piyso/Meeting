@@ -499,6 +499,216 @@ a:hover {
   font-size: 0.9rem;
 }
 
+/* Mockup title */
+.mockup-title {
+  flex: 1;
+  text-align: center;
+  font-size: 0.75rem;
+  color: #6b7280;
+  font-weight: 500;
+}
+
+/* Bento tags and tech details */
+.bento-tag {
+  display: inline-block;
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  color: var(--brand-primary);
+  background: rgba(79, 70, 229, 0.08);
+  padding: 4px 10px;
+  border-radius: 4px;
+  margin-bottom: 16px;
+  width: fit-content;
+}
+
+.tech-detail {
+  margin-top: 16px;
+  font-size: 0.85rem !important;
+  color: var(--text-light) !important;
+  font-style: italic;
+}
+
+kbd {
+  background: var(--bg-inverted);
+  color: var(--text-on-dark);
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 0.85em;
+  font-family: var(--font-sans);
+}
+
+/* Tier grid */
+.tier-grid {
+  display: flex;
+  gap: 16px;
+  margin-top: 24px;
+}
+
+.tier {
+  flex: 1;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-md);
+  padding: 16px;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.tier strong {
+  font-size: 1.25rem;
+  color: var(--brand-primary);
+}
+
+.tier span {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  font-family: monospace;
+}
+
+/* Security section */
+.security-section {
+  padding: 100px 0;
+  background: var(--bg-page);
+  border-top: 1px solid var(--border-light);
+}
+
+.security-card {
+  max-width: 900px;
+  margin: 0 auto;
+  text-align: center;
+}
+
+.security-card h2 {
+  font-size: 2.5rem;
+  font-weight: 800;
+  margin-bottom: 16px;
+}
+
+.security-card > p {
+  font-size: 1.125rem;
+  color: var(--text-muted);
+  max-width: 700px;
+  margin: 0 auto 48px;
+  line-height: 1.6;
+}
+
+.security-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+  text-align: left;
+}
+
+.sec-item {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-md);
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.sec-item strong {
+  font-size: 1rem;
+}
+
+.sec-item span {
+  font-size: 0.875rem;
+  color: var(--text-muted);
+}
+
+/* Pricing section */
+.pricing-section {
+  padding: 100px 0;
+  background: var(--bg-surface);
+  border-top: 1px solid var(--border-light);
+}
+
+.pricing-section h2 {
+  font-size: 2.5rem;
+  font-weight: 800;
+  margin-bottom: 16px;
+}
+
+.pricing-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 24px;
+  max-width: 700px;
+  margin: 48px auto 0;
+}
+
+.pricing-card {
+  background: var(--bg-page);
+  border: 1px solid var(--border-light);
+  border-radius: var(--radius-lg);
+  padding: 40px;
+  text-align: center;
+  position: relative;
+}
+
+.pricing-card.featured {
+  border-color: var(--brand-primary);
+  box-shadow:
+    0 0 0 1px var(--brand-primary),
+    var(--shadow-md);
+}
+
+.pricing-badge {
+  position: absolute;
+  top: -12px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--brand-primary);
+  color: #fff;
+  font-size: 0.75rem;
+  font-weight: 700;
+  padding: 4px 16px;
+  border-radius: 9999px;
+}
+
+.pricing-card h3 {
+  font-size: 1.25rem;
+  color: var(--text-muted);
+  margin-bottom: 8px;
+}
+
+.price {
+  font-size: 3.5rem;
+  font-weight: 800;
+  color: var(--text-main);
+}
+
+.price-period {
+  color: var(--text-muted);
+  margin-bottom: 32px;
+}
+
+.pricing-features {
+  list-style: none;
+  text-align: left;
+  margin-bottom: 32px;
+}
+
+.pricing-features li {
+  padding: 8px 0;
+  border-bottom: 1px solid var(--border-light);
+  font-size: 0.95rem;
+  color: var(--text-main);
+}
+
+.pricing-features li:last-child {
+  border-bottom: none;
+}
+
+.platform-link {
+  color: var(--text-muted);
+}
+
 /* Download CTA Section */
 .download-section {
   padding: 100px 0;

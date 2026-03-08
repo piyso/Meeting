@@ -1,0 +1,258 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Security — BlueArkive</title>
+    <meta
+      name="description"
+      content="BlueArkive Security Whitepaper. Learn how we protect your meeting data with local AI processing and military-grade encryption."
+    />
+    <link rel="preconnect" href="https://rsms.me/" />
+    <link rel="stylesheet" href="https://rsms.me/inter/inter.css" />
+    <link rel="stylesheet" href="styles.css" />
+    <style>
+      .whitepaper {
+        max-width: 720px;
+        margin: 0 auto;
+        padding: 120px 24px 80px;
+      }
+      .whitepaper h1 {
+        font-size: 2.5rem;
+        font-weight: 800;
+        margin-bottom: 8px;
+      }
+      .whitepaper .updated {
+        color: var(--text-muted);
+        font-size: 0.9rem;
+        margin-bottom: 48px;
+      }
+      .whitepaper h2 {
+        font-size: 1.5rem;
+        font-weight: 700;
+        margin-top: 48px;
+        margin-bottom: 16px;
+        padding-top: 24px;
+        border-top: 1px solid var(--border-light);
+      }
+      .whitepaper h2:first-of-type {
+        border-top: none;
+        padding-top: 0;
+      }
+      .whitepaper p,
+      .whitepaper li {
+        font-size: 1.05rem;
+        color: var(--text-muted);
+        line-height: 1.8;
+        margin-bottom: 16px;
+      }
+      .whitepaper ul {
+        margin-left: 24px;
+        margin-bottom: 16px;
+      }
+      .whitepaper strong {
+        color: var(--text-main);
+      }
+      .whitepaper code {
+        background: var(--bg-subtle);
+        padding: 2px 6px;
+        border-radius: 4px;
+        font-size: 0.9em;
+      }
+      .whitepaper .callout {
+        background: rgba(79, 70, 229, 0.05);
+        border-left: 3px solid var(--brand-primary);
+        padding: 16px 20px;
+        border-radius: 0 8px 8px 0;
+        margin: 24px 0;
+      }
+      .whitepaper .callout p {
+        margin: 0;
+        color: var(--text-main);
+      }
+    </style>
+  </head>
+  <body>
+    <nav class="nav">
+      <div class="container nav-inner">
+        <a href="/" class="brand">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+            <path
+              d="M12 2L2 7L12 12L22 7L12 2Z"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linejoin="round"
+            />
+            <path
+              d="M2 17L12 22L22 17"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linejoin="round"
+            />
+            <path
+              d="M2 12L12 17L22 12"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linejoin="round"
+            />
+          </svg>
+          <strong>BlueArkive</strong>
+        </a>
+        <div class="nav-links">
+          <a href="/">Home</a>
+          <a href="/#features">Features</a>
+        </div>
+        <div class="nav-cta">
+          <a href="/#download" class="btn btn-sm btn-outline">Download Free</a>
+        </div>
+      </div>
+    </nav>
+
+    <article class="whitepaper">
+      <h1>Security Whitepaper</h1>
+      <p class="updated">Last updated: March 2026 · Version 0.1</p>
+
+      <h2>1. Architecture Overview</h2>
+      <p>
+        BlueArkive is a <strong>local-first desktop application</strong> built with Electron. All
+        audio capture, transcription, AI inference, and data storage happen entirely on the user's
+        machine. No audio data, transcript text, or AI-generated notes are transmitted to any
+        external server during normal operation.
+      </p>
+
+      <div class="callout">
+        <p>
+          <strong>Core principle:</strong> Your meeting data never leaves your machine unless you
+          explicitly enable encrypted cloud sync.
+        </p>
+      </div>
+
+      <h2>2. Audio Processing</h2>
+      <p>
+        Audio is captured via <strong>macOS CoreAudio APIs</strong> (system audio) and standard
+        WebRTC (microphone input). The raw PCM audio is processed in 30-second chunks and fed
+        directly to a local Whisper model running on the device's GPU via ONNX Runtime. No audio
+        buffers are written to temporary files — processing happens entirely in memory.
+      </p>
+      <ul>
+        <li>System audio capture uses macOS Screen Recording permission</li>
+        <li>Microphone access uses standard privacy permission prompts</li>
+        <li>Audio data is discarded immediately after transcription</li>
+      </ul>
+
+      <h2>3. AI Models</h2>
+      <p>BlueArkive uses two on-device AI models:</p>
+      <ul>
+        <li>
+          <strong>Whisper Turbo</strong> (OpenAI) — Speech-to-text transcription, running via ONNX
+          Runtime on Apple Silicon GPUs
+        </li>
+        <li>
+          <strong>Qwen 2.5 3B</strong> (Alibaba) — Note expansion and summarization, running via
+          llama.cpp
+        </li>
+      </ul>
+      <p>
+        Both models are downloaded from HuggingFace during the onboarding process and stored locally
+        in <code>~/Library/Application Support/BlueArkive/models/</code>. Model files are verified
+        using SHA-256 checksums before use. No inference requests are sent to any cloud API.
+      </p>
+
+      <h2>4. Data Storage & Encryption</h2>
+      <p>
+        All persistent data (meetings, transcripts, notes, entities) is stored in a local
+        <strong>SQLite database</strong> within the app's sandboxed data directory.
+      </p>
+      <ul>
+        <li><strong>Encryption at rest:</strong> AES-256-GCM with authenticated encryption</li>
+        <li><strong>Key derivation:</strong> PBKDF2 with 100,000 iterations and per-user salt</li>
+        <li>
+          <strong>Secret storage:</strong> Encryption keys are stored in the macOS Keychain via the
+          <code>keytar</code> library — never written to disk in plaintext
+        </li>
+        <li>
+          <strong>Recovery:</strong> Users can generate a BIP39-compatible recovery phrase to
+          restore access to encrypted data
+        </li>
+      </ul>
+
+      <h2>5. Cloud Sync (Optional, Pro Only)</h2>
+      <p>
+        Pro users can optionally enable encrypted cloud sync for multi-device support. When enabled:
+      </p>
+      <ul>
+        <li>All data is encrypted <strong>locally before upload</strong> using AES-256-GCM</li>
+        <li>The cloud server receives only ciphertext — it cannot decrypt your data</li>
+        <li>
+          Local embeddings are generated <strong>before encryption</strong> to enable semantic
+          search on ciphertext
+        </li>
+        <li>Conflict resolution uses CRDTs (Yjs) with vector clocks for deterministic merging</li>
+      </ul>
+      <div class="callout">
+        <p>
+          <strong>Zero-knowledge architecture:</strong> Even with full server access, BlueArkive
+          cannot read your meetings. Decryption requires your local key, which never leaves your
+          device.
+        </p>
+      </div>
+
+      <h2>6. Electron Security</h2>
+      <ul>
+        <li>
+          <strong>Context Isolation:</strong> Enabled — renderer process cannot access Node.js APIs
+        </li>
+        <li>
+          <strong>Node Integration:</strong> Disabled — prevents XSS from executing system commands
+        </li>
+        <li>
+          <strong>Content Security Policy:</strong> Restricts script sources, connection endpoints,
+          and embedding
+        </li>
+        <li>
+          <strong>IPC Channel Allowlists:</strong> Only whitelisted channels can send/receive data
+          between processes
+        </li>
+        <li>
+          <strong>Hardened Runtime:</strong> macOS hardened runtime enabled for notarization
+          compatibility
+        </li>
+      </ul>
+
+      <h2>7. Network Activity</h2>
+      <p>
+        BlueArkive makes <strong>zero network requests</strong> during normal recording and
+        transcription. The only network activity occurs during:
+      </p>
+      <ul>
+        <li>
+          <strong>First launch:</strong> AI model downloads from HuggingFace (~500MB one-time)
+        </li>
+        <li>
+          <strong>Auto-updates:</strong> Checks for new versions (configurable, can be disabled)
+        </li>
+        <li><strong>Cloud sync (Pro, opt-in):</strong> Uploads encrypted data to sync server</li>
+      </ul>
+      <p>
+        There is
+        <strong
+          >no telemetry, no analytics, no crash reporting to external services, and no phoning
+          home.</strong
+        >
+      </p>
+
+      <h2>8. Vulnerability Disclosure</h2>
+      <p>
+        If you discover a security vulnerability in BlueArkive, please report it responsibly to
+        <strong>security@bluearkive.com</strong>. We commit to acknowledging reports within 48 hours
+        and providing a fix within 14 days for critical issues.
+      </p>
+    </article>
+
+    <footer class="footer">
+      <div class="container text-center">
+        <p class="text-sm text-gray">© 2026 BlueArkive. All rights reserved.</p>
+      </div>
+    </footer>
+  </body>
+</html>

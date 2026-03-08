@@ -7,7 +7,7 @@
 set -e
 
 APP_NAME="BlueArkive"
-VERSION="0.1.1"
+VERSION="0.2.0"
 BASE_URL="https://dl.bluearkive.com"
 INSTALL_DIR="/Applications"
 

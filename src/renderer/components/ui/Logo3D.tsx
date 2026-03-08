@@ -1,6 +1,6 @@
 import React, { useRef, Suspense } from 'react'
 import { Canvas, useFrame } from '@react-three/fiber'
-import { Float, Sphere, Torus, Icosahedron } from '@react-three/drei'
+import { Sphere, Torus } from '@react-three/drei'
 import * as THREE from 'three'
 
 interface Logo3DProps {
@@ -8,152 +8,136 @@ interface Logo3DProps {
 }
 
 const AnimatedRings = () => {
-  const ring1Ref = useRef<THREE.Mesh>(null)
-  const ring2Ref = useRef<THREE.Mesh>(null)
-  const ring3Ref = useRef<THREE.Mesh>(null)
-  const particlesRef = useRef<THREE.Points>(null)
+  const outerRingRef = useRef<THREE.Mesh>(null)
+  const innerRingRef = useRef<THREE.Group>(null)
 
   useFrame(state => {
     const elapsed = state.clock.getElapsedTime()
-    if (ring1Ref.current) {
-      ring1Ref.current.rotation.x = elapsed * 0.3
-      ring1Ref.current.rotation.y = Math.sin(elapsed * 0.2) * 0.5
+    if (outerRingRef.current) {
+      // Slow, subtle breathing tilt for the outer ring
+      outerRingRef.current.rotation.x = Math.sin(elapsed * 0.5) * 0.2
+      outerRingRef.current.rotation.y = Math.cos(elapsed * 0.5) * 0.2
     }
-    if (ring2Ref.current) {
-      ring2Ref.current.rotation.y = elapsed * 0.4
-      ring2Ref.current.rotation.z = Math.cos(elapsed * 0.2) * 0.5
-    }
-    if (ring3Ref.current) {
-      ring3Ref.current.rotation.z = elapsed * 0.5
-      ring3Ref.current.rotation.x = Math.sin(elapsed * 0.3) * 0.5
-    }
-    if (particlesRef.current) {
-      particlesRef.current.rotation.y = elapsed * 0.05
+    if (innerRingRef.current) {
+      // The inner ring and its arcs spin smoothly
+      innerRingRef.current.rotation.z = -elapsed * 1.5
+      // Slight tilt on the inner ring for 3D depth
+      innerRingRef.current.rotation.x = 0.1
+      innerRingRef.current.rotation.y = Math.sin(elapsed) * 0.1
     }
   })
 
-  // Generate a subtle ambient particle field
-  const particlesCount = 80
-  const positions = new Float32Array(particlesCount * 3)
-  for (let i = 0; i < particlesCount * 3; i += 3) {
-    const r = 1.8 + Math.random() * 2
-    const theta = Math.random() * Math.PI * 2
-    const phi = Math.acos(Math.random() * 2 - 1)
-    positions[i] = r * Math.sin(phi) * Math.cos(theta)
-    positions[i + 1] = r * Math.sin(phi) * Math.sin(theta)
-    positions[i + 2] = r * Math.cos(phi)
-  }
-
   return (
     <group>
-      {/* Three ultra-thin, sleek neon rings forming a precision gyroscope */}
-      <Torus ref={ring1Ref} args={[2.4, 0.015, 64, 128]}>
+      {/* Outer ring (cyan glow) match from icon.svg */}
+      <Torus ref={outerRingRef} args={[2.8, 0.04, 32, 100]}>
         <meshStandardMaterial
-          color="#3b82f6"
-          emissive="#3b82f6"
-          emissiveIntensity={2}
-          toneMapped={false}
-        />
-      </Torus>
-      <Torus ref={ring2Ref} args={[2.0, 0.02, 64, 128]} rotation={[Math.PI / 2, 0, 0]}>
-        <meshStandardMaterial
-          color="#22d3ee"
-          emissive="#22d3ee"
-          emissiveIntensity={2}
-          toneMapped={false}
-        />
-      </Torus>
-      <Torus ref={ring3Ref} args={[1.6, 0.025, 64, 128]} rotation={[0, Math.PI / 2, 0]}>
-        <meshStandardMaterial
-          color="#818cf8"
-          emissive="#818cf8"
-          emissiveIntensity={2}
+          color="#06b6d4"
+          emissive="#06b6d4"
+          emissiveIntensity={0.5}
+          transparent
+          opacity={0.6}
           toneMapped={false}
         />
       </Torus>
 
-      {/* Ambient data particles orbiting the core */}
-      <points ref={particlesRef}>
-        <bufferGeometry>
-          <bufferAttribute
-            attach="attributes-position"
-            count={particlesCount}
-            array={positions}
-            itemSize={3}
+      <group ref={innerRingRef}>
+        {/* Inner spinning ring match from icon.svg */}
+        <Torus args={[2.2, 0.08, 32, 100]}>
+          <meshStandardMaterial
+            color="#3b82f6"
+            emissive="#3b82f6"
+            emissiveIntensity={0.8}
+            transparent
+            opacity={0.8}
+            toneMapped={false}
           />
-        </bufferGeometry>
-        <pointsMaterial size={0.04} color="#22d3ee" transparent opacity={0.6} sizeAttenuation />
-      </points>
+        </Torus>
+
+        {/* Wave arcs (Left and Right) match from icon.svg */}
+        {/* Highlighting exactly one quadrant on opposite sides */}
+        <Torus args={[2.22, 0.1, 32, 64, Math.PI / 2]} rotation={[0, 0, Math.PI / 4]}>
+          <meshStandardMaterial
+            color="#22d3ee"
+            emissive="#22d3ee"
+            emissiveIntensity={2.5}
+            toneMapped={false}
+          />
+        </Torus>
+        <Torus args={[2.22, 0.1, 32, 64, Math.PI / 2]} rotation={[0, 0, Math.PI / 4 + Math.PI]}>
+          <meshStandardMaterial
+            color="#22d3ee"
+            emissive="#22d3ee"
+            emissiveIntensity={2.5}
+            toneMapped={false}
+          />
+        </Torus>
+      </group>
     </group>
   )
 }
 
-const GlowingCore = () => {
-  const shellRef = useRef<THREE.Mesh>(null)
+const AppIconCore = () => {
+  const coreRef = useRef<THREE.Group>(null)
 
   useFrame(state => {
-    if (shellRef.current) {
-      shellRef.current.rotation.y = state.clock.getElapsedTime() * 0.2
-      shellRef.current.rotation.x = state.clock.getElapsedTime() * 0.15
+    if (coreRef.current) {
+      // Gentle floating exactly like the official icon
+      coreRef.current.position.y = Math.sin(state.clock.getElapsedTime() * 2) * 0.1
+      // Very slow rotation so it feels solid
+      coreRef.current.rotation.y = state.clock.getElapsedTime() * 0.2
+      coreRef.current.rotation.x = Math.sin(state.clock.getElapsedTime()) * 0.1
     }
   })
 
   return (
-    <Float speed={1.5} rotationIntensity={0.2} floatIntensity={0.2}>
-      {/* Outer high-tech glass/wireframe shell - Icosahedron for an AI 'Core' look */}
-      <Icosahedron ref={shellRef} args={[0.9, 1]}>
+    <group ref={coreRef}>
+      {/* Center solid recording dot match from icon.svg (#22D3EE) */}
+      <Sphere args={[0.8, 64, 64]}>
         <meshPhysicalMaterial
-          color="#0f172a"
-          emissive="#0ea5e9"
-          emissiveIntensity={0.8}
-          wireframe={true}
-          transparent={true}
-          opacity={0.4}
-          roughness={0}
-          metalness={1}
+          color="#22d3ee"
+          emissive="#06b6d4"
+          emissiveIntensity={0.2}
+          roughness={0.1}
+          metalness={0.2}
+          clearcoat={1.0}
+          clearcoatRoughness={0.1}
         />
-      </Icosahedron>
-
-      {/* Intense glowing solid inner core */}
-      <Sphere args={[0.45, 32, 32]}>
-        <meshBasicMaterial color="#ffffff" />
       </Sphere>
 
-      {/* Soft translucent glow aura */}
-      <Sphere args={[0.65, 32, 32]}>
+      {/* Dot inner highlight match from icon.svg (#0EA5E9) */}
+      <Sphere args={[0.5, 32, 32]} position={[0, 0, 0.4]}>
         <meshBasicMaterial
-          color="#22d3ee"
+          color="#0ea5e9"
           transparent
-          opacity={0.15}
+          opacity={0.8}
           blending={THREE.AdditiveBlending}
           depthWrite={false}
         />
       </Sphere>
 
-      <pointLight color="#22d3ee" intensity={15} distance={10} decay={2} />
-    </Float>
+      {/* Illuminating the entire scene from the center dot */}
+      <pointLight color="#22d3ee" intensity={10} distance={15} decay={2} />
+    </group>
   )
 }
 
-/** CSS-only fallback logo shown while 3D loads or if WebGL fails */
+/** CSS-only fallback logo that perfectly mimics the SVG icon */
 const FallbackLogo = () => (
   <div className="w-full h-full flex items-center justify-center">
-    <div className="relative w-20 h-20 rounded-full flex items-center justify-center">
-      {/* Rings mimicking the 3D gyroscope */}
-      <div
-        className="absolute inset-0 rounded-full border border-blue-500/40 animate-[spin_4s_linear_infinite]"
-        style={{ transform: 'rotateX(60deg)' }}
-      />
-      <div
-        className="absolute inset-0 rounded-full border border-cyan-400/50 animate-[spin_3s_linear_reverse_infinite]"
-        style={{ transform: 'rotateY(60deg)' }}
-      />
-      <div
-        className="absolute w-16 h-16 rounded-full border border-indigo-400/40 animate-[spin_5s_linear_infinite]"
-        style={{ transform: 'rotateZ(45deg) rotateX(45deg)' }}
-      />
-      {/* Core glow */}
-      <div className="absolute w-8 h-8 rounded-full bg-white shadow-[0_0_20px_#22d3ee,0_0_40px_#3b82f6] animate-[pulse_2s_ease-in-out_infinite]" />
+    <div className="relative w-20 h-20 rounded-full flex items-center justify-center bg-[#0F172A]">
+      {/* Outer Cyan Ring */}
+      <div className="absolute inset-2 rounded-full border border-[rgba(6,182,212,0.4)]" />
+      {/* Inner Blue Ring */}
+      <div className="absolute inset-4 rounded-full border-2 border-[rgba(59,130,246,0.6)] animate-[spin_3s_linear_infinite]">
+        {/* Wave arcs */}
+        <div className="absolute -inset-[2px] rounded-full border-2 border-transparent border-t-[#22d3ee] border-b-[#22d3ee]" />
+      </div>
+      {/* Center Solid Dot */}
+      <div className="absolute w-6 h-6 rounded-full bg-[#22d3ee] shadow-[0_0_15px_#22d3ee] flex items-center justify-center">
+        {/* Inner Highlight */}
+        <div className="w-3.5 h-3.5 rounded-full bg-[#0ea5e9] opacity-80" />
+      </div>
     </div>
   </div>
 )
@@ -185,7 +169,7 @@ export const Logo3D: React.FC<Logo3DProps> = ({ className = '' }) => {
           <pointLight position={[5, 5, 5]} intensity={0.8} color="#a78bfa" />
 
           <AnimatedRings />
-          <GlowingCore />
+          <AppIconCore />
 
           {/* No Environment preset — uses lights only for offline Electron compatibility */}
         </Canvas>

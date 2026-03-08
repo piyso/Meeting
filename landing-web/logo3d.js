@@ -32,102 +32,87 @@ export function createLogo3D(container, options = {}) {
   pointLight.position.set(5, 5, 5)
   scene.add(pointLight)
 
-  // Group for animated rings
+  // --- Rings Group ---
   const ringsGroup = new THREE.Group()
   scene.add(ringsGroup)
 
-  // Three ultra-thin, sleek neon rings forming a precision gyroscope
-  const r1Geom = new THREE.TorusGeometry(2.4, 0.015, 64, 128)
-  const r1Mat = new THREE.MeshStandardMaterial({
-    color: 0x3b82f6,
-    emissive: 0x3b82f6,
-    emissiveIntensity: 2,
-  })
-  const r1 = new THREE.Mesh(r1Geom, r1Mat)
-  ringsGroup.add(r1)
-
-  const r2Geom = new THREE.TorusGeometry(2.0, 0.02, 64, 128)
-  const r2Mat = new THREE.MeshStandardMaterial({
-    color: 0x22d3ee,
-    emissive: 0x22d3ee,
-    emissiveIntensity: 2,
-  })
-  const r2 = new THREE.Mesh(r2Geom, r2Mat)
-  r2.rotation.x = Math.PI / 2
-  ringsGroup.add(r2)
-
-  const r3Geom = new THREE.TorusGeometry(1.6, 0.025, 64, 128)
-  const r3Mat = new THREE.MeshStandardMaterial({
-    color: 0x818cf8,
-    emissive: 0x818cf8,
-    emissiveIntensity: 2,
-  })
-  const r3 = new THREE.Mesh(r3Geom, r3Mat)
-  r3.rotation.y = Math.PI / 2
-  ringsGroup.add(r3)
-
-  // Ambient data particles orbiting the core
-  const particlesCount = 80
-  const positions = new Float32Array(particlesCount * 3)
-  for (let i = 0; i < particlesCount * 3; i += 3) {
-    const r = 1.8 + Math.random() * 2
-    const theta = Math.random() * Math.PI * 2
-    const phi = Math.acos(Math.random() * 2 - 1)
-    positions[i] = r * Math.sin(phi) * Math.cos(theta)
-    positions[i + 1] = r * Math.sin(phi) * Math.sin(theta)
-    positions[i + 2] = r * Math.cos(phi)
-  }
-  const particlesGeom = new THREE.BufferGeometry()
-  particlesGeom.setAttribute('position', new THREE.BufferAttribute(positions, 3))
-  const particlesMat = new THREE.PointsMaterial({
-    size: 0.04,
-    color: 0x22d3ee,
+  // Outer ring (cyan glow) match from icon.svg
+  const outerGeom = new THREE.TorusGeometry(2.8, 0.04, 32, 100)
+  const outerMat = new THREE.MeshStandardMaterial({
+    color: 0x06b6d4,
+    emissive: 0x06b6d4,
+    emissiveIntensity: 0.5,
     transparent: true,
     opacity: 0.6,
-    sizeAttenuation: true,
   })
-  const particles = new THREE.Points(particlesGeom, particlesMat)
-  ringsGroup.add(particles)
+  const outerRing = new THREE.Mesh(outerGeom, outerMat)
+  ringsGroup.add(outerRing)
 
-  // Group for floating core
+  // Inner spinning ring group
+  const innerRingsGroup = new THREE.Group()
+  ringsGroup.add(innerRingsGroup)
+
+  // Inner spinning ring match from icon.svg
+  const innerGeom = new THREE.TorusGeometry(2.2, 0.08, 32, 100)
+  const innerMat = new THREE.MeshStandardMaterial({
+    color: 0x3b82f6,
+    emissive: 0x3b82f6,
+    emissiveIntensity: 0.8,
+    transparent: true,
+    opacity: 0.8,
+  })
+  const innerRing = new THREE.Mesh(innerGeom, innerMat)
+  innerRingsGroup.add(innerRing)
+
+  // Wave arcs (Left and Right) match from icon.svg
+  const arcGeom = new THREE.TorusGeometry(2.22, 0.1, 32, 64, Math.PI / 2)
+  const arcMat = new THREE.MeshStandardMaterial({
+    color: 0x22d3ee,
+    emissive: 0x22d3ee,
+    emissiveIntensity: 2.5,
+  })
+
+  const arc1 = new THREE.Mesh(arcGeom, arcMat)
+  arc1.rotation.set(0, 0, Math.PI / 4)
+  innerRingsGroup.add(arc1)
+
+  const arc2 = new THREE.Mesh(arcGeom, arcMat)
+  arc2.rotation.set(0, 0, Math.PI / 4 + Math.PI)
+  innerRingsGroup.add(arc2)
+
+  // --- Core Group ---
   const coreGroup = new THREE.Group()
   scene.add(coreGroup)
 
-  // Outer high-tech glass/wireframe shell - Icosahedron for an AI 'Core' look
-  const shellGeom = new THREE.IcosahedronGeometry(0.9, 1)
-  const shellMat = new THREE.MeshPhysicalMaterial({
-    color: 0x0f172a,
-    emissive: 0x0ea5e9,
-    emissiveIntensity: 0.8,
-    wireframe: true,
-    transparent: true,
-    opacity: 0.4,
-    roughness: 0,
-    metalness: 1,
-  })
-  const shell = new THREE.Mesh(shellGeom, shellMat)
-  coreGroup.add(shell)
-
-  // Intense glowing solid inner core
-  const solidCoreGeom = new THREE.SphereGeometry(0.45, 32, 32)
-  const solidCoreMat = new THREE.MeshBasicMaterial({ color: 0xffffff })
-  const solidCore = new THREE.Mesh(solidCoreGeom, solidCoreMat)
-  coreGroup.add(solidCore)
-
-  // Soft translucent glow aura
-  const auraGeom = new THREE.SphereGeometry(0.65, 32, 32)
-  const auraMat = new THREE.MeshBasicMaterial({
+  // Center solid recording dot match from icon.svg (#22D3EE)
+  const solidDotGeom = new THREE.SphereGeometry(0.8, 64, 64)
+  const solidDotMat = new THREE.MeshPhysicalMaterial({
     color: 0x22d3ee,
+    emissive: 0x06b6d4,
+    emissiveIntensity: 0.2,
+    roughness: 0.1,
+    metalness: 0.2,
+    clearcoat: 1.0,
+    clearcoatRoughness: 0.1,
+  })
+  const solidDot = new THREE.Mesh(solidDotGeom, solidDotMat)
+  coreGroup.add(solidDot)
+
+  // Dot inner highlight match from icon.svg (#0EA5E9)
+  const highlightGeom = new THREE.SphereGeometry(0.5, 32, 32)
+  const highlightMat = new THREE.MeshBasicMaterial({
+    color: 0x0ea5e9,
     transparent: true,
-    opacity: 0.15,
+    opacity: 0.8,
     blending: THREE.AdditiveBlending,
     depthWrite: false,
   })
-  const aura = new THREE.Mesh(auraGeom, auraMat)
-  coreGroup.add(aura)
+  const highlight = new THREE.Mesh(highlightGeom, highlightMat)
+  highlight.position.set(0, 0, 0.4)
+  coreGroup.add(highlight)
 
-  // Core Point Light
-  const coreLight = new THREE.PointLight(0x22d3ee, 15, 10, 2)
+  // Illuminating the entire scene from the center dot
+  const coreLight = new THREE.PointLight(0x22d3ee, 10, 15, 2)
   coreGroup.add(coreLight)
 
   // Mouse interactivity
@@ -144,39 +129,31 @@ export function createLogo3D(container, options = {}) {
     })
   }
 
-  // Animation Loop (using requestAnimationFrame directly instead of THREE.Clock to avoid warnings)
+  // Animation Loop
   let lastTime = 0
   let elapsed = 0
 
   function animate(time) {
     if (!lastTime) lastTime = time
-    // Convert ms to s
     const delta = (time - lastTime) / 1000
     lastTime = time
     elapsed += delta
 
     requestAnimationFrame(animate)
 
-    // Rings rotation
-    r1.rotation.x = elapsed * 0.3
-    r1.rotation.y = Math.sin(elapsed * 0.2) * 0.5
+    // Outer ring slow breathing tilt
+    outerRing.rotation.x = Math.sin(elapsed * 0.5) * 0.2
+    outerRing.rotation.y = Math.cos(elapsed * 0.5) * 0.2
 
-    r2.rotation.y = elapsed * 0.4
-    r2.rotation.z = Math.cos(elapsed * 0.2) * 0.5
+    // Inner ring smooth spinning
+    innerRingsGroup.rotation.z = -elapsed * 1.5
+    innerRingsGroup.rotation.x = 0.1
+    innerRingsGroup.rotation.y = Math.sin(elapsed) * 0.1
 
-    r3.rotation.z = elapsed * 0.5
-    r3.rotation.x = Math.sin(elapsed * 0.3) * 0.5
-
-    particles.rotation.y = elapsed * 0.05
-
-    // Core rotation
-    shell.rotation.y = elapsed * 0.2
-    shell.rotation.x = elapsed * 0.15
-
-    // Core floating (subtle)
-    coreGroup.position.y = Math.sin(elapsed * 1.5) * 0.05
-    coreGroup.rotation.y = elapsed * 0.1
-    coreGroup.rotation.x = Math.cos(elapsed * 1.5) * 0.1
+    // Core floating and subtle rotation
+    coreGroup.position.y = Math.sin(elapsed * 2) * 0.1
+    coreGroup.rotation.y = elapsed * 0.2
+    coreGroup.rotation.x = Math.sin(elapsed) * 0.1
 
     // Interactive tilt
     if (interactive) {
@@ -191,7 +168,6 @@ export function createLogo3D(container, options = {}) {
 
   // Resize handler
   const handleResize = () => {
-    // Only resize if the container isn't fixed dimensions
     if (container.clientWidth > 0 && container.clientHeight > 0) {
       camera.aspect = container.clientWidth / container.clientHeight
       camera.updateProjectionMatrix()
@@ -200,31 +176,25 @@ export function createLogo3D(container, options = {}) {
   }
 
   window.addEventListener('resize', handleResize)
-
-  // Initial force resize to fix any layout issues
   setTimeout(handleResize, 100)
 
   return {
     destroy: () => {
       window.removeEventListener('resize', handleResize)
       renderer.dispose()
-      // other disposals
     },
   }
 }
 
 // Mount automatically where requested
 document.addEventListener('DOMContentLoaded', () => {
-  // Nav logo (small, non-interactive)
   const navContainer = document.getElementById('nav-logo-3d')
   if (navContainer) {
     createLogo3D(navContainer, { width: 32, height: 32, interactive: false, cameraZ: 6 })
   }
 
-  // Hero logo (large, interactive)
   const heroContainer = document.getElementById('hero-logo-3d')
   if (heroContainer) {
-    // Setup generic wrapper that will fit its parent dynamically
     createLogo3D(heroContainer, {
       width: heroContainer.clientWidth || 300,
       height: heroContainer.clientHeight || 300,

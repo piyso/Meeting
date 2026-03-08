@@ -147,9 +147,9 @@
 
 .ui-di-state-recording {
   background: rgba(5, 5, 8, 0.85); /* Darker core to make the glow pop */
-  border: 1px solid rgba(52, 211, 153, 0.2); /* Emerald border */
+  border: 1px solid rgba(6, 182, 212, 0.2); /* Cyan border */
   box-shadow:
-    0 0 20px rgba(52, 211, 153, 0.15),
+    0 0 20px rgba(6, 182, 212, 0.15),
     inset 0 1px 0 rgba(255, 255, 255, 0.05);
   animation: glow-breathe-recording 4s ease-in-out infinite;
 }
@@ -175,10 +175,10 @@
 @keyframes glow-breathe-recording {
   0%,
   100% {
-    box-shadow: 0 0 16px rgba(251, 113, 133, 0.1);
+    box-shadow: 0 0 16px rgba(59, 130, 246, 0.1);
   }
   50% {
-    box-shadow: 0 0 24px rgba(251, 113, 133, 0.25);
+    box-shadow: 0 0 24px rgba(59, 130, 246, 0.25);
   }
 }
 
@@ -282,10 +282,10 @@
   display: flex;
   align-items: center;
   gap: var(--space-8);
-  background: rgba(251, 113, 133, 0.05); /* Softer background */
+  background: rgba(59, 130, 246, 0.05); /* Softer background */
   padding: 4px 12px;
   border-radius: var(--radius-full);
-  border: 1px solid rgba(251, 113, 133, 0.15); /* Softer border */
+  border: 1px solid rgba(59, 130, 246, 0.15); /* Softer border */
 }
 
 .ui-di-mode-icon {
@@ -293,32 +293,31 @@
   margin-right: 4px;
 }
 .ui-dynamic-island-recording .ui-di-mode-icon {
-  color: var(--color-rose);
+  color: var(--color-blue);
 }
 
 .ui-dynamic-island-rec-dot {
   width: 8px;
   height: 8px;
   border-radius: 50%;
-  background: var(--color-rose);
+  background: var(--color-blue);
 }
 .ui-dynamic-island-rec-label {
   font-size: 10px;
   letter-spacing: var(--tracking-wide);
-  color: var(--color-rose);
+  color: var(--color-blue);
   font-weight: 700;
   text-transform: uppercase;
 }
 .ui-dynamic-island-rec-time {
   font-family: var(--font-mono);
   font-size: var(--text-sm);
-  color: var(--color-rose);
+  color: var(--color-blue);
   margin: 0 4px;
   font-variant-numeric: tabular-nums;
   min-width: 48px;
 }
 
-/* ── Hold-to-Stop Button ── */
 .ui-dynamic-island-stop-btn {
   position: relative;
   margin-left: 8px;
@@ -328,7 +327,7 @@
   align-items: center;
   justify-content: center;
   border-radius: 4px;
-  background: var(--color-rose);
+  background: var(--color-blue);
   color: #000;
   border: none;
   cursor: pointer;
@@ -355,7 +354,7 @@
   width: calc(100% + 4px);
   height: calc(100% + 4px);
   fill: none;
-  stroke: var(--color-rose);
+  stroke: var(--color-blue);
   stroke-width: 4;
   stroke-dasharray: 63; /* 2 * pi * 10 */
   stroke-dashoffset: 63;

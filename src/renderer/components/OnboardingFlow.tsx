@@ -7,6 +7,7 @@ import { PricingView } from './settings/PricingView'
 import { GhostMeetingTutorial } from './meeting/GhostMeetingTutorial'
 import { ModelDownloadProgress } from './ModelDownloadProgress'
 import { Key } from 'lucide-react'
+import { Logo } from './ui/Logo'
 
 import { rendererLog } from '../utils/logger'
 const log = rendererLog.create('Onboarding')
@@ -45,13 +46,20 @@ export const OnboardingFlow: React.FC = () => {
 
   // Check if onboarding already completed — skip to main app
   useEffect(() => {
-    const checkFirstLaunch = async () => {
-      const result = await window.electronAPI?.model?.isFirstLaunch()
-      if (result?.success && !result.data) {
-        useAppStore.getState().navigate('meeting-list')
+    const checkOnboardingCompleted = async () => {
+      try {
+        const result = await window.electronAPI?.settings?.get?.({
+          key: 'onboarding_completed',
+        } as { key: string })
+        if (result?.success && result.data) {
+          // Onboarding was already completed — go to main app
+          useAppStore.getState().navigate('meeting-list')
+        }
+      } catch {
+        // Settings unavailable — stay on onboarding (safe default)
       }
     }
-    checkFirstLaunch()
+    checkOnboardingCompleted()
   }, [])
 
   // Auto-trigger hardware detection + model download when entering 'setup' step
@@ -152,8 +160,12 @@ export const OnboardingFlow: React.FC = () => {
           errMsg.includes('fetch') ||
           errMsg.includes('ECONNREFUSED') ||
           errMsg.includes('network') ||
-          errMsg.includes('validation')
+          errMsg.includes('validation') ||
+          errMsg.includes('invalid') ||
+          errMsg.includes('supabaseUrl')
         ) {
+          // Backend not configured — skip auth and proceed (offline-first mode)
+          log.warn('Auth backend unavailable, proceeding in offline mode')
           setStep('setup')
         } else {
           setAuthError(errMsg || 'Authentication failed')
@@ -162,6 +174,8 @@ export const OnboardingFlow: React.FC = () => {
         setStep('setup')
       }
     } catch (err) {
+      // Any error = skip to setup (offline-first)
+      log.warn('Auth error, proceeding in offline mode:', err)
       setStep('setup')
     } finally {
       setAuthLoading(false)
@@ -221,13 +235,13 @@ export const OnboardingFlow: React.FC = () => {
       {/* Left Visual Art Panel (Hidden on mobile) */}
       <div className="hidden lg:flex w-1/2 h-full bg-slate-950 p-12 flex-col justify-between relative overflow-hidden border-r border-white/5">
         <div className="absolute inset-0 with-noise opacity-[0.03] pointer-events-none" />
-        <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-violet-600/10 blur-[100px] rounded-full pointer-events-none translate-x-1/3 -translate-y-1/3" />
+        <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-blue-600/10 blur-[100px] rounded-full pointer-events-none translate-x-1/3 -translate-y-1/3" />
 
-        <div className="relative z-10 w-10 h-10 rounded-xl bg-white flex items-center justify-center">
-          <div className="w-5 h-5 rounded-[4px] bg-slate-950" />
+        <div className="relative z-10">
+          <Logo size="md" />
         </div>
 
-        <div className="relative z-10 max-w-md">
+        <div className="relative z-10 max-w-md mt-12">
           <h1 className="text-4xl font-heading font-medium tracking-wide text-white mb-6">
             {step === 'auth'
               ? authMode === 'register'
@@ -271,8 +285,8 @@ export const OnboardingFlow: React.FC = () => {
         {step === 'auth' && (
           <div className="w-full max-w-[420px] flex flex-col animate-slide-up relative z-10">
             <div className="flex flex-col mb-10 lg:hidden items-center">
-              <div className="w-10 h-10 rounded-xl bg-white flex items-center justify-center mb-6">
-                <div className="w-5 h-5 rounded-[4px] bg-slate-950" />
+              <div className="mb-6">
+                <Logo size="md" />
               </div>
               <h1 className="text-2xl font-semibold tracking-wide text-center text-white">
                 {authMode === 'register' ? 'Initialize Core' : 'Welcome Back'}

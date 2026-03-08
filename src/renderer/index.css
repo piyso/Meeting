@@ -58,6 +58,8 @@
   --color-amber: #fbbf24;
   --color-violet: #a78bfa;
   --color-rose: #fb7185;
+  --color-blue: #3b82f6;
+  --color-cyan: #06b6d4;
 
   /* Premium Smart Chip Entities */
   --chip-person-bg: rgba(96, 165, 250, 0.08);

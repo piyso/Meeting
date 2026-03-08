@@ -321,7 +321,7 @@ export class SyncManager {
                 // Find existing cloud memory by record_id, then update
                 const existingMemories = await this.backend.getMemories(
                   `meetings.${event.table_name}`,
-                  1,
+                  100,
                   0
                 )
                 const existing = existingMemories.find(
@@ -344,7 +344,7 @@ export class SyncManager {
                 // Find existing cloud memory by record_id, then delete
                 const deleteMemories = await this.backend.getMemories(
                   `meetings.${event.table_name}`,
-                  1,
+                  100,
                   0
                 )
                 const toDelete = deleteMemories.find(

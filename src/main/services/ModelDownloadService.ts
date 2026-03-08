@@ -41,10 +41,12 @@ export class ModelDownloadService {
 
   /** Model download endpoints (abstracted to avoid tech leaks in compiled JS) */
   private static readonly MODEL_URLS = {
-    asrPrimary: ['https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-turbo.bin'],
+    asrPrimary: [
+      'https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-large-v3-turbo.bin',
+    ],
     asrFallback: [
-      'https://huggingface.co/UsefulSensors/moonshine/resolve/main/onnx/base.onnx',
-      'https://huggingface.co/UsefulSensors/moonshine/resolve/main/onnx/preprocess.onnx',
+      'https://huggingface.co/UsefulSensors/moonshine/resolve/main/onnx/base/encode.onnx',
+      'https://huggingface.co/UsefulSensors/moonshine/resolve/main/onnx/base/preprocess.onnx',
     ],
     llmPrimary:
       'https://huggingface.co/Qwen/Qwen2.5-3B-Instruct-GGUF/resolve/main/qwen2.5-3b-instruct-q4_k_m.gguf',
@@ -140,7 +142,7 @@ export class ModelDownloadService {
    */
   areModelsDownloaded(modelType: ModelType): boolean {
     if (modelType === 'whisper-turbo') {
-      const modelPath = path.join(this.modelsDir, 'ggml-turbo.bin')
+      const modelPath = path.join(this.modelsDir, 'ggml-large-v3-turbo.bin')
       return fs.existsSync(modelPath)
     } else {
       const basePath = path.join(this.modelsDir, 'moonshine-base.onnx')
@@ -270,7 +272,7 @@ export class ModelDownloadService {
   private async downloadWhisperTurbo(): Promise<void> {
     const modelUrl = ModelDownloadService.MODEL_URLS.asrPrimary[0]
     if (!modelUrl) throw new Error('Whisper Turbo download URL not configured')
-    const modelPath = path.join(this.modelsDir, 'ggml-turbo.bin')
+    const modelPath = path.join(this.modelsDir, 'ggml-large-v3-turbo.bin')
 
     await this.downloadFile(modelUrl, modelPath, 'Whisper Turbo')
 
@@ -281,7 +283,7 @@ export class ModelDownloadService {
       checksumPath,
       JSON.stringify(
         {
-          'ggml-turbo.bin': checksum,
+          'ggml-large-v3-turbo.bin': checksum,
         },
         null,
         2
@@ -332,6 +334,7 @@ export class ModelDownloadService {
       let downloadedBytes = 0
       let totalBytes = 0
       let lastProgress = 0
+      const STALL_TIMEOUT_MS = 5 * 60 * 1000 // 5 minutes
 
       const request = https.get(url, response => {
         // Handle redirects
@@ -360,30 +363,35 @@ export class ModelDownloadService {
           downloadedBytes += chunk.length
           file.write(chunk)
 
-          // Update progress every 5%
-          const progress = Math.floor((downloadedBytes / totalBytes) * 100)
-          if (progress >= lastProgress + 5) {
-            this.sendProgress({
-              modelName: description,
-              percent: progress,
-              downloadedMB: downloadedBytes / 1024 / 1024,
-              totalMB: totalBytes / 1024 / 1024,
-              status: 'downloading',
-            })
-            lastProgress = progress
+          // Update progress every 5% (skip if totalBytes unknown)
+          if (totalBytes > 0) {
+            const progress = Math.floor((downloadedBytes / totalBytes) * 100)
+            if (progress >= lastProgress + 5) {
+              this.sendProgress({
+                modelName: description,
+                percent: progress,
+                downloadedMB: downloadedBytes / 1024 / 1024,
+                totalMB: totalBytes / 1024 / 1024,
+                status: 'downloading',
+              })
+              lastProgress = progress
+            }
           }
         })
 
         response.on('end', () => {
-          file.end()
-          this.sendProgress({
-            modelName: description,
-            percent: 100,
-            downloadedMB: totalBytes / 1024 / 1024,
-            totalMB: totalBytes / 1024 / 1024,
-            status: 'complete',
+          file.end(() => {
+            // Wait for file stream to flush before resolving
+            const finalMB = (totalBytes > 0 ? totalBytes : downloadedBytes) / 1024 / 1024
+            this.sendProgress({
+              modelName: description,
+              percent: 100,
+              downloadedMB: finalMB,
+              totalMB: finalMB,
+              status: 'complete',
+            })
+            resolve()
           })
-          resolve()
         })
 
         response.on('error', error => {
@@ -415,6 +423,24 @@ export class ModelDownloadService {
           error: error.message,
         })
         reject(error)
+      })
+
+      // Abort if no data received for 5 minutes (stalled CDN connection)
+      request.setTimeout(STALL_TIMEOUT_MS, () => {
+        request.destroy()
+        file.close()
+        if (fs.existsSync(destPath)) {
+          fs.unlinkSync(destPath)
+        }
+        this.sendProgress({
+          modelName: description,
+          percent: 0,
+          downloadedMB: 0,
+          totalMB: 0,
+          status: 'error',
+          error: 'Download timed out (no data received for 5 minutes)',
+        })
+        reject(new Error(`Download stalled: ${description} — no data for 5 minutes`))
       })
     })
   }
@@ -448,7 +474,7 @@ export class ModelDownloadService {
   async verifyModel(modelType: ModelType): Promise<boolean> {
     try {
       if (modelType === 'whisper-turbo') {
-        const modelPath = path.join(this.modelsDir, 'ggml-turbo.bin')
+        const modelPath = path.join(this.modelsDir, 'ggml-large-v3-turbo.bin')
         const checksumPath = path.join(this.modelsDir, 'whisper-checksums.json')
 
         if (!fs.existsSync(modelPath) || !fs.existsSync(checksumPath)) {
@@ -457,7 +483,7 @@ export class ModelDownloadService {
 
         const actualChecksum = await this.calculateChecksum(modelPath)
         const checksums = JSON.parse(fs.readFileSync(checksumPath, 'utf-8'))
-        const expectedChecksum = checksums['ggml-turbo.bin']
+        const expectedChecksum = checksums['ggml-large-v3-turbo.bin']
 
         return actualChecksum === expectedChecksum
       } else {
@@ -493,7 +519,7 @@ export class ModelDownloadService {
    */
   getModelPaths(modelType: ModelType): string[] {
     if (modelType === 'whisper-turbo') {
-      return [path.join(this.modelsDir, 'ggml-turbo.bin')]
+      return [path.join(this.modelsDir, 'ggml-large-v3-turbo.bin')]
     } else {
       return [
         path.join(this.modelsDir, 'moonshine-base.onnx'),

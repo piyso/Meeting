@@ -60,10 +60,27 @@ export function registerModelHandlers() {
    */
   ipcMain.handle('model:downloadModelsForTier', async (_event, tierInfo) => {
     try {
-      // Download ASR model
-      await modelService.downloadModelsForTier(tierInfo)
-      // Download LLM GGUF model (auto-download on first launch)
-      await modelService.downloadLLMForTier(tierInfo)
+      // Download ASR and LLM independently
+      const [asrResult, llmResult] = await Promise.allSettled([
+        modelService.downloadModelsForTier(tierInfo),
+        modelService.downloadLLMForTier(tierInfo),
+      ])
+
+      const errors: string[] = []
+      if (asrResult.status === 'rejected') {
+        errors.push(`ASR: ${asrResult.reason?.message || asrResult.reason}`)
+      }
+      if (llmResult.status === 'rejected') {
+        errors.push(`LLM: ${llmResult.reason?.message || llmResult.reason}`)
+      }
+
+      if (errors.length === 2) {
+        return {
+          success: false,
+          error: { code: 'MODEL_ERROR', message: errors.join('; '), timestamp: Date.now() },
+        }
+      }
+
       return { success: true, data: undefined }
     } catch (error: unknown) {
       return {
@@ -124,11 +141,34 @@ export function registerModelHandlers() {
   ipcMain.handle('model:downloadAll', async () => {
     try {
       const tierInfo = modelService.detectHardwareTier()
-      // Download ASR model
-      await modelService.downloadModelsForTier(tierInfo)
-      // Download LLM GGUF model
-      await modelService.downloadLLMForTier(tierInfo)
-      return { success: true, data: tierInfo }
+
+      // Download ASR and LLM independently — one can succeed even if the other fails
+      const [asrResult, llmResult] = await Promise.allSettled([
+        modelService.downloadModelsForTier(tierInfo),
+        modelService.downloadLLMForTier(tierInfo),
+      ])
+
+      const errors: string[] = []
+      if (asrResult.status === 'rejected') {
+        errors.push(`ASR download failed: ${asrResult.reason?.message || asrResult.reason}`)
+      }
+      if (llmResult.status === 'rejected') {
+        errors.push(`LLM download failed: ${llmResult.reason?.message || llmResult.reason}`)
+      }
+
+      if (errors.length === 2) {
+        // Both failed
+        return {
+          success: false,
+          error: { code: 'MODEL_ERROR', message: errors.join('; '), timestamp: Date.now() },
+        }
+      }
+
+      // At least one succeeded (partial or full success)
+      return {
+        success: true,
+        data: { ...tierInfo, warnings: errors.length > 0 ? errors : undefined },
+      }
     } catch (error: unknown) {
       return {
         success: false,

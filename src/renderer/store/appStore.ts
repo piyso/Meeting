@@ -151,9 +151,15 @@ export const useAppStore = create<AppState>()(set => ({
   toggleGlobalContext: () => set(s => ({ globalContextOpen: !s.globalContextOpen })),
 
   addToast: toast =>
-    set(s => ({
-      toasts: [...s.toasts, { ...toast, id: crypto.randomUUID() }],
-    })),
+    set(s => {
+      const id = crypto.randomUUID()
+      const duration = toast.duration ?? 5000
+      // Auto-dismiss after duration
+      setTimeout(() => {
+        useAppStore.getState().removeToast(id)
+      }, duration)
+      return { toasts: [...s.toasts, { ...toast, id, duration }] }
+    }),
 
   removeToast: id => set(s => ({ toasts: s.toasts.filter(t => t.id !== id) })),
 

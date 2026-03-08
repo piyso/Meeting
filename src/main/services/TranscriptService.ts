@@ -150,6 +150,11 @@ export class TranscriptService extends EventEmitter {
       `[Transcript Service] Saved ${transcripts.length} transcripts for meeting ${meetingId}`
     )
 
+    // Generate embeddings for batch-saved transcripts (fire-and-forget, non-blocking)
+    for (const transcript of transcripts) {
+      this.generateEmbeddingAsync(transcript.id, transcript.text)
+    }
+
     return transcripts
   }
 

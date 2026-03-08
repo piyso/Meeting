@@ -213,7 +213,8 @@ CREATE INDEX IF NOT EXISTS idx_entities_meeting ON entities(meeting_id);
 CREATE INDEX IF NOT EXISTS idx_entities_type ON entities(type);
 
 -- Sync queue indexes
-CREATE INDEX IF NOT EXISTS idx_sync_queue_pending ON sync_queue(operation_type, retry_count);
+CREATE INDEX IF NOT EXISTS idx_sync_queue_pending ON sync_queue(retry_count, created_at);
+CREATE INDEX IF NOT EXISTS idx_sync_queue_created ON sync_queue(created_at);
 
 -- Devices indexes
 CREATE INDEX IF NOT EXISTS idx_devices_user ON devices(user_id);

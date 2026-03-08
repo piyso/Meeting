@@ -50,17 +50,33 @@ export class AuthService {
   private functionsUrl: string
 
   constructor() {
-    this.supabase = createClient(
-      config.SUPABASE_URL || 'https://placeholder.supabase.co',
-      config.SUPABASE_ANON_KEY || 'placeholder'
-    )
+    const supabaseUrl = config.SUPABASE_URL
+    const supabaseKey = config.SUPABASE_ANON_KEY
+    if (supabaseUrl && supabaseKey && !supabaseUrl.includes('placeholder')) {
+      this.supabase = createClient(supabaseUrl, supabaseKey)
+    } else {
+      // Create a client that will fail gracefully — no real network requests
+      this.supabase = null as unknown as SupabaseClient
+    }
     this.functionsUrl = config.BLUEARKIVE_FUNCTIONS_URL || ''
+  }
+
+  /** Check if Supabase is actually configured */
+  private isConfigured(): boolean {
+    return (
+      this.supabase !== null &&
+      !!config.SUPABASE_URL &&
+      !config.SUPABASE_URL.includes('placeholder')
+    )
   }
 
   /**
    * Login with email + password
    */
   async login(email: string, password: string): Promise<AuthResult> {
+    if (!this.isConfigured()) {
+      throw new Error('Authentication service not configured (no Supabase URL)')
+    }
     if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
       throw new Error('Invalid email format')
     }
@@ -118,6 +134,9 @@ export class AuthService {
    * Note: on-signup Edge Function auto-creates PiyAPI account
    */
   async register(email: string, password: string): Promise<AuthResult> {
+    if (!this.isConfigured()) {
+      throw new Error('Authentication service not configured (no Supabase URL)')
+    }
     if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
       throw new Error('Invalid email format')
     }
@@ -288,6 +307,9 @@ export class AuthService {
    * Initialize Google OAuth flow via system browser + deeplink
    */
   async startGoogleAuth(): Promise<void> {
+    if (!this.isConfigured()) {
+      throw new Error('Authentication service not configured (no Supabase URL)')
+    }
     const { shell, app } = await import('electron')
 
     // Register bluearkive:// protocol (idempotent)

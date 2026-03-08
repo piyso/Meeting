@@ -94,7 +94,7 @@ function getModelPaths(modelType: ModelType): string[] {
   const modelsDir = resolvedModelsDir
 
   if (modelType === 'whisper-turbo') {
-    return [path.join(modelsDir, 'ggml-turbo.bin')]
+    return [path.join(modelsDir, 'ggml-large-v3-turbo.bin')]
   } else {
     return [
       path.join(modelsDir, 'moonshine-base.onnx'),
@@ -400,6 +400,7 @@ if (parentPort) {
           sendResponse({
             type: 'transcript',
             data: {
+              id: message.data?.id,
               segments,
               model: currentModel,
               tier: hardwareTier,

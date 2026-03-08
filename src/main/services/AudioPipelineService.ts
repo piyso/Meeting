@@ -81,6 +81,8 @@ export class AudioPipelineService extends EventEmitter {
   // ── Disk buffering for crash resilience ──
   private tempFilePath: string | null = null
   private writeStream: fs.WriteStream | null = null
+  private isProcessingChunk = false
+  private pendingChunkProcess = false
 
   /**
    * Start capturing audio for a meeting.
@@ -195,6 +197,11 @@ export class AudioPipelineService extends EventEmitter {
       const overflowLength = audioData.length - writeLength
       const overflowData = overflowLength > 0 ? audioData.subarray(overflowStart) : null
 
+      // Queue processing if already in progress (prevent race condition)
+      if (this.isProcessingChunk) {
+        this.pendingChunkProcess = true
+        return
+      }
       this.processAccumulatedChunk()
 
       // If there was overflow from this chunk, drop it into the next buffer
@@ -210,6 +217,8 @@ export class AudioPipelineService extends EventEmitter {
    */
   private async processAccumulatedChunk(): Promise<void> {
     if (!this.currentMeetingId || !this.currentBuffer || this.writeOffset === 0) return
+    if (this.isProcessingChunk) return
+    this.isProcessingChunk = true
 
     // Extract exact data slice. Avoid massive new allocations by copying only what we have.
     // If it's a SharedArrayBuffer, slice() creates a copy automatically which is safe for ASR processing.
@@ -300,6 +309,15 @@ export class AudioPipelineService extends EventEmitter {
     } finally {
       // Return buffer to pool after ASR finishes
       this.bufferPool.release(oldBuffer)
+      this.isProcessingChunk = false
+
+      // Process any chunk that was queued during our processing
+      if (this.pendingChunkProcess) {
+        this.pendingChunkProcess = false
+        if (this.currentBuffer && this.writeOffset > 0) {
+          this.processAccumulatedChunk()
+        }
+      }
     }
   }
 

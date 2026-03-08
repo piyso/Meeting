@@ -247,7 +247,8 @@ export const AppLayout: React.FC = () => {
           navigate('onboarding')
         }
       } catch {
-        // If settings API unavailable, skip onboarding check
+        // If settings API fails (e.g., DB not ready), default to showing onboarding
+        navigate('onboarding')
       }
     }
     checkFirstLaunch()

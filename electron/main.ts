@@ -25,7 +25,7 @@ process.on('unhandledRejection', (reason, promise) => {
 })
 
 // ─── Auto-updater (checks GitHub Releases) ───────────────
-let autoUpdater: { checkForUpdatesAndNotify: () => void } | null = null
+let autoUpdater: { checkForUpdatesAndNotify: () => Promise<unknown> } | null = null
 try {
   // electron-updater is optional — skip in dev or if not installed
 
@@ -260,7 +260,9 @@ app.whenReady().then(() => {
   // Check for updates (10s after launch — non-blocking)
   if (autoUpdater) {
     setTimeout(() => {
-      autoUpdater?.checkForUpdatesAndNotify()
+      autoUpdater?.checkForUpdatesAndNotify()?.catch((err: Error) => {
+        log.warn('Auto-update check failed (no releases published?):', err.message)
+      })
       log.info('Auto-update check initiated')
     }, 10_000)
   }
@@ -279,10 +281,30 @@ app.on('will-quit', () => {
 })
 
 // Handle app quit
-app.on('before-quit', () => {
+app.on('before-quit', async () => {
   log.info('Application quitting — starting cleanup...')
 
   try {
+    // Stop audio capture and flush any buffered audio
+    try {
+      const { getAudioPipelineService } = await import('../src/main/services/AudioPipelineService')
+      const pipeline = getAudioPipelineService()
+      if (pipeline.getStatus().isCapturing) {
+        log.info('Flushing audio pipeline before quit...')
+        await pipeline.stopCapture()
+      }
+    } catch {
+      // AudioPipelineService may not be initialized
+    }
+
+    // Terminate ASR worker thread
+    try {
+      const { getASRService } = await import('../src/main/services/ASRService')
+      await getASRService().terminate()
+    } catch {
+      // ASRService may not be initialized
+    }
+
     // Cleanup IPC handlers
     cleanupIPC()
 

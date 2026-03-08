@@ -295,6 +295,7 @@ export function registerMeetingHandlers(): void {
 
         return {
           success: true,
+          data: undefined,
         }
       } catch (error) {
         log.error('Failed to delete meeting:', error)

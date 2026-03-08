@@ -344,19 +344,16 @@ ANSWER:`
 
 ANSWER:`
 
-      let fullResponse = ''
-
       const result = await modelManager.generate({
         prompt: systemPrompt,
         temperature: 0.4,
         maxTokens: 300,
-        onToken: (token: string) => {
-          fullResponse += token
+        onToken: (accumulatedText: string) => {
           // Stream each token to the renderer in real-time
           try {
             event.sender.send('intelligence:streamToken', {
-              token,
-              fullText: fullResponse,
+              token: accumulatedText,
+              fullText: accumulatedText,
             })
           } catch {
             // Sender may be destroyed if window closed during generation

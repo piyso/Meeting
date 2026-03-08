@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react'
+import React, { useEffect, useRef, useState, Component, ErrorInfo, ReactNode } from 'react'
 import { useAppStore } from '../store/appStore'
 
 import { Button } from './ui/Button'
@@ -11,6 +11,44 @@ import { Logo3D } from './ui/Logo3D'
 
 import { rendererLog } from '../utils/logger'
 const log = rendererLog.create('Onboarding')
+
+/** Error boundary so WebGL / 3D failures don't crash onboarding */
+class Logo3DErrorBoundary extends Component<{ children: ReactNode }, { hasError: boolean }> {
+  state = { hasError: false }
+  static getDerivedStateFromError() {
+    return { hasError: true }
+  }
+  componentDidCatch(error: Error, _info: ErrorInfo) {
+    console.warn('[Logo3D] Rendering failed, using CSS fallback:', error.message)
+  }
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div
+          style={{
+            width: 192,
+            height: 192,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            margin: '0 auto',
+          }}
+        >
+          <div
+            style={{
+              width: 80,
+              height: 80,
+              borderRadius: '50%',
+              background: 'radial-gradient(circle, #22d3ee 0%, #3b82f6 60%, transparent 70%)',
+              boxShadow: '0 0 40px rgba(34,211,238,0.4), 0 0 80px rgba(59,130,246,0.2)',
+            }}
+          />
+        </div>
+      )
+    }
+    return this.props.children
+  }
+}
 
 type OnboardingStep = 'auth' | 'setup' | 'recovery-key' | 'plan-selection' | 'ghost-meeting'
 
@@ -238,7 +276,9 @@ export const OnboardingFlow: React.FC = () => {
         <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-blue-600/10 blur-[100px] rounded-full pointer-events-none translate-x-1/3 -translate-y-1/3" />
 
         <div className="relative z-10">
-          <Logo3D />
+          <Logo3DErrorBoundary>
+            <Logo3D />
+          </Logo3DErrorBoundary>
         </div>
 
         <div className="relative z-10 max-w-md mt-12">
@@ -286,7 +326,9 @@ export const OnboardingFlow: React.FC = () => {
           <div className="w-full max-w-[420px] flex flex-col animate-slide-up relative z-10">
             <div className="flex flex-col mb-10 lg:hidden items-center">
               <div className="mb-6 -mt-8">
-                <Logo3D className="transform scale-75 origin-center" />
+                <Logo3DErrorBoundary>
+                  <Logo3D className="transform scale-75 origin-center" />
+                </Logo3DErrorBoundary>
               </div>
               <h1 className="text-2xl font-semibold tracking-wide text-center text-white">
                 {authMode === 'register' ? 'Initialize Core' : 'Welcome Back'}

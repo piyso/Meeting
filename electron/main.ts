@@ -44,12 +44,14 @@ try {
 }
 
 // Handle creating/removing shortcuts on Windows when installing/uninstalling
-try {
-  if (require('electron-squirrel-startup')) {
-    app.quit()
+if (process.platform === 'win32') {
+  try {
+    if (require('electron-squirrel-startup')) {
+      app.quit()
+    }
+  } catch {
+    // Not installed, skip
   }
-} catch (e) {
-  // Ignore in development or if package is missing
 }
 
 // ─── Single instance lock ────────────────────────────────

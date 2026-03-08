@@ -634,6 +634,70 @@ kbd {
 }
 
 /* ── Download Block ── */
+/* ── Install Guide ──────────────────────── */
+.install-guide {
+  padding: 80px 0;
+  background: var(--bg-subtle);
+  border-top: 1px solid var(--border-light);
+}
+
+.install-guide h2 {
+  font-size: 1.8rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+.install-steps {
+  margin-top: 32px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.install-step {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+  padding: 20px 24px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border-light);
+  border-radius: 12px;
+  transition:
+    border-color 0.2s,
+    box-shadow 0.2s;
+}
+
+.install-step:hover {
+  border-color: var(--brand-lavender);
+  box-shadow: 0 2px 12px rgba(167, 139, 250, 0.08);
+}
+
+.step-number {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: var(--brand-lavender);
+  color: white;
+  font-weight: 700;
+  font-size: 0.9rem;
+}
+
+.step-content h4 {
+  margin: 0 0 4px;
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.step-content p {
+  margin: 0;
+  font-size: 0.9rem;
+  color: var(--text-muted);
+  line-height: 1.5;
+}
+
 .download {
   padding: 120px 0;
   background: var(--bg-surface);

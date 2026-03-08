@@ -305,7 +305,7 @@
       <div class="container text-center">
         <h2>Download BlueArkive.</h2>
         <p style="max-width: 520px; margin: 0 auto">
-          One click to download. One right-click to open. Yours forever.
+          Free. Private. No account needed. Yours forever.
         </p>
 
         <!-- PRIMARY: Auto-detected Download Button -->
@@ -335,41 +335,42 @@
           </p>
         </div>
 
-        <!-- VISUAL: How to install (inline, no tabs) -->
-        <div style="max-width: 580px; margin: 48px auto 0">
+        <!-- VISUAL: How to install (inline, honest, works on ALL macOS) -->
+        <div style="max-width: 640px; margin: 48px auto 0">
           <h3
-            style="
-              font-size: 1.1rem;
-              font-weight: 600;
-              margin-bottom: 24px;
-              color: var(--text-main);
-            "
+            style="font-size: 1.1rem; font-weight: 600; margin-bottom: 8px; color: var(--text-main)"
           >
-            After downloading — two quick steps:
+            After downloading — three easy steps:
           </h3>
+          <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 24px">
+            Because BlueArkive is free and independent, Apple shows a security warning. This quick
+            unlock takes 30 seconds.
+          </p>
 
-          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; text-align: center">
+          <div
+            style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 14px; text-align: center"
+          >
             <!-- Step 1 -->
             <div
               style="
                 background: var(--bg-surface);
                 border: 1px solid var(--border-light);
                 border-radius: 16px;
-                padding: 28px 20px;
+                padding: 24px 16px;
               "
             >
               <div
                 style="
-                  width: 48px;
-                  height: 48px;
+                  width: 44px;
+                  height: 44px;
                   border-radius: 12px;
                   background: linear-gradient(135deg, var(--brand-lavender), #c4b5fd);
                   display: flex;
                   align-items: center;
                   justify-content: center;
-                  margin: 0 auto 16px;
+                  margin: 0 auto 14px;
                   color: white;
-                  font-size: 1.2rem;
+                  font-size: 1.1rem;
                   font-weight: 700;
                 "
               >
@@ -377,17 +378,16 @@
               </div>
               <h4
                 style="
-                  font-size: 0.95rem;
+                  font-size: 0.9rem;
                   font-weight: 600;
-                  margin-bottom: 8px;
+                  margin-bottom: 6px;
                   color: var(--text-main);
                 "
               >
                 Drag to Applications
               </h4>
-              <p style="font-size: 0.85rem; color: var(--text-muted); line-height: 1.5; margin: 0">
-                Open the downloaded <code>.dmg</code> file and drag BlueArkive into your
-                Applications folder.
+              <p style="font-size: 0.82rem; color: var(--text-muted); line-height: 1.5; margin: 0">
+                Open the <code>.dmg</code> file and drag BlueArkive into Applications.
               </p>
             </div>
 
@@ -397,21 +397,21 @@
                 background: var(--bg-surface);
                 border: 1px solid var(--border-light);
                 border-radius: 16px;
-                padding: 28px 20px;
+                padding: 24px 16px;
               "
             >
               <div
                 style="
-                  width: 48px;
-                  height: 48px;
+                  width: 44px;
+                  height: 44px;
                   border-radius: 12px;
-                  background: linear-gradient(135deg, var(--brand-sage), #86efac);
+                  background: linear-gradient(135deg, #38bdf8, #7dd3fc);
                   display: flex;
                   align-items: center;
                   justify-content: center;
-                  margin: 0 auto 16px;
+                  margin: 0 auto 14px;
                   color: white;
-                  font-size: 1.2rem;
+                  font-size: 1.1rem;
                   font-weight: 700;
                 "
               >
@@ -419,49 +419,160 @@
               </div>
               <h4
                 style="
-                  font-size: 0.95rem;
+                  font-size: 0.9rem;
                   font-weight: 600;
-                  margin-bottom: 8px;
+                  margin-bottom: 6px;
                   color: var(--text-main);
                 "
               >
-                Right-click → Open
+                Open Terminal
               </h4>
-              <p style="font-size: 0.85rem; color: var(--text-muted); line-height: 1.5; margin: 0">
-                In Applications, <strong>right-click</strong> BlueArkive → click
-                <strong>"Open"</strong>. You only need to do this once.
+              <p style="font-size: 0.82rem; color: var(--text-muted); line-height: 1.5; margin: 0">
+                Press
+                <kbd
+                  style="
+                    background: var(--bg-subtle);
+                    padding: 2px 6px;
+                    border-radius: 4px;
+                    font-size: 0.8rem;
+                  "
+                  >⌘ Space</kbd
+                >, type <strong>Terminal</strong>, press Enter.
+              </p>
+            </div>
+
+            <!-- Step 3 -->
+            <div
+              style="
+                background: var(--bg-surface);
+                border: 1px solid var(--border-light);
+                border-radius: 16px;
+                padding: 24px 16px;
+              "
+            >
+              <div
+                style="
+                  width: 44px;
+                  height: 44px;
+                  border-radius: 12px;
+                  background: linear-gradient(135deg, var(--brand-sage), #86efac);
+                  display: flex;
+                  align-items: center;
+                  justify-content: center;
+                  margin: 0 auto 14px;
+                  color: white;
+                  font-size: 1.1rem;
+                  font-weight: 700;
+                "
+              >
+                3
+              </div>
+              <h4
+                style="
+                  font-size: 0.9rem;
+                  font-weight: 600;
+                  margin-bottom: 6px;
+                  color: var(--text-main);
+                "
+              >
+                Paste & press Enter
+              </h4>
+              <p style="font-size: 0.82rem; color: var(--text-muted); line-height: 1.5; margin: 0">
+                Paste the command below and type your Mac password when asked.
               </p>
             </div>
           </div>
 
+          <!-- The actual command to copy -->
           <div
             style="
-              margin-top: 16px;
-              display: inline-flex;
-              align-items: center;
-              gap: 8px;
-              background: rgba(56, 189, 248, 0.08);
-              padding: 10px 20px;
-              border-radius: 999px;
-              color: #38bdf8;
-              font-size: 0.85rem;
-              border: 1px solid rgba(56, 189, 248, 0.15);
+              margin-top: 20px;
+              background: #1a1a2e;
+              border-radius: 12px;
+              overflow: hidden;
+              box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
             "
           >
-            <svg
-              width="14"
-              height="14"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="2"
+            <div
+              style="
+                background: rgba(0, 0, 0, 0.2);
+                padding: 8px 16px;
+                display: flex;
+                align-items: center;
+                border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+              "
             >
-              <circle cx="12" cy="12" r="10" />
-              <path d="M12 16v-4" />
-              <path d="M12 8h.01" />
-            </svg>
-            <span>Right-clicking bypasses Apple's warning for free apps. You only do it once.</span>
+              <div style="display: flex; gap: 6px">
+                <div
+                  style="width: 10px; height: 10px; border-radius: 50%; background: #ff5f56"
+                ></div>
+                <div
+                  style="width: 10px; height: 10px; border-radius: 50%; background: #ffbd2e"
+                ></div>
+                <div
+                  style="width: 10px; height: 10px; border-radius: 50%; background: #27c93f"
+                ></div>
+              </div>
+              <div
+                style="
+                  flex: 1;
+                  text-align: center;
+                  font-size: 0.7rem;
+                  color: rgba(255, 255, 255, 0.35);
+                  font-weight: 500;
+                "
+              >
+                Terminal
+              </div>
+            </div>
+            <div
+              style="
+                padding: 14px 20px;
+                display: flex;
+                align-items: center;
+                gap: 12px;
+                font-family: 'SF Mono', Monaco, monospace;
+                font-size: 0.88rem;
+                color: #e2e8f0;
+              "
+            >
+              <span style="color: var(--brand-sage); font-weight: 600">$</span>
+              <code id="xattr-cmd" style="flex: 1; overflow-x: auto; white-space: nowrap"
+                >sudo xattr -cr /Applications/BlueArkive.app</code
+              >
+              <button
+                onclick="
+                  navigator.clipboard.writeText(document.getElementById('xattr-cmd').textContent)
+                  this.textContent = '✓ Copied'
+                  setTimeout(() => (this.textContent = 'Copy'), 2000)
+                "
+                style="
+                  background: rgba(255, 255, 255, 0.1);
+                  border: none;
+                  color: #a78bfa;
+                  padding: 6px 16px;
+                  border-radius: 8px;
+                  cursor: pointer;
+                  font-size: 0.82rem;
+                  white-space: nowrap;
+                  transition: all 0.2s;
+                "
+              >
+                Copy
+              </button>
+            </div>
           </div>
+
+          <p
+            style="margin-top: 12px; font-size: 0.8rem; color: var(--text-light); line-height: 1.5"
+          >
+            <strong>That's it!</strong> Double-click BlueArkive from Applications — it opens
+            perfectly, forever.<br />
+            <span style="opacity: 0.7"
+              >This step is needed because we're independent — not part of Apple's $99/yr developer
+              program. It's actually proof that no one controls your app but you.</span
+            >
+          </p>
         </div>
 
         <!-- SECONDARY: Power User / curl option -->

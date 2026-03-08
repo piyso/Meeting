@@ -835,27 +835,6 @@
         )
         reveals.forEach(el => observer.observe(el))
       })
-
-      // Auto-detect Apple Silicon vs Intel and configure the single download button
-      ;(function () {
-        try {
-          const isARM =
-            navigator.userAgent.includes('ARM') ||
-            (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 0)
-
-          const primary = document.getElementById('dl-primary')
-          const chipLabel = document.getElementById('dl-chip-label')
-          const altLink = document.getElementById('dl-alt-link')
-
-          if (!isARM && primary && chipLabel && altLink) {
-            // Intel Mac detected — swap the primary button to x64
-            primary.href = 'https://dl.bluearkive.com/BlueArkive-0.1.1-mac-x64.dmg'
-            chipLabel.textContent = 'Intel Mac · x64 · 544 MB'
-            altLink.href = 'https://dl.bluearkive.com/BlueArkive-0.1.1-mac-arm64.dmg'
-            altLink.textContent = 'Download for Apple Silicon instead (arm64 · 275 MB)'
-          }
-        } catch (e) {}
-      })()
     </script>
 
     <!-- Footer -->

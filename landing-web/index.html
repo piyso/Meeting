@@ -11,23 +11,22 @@
     <link rel="preconnect" href="https://rsms.me/" />
     <link rel="stylesheet" href="https://rsms.me/inter/inter.css" />
     <link rel="stylesheet" href="styles.css" />
+    <script type="importmap">
+      {
+        "imports": {
+          "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+          "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+        }
+      }
+    </script>
+    <script type="module" src="logo3d.js"></script>
   </head>
   <body>
     <!-- Top Nav -->
     <nav class="nav">
       <div class="container nav-inner">
-        <a href="/" class="brand">
-          <svg
-            width="24"
-            height="24"
-            viewBox="0 0 24 24"
-            fill="none"
-            xmlns="http://www.w3.org/2000/svg"
-          >
-            <circle cx="12" cy="12" r="10" stroke="#3b82f6" stroke-width="2" stroke-opacity="0.3" />
-            <circle cx="12" cy="12" r="6" stroke="#22d3ee" stroke-width="2" />
-            <circle cx="12" cy="12" r="3" fill="#3b82f6" />
-          </svg>
+        <a href="/" class="brand" style="display: flex; align-items: center">
+          <div id="nav-logo-3d" style="width: 32px; height: 32px; margin-right: 8px"></div>
           <strong>BlueArkive</strong>
         </a>
         <div class="nav-links">
@@ -87,7 +86,17 @@
           </div>
         </div>
 
-        <div class="hero-visual reveal reveal-delay-1">
+        <div
+          class="hero-visual reveal reveal-delay-1"
+          style="
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            transform: translateY(-30px);
+          "
+        >
+          <div id="hero-logo-3d" style="width: 350px; height: 350px; margin-bottom: -40px"></div>
           <div class="widget-demo">
             <div class="widget-glass">
               <div class="pulse-ring"></div>

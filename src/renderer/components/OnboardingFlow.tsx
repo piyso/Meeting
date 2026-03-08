@@ -323,7 +323,7 @@ export const OnboardingFlow: React.FC = () => {
         <div className="absolute inset-0 with-noise opacity-[0.015] pointer-events-none" />
 
         {step === 'auth' && (
-          <div className="w-full max-w-[420px] flex flex-col animate-slide-up relative z-10">
+          <div className="w-full max-w-[420px] flex flex-col animate-auth-enter auth-stagger relative z-10">
             <div className="flex flex-col mb-10 lg:hidden items-center">
               <div className="mb-6 -mt-8">
                 <Logo3DErrorBoundary>
@@ -359,7 +359,7 @@ export const OnboardingFlow: React.FC = () => {
               />
 
               {authError && (
-                <div className="flex items-center gap-3 p-3.5 rounded-xl bg-[rgba(244,63,94,0.06)] border border-[rgba(244,63,94,0.3)] shadow-[0_0_15px_rgba(244,63,94,0.15),inset_0_0_0_1px_rgba(255,255,255,0.05)] text-rose-300 text-sm font-medium backdrop-blur-xl animate-slide-up">
+                <div className="flex items-center gap-3 p-3.5 rounded-xl bg-[rgba(244,63,94,0.06)] border border-[rgba(244,63,94,0.3)] shadow-[0_0_15px_rgba(244,63,94,0.15),inset_0_0_0_1px_rgba(255,255,255,0.05)] text-rose-300 text-sm font-medium backdrop-blur-xl animate-auth-enter auth-stagger">
                   <div className="w-2 h-2 rounded-full bg-rose-500 shadow-[0_0_8px_rgba(244,63,94,1)] animate-pulse" />
                   <span className="flex-1 tracking-wide">{authError}</span>
                 </div>
@@ -444,7 +444,7 @@ export const OnboardingFlow: React.FC = () => {
         )}
 
         {step === 'setup' && (
-          <div className="w-full max-w-[420px] flex flex-col animate-slide-up relative z-10">
+          <div className="w-full max-w-[420px] flex flex-col animate-auth-enter auth-stagger relative z-10">
             <h2 className="text-2xl font-semibold tracking-wide text-white mb-8 text-center lg:text-left">
               Initializing System...
             </h2>
@@ -476,7 +476,7 @@ export const OnboardingFlow: React.FC = () => {
         )}
 
         {step === 'recovery-key' && (
-          <div className="w-full max-w-[480px] flex flex-col animate-slide-up relative z-10">
+          <div className="w-full max-w-[480px] flex flex-col animate-auth-enter auth-stagger relative z-10">
             <div className="flex items-center gap-3 mb-6 flex-col lg:flex-row lg:items-center text-center lg:text-left">
               <Key size={32} className="text-amber-500" />
               <div>
@@ -540,7 +540,7 @@ export const OnboardingFlow: React.FC = () => {
         )}
 
         {step === 'plan-selection' && (
-          <div className="w-full max-w-[600px] flex flex-col animate-slide-up relative z-10 pt-10">
+          <div className="w-full max-w-[600px] flex flex-col animate-auth-enter auth-stagger relative z-10 pt-10">
             <h2 className="text-2xl font-semibold tracking-wide text-white mb-8 text-center">
               Select Cognitive Capacity
             </h2>
@@ -557,7 +557,7 @@ export const OnboardingFlow: React.FC = () => {
         )}
 
         {step === 'ghost-meeting' && (
-          <div className="w-full h-full flex flex-col items-center justify-center animate-slide-up relative z-10 overflow-hidden">
+          <div className="w-full h-full flex flex-col items-center justify-center animate-auth-enter auth-stagger relative z-10 overflow-hidden">
             <GhostMeetingTutorial onComplete={completeOnboarding} />
           </div>
         )}

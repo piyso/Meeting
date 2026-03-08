@@ -174,9 +174,8 @@
       }
     ],
     "publish": {
-      "provider": "github",
-      "owner": "piyso",
-      "repo": "piynoteskiro"
+      "provider": "generic",
+      "url": "https://dl.bluearkive.com"
     },
     "mac": {
       "category": "public.app-category.productivity",

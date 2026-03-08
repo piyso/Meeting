@@ -195,8 +195,8 @@ jobs:
           name: mac-builds
           path: mac-builds
 
-      - name: List .dmg files
-        run: ls -lh mac-builds/*.dmg
+      - name: List all release files
+        run: ls -lh mac-builds/
 
       - name: Deploy to Hetzner download server
         uses: appleboy/scp-action@v0.1.7
@@ -204,6 +204,6 @@ jobs:
           host: 89.167.57.32
           username: root
           key: ${{ secrets.HETZNER_SSH_KEY }}
-          source: 'mac-builds/*.dmg'
+          source: 'mac-builds/*'
           target: '/data/coolify/services/service-j80w0wckko0wsogk4kckc0so/files/'
           strip_components: 1

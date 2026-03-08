@@ -197,11 +197,28 @@ kbd {
   top: -20%;
   left: 50%;
   transform: translateX(-50%);
-  width: 800px;
-  height: 800px;
-  background: radial-gradient(circle, rgba(167, 139, 250, 0.15) 0%, rgba(252, 252, 252, 0) 70%);
+  width: 1200px;
+  height: 900px;
+  background:
+    radial-gradient(circle at 15% 50%, rgba(167, 139, 250, 0.15), transparent 40%),
+    radial-gradient(circle at 85% 30%, rgba(134, 239, 172, 0.15), transparent 40%),
+    radial-gradient(circle at 50% 80%, rgba(139, 92, 246, 0.12), transparent 50%);
+  filter: blur(40px);
   z-index: -1;
   pointer-events: none;
+  animation: ambient-drift 15s ease-in-out infinite alternate;
+}
+
+@keyframes ambient-drift {
+  0% {
+    transform: translateX(-50%) translateY(0) scale(1);
+  }
+  50% {
+    transform: translateX(-48%) translateY(-2%) scale(1.05);
+  }
+  100% {
+    transform: translateX(-52%) translateY(2%) scale(0.95);
+  }
 }
 
 .hero-inner {
@@ -225,12 +242,15 @@ kbd {
 }
 
 .hero h1 {
-  font-size: 4.5rem;
+  font-size: 5rem;
   font-weight: 800;
   line-height: 1.05;
   letter-spacing: -0.04em;
   margin-bottom: 24px;
-  color: var(--text-main);
+  background: linear-gradient(135deg, var(--text-main) 0%, #475569 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
 }
 
 .hero-subtitle {
@@ -263,10 +283,12 @@ kbd {
 
 .widget-glass {
   background: rgba(255, 255, 255, 0.7);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
-  border: 1px solid rgba(255, 255, 255, 0.5);
-  box-shadow: var(--shadow-float);
+  backdrop-filter: blur(24px) saturate(150%);
+  -webkit-backdrop-filter: blur(24px) saturate(150%);
+  border: 1px solid rgba(255, 255, 255, 0.8);
+  box-shadow:
+    0 24px 48px -12px rgba(0, 0, 0, 0.08),
+    inset 0 1px 1px rgba(255, 255, 255, 0.9);
   border-radius: 100px;
   padding: 16px 32px;
   display: flex;
@@ -331,6 +353,29 @@ kbd {
   font-style: italic;
 }
 
+/* ── Scroll Reveal System ── */
+.reveal {
+  opacity: 0;
+  transform: translateY(30px);
+  transition:
+    opacity 0.8s var(--ease-calm),
+    transform 0.8s var(--ease-calm);
+  will-change: opacity, transform;
+}
+.reveal.active {
+  opacity: 1;
+  transform: translateY(0);
+}
+.reveal-delay-1 {
+  transition-delay: 0.1s;
+}
+.reveal-delay-2 {
+  transition-delay: 0.2s;
+}
+.reveal-delay-3 {
+  transition-delay: 0.3s;
+}
+
 /* ── Metrics Grid ── */
 .metrics-section {
   padding: 60px 0;
@@ -388,15 +433,39 @@ kbd {
 }
 
 .bento-card {
+  position: relative;
+  overflow: hidden;
   background: var(--bg-surface);
   border: 1px solid var(--border-light);
   border-radius: var(--radius-lg);
   padding: 48px;
-  transition: box-shadow 0.4s var(--ease-calm);
+  transition:
+    transform 0.4s var(--ease-calm),
+    box-shadow 0.4s var(--ease-calm),
+    border-color 0.4s var(--ease-calm);
+}
+
+.bento-card::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: transparent;
+  transition: background 0.4s var(--ease-calm);
 }
 
 .bento-card:hover {
-  box-shadow: var(--shadow-float);
+  transform: translateY(-4px);
+  box-shadow:
+    var(--shadow-float),
+    inset 0 0 0 1px rgba(167, 139, 250, 0.1);
+  border-color: rgba(167, 139, 250, 0.3);
+}
+
+.bento-card:hover::before {
+  background: linear-gradient(90deg, var(--brand-lavender), var(--brand-sage));
 }
 
 .col-span-2 {

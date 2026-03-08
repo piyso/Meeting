@@ -54,7 +54,7 @@
     <header class="hero">
       <div class="ambient-glow"></div>
       <div class="container hero-inner">
-        <div class="hero-content">
+        <div class="hero-content reveal">
           <div
             class="badge-pill"
             style="
@@ -96,7 +96,7 @@
           </div>
         </div>
 
-        <div class="hero-visual">
+        <div class="hero-visual reveal reveal-delay-1">
           <div class="widget-demo">
             <div class="widget-glass">
               <div class="pulse-ring"></div>
@@ -111,7 +111,7 @@
     </header>
 
     <!-- Stats / Truths -->
-    <section class="metrics-section">
+    <section class="metrics-section reveal">
       <div class="container metrics-grid">
         <div class="metric">
           <h3>0 Bytes</h3>
@@ -135,14 +135,14 @@
     <!-- Feature Bento Grid (Brave Style Information Density + Calm UI) -->
     <section class="features" id="features">
       <div class="container">
-        <div class="section-header">
+        <div class="section-header reveal">
           <h2>Your ideas belong to you.</h2>
           <p>Stop handing your company's deepest strategies over to greedy cloud AI companies.</p>
         </div>
 
         <div class="bento-grid">
           <!-- Large Feature 1 -->
-          <div class="bento-card col-span-2 highlight-card">
+          <div class="bento-card col-span-2 highlight-card reveal">
             <div class="bento-content">
               <span class="tag">INVISIBLE RECORDING</span>
               <h3>Focus on the conversation.</h3>
@@ -160,7 +160,7 @@
           </div>
 
           <!-- Feature 2 -->
-          <div class="bento-card">
+          <div class="bento-card reveal reveal-delay-1">
             <span class="tag">SMART SUMMARIES</span>
             <h3>Jot a thought. Write a chapter.</h3>
             <p>
@@ -171,7 +171,7 @@
           </div>
 
           <!-- Feature 3 -->
-          <div class="bento-card">
+          <div class="bento-card reveal reveal-delay-2">
             <span class="tag">MAGIC SEARCH</span>
             <h3>Find anything instantly.</h3>
             <p>
@@ -182,7 +182,7 @@
           </div>
 
           <!-- Large Feature 4 -->
-          <div class="bento-card col-span-2 split-card">
+          <div class="bento-card col-span-2 split-card reveal">
             <div class="bento-content">
               <span class="tag">MADE FOR MAC</span>
               <h3>Optimized for your computer.</h3>
@@ -203,7 +203,7 @@
     </section>
 
     <!-- Architecture / Compare -->
-    <section class="architecture" id="security">
+    <section class="architecture reveal" id="security">
       <div class="container">
         <div class="section-header">
           <h2>Sovereignty over your context.</h2>
@@ -221,28 +221,28 @@
           </div>
           <div class="row">
             <div class="cell feature-cell">Where your data goes</div>
-            <div class="cell our-cell positive">Locked on your computer</div>
-            <div class="cell their-cell negative">Uploaded to the cloud</div>
+            <div class="cell our-cell positive">✓ Locked on your computer</div>
+            <div class="cell their-cell negative">✗ Uploaded to the cloud</div>
           </div>
           <div class="row">
             <div class="cell feature-cell">Who can read it</div>
-            <div class="cell our-cell positive">Literally only you</div>
-            <div class="cell their-cell negative">Their engineers & algorithms</div>
+            <div class="cell our-cell positive">✓ Literally only you</div>
+            <div class="cell their-cell negative">✗ Their engineers & algorithms</div>
           </div>
           <div class="row">
             <div class="cell feature-cell">Meeting Experience</div>
-            <div class="cell our-cell positive">Invisible and silent</div>
-            <div class="cell their-cell negative">Awkward bot joins the call</div>
+            <div class="cell our-cell positive">✓ Invisible and silent</div>
+            <div class="cell their-cell negative">✗ Awkward bot joins the call</div>
           </div>
           <div class="row">
             <div class="cell feature-cell">Data Security</div>
-            <div class="cell our-cell positive">Mathematically Impossible to Hack</div>
-            <div class="cell their-cell negative">Vulnerable to data breaches</div>
+            <div class="cell our-cell positive">✓ Mathematically impossible to hack</div>
+            <div class="cell their-cell negative">✗ Vulnerable to breaches</div>
           </div>
           <div class="row">
             <div class="cell feature-cell">Works Offline</div>
-            <div class="cell our-cell positive">Fully offline capable</div>
-            <div class="cell their-cell negative">Constant internet required</div>
+            <div class="cell our-cell positive">✓ Fully offline capable</div>
+            <div class="cell their-cell negative">✗ Constant internet required</div>
           </div>
         </div>
 
@@ -253,7 +253,7 @@
     </section>
 
     <!-- Pricing: FOMO & Scarcity -->
-    <section class="pricing" id="pricing">
+    <section class="pricing reveal" id="pricing">
       <div class="container text-center">
         <div class="section-header">
           <h2>Claim your sovereign node.</h2>
@@ -264,10 +264,7 @@
         </div>
 
         <div class="pricing-grid single-tier">
-          <div
-            class="price-card pro"
-            style="text-align: left; position: relative; overflow: hidden"
-          >
+          <div class="price-card pro" style="text-align: left">
             <div
               style="
                 position: absolute;
@@ -297,9 +294,7 @@
               <li>Military-grade security AES-256</li>
               <li>Works completely offline</li>
             </ul>
-            <a href="#download" class="btn btn-primary" style="width: 100%; justify-content: center"
-              >Download Free</a
-            >
+            <a href="#download" class="btn btn-primary" style="width: 100%">Download Free</a>
           </div>
         </div>
       </div>
@@ -335,7 +330,7 @@
         </div>
 
         <!-- Auto Install Tab -->
-        <div id="panel-auto" class="tab-panel" style="margin-top: 28px">
+        <div id="panel-auto" class="tab-panel reveal" style="margin-top: 28px">
           <p style="font-size: 0.95rem; color: var(--text-muted); margin-bottom: 20px">
             Open <strong>Terminal</strong> and paste this command. It auto-detects your chip,
             downloads, installs, and launches — no warnings.
@@ -343,41 +338,99 @@
           <div
             style="
               display: flex;
-              align-items: center;
-              gap: 8px;
+              flex-direction: column;
               background: #1a1a2e;
-              padding: 16px 20px;
               border-radius: 12px;
+              box-shadow: 0 4px 24px rgba(0, 0, 0, 0.2);
+              border: 1px solid rgba(255, 255, 255, 0.05);
               font-family: 'SF Mono', Monaco, monospace;
               font-size: 0.9rem;
               color: #e2e8f0;
               max-width: 580px;
               margin: 0 auto;
+              overflow: hidden;
             "
           >
-            <code id="curl-cmd" style="flex: 1; overflow-x: auto; white-space: nowrap"
-              >curl -fsSL https://dl.bluearkive.com/install.sh | bash</code
-            >
-            <button
-              onclick="
-                navigator.clipboard.writeText(document.getElementById('curl-cmd').textContent)
-                this.textContent = '✓ Copied'
-                setTimeout(() => (this.textContent = 'Copy'), 2000)
-              "
+            <!-- Mac Window Header -->
+            <div
               style="
-                background: rgba(255, 255, 255, 0.1);
-                border: none;
-                color: #a78bfa;
-                padding: 6px 16px;
-                border-radius: 8px;
-                cursor: pointer;
-                font-size: 0.85rem;
-                white-space: nowrap;
-                transition: background 0.2s;
+                background: rgba(0, 0, 0, 0.2);
+                padding: 12px 16px;
+                display: flex;
+                align-items: center;
+                border-bottom: 1px solid rgba(255, 255, 255, 0.05);
               "
             >
-              Copy
-            </button>
+              <div style="display: flex; gap: 8px">
+                <div
+                  style="
+                    width: 12px;
+                    height: 12px;
+                    border-radius: 50%;
+                    background: #ff5f56;
+                    box-shadow: 0 0 2px rgba(0, 0, 0, 0.2);
+                  "
+                ></div>
+                <div
+                  style="
+                    width: 12px;
+                    height: 12px;
+                    border-radius: 50%;
+                    background: #ffbd2e;
+                    box-shadow: 0 0 2px rgba(0, 0, 0, 0.2);
+                  "
+                ></div>
+                <div
+                  style="
+                    width: 12px;
+                    height: 12px;
+                    border-radius: 50%;
+                    background: #27c93f;
+                    box-shadow: 0 0 2px rgba(0, 0, 0, 0.2);
+                  "
+                ></div>
+              </div>
+              <div
+                style="
+                  flex: 1;
+                  text-align: center;
+                  font-family: var(--font-sans);
+                  font-size: 0.75rem;
+                  color: rgba(255, 255, 255, 0.4);
+                  font-weight: 500;
+                "
+              >
+                bash — 80x24
+              </div>
+            </div>
+
+            <!-- Terminal Body -->
+            <div style="padding: 16px 20px; display: flex; align-items: center; gap: 12px">
+              <span style="color: var(--brand-sage); font-weight: 600">$</span>
+              <code id="curl-cmd" style="flex: 1; overflow-x: auto; white-space: nowrap"
+                >curl -fsSL https://dl.bluearkive.com/install.sh | bash</code
+              >
+              <button
+                onclick="
+                  navigator.clipboard.writeText(document.getElementById('curl-cmd').textContent)
+                  this.textContent = '✓ Copied'
+                  setTimeout(() => (this.textContent = 'Copy'), 2000)
+                "
+                style="
+                  background: rgba(255, 255, 255, 0.1);
+                  border: none;
+                  color: #a78bfa;
+                  padding: 6px 16px;
+                  border-radius: 8px;
+                  cursor: pointer;
+                  font-size: 0.85rem;
+                  white-space: nowrap;
+                  transition: background 0.2s;
+                "
+              >
+                Copy
+              </button>
+            </div>
           </div>
           <p style="margin-top: 14px; font-size: 0.8rem; color: var(--text-light)">
             🔒
@@ -504,6 +557,24 @@
         document.getElementById('tab-auto').classList.toggle('tab-active', tab === 'auto')
         document.getElementById('tab-manual').classList.toggle('tab-active', tab === 'manual')
       }
+
+      // Scroll Reveal Animations
+      document.addEventListener('DOMContentLoaded', () => {
+        const reveals = document.querySelectorAll('.reveal')
+        const observer = new IntersectionObserver(
+          entries => {
+            entries.forEach(entry => {
+              if (entry.isIntersecting) {
+                entry.target.classList.add('active')
+                observer.unobserve(entry.target)
+              }
+            })
+          },
+          { threshold: 0.1 }
+        )
+
+        reveals.forEach(el => observer.observe(el))
+      })
 
       // Auto-detect Apple Silicon vs Intel and highlight the right button
       ;(function () {

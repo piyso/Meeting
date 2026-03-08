@@ -6,7 +6,7 @@
     <title>Security — BlueArkive</title>
     <meta
       name="description"
-      content="BlueArkive Security Whitepaper. Learn how we protect your meeting data with local AI processing and military-grade encryption."
+      content="BlueArkive Security Whitepaper. Learn how we keep your meeting data completely private, secure, and 100% on your own computer."
     />
     <link rel="preconnect" href="https://rsms.me/" />
     <link rel="stylesheet" href="https://rsms.me/inter/inter.css" />
@@ -110,34 +110,33 @@
 
     <article class="whitepaper">
       <h1>Security Whitepaper</h1>
-      <p class="updated">Last updated: March 2026 · Version 0.1</p>
+      <p class="updated">Last updated: March 2026</p>
 
-      <h2>1. Architecture Overview</h2>
+      <h2>1. The Sovereign Promise</h2>
       <p>
-        BlueArkive is a <strong>local-first desktop application</strong> built with Electron. All
-        audio capture, transcription, AI inference, and data storage happen entirely on the user's
-        machine. No audio data, transcript text, or AI-generated notes are transmitted to any
-        external server during normal operation.
+        BlueArkive is a <strong>100% offline desktop application</strong>. All audio capture,
+        transcription, intelligent summaries, and data storage happen entirely on your own computer.
+        Nothing is ever sent to the cloud.
       </p>
 
       <div class="callout">
         <p>
-          <strong>Core principle:</strong> Your meeting data never leaves your machine unless you
-          explicitly enable encrypted cloud sync.
+          <strong>Core principle:</strong> Your meeting data never leaves your machine. You hold the
+          only keys to your information.
         </p>
       </div>
 
-      <h2>2. Audio Processing</h2>
+      <h2>2. Audio Privacy</h2>
       <p>
-        Audio is captured via <strong>macOS CoreAudio APIs</strong> (system audio) and standard
-        WebRTC (microphone input). The raw PCM audio is processed in 30-second chunks and fed
-        directly to a local speech recognition model running on the device's GPU via a
-        hardware-accelerated runtime. No audio buffers are written to temporary files — processing
-        happens entirely in memory.
+        Audio is captured directly from your computer's system and microphone. The sound is
+        processed instantly in your computer's memory to generate transcripts and is never saved as
+        an audio file. As soon as the words are transcribed, the audio data is permanently
+        destroyed.
       </p>
       <ul>
-        <li>System audio capture uses macOS Screen Recording permission</li>
-        <li>Microphone access uses standard privacy permission prompts</li>
+        <li>Works natively with macOS permissions</li>
+        <li>Requires explicit microphone access</li>
+        <li>Audio is never saved, uploaded, or shared</li>
         <li>Audio data is discarded immediately after transcription</li>
       </ul>
 

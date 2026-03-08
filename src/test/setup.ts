@@ -413,7 +413,7 @@ const mockDb = {
   pragma: vi.fn((_pragma: string) => {
     if (_pragma.includes('journal_mode')) return 'wal'
     if (_pragma.includes('foreign_keys')) return 1
-    if (_pragma.includes('cache_size')) return -64000
+    if (_pragma.includes('cache_size')) return -8000
     if (_pragma.includes('page_count')) return 100
     if (_pragma.includes('page_size')) return 4096
     if (_pragma.includes('freelist_count')) return 0

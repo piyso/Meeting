@@ -71,10 +71,11 @@ export function initializeDatabase(config?: Partial<DatabaseConfig>): Database.D
   // This is an acceptable tradeoff for desktop recording performance.
   // If strict HIPAA durability is required, change to synchronous=FULL.
   db.pragma('synchronous = NORMAL') // Balanced safety/speed
-  db.pragma('cache_size = -64000') // 64MB cache
+  db.pragma('cache_size = -8000') // 8MB cache (right-sized for typical DB size)
   db.pragma('temp_store = MEMORY') // Store temp tables in memory
-  db.pragma('mmap_size = 2000000000') // 2GB memory-mapped I/O
+  db.pragma('mmap_size = 268435456') // 256MB memory-mapped I/O (was 2GB — caused memory pressure on 16GB machines)
   db.pragma('wal_autocheckpoint = 1000') // Checkpoint every 1000 pages
+  db.pragma('busy_timeout = 5000') // Defense-in-depth: 5s wait on lock contention (also set via constructor)
 
   // Enable foreign keys
   db.pragma('foreign_keys = ON')

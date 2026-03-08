@@ -3,27 +3,17 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>BlueArkive | The Private Meeting Recorder</title>
+    <title>BlueArkive | Sovereign AI Memory</title>
     <meta
       name="description"
-      content="Capture meetings locally, transcribe with on-device AI, and turn conversations into searchable knowledge. 100% private. No cloud required."
+      content="The deeply private, perfectly quiet meeting recorder that runs entirely on your machine. No cloud. No compromise."
     />
     <link rel="preconnect" href="https://rsms.me/" />
     <link rel="stylesheet" href="https://rsms.me/inter/inter.css" />
     <link rel="stylesheet" href="styles.css" />
   </head>
   <body>
-    <!-- Top Banner -->
-    <div class="top-banner">
-      <div class="container">
-        <span
-          ><strong>New:</strong> Local Semantic Search + On-Device AI Notes.
-          <a href="#features">Learn more →</a></span
-        >
-      </div>
-    </div>
-
-    <!-- Navigation -->
+    <!-- Top Nav -->
     <nav class="nav">
       <div class="container nav-inner">
         <a href="/" class="brand">
@@ -50,350 +40,238 @@
           <strong>BlueArkive</strong>
         </a>
         <div class="nav-links">
-          <a href="#features">Features</a>
-          <a href="#compare">Compare</a>
-          <a href="security.html">Security</a>
+          <a href="#features">Capabilities</a>
+          <a href="#security">Architecture</a>
           <a href="#pricing">Pricing</a>
         </div>
         <div class="nav-cta">
-          <a href="#download" class="btn btn-sm btn-outline">Download Free</a>
+          <a href="#download" class="btn btn-primary btn-sm">Download Free</a>
         </div>
       </div>
     </nav>
 
-    <!-- Hero Section -->
+    <!-- Ambient Hero -->
     <header class="hero">
+      <div class="ambient-glow"></div>
       <div class="container hero-inner">
         <div class="hero-content">
-          <h1>
-            The meeting recorder that <br />
-            <span class="highlight">doesn't steal your data.</span>
-          </h1>
+          <div class="badge-pill">100% On-Device · Zero Cloud</div>
+          <h1>Be perfectly<br />present.</h1>
           <p class="hero-subtitle">
-            BlueArkive runs 100% locally on your machine. We capture system audio, transcribe with
-            on-device AI, and generate intelligent notes — without ever sending your conversations
-            to the cloud.
+            BlueArkive runs silently in the background, capturing and making sense of your meetings
+            using local AI. Nothing is ever sent to the cloud. Close your eyes, listen deeply, and
+            we'll remember the rest.
           </p>
-
           <div class="hero-actions">
-            <a href="#download" class="btn btn-primary btn-lg" id="hero-download">
-              Download BlueArkive
-              <span class="btn-subtext">Free for macOS · Apple Silicon & Intel</span>
+            <a href="#download" class="btn btn-primary btn-lg">
+              Download for macOS
+              <span class="btn-subtext">Apple Silicon & Intel Supported</span>
             </a>
-            <div class="hero-trust">
-              <svg
-                width="16"
-                height="16"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="2"
-              >
-                <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
-              </svg>
-              <span>AES-256 Encrypted · Zero Data Collection</span>
-            </div>
+            <p class="trust-microcopy">Free forever. No account required. AES-256 Encrypted.</p>
           </div>
         </div>
 
         <div class="hero-visual">
-          <div class="app-mockup">
-            <div class="mockup-header">
-              <span class="dot red"></span><span class="dot yellow"></span
-              ><span class="dot green"></span>
-              <span class="mockup-title">BlueArkive — Sprint Planning</span>
+          <div class="widget-demo">
+            <div class="widget-glass">
+              <div class="pulse-ring"></div>
+              <div class="pulse-dot"></div>
+              <span class="widget-text">Listening quietly...</span>
+              <span class="widget-time">00:14:23</span>
             </div>
-            <div class="mockup-body">
-              <div class="mockup-transcript">
-                <p>
-                  <strong>Sarah (Product):</strong> So the decision is to keep the AI processing
-                  entirely local to avoid GDPR issues.
-                </p>
-                <p class="highlight-line">
-                  <strong>Alex (Engineering):</strong> Yes, we'll run transcription directly inside
-                  the app. Zero cloud dependency.
-                </p>
-                <div class="ai-expansion">
-                  <div class="ai-badge">🤖 AI Note · Expanded Automatically</div>
-                  <p>
-                    Engineering confirmed that speech recognition will run locally within the
-                    application to ensure GDPR compliance. The team agreed on zero cloud
-                    synchronization for audio data — all processing remains on-device.
-                  </p>
-                </div>
-              </div>
-            </div>
+            <p class="widget-caption">Auto-hiding widget keeps you focused</p>
           </div>
         </div>
       </div>
     </header>
 
-    <!-- Stats -->
-    <section class="stats-bar">
-      <div class="container">
-        <div class="stats-grid">
-          <div class="stat-item">
-            <h3>0 Bytes</h3>
-            <p>Sent to the Cloud</p>
-          </div>
-          <div class="stat-item">
-            <h3>30x Faster</h3>
-            <p>Than Cloud Transcription</p>
-          </div>
-          <div class="stat-item">
-            <h3>100%</h3>
-            <p>On-Device Privacy</p>
-          </div>
-          <div class="stat-item">
-            <h3>AES-256</h3>
-            <p>Encryption at Rest</p>
-          </div>
+    <!-- Stats / Truths -->
+    <section class="metrics-section">
+      <div class="container metrics-grid">
+        <div class="metric">
+          <h3>0 Bytes</h3>
+          <p>Sent to corporate servers</p>
+        </div>
+        <div class="metric">
+          <h3>AES-256</h3>
+          <p>Military-grade local encryption</p>
+        </div>
+        <div class="metric">
+          <h3>Local AI</h3>
+          <p>Hardware-accelerated engine</p>
+        </div>
+        <div class="metric">
+          <h3>Offline</h3>
+          <p>Works brilliantly in an airplane</p>
         </div>
       </div>
     </section>
 
-    <!-- Comparison Section -->
-    <section class="compare-section" id="compare">
+    <!-- Feature Bento Grid (Brave Style Information Density + Calm UI) -->
+    <section class="features" id="features">
       <div class="container">
-        <h2 class="text-center">Stop giving away your company secrets.</h2>
-        <p class="text-center subtitle-max">
-          Most transcription tools join your calls, record everything, and send it to their servers.
-          BlueArkive is fundamentally different.
-        </p>
-
-        <div class="comparison-table-wrapper">
-          <table class="comparison-table">
-            <thead>
-              <tr>
-                <th></th>
-                <th class="brand-column">BlueArkive</th>
-                <th>Otter.ai / Fireflies / Grain</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr>
-                <td>Audio Processing</td>
-                <td class="brand-column positive"><strong>Your CPU/GPU</strong></td>
-                <td class="negative">Their cloud servers</td>
-              </tr>
-              <tr>
-                <td>Internet Required</td>
-                <td class="brand-column positive"><strong>No</strong></td>
-                <td class="negative">Yes, always</td>
-              </tr>
-              <tr>
-                <td>Used to Train AI</td>
-                <td class="brand-column positive"><strong>Never</strong></td>
-                <td class="negative">Often default opt-in</td>
-              </tr>
-              <tr>
-                <td>Bot Joins Your Call</td>
-                <td class="brand-column positive"><strong>No bot — invisible</strong></td>
-                <td class="negative">"Notetaker" bot joins</td>
-              </tr>
-              <tr>
-                <td>Encryption</td>
-                <td class="brand-column positive"><strong>Local AES-256-GCM</strong></td>
-                <td class="negative">Cloud-managed keys</td>
-              </tr>
-              <tr>
-                <td>Works Offline</td>
-                <td class="brand-column positive"><strong>Fully offline</strong></td>
-                <td class="negative">No</td>
-              </tr>
-              <tr>
-                <td>Price</td>
-                <td class="brand-column positive"><strong>Free to start</strong></td>
-                <td class="negative">$16.99/mo+</td>
-              </tr>
-            </tbody>
-          </table>
+        <div class="section-header">
+          <h2>Uncompromising intelligence.</h2>
+          <p>Agentic. Autonomous. Entirely on your hardware.</p>
         </div>
-      </div>
-    </section>
-
-    <!-- Features Grid -->
-    <section class="features-section" id="features">
-      <div class="container">
-        <h2>Every feature runs on your machine.</h2>
 
         <div class="bento-grid">
-          <div class="bento-item large">
-            <div class="bento-tag">CORE</div>
-            <h3>Invisible Audio Capture</h3>
-            <p>
-              Captures macOS system audio and your microphone simultaneously in the background. No
-              virtual audio cables. No recording bots joining your calls. Just press ⌘+Shift+Space
-              and record.
-            </p>
-            <ul class="feature-list">
-              <li>✓ Native CoreAudio — captures any app (Zoom, Meet, Teams, Slack)</li>
-              <li>✓ 30-second chunks streamed to local AI engine in real-time</li>
-              <li>✓ Hardware-accelerated on Apple Silicon GPUs</li>
-            </ul>
-          </div>
-
-          <div class="bento-item">
-            <div class="bento-tag">SEARCH</div>
-            <h3>Semantic Search</h3>
-            <p>
-              Find any moment across all your meetings. Search by <em>meaning</em>, not just
-              keywords. "What did we decide about the Q3 budget?" — and it finds it, even if those
-              exact words were never said.
-            </p>
-            <p class="tech-detail">
-              Powered by local neural embeddings optimized for Apple Silicon
-            </p>
-          </div>
-
-          <div class="bento-item">
-            <div class="bento-tag">AI NOTES</div>
-            <h3>One-Click Expansion</h3>
-            <p>
-              Type a rough bullet point during a meeting. Press <kbd>⌘+Enter</kbd>. Our AI engine
-              reads the surrounding transcript context and expands your note into a polished summary
-              — entirely on-device.
-            </p>
-            <p class="tech-detail">Advanced language model running locally on your hardware</p>
-          </div>
-
-          <div class="bento-item large">
-            <div class="bento-tag">HARDWARE</div>
-            <h3>Adapts to Your Machine</h3>
-            <p>
-              BlueArkive automatically detects your Mac's hardware (RAM, GPU, chip generation) and
-              deploys the optimal AI model tier. 8GB MacBook Air? It works. 64GB Mac Pro? It flies.
-              No manual configuration required.
-            </p>
-            <div class="tier-grid">
-              <div class="tier"><strong>8GB</strong><span>Optimized Lite</span></div>
-              <div class="tier"><strong>16GB</strong><span>Balanced</span></div>
-              <div class="tier"><strong>32GB+</strong><span>Maximum Accuracy</span></div>
+          <!-- Large Feature 1 -->
+          <div class="bento-card col-span-2 highlight-card">
+            <div class="bento-content">
+              <span class="tag">INVISIBLE RECORDING</span>
+              <h3>Focus on the conversation.</h3>
+              <p>
+                Captures your microphone and system audio (Zoom, Meet, Teams) silently. No bots join
+                your calls. No virtual cables. Just native integration that stays out of your way.
+              </p>
+              <ul class="check-list">
+                <li>Native macOS CoreAudio integration</li>
+                <li>Real-time local AI transcription</li>
+                <li>Zero lag, hardware-accelerated</li>
+              </ul>
             </div>
           </div>
 
-          <div class="bento-item">
-            <div class="bento-tag">SYNC</div>
-            <h3>Encrypted Cloud Sync</h3>
+          <!-- Feature 2 -->
+          <div class="bento-card">
+            <span class="tag">AI THOUGHT EXPANSION</span>
+            <h3>Jot a thought. Write a chapter.</h3>
             <p>
-              Optionally sync across devices with end-to-end encryption. Your data is encrypted
-              locally with AES-256 <em>before</em> leaving your machine — even we can't read it.
+              Type a rough bullet like "follow up on budget". Press <kbd>⌘+Enter</kbd>. Our local
+              neural engine reads the meeting context and expands your shorthand into a perfect
+              summary.
             </p>
           </div>
 
-          <div class="bento-item">
-            <div class="bento-tag">UPDATES</div>
-            <h3>Silent Auto-Updates</h3>
+          <!-- Feature 3 -->
+          <div class="bento-card">
+            <span class="tag">SEMANTIC SEARCH</span>
+            <h3>Infinite Recall.</h3>
             <p>
-              New AI models and features are delivered seamlessly in the background. No manual
-              downloads, no store approvals. You're always on the latest version.
+              Press <kbd>⌘+K</kbd> anywhere to search your entire history by <i>meaning</i>, not
+              just keywords. Neural embeddings find exactly what you're looking for instantly.
             </p>
+          </div>
+
+          <!-- Large Feature 4 -->
+          <div class="bento-card col-span-2 split-card">
+            <div class="bento-content">
+              <span class="tag">ADAPTIVE HARDWARE</span>
+              <h3>Optimized for your Mac.</h3>
+              <p>
+                BlueArkive detects your RAM and Apple Silicon generation to deploy the perfect tier
+                of local AI models. Performance is guaranteed whether you have an 8GB Macbook Air or
+                a 128GB Mac Studio.
+              </p>
+            </div>
+            <div class="tier-visual">
+              <div class="tier"><strong>8GB</strong> <span>Optimized Lite</span></div>
+              <div class="tier"><strong>16GB</strong> <span>Balanced AI</span></div>
+              <div class="tier"><strong>32GB+</strong> <span>Maximum Intelligence</span></div>
+            </div>
           </div>
         </div>
       </div>
     </section>
 
-    <!-- Security Showcase -->
-    <section class="security-section" id="security">
+    <!-- Architecture / Compare -->
+    <section class="architecture" id="security">
       <div class="container">
-        <div class="security-card">
-          <h2>Engineered for privacy from the ground up.</h2>
-          <p>
-            We don't collect telemetry. We don't phone home. We don't have analytics. Your meetings
-            are stored in a local encrypted SQLite database that only you can access.
-          </p>
-          <div class="security-grid">
-            <div class="sec-item">
-              <strong>🔐 AES-256-GCM</strong>
-              <span>Military-grade encryption at rest</span>
-            </div>
-            <div class="sec-item">
-              <strong>🔑 PBKDF2</strong>
-              <span>100K iteration key derivation</span>
-            </div>
-            <div class="sec-item">
-              <strong>🛡️ Hardened Runtime</strong>
-              <span>macOS notarization ready</span>
-            </div>
-            <div class="sec-item">
-              <strong>🧠 Local AI Only</strong>
-              <span>All AI runs on your GPU</span>
-            </div>
-            <div class="sec-item">
-              <strong>📡 Zero Telemetry</strong>
-              <span>No analytics, no tracking, no beacons</span>
-            </div>
-            <div class="sec-item">
-              <strong>🔒 OS Keychain</strong>
-              <span>Secrets stored in macOS Keychain</span>
-            </div>
+        <div class="section-header">
+          <h2>Stop giving away company secrets.</h2>
+          <p>Most AI note-takers harvest your data. We built an impenetrable vault.</p>
+        </div>
+
+        <div class="comparison-table">
+          <div class="row header-row">
+            <div class="cell feature-cell">Architecture</div>
+            <div class="cell our-cell">BlueArkive</div>
+            <div class="cell their-cell">Cloud AI (Otter, Fireflies)</div>
           </div>
-          <a href="security.html" class="btn btn-outline btn-sm" style="margin-top: 32px"
-            >Read Our Security Whitepaper →</a
-          >
+          <div class="row">
+            <div class="cell feature-cell">Data Processing</div>
+            <div class="cell our-cell positive">Your hardware (GPU/NPU)</div>
+            <div class="cell their-cell negative">Their corporate servers</div>
+          </div>
+          <div class="row">
+            <div class="cell feature-cell">AI Training</div>
+            <div class="cell our-cell positive">Never used for training</div>
+            <div class="cell their-cell negative">Often default opt-in</div>
+          </div>
+          <div class="row">
+            <div class="cell feature-cell">Call Intrusiveness</div>
+            <div class="cell our-cell positive">Invisible (No bots)</div>
+            <div class="cell their-cell negative">Creepy "Notetaker" joins call</div>
+          </div>
+          <div class="row">
+            <div class="cell feature-cell">Encryption Mode</div>
+            <div class="cell our-cell positive">Local AES-256-GCM</div>
+            <div class="cell their-cell negative">Cloud-managed keys</div>
+          </div>
+        </div>
+
+        <div class="text-center" style="margin-top: 32px">
+          <a href="security.html" class="btn btn-outline">Read the Security Whitepaper →</a>
         </div>
       </div>
     </section>
 
-    <!-- Pricing Section -->
-    <section class="pricing-section" id="pricing">
-      <div class="container text-center">
-        <h2>Simple, honest pricing.</h2>
-        <p class="subtitle-max">
-          Record unlimited meetings for free. Upgrade when you need cloud sync and multi-device
-          support.
-        </p>
+    <!-- Pricing -->
+    <section class="pricing" id="pricing">
+      <div class="container">
+        <div class="section-header">
+          <h2>Simple, honest pricing.</h2>
+          <p>Your machine does the computing. You shouldn't pay a cloud tax.</p>
+        </div>
 
         <div class="pricing-grid">
-          <div class="pricing-card">
-            <h3>Free</h3>
+          <div class="price-card">
+            <h3>Personal Sanctuary</h3>
             <div class="price">$0</div>
-            <p class="price-period">forever</p>
-            <ul class="pricing-features">
-              <li>✓ Unlimited local recordings</li>
-              <li>✓ On-device AI transcription</li>
-              <li>✓ AI note expansion</li>
-              <li>✓ Semantic search</li>
-              <li>✓ AES-256 encryption</li>
-              <li>✓ Auto-updates</li>
+            <div class="period">forever</div>
+            <ul class="feature-list">
+              <li>Unlimited local transcription</li>
+              <li>Floating "focus" widget</li>
+              <li>Local AI thought expansion</li>
+              <li>AES-256 database encryption</li>
+              <li>Fully offline capability</li>
             </ul>
-            <a href="#download" class="btn btn-outline">Download Free</a>
+            <a href="#download" class="btn btn-outline" style="width: 100%">Download Now</a>
           </div>
 
-          <div class="pricing-card featured">
-            <div class="pricing-badge">Most Popular</div>
-            <h3>Pro</h3>
+          <div class="price-card pro">
+            <div class="badge">The Connected Mind</div>
+            <h3>Pro Network</h3>
             <div class="price">$9</div>
-            <p class="price-period">per month</p>
-            <ul class="pricing-features">
-              <li>✓ Everything in Free</li>
-              <li>✓ Encrypted cloud sync</li>
-              <li>✓ Multi-device support</li>
-              <li>✓ Weekly AI digests</li>
-              <li>✓ Knowledge graph</li>
-              <li>✓ Priority support</li>
+            <div class="period">per month</div>
+            <ul class="feature-list">
+              <li>Everything in Free</li>
+              <li>End-to-End Encrypted device sync</li>
+              <li>Cross-meeting semantic connections</li>
+              <li>AI-generated weekly digests</li>
+              <li>Priority technical support</li>
             </ul>
-            <a href="/checkout" class="btn btn-primary">Start Free Trial</a>
+            <a href="#download" class="btn btn-primary" style="width: 100%">Start 14-Day Trial</a>
           </div>
         </div>
       </div>
     </section>
 
-    <!-- Download CTA -->
-    <section class="download-section" id="download">
+    <!-- Download Block -->
+    <section class="download" id="download">
       <div class="container text-center">
-        <h2>Ready to own your meetings?</h2>
-        <p class="subtitle-max">Download BlueArkive. Free forever. No account required.</p>
-
-        <div class="download-options">
-          <a href="#" class="btn btn-primary btn-lg" id="download-main">
+        <h2>Initialize your sovereign node.</h2>
+        <p>Give your meetings the privacy and attention they deserve.</p>
+        <div style="margin-top: 40px">
+          <a href="#" class="btn btn-primary btn-lg">
             Download for macOS
-            <span class="btn-subtext">Universal Binary · Apple Silicon & Intel (275MB)</span>
+            <span class="btn-subtext">Universal Binary setup.dmg (275MB)</span>
           </a>
-          <div class="secondary-downloads">
-            <span class="platform-link">Windows — Coming Soon</span>
-            <span class="divider">·</span>
-            <span class="platform-link">Linux — Coming Soon</span>
+          <div class="alt-downloads">
+            <span>Windows (Coming Soon)</span>
+            <span class="dot-divider">·</span>
+            <span>Linux AppImage (Beta)</span>
           </div>
         </div>
       </div>
@@ -401,56 +279,32 @@
 
     <!-- Footer -->
     <footer class="footer">
-      <div class="container">
-        <div class="footer-grid">
-          <div class="footer-brand">
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
-              <path
-                d="M12 2L2 7L12 12L22 7L12 2Z"
-                stroke="currentColor"
-                stroke-width="2"
-                stroke-linejoin="round"
-              />
-              <path
-                d="M2 17L12 22L22 17"
-                stroke="currentColor"
-                stroke-width="2"
-                stroke-linejoin="round"
-              />
-              <path
-                d="M2 12L12 17L22 12"
-                stroke="currentColor"
-                stroke-width="2"
-                stroke-linejoin="round"
-              />
-            </svg>
-            <strong>BlueArkive</strong>
-            <p class="mt-2 text-sm text-gray">© 2026 BlueArkive. All rights reserved.</p>
-          </div>
-
-          <div class="footer-links">
+      <div class="container footer-inner">
+        <div class="footer-brand">
+          <strong>BlueArkive</strong>
+          <p>The sovereign memory fabric.</p>
+          <p class="copyright">© 2026. All rights reserved.</p>
+        </div>
+        <div class="footer-links">
+          <div>
             <h4>Product</h4>
-            <a href="#features">Features</a>
-            <a href="#compare">Compare</a>
+            <a href="#features">Capabilities</a>
             <a href="#pricing">Pricing</a>
+            <a href="#download">Download</a>
           </div>
-
-          <div class="footer-links">
+          <div>
             <h4>Trust</h4>
-            <a href="security.html">Security Whitepaper</a>
-            <a href="/privacy.html">Privacy Policy</a>
-            <a href="/terms.html">Terms of Service</a>
+            <a href="security.html">Architecture & Security</a>
+            <a href="#">Privacy Policy</a>
+            <a href="#">Terms of Service</a>
           </div>
-
-          <div class="footer-links">
-            <h4>Support</h4>
-            <a href="mailto:support@bluearkive.com">Contact Us</a>
-            <a href="mailto:security@bluearkive.com">Report a Vulnerability</a>
+          <div>
+            <h4>Connect</h4>
+            <a href="mailto:support@bluearkive.com">Support</a>
+            <a href="mailto:security@bluearkive.com">Report Vulnerability</a>
           </div>
         </div>
       </div>
     </footer>
-
-    <script src="app.js"></script>
   </body>
 </html>

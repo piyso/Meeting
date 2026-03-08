@@ -559,6 +559,11 @@ kbd {
   margin: 0 auto;
 }
 
+.pricing-grid.single-tier {
+  grid-template-columns: 1fr;
+  max-width: 480px;
+}
+
 .price-card {
   background: var(--bg-surface);
   border: 1px solid var(--border-light);

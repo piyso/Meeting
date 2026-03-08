@@ -323,8 +323,8 @@ export const OnboardingFlow: React.FC = () => {
         <div className="absolute inset-0 with-noise opacity-[0.015] pointer-events-none" />
 
         {step === 'auth' && (
-          <div className="w-full max-w-[420px] flex flex-col animate-auth-enter auth-stagger relative z-10">
-            <div className="flex flex-col mb-10 lg:hidden items-center">
+          <div className="w-full max-w-[420px] flex flex-col relative z-10">
+            <div className="flex flex-col mb-10 lg:hidden items-center animate-premium delay-100">
               <div className="mb-6 -mt-8">
                 <Logo3DErrorBoundary>
                   <Logo3D className="transform scale-75 origin-center" />
@@ -336,7 +336,7 @@ export const OnboardingFlow: React.FC = () => {
             </div>
 
             {!authLoading && (
-              <div className="hidden lg:block mb-8">
+              <div className="hidden lg:block mb-8 animate-premium delay-150">
                 <h2 className="text-2xl font-semibold tracking-wide text-white">
                   {authMode === 'register' ? 'Create Account' : 'Sign In'}
                 </h2>
@@ -344,43 +344,49 @@ export const OnboardingFlow: React.FC = () => {
             )}
 
             <div className="w-full space-y-4 mb-6">
-              <Input
-                label="Email"
-                value={authEmail}
-                onChange={e => setAuthEmail(e.target.value)}
-                placeholder="name@example.com"
-              />
-              <Input
-                type="password"
-                label="Password"
-                value={authPass}
-                onChange={e => setAuthPass(e.target.value)}
-                placeholder="••••••••"
-              />
+              <div className="animate-premium delay-200">
+                <Input
+                  label="Email"
+                  value={authEmail}
+                  onChange={e => setAuthEmail(e.target.value)}
+                  placeholder="name@example.com"
+                />
+              </div>
+              <div className="animate-premium delay-250">
+                <Input
+                  type="password"
+                  label="Password"
+                  value={authPass}
+                  onChange={e => setAuthPass(e.target.value)}
+                  placeholder="••••••••"
+                />
+              </div>
 
               {authError && (
-                <div className="flex items-center gap-3 p-3.5 rounded-xl bg-[rgba(244,63,94,0.06)] border border-[rgba(244,63,94,0.3)] shadow-[0_0_15px_rgba(244,63,94,0.15),inset_0_0_0_1px_rgba(255,255,255,0.05)] text-rose-300 text-sm font-medium backdrop-blur-xl animate-auth-enter auth-stagger">
+                <div className="flex items-center gap-3 p-3.5 rounded-xl bg-[rgba(244,63,94,0.06)] border border-[rgba(244,63,94,0.3)] shadow-[0_0_15px_rgba(244,63,94,0.15),inset_0_0_0_1px_rgba(255,255,255,0.05)] text-rose-300 text-sm font-medium backdrop-blur-xl animate-premium delay-300">
                   <div className="w-2 h-2 rounded-full bg-rose-500 shadow-[0_0_8px_rgba(244,63,94,1)] animate-pulse" />
                   <span className="flex-1 tracking-wide">{authError}</span>
                 </div>
               )}
 
-              <Button
-                variant="primary"
-                size="lg"
-                className="w-full mt-4 bg-white text-slate-950 hover:bg-slate-200 border-none transition-colors"
-                onClick={handleAuth}
-                disabled={authLoading}
-              >
-                {authLoading
-                  ? 'Authenticating...'
-                  : authMode === 'register'
-                    ? 'Initialize Core'
-                    : 'Sign In'}
-              </Button>
+              <div className="animate-premium delay-300">
+                <Button
+                  variant="primary"
+                  size="lg"
+                  className="w-full mt-4 bg-white text-slate-950 hover:bg-slate-200 border-none transition-colors"
+                  onClick={handleAuth}
+                  disabled={authLoading}
+                >
+                  {authLoading
+                    ? 'Authenticating...'
+                    : authMode === 'register'
+                      ? 'Initialize Core'
+                      : 'Sign In'}
+                </Button>
+              </div>
             </div>
 
-            <div className="flex flex-col items-center pt-6 border-t border-white/10 mt-2">
+            <div className="flex flex-col items-center pt-6 border-t border-white/10 mt-2 animate-premium delay-350">
               <div className="text-xs text-slate-400 tracking-wide">
                 {authMode === 'register' ? (
                   <>
@@ -444,7 +450,7 @@ export const OnboardingFlow: React.FC = () => {
         )}
 
         {step === 'setup' && (
-          <div className="w-full max-w-[420px] flex flex-col animate-auth-enter auth-stagger relative z-10">
+          <div className="w-full max-w-[420px] flex flex-col animate-premium relative z-10">
             <h2 className="text-2xl font-semibold tracking-wide text-white mb-8 text-center lg:text-left">
               Initializing System...
             </h2>
@@ -476,7 +482,7 @@ export const OnboardingFlow: React.FC = () => {
         )}
 
         {step === 'recovery-key' && (
-          <div className="w-full max-w-[480px] flex flex-col animate-auth-enter auth-stagger relative z-10">
+          <div className="w-full max-w-[480px] flex flex-col animate-premium relative z-10">
             <div className="flex items-center gap-3 mb-6 flex-col lg:flex-row lg:items-center text-center lg:text-left">
               <Key size={32} className="text-amber-500" />
               <div>
@@ -540,7 +546,7 @@ export const OnboardingFlow: React.FC = () => {
         )}
 
         {step === 'plan-selection' && (
-          <div className="w-full max-w-[600px] flex flex-col animate-auth-enter auth-stagger relative z-10 pt-10">
+          <div className="w-full max-w-[600px] flex flex-col animate-premium relative z-10 pt-10">
             <h2 className="text-2xl font-semibold tracking-wide text-white mb-8 text-center">
               Select Cognitive Capacity
             </h2>
@@ -557,7 +563,7 @@ export const OnboardingFlow: React.FC = () => {
         )}
 
         {step === 'ghost-meeting' && (
-          <div className="w-full h-full flex flex-col items-center justify-center animate-auth-enter auth-stagger relative z-10 overflow-hidden">
+          <div className="w-full h-full flex flex-col items-center justify-center animate-premium relative z-10 overflow-hidden">
             <GhostMeetingTutorial onComplete={completeOnboarding} />
           </div>
         )}

@@ -390,12 +390,12 @@ body:has(.calm-landing) {
   -webkit-app-region: no-drag;
 }
 
-/* ── Auth Entrance Choreography (Premium Cinematic Fade) ── */
-@keyframes auth-enter {
+/* ── Auth Entrance Choreography (Explicit Premium Cinematic Fade) ── */
+@keyframes premium-fade-in {
   0% {
     opacity: 0;
-    transform: translateY(20px) scale(0.98);
-    filter: blur(8px);
+    transform: translateY(24px) scale(0.96);
+    filter: blur(12px);
   }
   100% {
     opacity: 1;
@@ -403,19 +403,28 @@ body:has(.calm-landing) {
     filter: blur(0);
   }
 }
-.animate-auth-enter {
-  animation: auth-enter 800ms cubic-bezier(0.16, 1, 0.3, 1) both;
+
+.animate-premium {
+  opacity: 0;
+  animation: premium-fade-in 800ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
-/* Auth Children Staggering */
-.auth-stagger > * {
-  opacity: 0;
-  animation: auth-enter 800ms cubic-bezier(0.16, 1, 0.3, 1) both;
+/* Explicit Animation Delays */
+.delay-100 {
+  animation-delay: 100ms;
 }
-.auth-stagger > *:nth-child(1) { animation-delay: 50ms; }
-.auth-stagger > *:nth-child(2) { animation-delay: 120ms; }
-.auth-stagger > *:nth-child(3) { animation-delay: 190ms; }
-.auth-stagger > *:nth-child(4) { animation-delay: 260ms; }
-.auth-stagger > *:nth-child(5) { animation-delay: 330ms; }
-.auth-stagger > *:nth-child(6) { animation-delay: 400ms; }
-.auth-stagger > *:nth-child(7) { animation-delay: 470ms; }
+.delay-150 {
+  animation-delay: 150ms;
+}
+.delay-200 {
+  animation-delay: 200ms;
+}
+.delay-250 {
+  animation-delay: 250ms;
+}
+.delay-300 {
+  animation-delay: 300ms;
+}
+.delay-350 {
+  animation-delay: 350ms;
+}

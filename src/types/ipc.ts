@@ -1080,6 +1080,7 @@ export interface ElectronAPI {
     >
     openFolder: () => Promise<IPCResponse<void>>
     getSystemInfo: () => Promise<IPCResponse<Record<string, string | number>>>
+    rebuildFts: () => Promise<IPCResponse<{ transcripts: boolean; notes: boolean }>>
   }
 
   // Billing

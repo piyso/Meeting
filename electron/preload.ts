@@ -388,6 +388,7 @@ const electronAPI: ElectronAPI = {
     stats: () => ipcRenderer.invoke('diagnostic:stats'),
     openFolder: () => ipcRenderer.invoke('diagnostic:openFolder'),
     getSystemInfo: () => ipcRenderer.invoke('diagnostic:getSystemInfo'),
+    rebuildFts: () => ipcRenderer.invoke('diagnostic:rebuildFts'),
   },
 
   // ============================================================================

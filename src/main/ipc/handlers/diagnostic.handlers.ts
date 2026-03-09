@@ -107,4 +107,24 @@ export function registerDiagnosticHandlers(): void {
       }
     }
   })
+
+  // diagnostic:rebuildFts — Rebuild FTS5 search indexes
+  ipcMain.handle('diagnostic:rebuildFts', async () => {
+    try {
+      const { getDatabaseService } = await import('../../services/DatabaseService')
+      const result = getDatabaseService().rebuildFtsIndexes()
+      log.info('FTS rebuild result:', result)
+      return { success: true, data: result }
+    } catch (error) {
+      log.error('Failed to rebuild FTS indexes', error)
+      return {
+        success: false,
+        error: {
+          code: 'FTS_REBUILD_FAILED',
+          message: (error as Error).message,
+          timestamp: Date.now(),
+        },
+      }
+    }
+  })
 }

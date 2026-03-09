@@ -1,6 +1,7 @@
 import React from 'react'
 import { FileText, Search, Settings, Brain, CalendarDays, MessageSquare, Lock } from 'lucide-react'
 import { IconButton } from '../ui/IconButton'
+import { useAppStore } from '../../store/appStore'
 
 interface ZenRailProps {
   activeView:
@@ -26,6 +27,7 @@ export const ZenRail: React.FC<ZenRailProps> = ({
   onUpgrade,
 }) => {
   const showUpgrade = userTier && (userTier === 'free' || userTier === 'starter')
+  const toggleCommandPalette = useAppStore(s => s.toggleCommandPalette)
 
   return (
     <nav className={`ui-zen-rail ${focusMode ? 'focus-mode' : ''}`}>
@@ -82,7 +84,7 @@ export const ZenRail: React.FC<ZenRailProps> = ({
       <div className="ui-zen-rail-item">
         <IconButton
           icon={<Search size={18} />}
-          onClick={() => window.dispatchEvent(new CustomEvent('open-command-palette'))}
+          onClick={toggleCommandPalette}
           tooltip="Search (Cmd+K)"
         />
       </div>

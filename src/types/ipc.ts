@@ -894,19 +894,26 @@ export interface ElectronAPI {
     get: (params: GetGraphParams) => Promise<IPCResponse<GraphData>>
     getContradictions: (params: GetContradictionsParams) => Promise<IPCResponse<Contradiction[]>>
     traverse: (params: {
-      entityId: string
-      depth?: number
-      meetingId?: string
+      nodeId: string
+      maxDepth?: number
+      namespace?: string
     }) => Promise<IPCResponse<unknown>>
     search: (params: {
       query: string
       limit?: number
-      meetingId?: string
+      namespace?: string
     }) => Promise<IPCResponse<unknown>>
     getStats: () => Promise<
-      IPCResponse<{ entityCount: number; edgeCount: number; meetingCount: number }>
+      IPCResponse<{ totalNodes: number; totalEdges: number; clusters: number }>
     >
-    contradictionPreview: (params: { meetingId: string }) => Promise<IPCResponse<{ count: number }>>
+    contradictionPreview: (params: { namespace?: string }) => Promise<
+      IPCResponse<{
+        count: number
+        available: boolean
+        requiresPro?: boolean
+        preview?: string | null
+      }>
+    >
   }
 
   // Weekly digest operations
@@ -917,8 +924,12 @@ export interface ElectronAPI {
 
   // Export & GDPR operations
   export: {
-    userData: (params?: { format?: string }) => Promise<IPCResponse<{ path: string }>>
-    deleteAllData: () => Promise<IPCResponse<void>>
+    userData: (params?: {
+      format?: string
+    }) => Promise<IPCResponse<{ content: string; format: string }>>
+    deleteAllData: () => Promise<
+      IPCResponse<{ localDeleted: boolean; cloudDeleted: boolean; message: string }>
+    >
   }
 
   // Window operations

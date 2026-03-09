@@ -1,6 +1,6 @@
 import React, { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import './ui.css'
+import '../ui/ui.css'
 
 export type EntityType = 'PERSON' | 'DATE' | 'AMOUNT' | 'ACTION_ITEM'
 

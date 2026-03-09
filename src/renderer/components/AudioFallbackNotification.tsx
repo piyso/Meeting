@@ -30,19 +30,24 @@ export const AudioFallbackNotification: React.FC = () => {
   useEffect(() => {
     let unsubFallback: (() => void) | undefined
     let unsubLegacy: (() => void) | undefined
+    let mounted = true
+    const timers: ReturnType<typeof setTimeout>[] = []
 
     // Listen for fallback notifications from main process (Task 13.2)
     if (window.electronAPI?.audio?.onFallbackOccurred) {
       unsubFallback = window.electronAPI.audio.onFallbackOccurred((info: FallbackInfo) => {
+        if (!mounted) return
         log.info('Received fallback notification:', info)
         setFallbackInfo(info)
         setIsVisible(true)
 
-        // Auto-hide after 15 seconds (longer for cloud fallback which requires action)
+        // Auto-hide after delay (longer for cloud fallback which requires action)
         const hideDelay = info.requiresUserAction ? 20000 : 10000
-        setTimeout(() => {
-          setIsVisible(false)
-        }, hideDelay)
+        timers.push(
+          setTimeout(() => {
+            if (mounted) setIsVisible(false)
+          }, hideDelay)
+        )
       })
     }
 
@@ -51,6 +56,7 @@ export const AudioFallbackNotification: React.FC = () => {
       unsubLegacy = window.electronAPI.ipcRenderer.on(
         'audio:fallbackNotification',
         (_event: unknown, rawData: unknown) => {
+          if (!mounted) return
           const data = rawData as { type: 'microphone' | 'cloud'; message: string; details: string }
           log.info('Received legacy fallback notification:', data)
           // Convert legacy format to new format
@@ -62,14 +68,18 @@ export const AudioFallbackNotification: React.FC = () => {
           })
           setIsVisible(true)
 
-          setTimeout(() => {
-            setIsVisible(false)
-          }, 10000)
+          timers.push(
+            setTimeout(() => {
+              if (mounted) setIsVisible(false)
+            }, 10000)
+          )
         }
       )
     }
 
     return () => {
+      mounted = false
+      timers.forEach(clearTimeout)
       unsubFallback?.()
       unsubLegacy?.()
     }

@@ -28,21 +28,22 @@ export const ModelDownloadProgress: React.FC<ModelDownloadProgressProps> = ({ on
   const [models, setModels] = useState<Map<string, DownloadProgress>>(new Map())
   const [startTime] = useState<number>(Date.now())
 
+  const completeFiredRef = React.useRef(false)
+
   const handleProgress = useCallback(
     (progressData: DownloadProgress) => {
       setModels(prev => {
         const next = new Map(prev)
         next.set(progressData.modelName, progressData)
-        return next
-      })
 
-      // Check if ALL models are complete
-      setModels(prev => {
-        const allComplete = prev.size > 0 && [...prev.values()].every(m => m.status === 'complete')
-        if (allComplete && onComplete) {
+        // Check completion inside the SAME updater — state is fresh here
+        const allComplete = next.size > 0 && [...next.values()].every(m => m.status === 'complete')
+        if (allComplete && onComplete && !completeFiredRef.current) {
+          completeFiredRef.current = true
           setTimeout(onComplete, 1000)
         }
-        return prev
+
+        return next
       })
     },
     [onComplete]

@@ -183,6 +183,7 @@ const electronAPI: ElectronAPI = {
     deleteModel: (modelType: string) => ipcRenderer.invoke('model:deleteModel', modelType),
     getModelPaths: (modelType: string) => ipcRenderer.invoke('model:getModelPaths', modelType),
     downloadAll: () => ipcRenderer.invoke('model:downloadAll'),
+    getResourceUsage: () => ipcRenderer.invoke('model:getResourceUsage'),
     onDownloadProgress: (
       callback: (progress: {
         modelName: string
@@ -298,6 +299,7 @@ const electronAPI: ElectronAPI = {
     showIntelligenceWall: createEventListener('show-intelligence-wall'),
     bookmarkRequested: createEventListener('event:bookmarkRequested'),
     quickNoteRequested: createEventListener('event:quickNoteRequested'),
+    deepLink: createEventListener<string>('deep-link'),
   },
 
   // ============================================================================

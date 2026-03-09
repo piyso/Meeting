@@ -865,6 +865,7 @@ export interface ElectronAPI {
     areModelsDownloaded: (modelType: string) => Promise<IPCResponse<boolean>>
     downloadModelsForTier: (tierInfo: HardwareTierInfo) => Promise<IPCResponse<void>>
     downloadAll: () => Promise<IPCResponse<void>>
+    getResourceUsage: () => Promise<IPCResponse<unknown>>
     verifyModel: (modelType: string) => Promise<IPCResponse<boolean>>
     deleteModel: (modelType: string) => Promise<IPCResponse<void>>
     getModelPaths: (modelType: string) => Promise<IPCResponse<string[]>>
@@ -984,6 +985,7 @@ export interface ElectronAPI {
     showIntelligenceWall: (callback: (data: { used: number; limit: number }) => void) => () => void
     bookmarkRequested: (callback: () => void) => () => void
     quickNoteRequested: (callback: (text: string) => void) => () => void
+    deepLink: (callback: (url: string) => void) => () => void
   }
 
   // IPC Renderer (for audio capture module)

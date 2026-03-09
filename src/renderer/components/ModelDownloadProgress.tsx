@@ -2,10 +2,11 @@
  * Model Download Progress Component
  *
  * Displays download progress for AI models during first launch.
- * Shows progress bar, download speed, and estimated time remaining.
+ * Tracks multiple parallel downloads (ASR + LLM) independently
+ * to prevent UI flickering from interleaved progress events.
  */
 
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useState, useCallback } from 'react'
 import { Button } from './ui/Button'
 import './ModelDownloadProgress.css'
 
@@ -23,57 +24,67 @@ interface DownloadProgress {
 }
 
 export const ModelDownloadProgress: React.FC<ModelDownloadProgressProps> = ({ onComplete }) => {
-  const [progress, setProgress] = useState<DownloadProgress | null>(null)
+  // Track each model independently to prevent flicker from interleaved events
+  const [models, setModels] = useState<Map<string, DownloadProgress>>(new Map())
   const [startTime] = useState<number>(Date.now())
-  const [downloadSpeed, setDownloadSpeed] = useState<number>(0)
-  const [estimatedTimeRemaining, setEstimatedTimeRemaining] = useState<string>('Calculating...')
+
+  const handleProgress = useCallback(
+    (progressData: DownloadProgress) => {
+      setModels(prev => {
+        const next = new Map(prev)
+        next.set(progressData.modelName, progressData)
+        return next
+      })
+
+      // Check if ALL models are complete
+      setModels(prev => {
+        const allComplete = prev.size > 0 && [...prev.values()].every(m => m.status === 'complete')
+        if (allComplete && onComplete) {
+          setTimeout(onComplete, 1000)
+        }
+        return prev
+      })
+    },
+    [onComplete]
+  )
 
   useEffect(() => {
-    // Listen for download progress updates
-    const unsubscribe = window.electronAPI.model.onDownloadProgress(
-      (progressData: DownloadProgress) => {
-        setProgress(progressData)
-
-        // Calculate download speed and ETA
-        if (progressData.status === 'downloading' && progressData.percent > 0) {
-          const elapsedSeconds = (Date.now() - startTime) / 1000
-          const speed = progressData.downloadedMB / elapsedSeconds // MB/s
-          setDownloadSpeed(speed)
-
-          const remainingMB = progressData.totalMB - progressData.downloadedMB
-          const remainingSeconds = remainingMB / speed
-          setEstimatedTimeRemaining(formatTime(remainingSeconds))
-        }
-
-        // Call onComplete when download finishes
-        if (progressData.status === 'complete' && onComplete) {
-          setTimeout(onComplete, 1000) // Delay to show 100% briefly
-        }
-      }
-    )
-
+    const unsubscribe = window.electronAPI.model.onDownloadProgress(handleProgress)
     return () => {
       unsubscribe()
     }
-  }, [startTime, onComplete])
+  }, [handleProgress])
+
+  // Calculate combined progress across all models
+  const allModels = [...models.values()]
+  const totalMB = allModels.reduce((sum, m) => sum + m.totalMB, 0)
+  const downloadedMB = allModels.reduce((sum, m) => sum + m.downloadedMB, 0)
+  const combinedPercent = totalMB > 0 ? Math.round((downloadedMB / totalMB) * 100) : 0
+
+  // Download speed and ETA based on combined data
+  const elapsedSeconds = (Date.now() - startTime) / 1000
+  const speed = elapsedSeconds > 0 ? downloadedMB / elapsedSeconds : 0
+  const remainingMB = totalMB - downloadedMB
+  const remainingSeconds = speed > 0 ? remainingMB / speed : 0
+
+  const hasError = allModels.some(m => m.status === 'error')
+  const isVerifying = allModels.some(m => m.status === 'verifying')
+  const allComplete = allModels.length > 0 && allModels.every(m => m.status === 'complete')
 
   const formatTime = (seconds: number): string => {
     if (!isFinite(seconds) || seconds < 0) return 'Calculating...'
-
-    if (seconds < 60) {
-      return `${Math.round(seconds)}s`
-    } else if (seconds < 3600) {
+    if (seconds < 60) return `${Math.round(seconds)}s`
+    if (seconds < 3600) {
       const minutes = Math.floor(seconds / 60)
       const secs = Math.round(seconds % 60)
       return `${minutes}m ${secs}s`
-    } else {
-      const hours = Math.floor(seconds / 3600)
-      const minutes = Math.floor((seconds % 3600) / 60)
-      return `${hours}h ${minutes}m`
     }
+    const hours = Math.floor(seconds / 3600)
+    const minutes = Math.floor((seconds % 3600) / 60)
+    return `${hours}h ${minutes}m`
   }
 
-  if (!progress) {
+  if (allModels.length === 0) {
     return (
       <div className="model-download-progress">
         <div className="download-header">
@@ -87,65 +98,83 @@ export const ModelDownloadProgress: React.FC<ModelDownloadProgressProps> = ({ on
     <div className="model-download-progress">
       <div className="download-header">
         <h3>
-          {progress.status === 'downloading' && `Downloading ${progress.modelName}`}
-          {progress.status === 'verifying' && `Verifying ${progress.modelName}`}
-          {progress.status === 'complete' && `✓ ${progress.modelName} Ready`}
-          {progress.status === 'error' && `✗ Download Failed`}
+          {allComplete && '✓ All Models Ready'}
+          {hasError && '✗ Download Failed'}
+          {!allComplete && !hasError && isVerifying && 'Verifying Models...'}
+          {!allComplete &&
+            !hasError &&
+            !isVerifying &&
+            `Downloading AI Models (${combinedPercent}%)`}
         </h3>
       </div>
 
+      {/* Combined progress bar */}
       <div className="progress-bar-container">
         <div
-          className={`progress-bar ${progress.status}`}
-          style={{ width: `${progress.percent}%` }}
+          className={`progress-bar ${allComplete ? 'complete' : hasError ? 'error' : 'downloading'}`}
+          style={{ width: `${allComplete ? 100 : combinedPercent}%` }}
         >
-          <span className="progress-text">{progress.percent}%</span>
+          <span className="progress-text">{allComplete ? 100 : combinedPercent}%</span>
         </div>
       </div>
 
+      {/* Per-model status lines */}
+      <div className="download-models">
+        {allModels.map(m => (
+          <div key={m.modelName} className={`model-line ${m.status}`}>
+            <span className="model-name">{m.modelName}</span>
+            <span className="model-status">
+              {m.status === 'downloading' && `${m.percent}%`}
+              {m.status === 'verifying' && 'Verifying...'}
+              {m.status === 'complete' && '✓'}
+              {m.status === 'error' && '✗'}
+            </span>
+          </div>
+        ))}
+      </div>
+
       <div className="download-stats">
-        {progress.status === 'downloading' && (
+        {!allComplete && !hasError && (
           <>
             <div className="stat">
               <span className="stat-label">Downloaded:</span>
               <span className="stat-value">
-                {progress.downloadedMB.toFixed(2)} MB / {progress.totalMB.toFixed(2)} MB
+                {downloadedMB.toFixed(1)} MB / {totalMB.toFixed(1)} MB
               </span>
             </div>
-            <div className="stat">
-              <span className="stat-label">Speed:</span>
-              <span className="stat-value">{downloadSpeed.toFixed(2)} MB/s</span>
-            </div>
-            <div className="stat">
-              <span className="stat-label">Time Remaining:</span>
-              <span className="stat-value">{estimatedTimeRemaining}</span>
-            </div>
+            {speed > 0 && (
+              <div className="stat">
+                <span className="stat-label">Speed:</span>
+                <span className="stat-value">{speed.toFixed(2)} MB/s</span>
+              </div>
+            )}
+            {speed > 0 && (
+              <div className="stat">
+                <span className="stat-label">Time Remaining:</span>
+                <span className="stat-value">{formatTime(remainingSeconds)}</span>
+              </div>
+            )}
           </>
         )}
 
-        {progress.status === 'verifying' && (
-          <div className="stat">
-            <span className="stat-label">Status:</span>
-            <span className="stat-value">Verifying file integrity...</span>
-          </div>
-        )}
-
-        {progress.status === 'complete' && (
+        {allComplete && (
           <div className="stat success">
             <span className="stat-label">Status:</span>
-            <span className="stat-value">Download complete!</span>
+            <span className="stat-value">All models downloaded and verified!</span>
           </div>
         )}
 
-        {progress.status === 'error' && (
+        {hasError && (
           <div className="stat error">
             <span className="stat-label">Error:</span>
-            <span className="stat-value">{progress.error || 'Unknown error'}</span>
+            <span className="stat-value">
+              {allModels.find(m => m.status === 'error')?.error || 'Unknown error'}
+            </span>
           </div>
         )}
       </div>
 
-      {progress.status === 'error' && (
+      {hasError && (
         <div className="error-actions flex gap-3 mt-4">
           <Button variant="primary" onClick={() => window.location.reload()}>
             Retry Download

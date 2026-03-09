@@ -394,6 +394,35 @@ export class DatabaseService {
     const db = this.getDb()
     db.prepare('DELETE FROM settings WHERE key = ?').run(key)
   }
+
+  // ============================================================================
+  // FTS Maintenance
+  // ============================================================================
+
+  /**
+   * Rebuild FTS5 indexes from source tables.
+   * Use after crash recovery or if full-text search returns stale results.
+   */
+  rebuildFtsIndexes(): { transcripts: boolean; notes: boolean } {
+    const db = this.getDb()
+    const result = { transcripts: false, notes: false }
+
+    try {
+      db.exec("INSERT INTO transcripts_fts(transcripts_fts) VALUES ('rebuild')")
+      result.transcripts = true
+    } catch {
+      // FTS table may not exist or be corrupt — log but don't crash
+    }
+
+    try {
+      db.exec("INSERT INTO notes_fts(notes_fts) VALUES ('rebuild')")
+      result.notes = true
+    } catch {
+      // Same
+    }
+
+    return result
+  }
 }
 
 // Singleton instance

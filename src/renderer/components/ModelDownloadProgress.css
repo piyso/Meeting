@@ -66,6 +66,47 @@
   gap: 12px;
 }
 
+/* Per-model status lines */
+.download-models {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 16px;
+}
+
+.model-line {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 6px 12px;
+  border-radius: 8px;
+  background: var(--bg-tertiary, #e8e8e8);
+  font-size: 13px;
+}
+
+.model-line .model-name {
+  font-weight: 500;
+  color: var(--text-primary, #333);
+}
+
+.model-line .model-status {
+  font-weight: 600;
+  font-family: 'SF Mono', 'Monaco', 'Courier New', monospace;
+  color: var(--text-secondary, #666);
+}
+
+.model-line.complete .model-status {
+  color: #4caf50;
+}
+
+.model-line.error .model-status {
+  color: #f44336;
+}
+
+.model-line.verifying .model-status {
+  color: #ff9800;
+}
+
 .progress-detail {
   display: flex;
   justify-content: space-between;

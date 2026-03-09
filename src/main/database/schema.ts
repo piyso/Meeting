@@ -200,6 +200,10 @@ CREATE TABLE IF NOT EXISTS audio_highlights (
  * Index definitions for query optimization
  */
 export const CREATE_INDEXES = `
+-- Meetings indexes
+CREATE INDEX IF NOT EXISTS idx_meetings_start ON meetings(start_time DESC);
+CREATE INDEX IF NOT EXISTS idx_meetings_namespace ON meetings(namespace);
+
 -- Transcripts indexes
 CREATE INDEX IF NOT EXISTS idx_transcripts_meeting ON transcripts(meeting_id);
 CREATE INDEX IF NOT EXISTS idx_transcripts_time ON transcripts(meeting_id, start_time);
@@ -207,6 +211,7 @@ CREATE INDEX IF NOT EXISTS idx_transcripts_embedding ON transcripts(id) WHERE em
 
 -- Notes indexes
 CREATE INDEX IF NOT EXISTS idx_notes_meeting ON notes(meeting_id);
+CREATE INDEX IF NOT EXISTS idx_notes_updated ON notes(updated_at DESC);
 
 -- Entities indexes
 CREATE INDEX IF NOT EXISTS idx_entities_meeting ON entities(meeting_id);

@@ -35,13 +35,15 @@ describe('ConflictResolver', () => {
       // Create note in database
       const db = getDatabase()
       db.prepare(
-        'INSERT INTO notes (id, content, vector_clock, created_at, updated_at) VALUES (?, ?, ?, ?, ?)'
+        'INSERT INTO notes (id, meeting_id, timestamp, original_text, vector_clock, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)'
       ).run(
         testNoteId,
+        'unknown',
+        Math.floor(Date.now() / 1000),
         'Local content',
         JSON.stringify(localClock),
-        new Date().toISOString(),
-        new Date().toISOString()
+        Math.floor(Date.now() / 1000),
+        Math.floor(Date.now() / 1000)
       )
 
       const conflict = await resolver.detectConflict(testNoteId, localClock, remoteClock)
@@ -55,13 +57,15 @@ describe('ConflictResolver', () => {
 
       const db = getDatabase()
       db.prepare(
-        'INSERT INTO notes (id, content, vector_clock, created_at, updated_at) VALUES (?, ?, ?, ?, ?)'
+        'INSERT INTO notes (id, meeting_id, timestamp, original_text, vector_clock, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)'
       ).run(
         testNoteId,
+        'unknown',
+        Math.floor(Date.now() / 1000),
         'Local content',
         JSON.stringify(localClock),
-        new Date().toISOString(),
-        new Date().toISOString()
+        Math.floor(Date.now() / 1000),
+        Math.floor(Date.now() / 1000)
       )
 
       const conflict = await resolver.detectConflict(testNoteId, localClock, remoteClock)
@@ -75,13 +79,15 @@ describe('ConflictResolver', () => {
 
       const db = getDatabase()
       db.prepare(
-        'INSERT INTO notes (id, content, vector_clock, created_at, updated_at) VALUES (?, ?, ?, ?, ?)'
+        'INSERT INTO notes (id, meeting_id, timestamp, original_text, vector_clock, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)'
       ).run(
         testNoteId,
+        'unknown',
+        Math.floor(Date.now() / 1000),
         'Local content',
         JSON.stringify(localClock),
-        new Date().toISOString(),
-        new Date().toISOString()
+        Math.floor(Date.now() / 1000),
+        Math.floor(Date.now() / 1000)
       )
 
       const conflict = await resolver.detectConflict(testNoteId, localClock, remoteClock)
@@ -101,13 +107,15 @@ describe('ConflictResolver', () => {
 
       const db = getDatabase()
       db.prepare(
-        'INSERT INTO notes (id, content, vector_clock, created_at, updated_at) VALUES (?, ?, ?, ?, ?)'
+        'INSERT INTO notes (id, meeting_id, timestamp, original_text, vector_clock, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)'
       ).run(
         testNoteId,
+        'unknown',
+        Math.floor(Date.now() / 1000),
         'Local content',
         JSON.stringify(localClock),
-        new Date().toISOString(),
-        new Date().toISOString()
+        Math.floor(Date.now() / 1000),
+        Math.floor(Date.now() / 1000)
       )
 
       const conflict = await resolver.detectConflict(testNoteId, localClock, remoteClock)
@@ -201,8 +209,16 @@ describe('ConflictResolver', () => {
       // Create note
       const db = getDatabase()
       db.prepare(
-        'INSERT INTO notes (id, content, vector_clock, created_at, updated_at) VALUES (?, ?, ?, ?, ?)'
-      ).run(testNoteId, 'Old content', '{}', new Date().toISOString(), new Date().toISOString())
+        'INSERT INTO notes (id, meeting_id, timestamp, original_text, vector_clock, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)'
+      ).run(
+        testNoteId,
+        'unknown',
+        Math.floor(Date.now() / 1000),
+        'Old content',
+        '{}',
+        Math.floor(Date.now() / 1000),
+        Math.floor(Date.now() / 1000)
+      )
 
       const resolution = {
         noteId: testNoteId,
@@ -217,9 +233,9 @@ describe('ConflictResolver', () => {
 
       // Verify database updated
       const note = db
-        .prepare('SELECT content, vector_clock FROM notes WHERE id = ?')
+        .prepare('SELECT original_text, vector_clock FROM notes WHERE id = ?')
         .get(testNoteId) as any
-      expect(note.content).toBe('Resolved content')
+      expect(note.original_text).toBe('Resolved content')
       expect(JSON.parse(note.vector_clock)).toEqual({ 'device-a': 3 })
     })
   })
@@ -234,9 +250,9 @@ describe('ConflictResolver', () => {
 
       // Verify note created
       const db = getDatabase()
-      const note = db.prepare('SELECT content FROM notes WHERE id = ?').get(testNoteId) as any
+      const note = db.prepare('SELECT original_text FROM notes WHERE id = ?').get(testNoteId) as any
       expect(note).toBeDefined()
-      expect(note.content).toBe('Remote content')
+      expect(note.original_text).toBe('Remote content')
     })
 
     it('should update local note when remote is newer', async () => {
@@ -246,13 +262,15 @@ describe('ConflictResolver', () => {
       // Create local note
       const db = getDatabase()
       db.prepare(
-        'INSERT INTO notes (id, content, vector_clock, created_at, updated_at) VALUES (?, ?, ?, ?, ?)'
+        'INSERT INTO notes (id, meeting_id, timestamp, original_text, vector_clock, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)'
       ).run(
         testNoteId,
+        'unknown',
+        Math.floor(Date.now() / 1000),
         'Local content',
         JSON.stringify(localClock),
-        new Date().toISOString(),
-        new Date().toISOString()
+        Math.floor(Date.now() / 1000),
+        Math.floor(Date.now() / 1000)
       )
 
       const conflict = await resolver.syncNote(testNoteId, 'Remote content', remoteClock)
@@ -260,8 +278,8 @@ describe('ConflictResolver', () => {
       expect(conflict).toBeNull()
 
       // Verify note updated
-      const note = db.prepare('SELECT content FROM notes WHERE id = ?').get(testNoteId) as any
-      expect(note.content).toBe('Remote content')
+      const note = db.prepare('SELECT original_text FROM notes WHERE id = ?').get(testNoteId) as any
+      expect(note.original_text).toBe('Remote content')
     })
 
     it('should not update when local is newer', async () => {
@@ -270,13 +288,15 @@ describe('ConflictResolver', () => {
 
       const db = getDatabase()
       db.prepare(
-        'INSERT INTO notes (id, content, vector_clock, created_at, updated_at) VALUES (?, ?, ?, ?, ?)'
+        'INSERT INTO notes (id, meeting_id, timestamp, original_text, vector_clock, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)'
       ).run(
         testNoteId,
+        'unknown',
+        Math.floor(Date.now() / 1000),
         'Local content',
         JSON.stringify(localClock),
-        new Date().toISOString(),
-        new Date().toISOString()
+        Math.floor(Date.now() / 1000),
+        Math.floor(Date.now() / 1000)
       )
 
       const conflict = await resolver.syncNote(testNoteId, 'Remote content', remoteClock)
@@ -284,8 +304,8 @@ describe('ConflictResolver', () => {
       expect(conflict).toBeNull()
 
       // Verify note not updated
-      const note = db.prepare('SELECT content FROM notes WHERE id = ?').get(testNoteId) as any
-      expect(note.content).toBe('Local content')
+      const note = db.prepare('SELECT original_text FROM notes WHERE id = ?').get(testNoteId) as any
+      expect(note.original_text).toBe('Local content')
     })
 
     it('should detect and auto-resolve conflict with Yjs update', async () => {
@@ -294,13 +314,15 @@ describe('ConflictResolver', () => {
 
       const db = getDatabase()
       db.prepare(
-        'INSERT INTO notes (id, content, vector_clock, created_at, updated_at) VALUES (?, ?, ?, ?, ?)'
+        'INSERT INTO notes (id, meeting_id, timestamp, original_text, vector_clock, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)'
       ).run(
         testNoteId,
+        'unknown',
+        Math.floor(Date.now() / 1000),
         'Local content',
         JSON.stringify(localClock),
-        new Date().toISOString(),
-        new Date().toISOString()
+        Math.floor(Date.now() / 1000),
+        Math.floor(Date.now() / 1000)
       )
 
       // Create remote Yjs update
@@ -320,7 +342,7 @@ describe('ConflictResolver', () => {
       expect(conflict).toBeNull()
 
       // Verify note updated with merged content
-      const note = db.prepare('SELECT content FROM notes WHERE id = ?').get(testNoteId) as any
+      const note = db.prepare('SELECT original_text FROM notes WHERE id = ?').get(testNoteId) as any
       expect(note).toBeDefined()
     })
   })
@@ -331,13 +353,15 @@ describe('ConflictResolver', () => {
 
       const db = getDatabase()
       db.prepare(
-        'INSERT INTO notes (id, content, vector_clock, created_at, updated_at) VALUES (?, ?, ?, ?, ?)'
+        'INSERT INTO notes (id, meeting_id, timestamp, original_text, vector_clock, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)'
       ).run(
         testNoteId,
+        'unknown',
+        Math.floor(Date.now() / 1000),
         'Content',
         JSON.stringify(clock),
-        new Date().toISOString(),
-        new Date().toISOString()
+        Math.floor(Date.now() / 1000),
+        Math.floor(Date.now() / 1000)
       )
 
       const noteClock = await resolver.getNoteClock(testNoteId)
@@ -356,13 +380,15 @@ describe('ConflictResolver', () => {
 
       const db = getDatabase()
       db.prepare(
-        'INSERT INTO notes (id, content, vector_clock, created_at, updated_at) VALUES (?, ?, ?, ?, ?)'
+        'INSERT INTO notes (id, meeting_id, timestamp, original_text, vector_clock, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)'
       ).run(
         testNoteId,
+        'unknown',
+        Math.floor(Date.now() / 1000),
         'Content',
         JSON.stringify(clock),
-        new Date().toISOString(),
-        new Date().toISOString()
+        Math.floor(Date.now() / 1000),
+        Math.floor(Date.now() / 1000)
       )
 
       const incrementedClock = await resolver.incrementNoteClock(testNoteId)
@@ -421,18 +447,20 @@ describe('ConflictResolver', () => {
 
       const db = getDatabase()
       db.prepare(
-        'INSERT INTO notes (id, content, vector_clock, created_at, updated_at) VALUES (?, ?, ?, ?, ?)'
+        'INSERT INTO notes (id, meeting_id, timestamp, original_text, vector_clock, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)'
       ).run(
         testNoteId,
+        'unknown',
+        Math.floor(Date.now() / 1000),
         'Initial content',
         JSON.stringify(initialClock),
-        new Date().toISOString(),
-        new Date().toISOString()
+        Math.floor(Date.now() / 1000),
+        Math.floor(Date.now() / 1000)
       )
 
       // Device A edits offline
       const deviceAClock: VectorClock = { 'device-a': 2, 'device-b': 1 }
-      db.prepare('UPDATE notes SET content = ?, vector_clock = ? WHERE id = ?').run(
+      db.prepare('UPDATE notes SET original_text = ?, vector_clock = ? WHERE id = ?').run(
         'Device A edit',
         JSON.stringify(deviceAClock),
         testNoteId

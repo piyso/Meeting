@@ -117,6 +117,8 @@ jobs:
     needs: [build-mac]
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@v4
+
       - name: Download macOS artifacts
         uses: actions/download-artifact@v4
         with:
@@ -126,13 +128,23 @@ jobs:
       - name: List all release files
         run: ls -lh mac-builds/
 
-      - name: Deploy to Hetzner (direct to volume)
+      - name: Deploy build artifacts to Hetzner
         uses: appleboy/scp-action@v0.1.7
         with:
           host: 89.167.57.32
           username: root
           key: ${{ secrets.HETZNER_SSH_KEY }}
           source: 'mac-builds/*'
+          target: '/data/bluearkive-downloads/'
+          strip_components: 1
+
+      - name: Deploy install.sh to Hetzner
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: 89.167.57.32
+          username: root
+          key: ${{ secrets.HETZNER_SSH_KEY }}
+          source: 'landing-web/install.sh'
           target: '/data/bluearkive-downloads/'
           strip_components: 1
 
@@ -147,4 +159,6 @@ jobs:
             ls -lh /data/bluearkive-downloads/
             echo "=== Verify latest-mac.yml ==="
             cat /data/bluearkive-downloads/latest-mac.yml | head -2
+            echo "=== Verify install.sh version ==="
+            grep VERSION /data/bluearkive-downloads/install.sh
             echo "Deploy verified"

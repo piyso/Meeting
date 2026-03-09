@@ -6,6 +6,7 @@ import { closeDatabase } from '../src/main/database/connection'
 import { Logger } from '../src/main/services/Logger'
 import { CrashReporter } from '../src/main/services/CrashReporter'
 import { migrateIfNeeded } from '../src/main/services/MigrationService'
+import { getModelDownloadService } from '../src/main/services/ModelDownloadService'
 
 const log = Logger.create('Main')
 
@@ -229,7 +230,6 @@ app.whenReady().then(async () => {
 
   // Wire model download progress to the renderer window
   if (mainWindow) {
-    const { getModelDownloadService } = require('../src/main/services/ModelDownloadService')
     getModelDownloadService().setMainWindow(mainWindow)
   }
 

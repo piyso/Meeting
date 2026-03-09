@@ -5,7 +5,7 @@
  * Includes tables, indexes, FTS5 full-text search, and triggers.
  */
 
-export const SCHEMA_VERSION = 1
+export const SCHEMA_VERSION = 2
 
 /**
  * Core table schemas

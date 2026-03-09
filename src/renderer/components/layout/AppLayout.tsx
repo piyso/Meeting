@@ -94,6 +94,9 @@ export const AppLayout: React.FC = () => {
   const globalContextOpen = useAppStore(s => s.globalContextOpen)
   const toggleGlobalContext = useAppStore(s => s.toggleGlobalContext)
 
+  // Prevent flash of onboarding for returning users
+  const [initializing, setInitializing] = React.useState(true)
+
   // State for global API limit dialogs
   const [deviceWallOpen, setDeviceWallOpen] = React.useState(false)
   const [intelligenceWallOpen, setIntelligenceWallOpen] = React.useState(false)
@@ -287,6 +290,8 @@ export const AppLayout: React.FC = () => {
       } catch {
         // If settings API fails (e.g., DB not ready), default to showing onboarding
         navigate('onboarding')
+      } finally {
+        setInitializing(false)
       }
     }
     checkFirstLaunch()
@@ -321,6 +326,33 @@ export const AppLayout: React.FC = () => {
     }
     setTimeout(() => setRecordingState('idle'), 2000)
   }, [meetingId, stopCapture, setRecordingState])
+
+  // Show minimal loading screen while checking onboarding status
+  if (initializing) {
+    return (
+      <div
+        className="ui-app-layout"
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          height: '100vh',
+          background: 'var(--color-bg-primary, #020617)',
+        }}
+      >
+        <div
+          style={{
+            color: 'var(--color-text-tertiary, #64748b)',
+            fontSize: 13,
+            fontFamily: 'var(--font-mono, monospace)',
+            letterSpacing: '0.1em',
+          }}
+        >
+          Initializing...
+        </div>
+      </div>
+    )
+  }
 
   // ── Full-screen onboarding (no ZenRail, no DynamicIsland, no margins) ──
   if (activeView === 'onboarding') {

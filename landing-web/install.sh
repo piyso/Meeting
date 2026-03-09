@@ -7,9 +7,14 @@
 set -e
 
 APP_NAME="BlueArkive"
-VERSION="0.3.0"
 BASE_URL="https://dl.bluearkive.com"
 INSTALL_DIR="/Applications"
+
+# Auto-detect latest version from server
+VERSION=$(curl -sf "${BASE_URL}/latest-mac.yml" 2>/dev/null | head -1 | sed 's/version: *//')
+if [ -z "$VERSION" ]; then
+    VERSION="0.3.0"  # fallback
+fi
 
 # Colors
 GREEN='\033[0;32m'

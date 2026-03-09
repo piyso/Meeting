@@ -948,6 +948,20 @@
           { threshold: 0.1 }
         )
         reveals.forEach(el => observer.observe(el))
+
+        // Auto-detect latest version from download server
+        fetch('https://dl.bluearkive.com/latest-mac.yml')
+          .then(r => r.text())
+          .then(yml => {
+            const match = yml.match(/^version:\s*(.+)/m)
+            if (!match) return
+            const ver = match[1].trim()
+            const primary = document.getElementById('dl-primary')
+            const alt = document.getElementById('dl-alt-link')
+            if (primary) primary.href = `https://dl.bluearkive.com/BlueArkive-${ver}-mac-arm64.dmg`
+            if (alt) alt.href = `https://dl.bluearkive.com/BlueArkive-${ver}-mac-x64.dmg`
+          })
+          .catch(() => {}) // keep hardcoded fallback URLs
       })
 
       // OS Detection to show "Coming Soon" for non-Mac users

@@ -153,17 +153,55 @@ export const AppLayout: React.FC = () => {
       }
     }
 
+    // toggle-recording: start if idle, stop if recording
+    const handleToggleRecording = async () => {
+      const state = useAppStore.getState()
+      if (state.recordingState === 'recording') {
+        // Inline stop logic — avoids depending on handleStopRecording declaration order
+        setRecordingState('processing')
+        try {
+          if (state.activeMeetingId) {
+            await window.electronAPI?.audio?.stopCapture?.({ meetingId: state.activeMeetingId })
+          }
+        } catch {
+          /* ignore */
+        }
+        setTimeout(() => setRecordingState('idle'), 2000)
+      } else if (state.recordingState === 'idle') {
+        handleGlobalShortcut()
+      }
+    }
+
+    // quick-export: export current meeting as markdown
+    const handleQuickExport = async () => {
+      const state = useAppStore.getState()
+      const mid = state.selectedMeetingId || state.activeMeetingId
+      if (!mid) return
+      try {
+        await window.electronAPI?.meeting?.export?.({ meetingId: mid, format: 'markdown' })
+        state.addToast({ type: 'success', title: '📄 Exported as Markdown', duration: 2000 })
+      } catch {
+        state.addToast({ type: 'error', title: 'Export failed', duration: 3000 })
+      }
+    }
+
     // Subscribe to IPC events via window.electronAPI event listeners
     const unsubConflict = window.electronAPI?.sync?.onConflict?.(handleConflict)
     const unsubSession = window.electronAPI?.auth?.onSessionExpired?.(handleSessionExpired)
     const unsubExpiring = window.electronAPI?.auth?.onSessionExpiring?.(handleSessionExpiring)
     const unsubShortcut = window.electronAPI?.meeting?.onGlobalShortcutStart?.(handleGlobalShortcut)
 
+    // Listen for CustomEvents from keyboard shortcuts & command palette
+    window.addEventListener('toggle-recording', handleToggleRecording)
+    window.addEventListener('quick-export', handleQuickExport)
+
     return () => {
       unsubConflict?.()
       unsubSession?.()
       unsubExpiring?.()
       unsubShortcut?.()
+      window.removeEventListener('toggle-recording', handleToggleRecording)
+      window.removeEventListener('quick-export', handleQuickExport)
     }
   }, [navigate, setRecordingState])
 

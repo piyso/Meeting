@@ -9,10 +9,10 @@ export function useKeyboardShortcuts() {
     const handler = (e: KeyboardEvent) => {
       const meta = e.metaKey || e.ctrlKey
 
-      // Cmd+Shift+K → Semantic Search (must be checked BEFORE Cmd+K)
+      // Cmd+Shift+K → Command Palette (semantic search is built-in)
       if (meta && e.shiftKey && (e.key === 'k' || e.key === 'K')) {
         e.preventDefault()
-        window.dispatchEvent(new CustomEvent('open-semantic-search'))
+        toggleCommandPalette()
         return
       }
 

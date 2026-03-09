@@ -226,6 +226,10 @@ const electronAPI: ElectronAPI = {
   graph: {
     get: params => ipcRenderer.invoke('graph:get', params),
     getContradictions: params => ipcRenderer.invoke('graph:getContradictions', params),
+    traverse: params => ipcRenderer.invoke('graph:traverse', params),
+    search: params => ipcRenderer.invoke('graph:search', params),
+    getStats: () => ipcRenderer.invoke('graph:getStats'),
+    contradictionPreview: params => ipcRenderer.invoke('graph:contradictionPreview', params),
   },
 
   // ============================================================================
@@ -256,6 +260,14 @@ const electronAPI: ElectronAPI = {
   // ============================================================================
   shell: {
     openExternal: (url: string) => ipcRenderer.invoke('shell:openExternal', url),
+  },
+
+  // ============================================================================
+  // Export & GDPR Operations
+  // ============================================================================
+  export: {
+    userData: (params?: { format?: string }) => ipcRenderer.invoke('export:userData', params),
+    deleteAllData: () => ipcRenderer.invoke('export:deleteAllData'),
   },
 
   // ============================================================================

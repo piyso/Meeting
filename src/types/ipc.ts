@@ -893,12 +893,32 @@ export interface ElectronAPI {
   graph: {
     get: (params: GetGraphParams) => Promise<IPCResponse<GraphData>>
     getContradictions: (params: GetContradictionsParams) => Promise<IPCResponse<Contradiction[]>>
+    traverse: (params: {
+      entityId: string
+      depth?: number
+      meetingId?: string
+    }) => Promise<IPCResponse<unknown>>
+    search: (params: {
+      query: string
+      limit?: number
+      meetingId?: string
+    }) => Promise<IPCResponse<unknown>>
+    getStats: () => Promise<
+      IPCResponse<{ entityCount: number; edgeCount: number; meetingCount: number }>
+    >
+    contradictionPreview: (params: { meetingId: string }) => Promise<IPCResponse<{ count: number }>>
   }
 
   // Weekly digest operations
   digest: {
     generate: (params: GenerateDigestParams) => Promise<IPCResponse<WeeklyDigest>>
     getLatest: () => Promise<IPCResponse<WeeklyDigest | null>>
+  }
+
+  // Export & GDPR operations
+  export: {
+    userData: (params?: { format?: string }) => Promise<IPCResponse<{ path: string }>>
+    deleteAllData: () => Promise<IPCResponse<void>>
   }
 
   // Window operations

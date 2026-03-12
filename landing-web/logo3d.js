@@ -1,229 +1,178 @@
 import * as THREE from 'three'
 
 export function createLogo3D(container, options = {}) {
-  const { width = 400, height = 400, interactive = true, cameraZ = 7 } = options
+  const { width = 600, height = 600, interactive = true } = options
 
+  const w = container.clientWidth || width
+  const h = container.clientHeight || height
+
+  // 1. Setup Scene, Orthographic Camera, Renderer
   const scene = new THREE.Scene()
-
-  const camera = new THREE.PerspectiveCamera(45, width / height, 0.1, 100)
-  camera.position.z = cameraZ
+  const camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1)
 
   const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true })
-  renderer.setSize(width, height)
+  renderer.setSize(w, h)
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
   container.appendChild(renderer.domElement)
 
-  /*
-   * Geometry Reference (matches icon.svg exactly):
-   *   SVG: center=512, outerOrbit=300, midRing=220, innerRing=140, core=80
-   *   Ratios (normalized to midRing=2.2):
-   *     outerOrbit = 300/220 * 2.2 = 3.0
-   *     midRing    = 2.2
-   *     innerRing  = 140/220 * 2.2 = 1.4
-   *     core       = 80/220  * 2.2 = 0.8
-   *   Arc sweep = 90° = Math.PI/2  (quarter circle, NOT 120°)
-   */
+  // 2. Uniforms for GLSL
+  const uniforms = {
+    u_time: { value: 0.0 },
+    u_resolution: { value: new THREE.Vector2(w, h) },
+    u_mouse: { value: new THREE.Vector2(0.5, 0.5) },
+    u_scroll: { value: 0.0 },
+  }
 
-  // Lights — dramatic, high contrast
-  scene.add(new THREE.AmbientLight(0xffffff, 0.15))
+  // 3. The Shader Material (Fluid Smoke Aura)
+  const vertexShader = `
+    varying vec2 vUv;
+    void main() {
+      vUv = uv;
+      gl_Position = vec4(position, 1.0);
+    }
+  `
 
-  const keyLight = new THREE.DirectionalLight(0xffffff, 1.2)
-  keyLight.position.set(8, 8, 10)
-  scene.add(keyLight)
+  const fragmentShader = `
+    uniform float u_time;
+    uniform vec2 u_resolution;
+    uniform vec2 u_mouse;
+    uniform float u_scroll;
+    varying vec2 vUv;
 
-  const fillLight = new THREE.DirectionalLight(0x0066ff, 1.0)
-  fillLight.position.set(-8, -4, -5)
-  scene.add(fillLight)
+    // Organic Simplex 2D noise
+    vec3 mod289(vec3 x) { return x - floor(x * (1.0 / 289.0)) * 289.0; }
+    vec2 mod289(vec2 x) { return x - floor(x * (1.0 / 289.0)) * 289.0; }
+    vec3 permute(vec3 x) { return mod289(((x*34.0)+1.0)*x); }
 
-  // ――― RINGS GROUP ―――
-  const ringsGroup = new THREE.Group()
-  scene.add(ringsGroup)
+    float snoise(vec2 v) {
+      const vec4 C = vec4(0.211324865405187, 0.366025403784439, -0.577350269189626, 0.024390243902439);
+      vec2 i  = floor(v + dot(v, C.yy) );
+      vec2 x0 = v - i + dot(i, C.xx);
+      vec2 i1;
+      i1 = (x0.x > x0.y) ? vec2(1.0, 0.0) : vec2(0.0, 1.0);
+      vec4 x12 = x0.xyxy + C.xxzz;
+      x12.xy -= i1;
+      i = mod289(i);
+      vec3 p = permute( permute( i.y + vec3(0.0, i1.y, 1.0 )) + i.x + vec3(0.0, i1.x, 1.0 ));
+      vec3 m = max(0.5 - vec3(dot(x0,x0), dot(x12.xy,x12.xy), dot(x12.zw,x12.zw)), 0.0);
+      m = m*m;
+      m = m*m;
+      vec3 x = 2.0 * fract(p * C.www) - 1.0;
+      vec3 h = abs(x) - 0.5;
+      vec3 ox = floor(x + 0.5);
+      vec3 a0 = x - ox;
+      m *= 1.79284291400159 - 0.85373472095314 * ( a0*a0 + h*h );
+      vec3 g;
+      g.x  = a0.x  * x0.x  + h.x  * x0.y;
+      g.yz = a0.yz * x12.xz + h.yz * x12.yw;
+      return 130.0 * dot(m, g);
+    }
 
-  // 1. Outer Orbit (r=3.0) — faint dashed-style precision track
-  const outerGeom = new THREE.TorusGeometry(3.0, 0.015, 16, 128)
-  const outerMat = new THREE.MeshBasicMaterial({
-    color: 0xffffff,
+    void main() {
+      vec2 st = gl_FragCoord.xy / u_resolution.xy;
+      
+      // Keep ratio
+      st.x *= u_resolution.x / u_resolution.y;
+      
+      // Calculate smooth distance for mouse interaction sphere
+      vec2 mouseNorm = u_mouse;
+      mouseNorm.x *= u_resolution.x / u_resolution.y;
+      float dist = distance(st, mouseNorm);
+      
+      // Smooth gradient interaction boundary
+      float interaction = smoothstep(0.8, 0.1, dist);
+
+      vec2 pos = st * 2.5;
+      float time = u_time * 0.15 + u_scroll * 0.003;
+
+      // Triple-layered Fractional Brownian Motion (FBM) for complex fluid movement
+      float q = snoise(pos - vec2(time));
+      vec2 tr = pos + vec2(q, q) + time * 0.5 + interaction * 0.4;
+      
+      // Singularity Tier Multi-Octave Noise compute
+      float r = snoise(tr);
+      r += snoise(tr * 2.1) * 0.5;
+      r += snoise(tr * 4.3) * 0.25;
+      r = r / 1.75; // Normalize back to 0-1 range
+
+      // Sovereign UI Colors: 
+      // Deep space violet / brand lavender / mystic sage
+      vec3 color1 = vec3(0.02, 0.05, 0.15);  // Deep background abyss
+      vec3 color2 = vec3(0.4, 0.2, 0.9);     // Vibrant core memory
+      vec3 color3 = vec3(0.1, 0.7, 0.6);     // Sage / teal interaction spark
+      
+      float mixFactor = smoothstep(-0.5, 1.0, r);
+      vec3 baseMix = mix(color1, color2, mixFactor);
+      
+      // Intensify the sage glow where the mouse interacts
+      vec3 finalColor = mix(baseMix, color3, smoothstep(0.4, 1.0, r) * interaction * 1.5);
+      
+      // Feathered edges forming the 'orb' or 'aura' boundary
+      float centerDist = distance(vUv, vec2(0.5));
+      float boundaryFade = smoothstep(0.5, 0.1, centerDist);
+      
+      float alpha = smoothstep(0.0, 0.6, r + 0.5) * boundaryFade;
+
+      gl_FragColor = vec4(finalColor, alpha);
+    }
+  `
+
+  const material = new THREE.ShaderMaterial({
+    vertexShader,
+    fragmentShader,
+    uniforms,
     transparent: true,
-    opacity: 0.08,
+    depthWrite: false,
   })
-  const outerRing = new THREE.Mesh(outerGeom, outerMat)
-  ringsGroup.add(outerRing)
 
-  // Inner spinning group (holds mid ring + arcs)
-  const innerRingsGroup = new THREE.Group()
-  ringsGroup.add(innerRingsGroup)
+  // 4. Fill screen/container with the plane
+  const geometry = new THREE.PlaneGeometry(2, 2)
+  const mesh = new THREE.Mesh(geometry, material)
+  scene.add(mesh)
 
-  // 2. Mid Ring (r=2.2) — dark glass structural ring
-  const midGeom = new THREE.TorusGeometry(2.2, 0.06, 64, 128)
-  const midMat = new THREE.MeshPhysicalMaterial({
-    color: 0x0a0f1d,
-    emissive: 0x00ccff,
-    emissiveIntensity: 0.08,
-    roughness: 0.15,
-    metalness: 0.9,
-    clearcoat: 1.0,
-    clearcoatRoughness: 0.1,
-    transparent: true,
-    opacity: 0.85,
-  })
-  const midRing = new THREE.Mesh(midGeom, midMat)
-  innerRingsGroup.add(midRing)
-
-  // 3. Inner Ring (r=1.4) — precision frame
-  const innerGeom = new THREE.TorusGeometry(1.4, 0.015, 16, 100)
-  const innerMat = new THREE.MeshBasicMaterial({
-    color: 0xffffff,
-    transparent: true,
-    opacity: 0.04,
-  })
-  const innerRing = new THREE.Mesh(innerGeom, innerMat)
-  ringsGroup.add(innerRing)
-
-  // 4. Wave Arcs — 90° quarter-circles on r=2.2, 180° rotationally symmetric
-  //    Math.PI/2 = 90° sweep (matches SVG exactly)
-  const arcGeom = new THREE.TorusGeometry(2.2, 0.12, 64, 64, Math.PI / 2)
-
-  // Arc 1: Cyan → Blue (top-left in SVG)
-  const arc1Mat = new THREE.MeshPhysicalMaterial({
-    color: 0x00f0ff,
-    emissive: 0x00f0ff,
-    emissiveIntensity: 3.5,
-    roughness: 0.2,
-    metalness: 0.7,
-  })
-  const arc1 = new THREE.Mesh(arcGeom, arc1Mat)
-  // Rotate so it sweeps from "left" to "top" (like M 292 512 → 512 292 in SVG)
-  arc1.rotation.set(0, 0, Math.PI / 2)
-  innerRingsGroup.add(arc1)
-
-  // Arc 2: Blue → Cyan (bottom-right in SVG, 180° opposite)
-  const arc2Mat = new THREE.MeshPhysicalMaterial({
-    color: 0x0055ff,
-    emissive: 0x0055ff,
-    emissiveIntensity: 3.5,
-    roughness: 0.2,
-    metalness: 0.7,
-  })
-  const arc2 = new THREE.Mesh(arcGeom, arc2Mat)
-  // 180° rotated from arc1, perfectly symmetric
-  arc2.rotation.set(0, 0, Math.PI / 2 + Math.PI)
-  innerRingsGroup.add(arc2)
-
-  // ――― CORE GROUP ―――
-  const coreGroup = new THREE.Group()
-  scene.add(coreGroup)
-
-  // 5. Core Orb (r=0.8) — glossy glass sphere
-  const coreGeom = new THREE.SphereGeometry(0.8, 64, 64)
-  const coreMat = new THREE.MeshPhysicalMaterial({
-    color: 0xffffff,
-    emissive: 0x0284c7,
-    emissiveIntensity: 1.2,
-    roughness: 0.05,
-    metalness: 0.4,
-    clearcoat: 1.0,
-    clearcoatRoughness: 0.0,
-    transmission: 0.5,
-    thickness: 2.0,
-  })
-  const core = new THREE.Mesh(coreGeom, coreMat)
-  coreGroup.add(core)
-
-  // 6. Inner white-hot center
-  const hotGeom = new THREE.SphereGeometry(0.4, 32, 32)
-  const hotMat = new THREE.MeshBasicMaterial({
-    color: 0xffffff,
-    transparent: true,
-    opacity: 0.9,
-  })
-  const hotCenter = new THREE.Mesh(hotGeom, hotMat)
-  coreGroup.add(hotCenter)
-
-  // 7. Core lighting
-  const coreLight = new THREE.PointLight(0x00f0ff, 18, 12, 1.5)
-  const blueLight = new THREE.PointLight(0x0044ff, 12, 20, 2)
-  coreGroup.add(coreLight)
-  coreGroup.add(blueLight)
-
-  // ――― INTERACTION ―――
-  let targetRotX = 0
-  let targetRotY = 0
-
+  // 5. Interaction Tracking
+  const targetMouse = new THREE.Vector2(0.5, 0.5)
   if (interactive) {
-    document.addEventListener('mousemove', e => {
-      targetRotX = ((e.clientX / window.innerWidth) * 2 - 1) * 0.3
-      targetRotY = (-(e.clientY / window.innerHeight) * 2 + 1) * 0.3
+    container.addEventListener('mousemove', e => {
+      const rect = container.getBoundingClientRect()
+      // Map mouse position natively inside container
+      const mx = (e.clientX - rect.left) / rect.width
+      const my = 1.0 - (e.clientY - rect.top) / rect.height
+      targetMouse.set(mx, my)
+    })
+
+    window.addEventListener('scroll', () => {
+      uniforms.u_scroll.value = window.scrollY
     })
   }
 
-  // ――― ANIMATION ―――
-  let lastTime = 0
-  let elapsed = 0
+  // Handle Resize
+  window.addEventListener('resize', () => {
+    const cw = container.clientWidth
+    const ch = container.clientHeight
+    renderer.setSize(cw, ch)
+    uniforms.u_resolution.value.set(cw, ch)
+  })
 
-  function animate(time) {
-    if (!lastTime) lastTime = time
-    const delta = (time - lastTime) / 1000
-    lastTime = time
-    elapsed += delta
+  // 6. Animation Loop
+  const clock = new THREE.Clock()
 
+  function animate() {
     requestAnimationFrame(animate)
 
-    // Outer orbit: gentle breathing tilt
-    outerRing.rotation.x = Math.sin(elapsed * 0.4) * 0.15
-    outerRing.rotation.y = Math.cos(elapsed * 0.4) * 0.15
-
-    // Mid ring + arcs: slow spin
-    innerRingsGroup.rotation.z = -elapsed * 0.8
-    innerRingsGroup.rotation.x = Math.sin(elapsed * 0.6) * 0.08
-
-    // Core: subtle float and slow rotation
-    coreGroup.position.y = Math.sin(elapsed * 1.5) * 0.08
-    coreGroup.rotation.y = elapsed * 0.15
-
-    // Interactive tilt (lerp for smoothness)
-    if (interactive) {
-      scene.rotation.x += (targetRotY - scene.rotation.x) * 0.04
-      scene.rotation.y += (targetRotX - scene.rotation.y) * 0.04
-    }
+    // Smoothly interpolate mouse for fluid drag effect (stiffness factor)
+    uniforms.u_mouse.value.lerp(targetMouse, 0.05)
+    uniforms.u_time.value = clock.getElapsedTime()
 
     renderer.render(scene, camera)
   }
 
-  requestAnimationFrame(animate)
+  animate()
 
-  // Resize handler
-  const handleResize = () => {
-    if (container.clientWidth > 0 && container.clientHeight > 0) {
-      camera.aspect = container.clientWidth / container.clientHeight
-      camera.updateProjectionMatrix()
-      renderer.setSize(container.clientWidth, container.clientHeight)
-    }
-  }
-
-  window.addEventListener('resize', handleResize)
-  setTimeout(handleResize, 100)
-
-  return {
-    destroy: () => {
-      window.removeEventListener('resize', handleResize)
-      renderer.dispose()
-    },
+  // Return teardown function if needed
+  return () => {
+    renderer.dispose()
+    geometry.dispose()
+    material.dispose()
   }
 }
-
-// Mount automatically where requested
-document.addEventListener('DOMContentLoaded', () => {
-  const navContainer = document.getElementById('nav-logo-3d')
-  if (navContainer) {
-    createLogo3D(navContainer, { width: 32, height: 32, interactive: false, cameraZ: 6 })
-  }
-
-  const heroContainer = document.getElementById('hero-logo-3d')
-  if (heroContainer) {
-    createLogo3D(heroContainer, {
-      width: heroContainer.clientWidth || 300,
-      height: heroContainer.clientHeight || 300,
-      interactive: true,
-    })
-  }
-})

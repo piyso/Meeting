@@ -1,5 +1,5 @@
 /**
- * PiyNotes God-Tier Landing Page Interactions
+ * BlueArkive God-Tier Landing Page Interactions
  */
 import Lenis from 'lenis'
 import { gsap } from 'gsap'
@@ -261,7 +261,7 @@ document.addEventListener('DOMContentLoaded', () => {
         'Dedicated success engineer',
       ],
       ctaText: 'Contact Sales',
-      ctaHref: 'mailto:sales@piynotes.com',
+      ctaHref: 'mailto:sales@bluearkive.com',
     },
   }
 
@@ -396,14 +396,14 @@ document.addEventListener('DOMContentLoaded', () => {
   // ═══ 8. Exit Intent Modal ═══
   const exitModal = document.getElementById('exit-modal')
   const exitCloseBtn = document.getElementById('exit-close')
-  let exitIntentTriggered = sessionStorage.getItem('piynotes-exit-intent') === 'true'
+  let exitIntentTriggered = sessionStorage.getItem('bluearkive-exit-intent') === 'true'
 
   if (exitModal && exitCloseBtn) {
     document.addEventListener('mouseleave', e => {
       if (e.clientY <= 0 && !exitIntentTriggered) {
         exitModal.classList.add('active')
         exitIntentTriggered = true
-        sessionStorage.setItem('piynotes-exit-intent', 'true')
+        sessionStorage.setItem('bluearkive-exit-intent', 'true')
       }
     })
 
@@ -515,7 +515,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // Payload B: The Deep Link Fallback (Prepare link for the button)
         if (handshakeDeeplink) {
-          handshakeDeeplink.href = `piynotes://init?payload=${encodedPayload}`
+          handshakeDeeplink.href = `bluearkive://init?payload=${encodedPayload}`
         }
 
         // Simulate the "Build" sequence physically

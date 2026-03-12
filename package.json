@@ -160,7 +160,13 @@
       "!**/release/**",
       "!**/landing-web/**",
       "!**/billing-web/**",
-      "!**/*.md"
+      "!**/*.md",
+      "!.env",
+      "!.env.*",
+      "!.kiro/**",
+      "!.eslintignore",
+      "!.prettierignore",
+      "!0.01"
     ],
     "extraResources": [
       {

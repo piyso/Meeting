@@ -1,4 +1,4 @@
-import { app, BrowserWindow, globalShortcut, screen, session } from 'electron'
+import { app, BrowserWindow, dialog, globalShortcut, screen, session } from 'electron'
 import path from 'path'
 import { setupIPC, cleanupIPC } from '../src/main/ipc/setup'
 import { getDatabaseService } from '../src/main/services/DatabaseService'
@@ -61,7 +61,15 @@ if (process.platform === 'win32') {
 // ─── Single instance lock ────────────────────────────────
 const gotLock = app.requestSingleInstanceLock()
 if (!gotLock) {
-  app.quit()
+  // Show a user-visible notification instead of silently quitting
+  app.whenReady().then(() => {
+    dialog.showErrorBox(
+      'BlueArkive is Already Running',
+      'Another instance of BlueArkive is already open.\n\n' +
+        'Look for it in your taskbar/dock, or quit the existing instance first.'
+    )
+    app.quit()
+  })
 }
 
 // Focus existing window when a second instance is launched (or deep link received)
@@ -127,10 +135,22 @@ const createWindow = () => {
   })
 
   // Show window when ready to prevent visual flash
+  let readyToShowFired = false
   mainWindow.once('ready-to-show', () => {
+    readyToShowFired = true
     mainWindow?.show()
     log.info('Main Window ready and visible')
   })
+
+  // Safety net: if ready-to-show hasn't fired in 15s, force-show the window
+  // This prevents the app from being permanently invisible if the renderer
+  // has a non-fatal error during hydration
+  setTimeout(() => {
+    if (!readyToShowFired && mainWindow && !mainWindow.isDestroyed()) {
+      log.warn('ready-to-show did not fire within 15s — force-showing window')
+      mainWindow.show()
+    }
+  }, 15_000)
 
   // Load the app
   if (process.env.VITE_DEV_SERVER_URL) {
@@ -229,6 +249,34 @@ app.whenReady().then(async () => {
   // MUST run before database initialization to copy old DB if it exists
   await migrateIfNeeded()
   CrashReporter.addBreadcrumb('lifecycle', 'Migration check complete')
+
+  // ─── Native module health check ────────────────────────────
+  // Verify critical .node binaries can be loaded BEFORE creating windows.
+  // This catches wrong-architecture builds immediately with a clear error.
+  let nativeModuleError: string | null = null
+  try {
+    require('better-sqlite3')
+    log.info('Native module check: better-sqlite3 ✅')
+  } catch (err: unknown) {
+    const errMsg = err instanceof Error ? err.message : String(err)
+    nativeModuleError = `better-sqlite3 failed to load: ${errMsg}`
+    log.error(`CRITICAL: ${nativeModuleError}`)
+    log.error('This usually means the native binary was compiled for the wrong architecture.')
+    log.error(`Expected arch: ${process.arch}, platform: ${process.platform}`)
+  }
+
+  if (nativeModuleError) {
+    dialog.showErrorBox(
+      'BlueArkive Cannot Start',
+      `A critical component failed to load:\n\n${nativeModuleError}\n\n` +
+        `Your system: ${process.platform} ${process.arch}\n\n` +
+        'This usually means the app was built for the wrong CPU architecture. ' +
+        'Please download the correct version for your Mac (Apple Silicon vs Intel).\n\n' +
+        'If this persists, please contact support.'
+    )
+    app.quit()
+    return
+  }
 
   // Initialize services
   log.info('Initializing services...')
@@ -332,12 +380,16 @@ app.whenReady().then(async () => {
   })
 
   // Check for updates (10s after launch — non-blocking)
+  // Wrapped in try/catch to prevent unhandled rejections from crashing the app
   if (autoUpdater) {
-    setTimeout(() => {
-      autoUpdater?.checkForUpdatesAndNotify()?.catch((err: Error) => {
-        log.warn('Auto-update check failed (no releases published?):', err.message)
-      })
-      log.info('Auto-update check initiated')
+    setTimeout(async () => {
+      try {
+        log.info('Auto-update check initiated')
+        await autoUpdater?.checkForUpdatesAndNotify()
+      } catch (err: unknown) {
+        const errMsg = err instanceof Error ? err.message : String(err)
+        log.warn('Auto-update check failed (no releases published?):', errMsg)
+      }
     }, 10_000)
   }
 

@@ -70,7 +70,22 @@ export async function migrateIfNeeded(): Promise<void> {
   }
 
   try {
-    await migrateKeytarCredentials()
+    // Wrap keytar migration in a timeout — macOS may show a Keychain access
+    // dialog that blocks the main thread. If the user doesn't respond within
+    // 10 seconds, skip keytar migration (non-destructive; marker still written
+    // so it won't retry). The app will function without migrated credentials.
+    await Promise.race([
+      migrateKeytarCredentials(),
+      new Promise<void>((_, reject) =>
+        setTimeout(
+          () =>
+            reject(
+              new Error('Keytar migration timed out (10s) — possible Keychain dialog blocking')
+            ),
+          10_000
+        )
+      ),
+    ])
   } catch (error) {
     console.error('[Migration] Keytar migration failed (non-fatal):', error)
   }

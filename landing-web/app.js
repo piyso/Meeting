@@ -160,12 +160,25 @@ document.addEventListener('DOMContentLoaded', () => {
 
   metricWorker.onmessage = e => {
     const { id, value, done } = e.data
-    const { target, prefix, suffix } = counterMap.get(id)
+    const entry = counterMap.get(id)
+    if (!entry) return
+    const { target, prefix, suffix } = entry
 
     target.innerText = prefix + value + suffix
 
     // Cleanup memory when animation finishes
     if (done) counterMap.delete(id)
+  }
+
+  metricWorker.onerror = () => {
+    // If worker fails, populate counters with static values
+    counters.forEach(counter => {
+      const t = counter.getAttribute('data-target')
+      const p = counter.getAttribute('data-prefix') || ''
+      const s = counter.getAttribute('data-suffix') || ''
+      const d = parseInt(counter.getAttribute('data-decimals')) || 0
+      counter.innerText = p + parseFloat(t).toFixed(d) + s
+    })
   }
 
   const counterObserver = new IntersectionObserver(
@@ -527,5 +540,28 @@ document.addEventListener('DOMContentLoaded', () => {
         window.location.href = targetUrl
       }
     })
+  })
+
+  // Close handler for the Handshake modal (ESC, close button, click outside)
+  const handshakeCloseBtn = document.getElementById('handshake-close')
+
+  function closeHandshakeModal() {
+    if (handshakeModal) handshakeModal.classList.remove('active')
+  }
+
+  if (handshakeCloseBtn) {
+    handshakeCloseBtn.addEventListener('click', closeHandshakeModal)
+  }
+
+  if (handshakeModal) {
+    handshakeModal.addEventListener('click', e => {
+      if (e.target === handshakeModal) closeHandshakeModal()
+    })
+  }
+
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape' && handshakeModal?.classList.contains('active')) {
+      closeHandshakeModal()
+    }
   })
 })

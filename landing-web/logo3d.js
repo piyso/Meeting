@@ -15,6 +15,15 @@ export function createLogo3D(container, options = {}) {
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
   container.appendChild(renderer.domElement)
 
+  // Handle WebGL context loss gracefully (GPU reset, tab backgrounded too long)
+  renderer.domElement.addEventListener('webglcontextlost', e => {
+    e.preventDefault()
+    console.warn('WebGL context lost — pausing render loop.')
+  })
+  renderer.domElement.addEventListener('webglcontextrestored', () => {
+    console.log('WebGL context restored — resuming.')
+  })
+
   // 2. Uniforms for GLSL
   const uniforms = {
     u_time: { value: 0.0 },

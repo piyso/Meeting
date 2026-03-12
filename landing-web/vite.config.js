@@ -8,13 +8,6 @@ export default defineConfig({
     modulePreload: {
       polyfill: false,
     },
-    rollupOptions: {
-      output: {
-        manualChunks: {
-          three: ['three'],
-        },
-      },
-    },
   },
   server: {
     port: 3000,

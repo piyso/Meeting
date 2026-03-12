@@ -55,11 +55,6 @@
           "@type": "Offer",
           "price": "0",
           "priceCurrency": "USD"
-        },
-        "aggregateRating": {
-          "@type": "AggregateRating",
-          "ratingValue": "4.9",
-          "ratingCount": "127"
         }
       }
     </script>
@@ -327,11 +322,51 @@
             </p>
           </div>
 
-          <div class="role-tabs reveal reveal-delay-1">
-            <button class="role-tab active" data-role="founders">Founders</button>
-            <button class="role-tab" data-role="engineers">Engineers</button>
-            <button class="role-tab" data-role="sales">Sales</button>
-            <button class="role-tab" data-role="product">Product</button>
+          <div
+            class="role-tabs reveal reveal-delay-1"
+            role="tablist"
+            aria-label="Role-based features"
+          >
+            <button
+              class="role-tab active"
+              data-role="founders"
+              role="tab"
+              aria-selected="true"
+              aria-controls="role-founders"
+              tabindex="0"
+            >
+              Founders
+            </button>
+            <button
+              class="role-tab"
+              data-role="engineers"
+              role="tab"
+              aria-selected="false"
+              aria-controls="role-engineers"
+              tabindex="0"
+            >
+              Engineers
+            </button>
+            <button
+              class="role-tab"
+              data-role="sales"
+              role="tab"
+              aria-selected="false"
+              aria-controls="role-sales"
+              tabindex="0"
+            >
+              Sales
+            </button>
+            <button
+              class="role-tab"
+              data-role="product"
+              role="tab"
+              aria-selected="false"
+              aria-controls="role-product"
+              tabindex="0"
+            >
+              Product
+            </button>
           </div>
 
           <div class="role-content-container reveal reveal-delay-2">
@@ -630,7 +665,7 @@
       <!-- Download Block -->
       <section class="download" id="download">
         <div class="container text-center">
-          <h2>Download BlueArkive.</h2>
+          <h2>Download PiyNotes.</h2>
           <p style="max-width: 520px; margin: 0 auto">
             Free. Private. No account needed. Yours forever.
           </p>
@@ -797,7 +832,7 @@
                   color: var(--text-main);
                 "
               >
-                BlueArkive is a desktop app.
+                PiyNotes is a desktop app.
               </h3>
               <p
                 style="

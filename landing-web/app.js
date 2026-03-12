@@ -132,11 +132,15 @@ document.addEventListener('DOMContentLoaded', () => {
   roleTabs.forEach(tab => {
     tab.addEventListener('click', () => {
       // Remove active from all tabs & panels
-      roleTabs.forEach(t => t.classList.remove('active'))
+      roleTabs.forEach(t => {
+        t.classList.remove('active')
+        t.setAttribute('aria-selected', 'false')
+      })
       rolePanels.forEach(p => p.classList.remove('active'))
 
       // Add active to clicked tab
       tab.classList.add('active')
+      tab.setAttribute('aria-selected', 'true')
 
       // Show corresponding panel
       const targetRole = tab.getAttribute('data-role')

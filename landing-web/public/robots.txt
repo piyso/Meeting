@@ -1,0 +1,5 @@
+# PiyNotes Landing Page
+User-agent: *
+Allow: /
+
+Sitemap: https://piynotes.com/sitemap.xml

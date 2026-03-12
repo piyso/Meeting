@@ -154,23 +154,39 @@ export function createLogo3D(container, options = {}) {
     uniforms.u_resolution.value.set(cw, ch)
   })
 
-  // 6. Animation Loop
+  // 6. Animation Loop & Performance Optimization (Intersection Observer)
   const clock = new THREE.Clock()
+  let isVisible = true
+  let animationFrameId = null
+
+  // Stop rendering when the canvas is off-screen to save battery/CPU (MNC Standard)
+  const observer = new IntersectionObserver(
+    entries => {
+      entries.forEach(entry => {
+        isVisible = entry.isIntersecting
+      })
+    },
+    { threshold: 0 }
+  )
+  observer.observe(renderer.domElement)
 
   function animate() {
-    requestAnimationFrame(animate)
+    animationFrameId = requestAnimationFrame(animate)
 
-    // Smoothly interpolate mouse for fluid drag effect (stiffness factor)
-    uniforms.u_mouse.value.lerp(targetMouse, 0.05)
-    uniforms.u_time.value = clock.getElapsedTime()
-
-    renderer.render(scene, camera)
+    if (isVisible) {
+      // Smoothly interpolate mouse for fluid drag effect (stiffness factor)
+      uniforms.u_mouse.value.lerp(targetMouse, 0.05)
+      uniforms.u_time.value = clock.getElapsedTime()
+      renderer.render(scene, camera)
+    }
   }
 
   animate()
 
   // Return teardown function if needed
   return () => {
+    cancelAnimationFrame(animationFrameId)
+    observer.disconnect()
     renderer.dispose()
     geometry.dispose()
     material.dispose()

@@ -1,0 +1,100 @@
+.windows-titlebar {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  height: 32px;
+  background: transparent;
+  -webkit-app-region: drag;
+  position: relative;
+  z-index: var(--z-titlebar, 9999);
+  flex-shrink: 0;
+}
+
+.windows-titlebar__title {
+  position: absolute;
+  left: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--color-text-secondary, rgba(255, 255, 255, 0.5));
+  letter-spacing: 0.02em;
+  pointer-events: none;
+  user-select: none;
+}
+
+.windows-titlebar__controls {
+  display: flex;
+  height: 100%;
+  -webkit-app-region: no-drag;
+}
+
+.windows-titlebar__btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 46px;
+  height: 100%;
+  border: none;
+  background: transparent;
+  color: var(--color-text-secondary, rgba(255, 255, 255, 0.6));
+  cursor: pointer;
+  transition:
+    background-color 150ms ease,
+    color 150ms ease;
+  -webkit-app-region: no-drag;
+  outline: none;
+  padding: 0;
+}
+
+.windows-titlebar__btn:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--color-text-primary, rgba(255, 255, 255, 0.9));
+}
+
+.windows-titlebar__btn:active {
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.windows-titlebar__btn--close:hover {
+  background: #e81123;
+  color: #ffffff;
+}
+
+.windows-titlebar__btn--close:active {
+  background: #bf0f1d;
+  color: #ffffff;
+}
+
+.windows-titlebar__btn svg {
+  width: 10px;
+  height: 10px;
+}
+
+/* When window is maximized, adjust restore icon */
+.windows-titlebar__btn--maximize svg.restore-icon {
+  width: 10px;
+  height: 10px;
+}
+
+/* High Contrast mode support */
+@media (forced-colors: active) {
+  .windows-titlebar {
+    background: Canvas;
+    border-bottom: 1px solid ButtonText;
+  }
+
+  .windows-titlebar__btn {
+    color: ButtonText;
+  }
+
+  .windows-titlebar__btn:hover {
+    background: Highlight;
+    color: HighlightText;
+  }
+
+  .windows-titlebar__btn--close:hover {
+    background: Highlight;
+    color: HighlightText;
+  }
+}

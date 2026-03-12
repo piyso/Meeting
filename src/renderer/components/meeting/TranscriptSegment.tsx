@@ -52,7 +52,7 @@ export const TranscriptSegment = memo<TranscriptSegmentProps>(
             : 'hover:bg-[rgba(255,255,255,0.02)] border border-transparent'
         }`}
       >
-        <div className="flex items-start gap-[var(--space-8)] w-[140px] shrink-0 mt-[2px]">
+        <div className="flex items-start gap-[var(--space-8)] w-[min(140px,25%)] shrink-0 mt-[2px]">
           <div
             className="w-2 h-2 rounded-full mt-[6px] shrink-0"
             style={{ backgroundColor: colorHex }}

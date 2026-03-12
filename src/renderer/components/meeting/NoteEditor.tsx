@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react'
+import { modLabel } from '../../utils/platformShortcut'
 import { useEditor, EditorContent } from '@tiptap/react'
 import StarterKit from '@tiptap/starter-kit'
 import BulletList from '@tiptap/extension-bullet-list'
@@ -104,7 +105,7 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({ meetingId }) => {
         }),
         BulletList,
         Placeholder.configure({
-          placeholder: 'Start typing your notes... (Cmd+Enter to expand via AI)',
+          placeholder: `Start typing your notes... (${modLabel}+Enter to expand via AI)`,
           emptyNodeClass: 'my-custom-is-empty',
         }),
         ...(providerOrDoc
@@ -119,7 +120,7 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({ meetingId }) => {
       editable: true,
       editorProps: {
         attributes: {
-          class: 'ui-note-editor-content',
+          class: 'ui-note-editor-content sovereign-scrollbar',
         },
         handleKeyDown: (_, event) => {
           // Intercept Command+Enter for AI expansion shell trigger
@@ -200,17 +201,10 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({ meetingId }) => {
       if (editor) {
         // Wrap in commands.command() for true single-transaction undo
         // insertContent() may split into multiple undo steps in some Tiptap versions
-        editor.commands.command(({ tr, dispatch }) => {
-          if (dispatch) {
-            const node = editor.schema.nodeFromJSON({
-              type: 'paragraph',
-              content: [{ type: 'text', text: html }],
-            })
-            tr.insert(editor.state.selection.from, node)
-            // Single tr = single Ctrl+Z to undo entire AI expansion
-          }
-          return true
-        })
+        // C9 fix: Use insertContent() which parses HTML into ProseMirror nodes.
+        // Previous code used nodeFromJSON with type:'text' which inserts raw HTML
+        // as visible text instead of rendering it as formatted content.
+        editor.commands.insertContent(html)
       }
     }
     window.addEventListener('insert-ai-text', handleInsert)

@@ -77,7 +77,9 @@
   align-items: center;
   justify-content: center;
   border-radius: 6px;
-  transition: all 0.2s;
+  transition:
+    background-color 0.2s,
+    color 0.2s;
 }
 
 .close-button:hover {
@@ -310,7 +312,10 @@
   font-weight: 500;
   border-radius: 10px;
   cursor: pointer;
-  transition: all 0.2s;
+  transition:
+    background-color 0.2s,
+    box-shadow 0.2s,
+    transform 0.2s;
   box-shadow: 0 2px 8px rgba(37, 99, 235, 0.2);
 }
 
@@ -334,7 +339,10 @@
   font-weight: 500;
   border-radius: 10px;
   cursor: pointer;
-  transition: all 0.2s;
+  transition:
+    background-color 0.2s,
+    border-color 0.2s,
+    transform 0.2s;
 }
 
 .secondary-button:hover {
@@ -406,7 +414,9 @@
   font-weight: 500;
   border-radius: 8px;
   cursor: pointer;
-  transition: all 0.2s;
+  transition:
+    background-color 0.2s,
+    transform 0.2s;
 }
 
 .skip-button:hover {

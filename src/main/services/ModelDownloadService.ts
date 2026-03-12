@@ -334,36 +334,69 @@ export class ModelDownloadService {
       let downloadedBytes = 0
       let totalBytes = 0
       let lastProgress = 0
+      let settled = false // Prevent double-resolve/reject
       const STALL_TIMEOUT_MS = 5 * 60 * 1000 // 5 minutes
 
-      const request = https.get(url, response => {
-        // Handle redirects
-        if (response.statusCode === 302 || response.statusCode === 301) {
-          const redirectUrl = response.headers.location
-          if (redirectUrl) {
-            file.close()
-            fs.unlinkSync(destPath)
-            this.downloadFile(redirectUrl, destPath, description).then(resolve).catch(reject)
+      const safeReject = (error: Error) => {
+        if (settled) return
+        settled = true
+        if (stallTimer) clearTimeout(stallTimer)
+        file.close()
+        if (fs.existsSync(destPath)) fs.unlinkSync(destPath)
+        this.sendProgress({
+          modelName: description,
+          percent: 0,
+          downloadedMB: 0,
+          totalMB: 0,
+          status: 'error',
+          error: error.message,
+        })
+        reject(error)
+      }
+
+      const safeResolve = () => {
+        if (settled) return
+        settled = true
+        if (stallTimer) clearTimeout(stallTimer)
+      }
+
+      // Issue 14: Use Electron's net.request which respects system proxy settings
+      // (HTTPS_PROXY, WinINET proxy config). Replaces Node.js https.get which ignores proxies.
+      let request: import('electron').ClientRequest
+      try {
+        const { net } = require('electron') as typeof import('electron')
+        request = net.request({ url, redirect: 'follow' })
+      } catch {
+        // Fallback to https.get if net module is unavailable (e.g., in tests)
+        const fallbackRequest = https.get(url, response => {
+          if (response.statusCode !== 200) {
+            safeReject(new Error(`Failed to download: HTTP ${response.statusCode}`))
             return
           }
-        }
+          response.pipe(file)
+          file.on('finish', () => {
+            file.close()
+            safeResolve()
+            resolve()
+          })
+        })
+        fallbackRequest.on('error', err => safeReject(err))
+        return
+      }
 
+      request.on('response', response => {
         if (response.statusCode !== 200) {
-          file.close()
-          if (fs.existsSync(destPath)) {
-            fs.unlinkSync(destPath)
-          }
-          reject(new Error(`Failed to download: HTTP ${response.statusCode}`))
+          safeReject(new Error(`Failed to download: HTTP ${response.statusCode}`))
           return
         }
 
-        totalBytes = parseInt(response.headers['content-length'] || '0', 10)
+        totalBytes = parseInt((response.headers['content-length'] as string) || '0', 10)
 
-        response.on('data', chunk => {
+        response.on('data', (chunk: Buffer) => {
           downloadedBytes += chunk.length
           file.write(chunk)
 
-          // Update progress every 5% (skip if totalBytes unknown)
+          // Update progress every 5%
           if (totalBytes > 0) {
             const progress = Math.floor((downloadedBytes / totalBytes) * 100)
             if (progress >= lastProgress + 5) {
@@ -381,7 +414,6 @@ export class ModelDownloadService {
 
         response.on('end', () => {
           file.end(() => {
-            // Wait for file stream to flush before resolving
             const finalMB = (totalBytes > 0 ? totalBytes : downloadedBytes) / 1024 / 1024
             this.sendProgress({
               modelName: description,
@@ -390,58 +422,25 @@ export class ModelDownloadService {
               totalMB: finalMB,
               status: 'complete',
             })
+            safeResolve()
             resolve()
           })
         })
 
-        response.on('error', error => {
-          file.close()
-          fs.unlinkSync(destPath)
-          this.sendProgress({
-            modelName: description,
-            percent: 0,
-            downloadedMB: 0,
-            totalMB: 0,
-            status: 'error',
-            error: error.message,
-          })
-          reject(error)
-        })
+        response.on('error', (error: Error) => safeReject(error))
       })
 
-      request.on('error', error => {
-        file.close()
-        if (fs.existsSync(destPath)) {
-          fs.unlinkSync(destPath)
-        }
-        this.sendProgress({
-          modelName: description,
-          percent: 0,
-          downloadedMB: 0,
-          totalMB: 0,
-          status: 'error',
-          error: error.message,
-        })
-        reject(error)
-      })
+      request.on('error', (error: Error) => safeReject(error))
 
-      // Abort if no data received for 5 minutes (stalled CDN connection)
-      request.setTimeout(STALL_TIMEOUT_MS, () => {
-        request.destroy()
-        file.close()
-        if (fs.existsSync(destPath)) {
-          fs.unlinkSync(destPath)
+      // Abort if stalled — timer cleaned up by safeReject/safeResolve
+      const stallTimer = setTimeout(() => {
+        if (downloadedBytes === 0 && !settled) {
+          request.abort()
+          safeReject(new Error(`Download stalled: ${description} — no data for 5 minutes`))
         }
-        this.sendProgress({
-          modelName: description,
-          percent: 0,
-          downloadedMB: 0,
-          totalMB: 0,
-          status: 'error',
-          error: 'Download timed out (no data received for 5 minutes)',
-        })
-        reject(new Error(`Download stalled: ${description} — no data for 5 minutes`))
-      })
+      }, STALL_TIMEOUT_MS)
+
+      request.end()
     })
   }
 

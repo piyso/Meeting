@@ -43,6 +43,32 @@ export interface YjsState {
 
 export class YjsConflictResolver {
   private documents: Map<string, Y.Doc> = new Map()
+  // OPT-18: Track access order for LRU eviction
+  private accessOrder: string[] = []
+  private readonly MAX_DOCS = 5
+
+  /**
+   * Evict the least recently used document if we exceed MAX_DOCS
+   */
+  private evictIfNeeded(): void {
+    while (this.documents.size > this.MAX_DOCS && this.accessOrder.length > 0) {
+      const oldestId = this.accessOrder.shift()
+      if (oldestId && this.documents.has(oldestId)) {
+        const doc = this.documents.get(oldestId)
+        doc?.destroy()
+        this.documents.delete(oldestId)
+        log.info(`[YjsConflictResolver] Evicted LRU document: ${oldestId}`)
+      }
+    }
+  }
+
+  /**
+   * Track a document access (move to end of LRU list)
+   */
+  private touchDocument(noteId: string): void {
+    this.accessOrder = this.accessOrder.filter(id => id !== noteId)
+    this.accessOrder.push(noteId)
+  }
 
   /**
    * Create Yjs document for note
@@ -55,8 +81,12 @@ export class YjsConflictResolver {
     // Check if document already exists
     const existingDoc = this.documents.get(noteId)
     if (existingDoc) {
+      this.touchDocument(noteId)
       return existingDoc
     }
+
+    // Evict old docs before creating new one
+    this.evictIfNeeded()
 
     // Create new Yjs document
     const doc = new Y.Doc()
@@ -67,8 +97,9 @@ export class YjsConflictResolver {
       text.insert(0, initialText)
     }
 
-    // Store document
+    // Store document and track access
     this.documents.set(noteId, doc)
+    this.touchDocument(noteId)
 
     log.info(`[YjsConflictResolver] Created document for note ${noteId}`)
 
@@ -82,7 +113,11 @@ export class YjsConflictResolver {
    * @returns Yjs document or null if not found
    */
   public getDocument(noteId: string): Y.Doc | null {
-    return this.documents.get(noteId) || null
+    const doc = this.documents.get(noteId)
+    if (doc) {
+      this.touchDocument(noteId)
+    }
+    return doc || null
   }
 
   /**

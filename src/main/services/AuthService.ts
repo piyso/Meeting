@@ -105,6 +105,14 @@ export class AuthService {
     this.startSessionTimer()
 
     log.info('Login successful', { email, tier: result.user.tier })
+
+    // SYNC FIX: Initialize SyncManager after successful login.
+    // This was the #1 pipeline blocker — login() previously returned without
+    // ever triggering sync, so zero meeting data ever reached PiyAPI cloud.
+    this.initializeSyncManager(result.user.id, password).catch(err => {
+      log.warn('SyncManager initialization failed (non-blocking):', err)
+    })
+
     return result
   }
 
@@ -164,6 +172,12 @@ export class AuthService {
     this.scheduleRefresh(result.tokens.expiresIn)
 
     log.info('Registration successful', { email, tier: result.user.tier })
+
+    // SYNC: Initialize SyncManager after registration (same as login)
+    this.initializeSyncManager(result.user.id, password).catch(err => {
+      log.warn('SyncManager initialization after register failed (non-blocking):', err)
+    })
+
     return result
   }
 
@@ -197,7 +211,66 @@ export class AuthService {
 
     this.stopSessionTimer()
 
+    // SYNC: Stop SyncManager on logout to prevent orphaned auto-sync
+    this.stopSyncManager()
+
+    // S1: Reset the shared BackendSingleton to clear stale access token.
+    // Without this, 7 handler files continue using the old user's token.
+    try {
+      const { resetBackend } = await import('./backend/BackendSingleton')
+      resetBackend()
+    } catch (resetErr) {
+      log.debug('resetBackend on logout failed (non-critical):', resetErr)
+    }
+
     log.info('Logout complete')
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  private _syncManager: any = null
+
+  /**
+   * Initialize SyncManager with user credentials for encrypted cloud sync.
+   * Called after successful login/register to start auto-syncing meeting data to PiyAPI.
+   */
+  private async initializeSyncManager(userId: string, password: string): Promise<void> {
+    try {
+      // S2: Use the shared BackendSingleton instead of creating a new PiyAPIBackend.
+      // This ensures SyncManager and all 7 handler files share the same authenticated backend.
+      const { getBackend, setBackendToken } = await import('./backend/BackendSingleton')
+      const { SyncManager } = await import('./SyncManager')
+      const { KeyStorageService } = await import('./KeyStorageService')
+
+      // Set the access token on the shared singleton so all handlers are authenticated
+      const accessToken = await KeyStorageService.getAccessToken(userId)
+      if (accessToken) {
+        setBackendToken(accessToken, userId)
+      }
+
+      // Stop existing SyncManager if any (e.g., re-login)
+      if (this._syncManager) {
+        this._syncManager.stopAutoSync()
+      }
+
+      const backend = getBackend()
+      this._syncManager = new SyncManager(backend)
+      await this._syncManager.initialize(userId, password)
+      this._syncManager.startAutoSync()
+      log.info('SyncManager initialized and auto-sync started')
+    } catch (syncErr) {
+      log.error('Failed to initialize SyncManager:', syncErr)
+    }
+  }
+
+  /**
+   * Stop SyncManager on logout.
+   */
+  private stopSyncManager(): void {
+    if (this._syncManager) {
+      this._syncManager.stopAutoSync()
+      this._syncManager = null
+      log.info('SyncManager stopped')
+    }
   }
 
   /**
@@ -231,6 +304,17 @@ export class AuthService {
       await keytar.default.setPassword(TOKEN_SERVICE, ACCESS_TOKEN_KEY, tokens.accessToken)
       if (tokens.refreshToken !== refreshToken) {
         await keytar.default.setPassword(TOKEN_SERVICE, REFRESH_TOKEN_KEY, tokens.refreshToken)
+      }
+
+      // R1: Update BackendSingleton with fresh token so PiyAPI calls use it
+      try {
+        const { setBackendToken } = await import('./backend/BackendSingleton')
+        const userId = data.session.user?.id
+        if (userId) {
+          setBackendToken(tokens.accessToken, userId)
+        }
+      } catch {
+        // BackendSingleton may not be initialized yet — safe to skip
       }
 
       this.scheduleRefresh(tokens.expiresIn)
@@ -310,10 +394,9 @@ export class AuthService {
     if (!this.isConfigured()) {
       throw new Error('Authentication service not configured (no Supabase URL)')
     }
-    const { shell, app } = await import('electron')
+    const { shell } = await import('electron')
 
-    // Register bluearkive:// protocol (idempotent)
-    app.setAsDefaultProtocolClient('bluearkive')
+    // Protocol already registered in main.ts at startup (Issue 28: removed duplicate)
 
     const { data, error } = await this.supabase.auth.signInWithOAuth({
       provider: 'google',

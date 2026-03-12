@@ -18,6 +18,12 @@ class MockPiyAPIBackend extends PiyAPIBackend {
   public createMemoryCalls: any[] = []
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   public getMemoriesCalls: any[] = []
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  public updateMemoryCalls: any[] = []
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  public deleteMemoryCalls: string[] = []
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  public batchCreateCalls: any[] = []
   public shouldFail: boolean = false
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   public mockMemories: any[] = []
@@ -40,9 +46,44 @@ class MockPiyAPIBackend extends PiyAPIBackend {
     return this.mockMemories
   }
 
+  // P3-6 FIX: Mock all methods used in the sync flow
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  async updateMemory(id: string, updates: any): Promise<any> {
+    this.updateMemoryCalls.push({ id, updates })
+    if (this.shouldFail) throw new Error('Network error')
+    return { id, ...updates }
+  }
+
+  async deleteMemory(id: string): Promise<void> {
+    this.deleteMemoryCalls.push(id)
+    if (this.shouldFail) throw new Error('Network error')
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  async batchCreateMemories(memories: any[]): Promise<any[]> {
+    this.batchCreateCalls.push(memories)
+    if (this.shouldFail) throw new Error('Network error')
+    return memories.map(m => ({ id: uuidv4(), ...m }))
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  async semanticSearch(): Promise<any[]> {
+    // P1-4: semanticSearch no longer used in sync flow (replaced with getMemories),
+    // but kept for backward compatibility. Returns empty results.
+    return []
+  }
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  async healthCheck(): Promise<any> {
+    return { status: this.shouldFail ? 'down' : 'healthy', latency: 50 }
+  }
+
   reset() {
     this.createMemoryCalls = []
     this.getMemoriesCalls = []
+    this.updateMemoryCalls = []
+    this.deleteMemoryCalls = []
+    this.batchCreateCalls = []
     this.shouldFail = false
     this.mockMemories = []
   }

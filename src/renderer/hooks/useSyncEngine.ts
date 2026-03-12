@@ -22,8 +22,7 @@ export function useSyncEngine() {
   useEffect(() => {
     const interval = setInterval(async () => {
       if (!isOnlineRef.current) {
-        setSyncStatus('idle')
-        return
+        return // Offline — skip entirely, don't call setSyncStatus
       }
 
       try {
@@ -45,7 +44,7 @@ export function useSyncEngine() {
       } catch {
         setSyncStatus('idle')
       }
-    }, 5000)
+    }, 15_000) // 15s — responsive enough for status indicators without IPC spam
 
     return () => clearInterval(interval)
   }, [setSyncStatus, setLastSyncTimestamp])

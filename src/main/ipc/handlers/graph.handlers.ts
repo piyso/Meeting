@@ -1,15 +1,8 @@
 import { ipcMain } from 'electron'
 import { Logger } from '../../services/Logger'
-import { getBackend, setBackendToken } from '../../services/backend/BackendSingleton'
+import { getBackend } from '../../services/backend/BackendSingleton'
 
 const log = Logger.create('GraphHandlers')
-
-// Re-export for backward compatibility (other handlers import from here)
-export { getBackend }
-
-export function setGraphBackendToken(token: string, userId: string): void {
-  setBackendToken(token, userId)
-}
 
 export function registerGraphHandlers(): void {
   // graph:get — Get knowledge graph (requires cloud PiyAPI + tier gate)
@@ -35,9 +28,9 @@ export function registerGraphHandlers(): void {
       }
 
       const backend = getBackend()
-      const isHealthy = await backend.healthCheck()
+      const health = await backend.healthCheck()
 
-      if (!isHealthy) {
+      if (health.status !== 'healthy') {
         // Offline mode — return empty graph
         return {
           success: true,
@@ -83,25 +76,49 @@ export function registerGraphHandlers(): void {
       if (!features.knowledgeGraphInteractive) {
         return {
           success: true,
-          data: {
-            contradictions: [],
-            blocked: true,
-            reason: 'Contradiction detection requires Pro plan',
-          },
+          data: [],
         }
       }
 
       const backend = getBackend()
-      const isHealthy = await backend.healthCheck()
+      const health = await backend.healthCheck()
 
-      if (!isHealthy) {
-        return { success: true, data: { contradictions: [] } }
+      if (health.status !== 'healthy') {
+        return { success: true, data: [] }
       }
 
       const graph = await backend.getGraph(params?.namespace || 'meetings', 1)
-      const contradictions =
+      const contradictionEdges =
         graph.edges?.filter((e: { type: string }) => e.type === 'contradicts') || []
-      return { success: true, data: { contradictions } }
+
+      // Transform edges into the Contradiction shape the frontend expects
+      const contradictions = contradictionEdges.map(
+        (
+          e: {
+            source: string
+            target: string
+            weight?: number | string
+            metadata?: Record<string, unknown>
+          },
+          idx: number
+        ) => {
+          const sourceNode = graph.nodes?.find((n: { id: string }) => n.id === e.source)
+          const targetNode = graph.nodes?.find((n: { id: string }) => n.id === e.target)
+          return {
+            id: `contra-${idx}`,
+            type: 'contradicts' as const,
+            meeting1: sourceNode ? { id: e.source, title: sourceNode.label || '' } : null,
+            meeting2: targetNode ? { id: e.target, title: targetNode.label || '' } : null,
+            statement1: (e.metadata?.statement1 as string) || '',
+            statement2: (e.metadata?.statement2 as string) || '',
+            confidence:
+              typeof e.weight === 'string' ? parseFloat(e.weight) || 0.5 : e.weight || 0.5,
+            detectedAt: Date.now(),
+          }
+        }
+      )
+
+      return { success: true, data: contradictions }
     } catch (err) {
       log.error('Contradiction check failed', err)
       return {
@@ -146,25 +163,19 @@ export function registerGraphHandlers(): void {
       }
 
       const backend = getBackend()
-      const isHealthy = await backend.healthCheck()
-      if (!isHealthy) {
+      const health = await backend.healthCheck()
+      if (health.status !== 'healthy') {
         return { success: true, data: { nodes: [], edges: [] } }
       }
 
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const backendAny = backend as any
-      if (typeof backendAny.traverseGraph === 'function') {
-        const result = await backendAny.traverseGraph(
-          params.nodeId,
-          params.maxDepth || 2,
-          params.namespace || 'meetings'
-        )
+      try {
+        const result = await backend.traverseGraph(params.nodeId, params.maxDepth || 2)
         return { success: true, data: result }
+      } catch {
+        // Fallback: use getGraph with higher maxHops
+        const graph = await backend.getGraph(params.namespace || 'meetings', params.maxDepth || 3)
+        return { success: true, data: graph }
       }
-
-      // Fallback: use getGraph with higher maxHops
-      const graph = await backend.getGraph(params.namespace || 'meetings', params.maxDepth || 3)
-      return { success: true, data: graph }
     } catch (err) {
       log.error('Graph traversal failed', err)
       return {
@@ -204,15 +215,13 @@ export function registerGraphHandlers(): void {
       }
 
       const backend = getBackend()
-      const isHealthy = await backend.healthCheck()
-      if (!isHealthy) {
+      const health = await backend.healthCheck()
+      if (health.status !== 'healthy') {
         return { success: true, data: { results: [] } }
       }
 
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const backendAny = backend as any
-      if (typeof backendAny.searchGraph === 'function') {
-        const results = await backendAny.searchGraph(
+      if (typeof backend.searchGraph === 'function') {
+        const results = await backend.searchGraph(
           params.query,
           params.namespace || 'meetings',
           params.limit || 20
@@ -261,18 +270,16 @@ export function registerGraphHandlers(): void {
       }
 
       const backend = getBackend()
-      const isHealthy = await backend.healthCheck()
-      if (!isHealthy) {
+      const health = await backend.healthCheck()
+      if (health.status !== 'healthy') {
         return {
           success: true,
           data: { totalNodes: 0, totalEdges: 0, clusters: 0 },
         }
       }
 
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const backendAny = backend as any
-      if (typeof backendAny.getGraphStats === 'function') {
-        const stats = await backendAny.getGraphStats('meetings')
+      if (typeof backend.getGraphStats === 'function') {
+        const stats = await backend.getGraphStats('meetings')
         return { success: true, data: stats }
       }
 
@@ -316,8 +323,8 @@ export function registerGraphHandlers(): void {
       }
 
       const backend = getBackend()
-      const isHealthy = await backend.healthCheck()
-      if (!isHealthy) {
+      const health = await backend.healthCheck()
+      if (health.status !== 'healthy') {
         return { success: true, data: { count: 0, available: false } }
       }
 

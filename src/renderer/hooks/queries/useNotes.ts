@@ -15,6 +15,8 @@ export function useNotes(meetingId: string | null) {
       return response.data ?? []
     },
     enabled: !!meetingId,
+    staleTime: 10_000, // Serve cached data for 10s — mutations invalidate anyway
+    gcTime: 5 * 60_000, // Keep in cache for 5min after unmount
   })
 
   const createNote = useMutation({

@@ -35,7 +35,7 @@ export interface Memory {
  */
 export interface SearchResult {
   memory: Memory
-  similarity: number // 0-1 cosine similarity
+  similarity: number | string // 0-1 cosine similarity (PiyAPI returns string, parseFloat before use)
   semanticScore?: number // Semantic search score
   keywordScore?: number // Keyword search score (hybrid search)
 }
@@ -51,7 +51,7 @@ export interface AskResponse {
     content: string
     similarity: number
   }>
-  model: string // e.g., 'qwen-2.5-3b', 'llama-3'
+  model: string // e.g., 'piyapi-ai' (PiyAPI branded model name)
   tokensUsed: number
 }
 
@@ -69,7 +69,7 @@ export interface GraphData {
 export interface GraphNode {
   id: string
   label: string
-  type: 'meeting' | 'person' | 'topic' | 'decision' | 'action_item'
+  type: 'meeting' | 'person' | 'topic' | 'decision' | 'action_item' | 'memory' | string
   metadata?: Record<string, unknown>
 }
 
@@ -79,16 +79,8 @@ export interface GraphNode {
 export interface GraphEdge {
   source: string
   target: string
-  type:
-    | 'follows'
-    | 'references'
-    | 'contradicts'
-    | 'supersedes'
-    | 'supports'
-    | 'questions'
-    | 'implements'
-    | 'parent'
-  weight?: number
+  type: 'follows' | 'references' | 'contradicts' | 'related_to' | 'groups' | string
+  weight?: number | string // PiyAPI returns weight as string
   metadata?: Record<string, unknown>
 }
 

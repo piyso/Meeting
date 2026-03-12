@@ -61,7 +61,9 @@ export const MIGRATIONS: Migration[] = [
         INSERT INTO transcripts_fts(transcripts_fts, rowid, text, speaker_name)
         VALUES ('delete', old.rowid, old.text, old.speaker_name);
       END;`,
-      `CREATE TRIGGER transcripts_fts_update AFTER UPDATE ON transcripts BEGIN
+      `CREATE TRIGGER transcripts_fts_update AFTER UPDATE ON transcripts
+        WHEN old.text IS NOT new.text OR old.speaker_name IS NOT new.speaker_name
+      BEGIN
         INSERT INTO transcripts_fts(transcripts_fts, rowid, text, speaker_name)
         VALUES ('delete', old.rowid, old.text, old.speaker_name);
         INSERT INTO transcripts_fts(rowid, text, speaker_name) VALUES (new.rowid, new.text, new.speaker_name);

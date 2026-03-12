@@ -41,14 +41,15 @@ export const config = {
 
   // ─── Recording ─────────────────────────────────────────────
   /** Maximum recording duration in ms (0 = unlimited) */
-  MAX_RECORDING_DURATION_MS: parseInt(process.env.MAX_RECORDING_DURATION_MS || '0', 10),
+  MAX_RECORDING_DURATION_MS: parseInt(process.env.MAX_RECORDING_DURATION_MS || '0', 10) || 0,
 
   /** Auto-save interval for notes in ms */
-  AUTO_SAVE_INTERVAL_MS: parseInt(process.env.AUTO_SAVE_INTERVAL_MS || '30000', 10),
+  AUTO_SAVE_INTERVAL_MS: parseInt(process.env.AUTO_SAVE_INTERVAL_MS || '30000', 10) || 30000,
 
   // ─── Database ──────────────────────────────────────────────
   /** WAL checkpoint interval in ms */
-  WAL_CHECKPOINT_INTERVAL_MS: parseInt(process.env.WAL_CHECKPOINT_INTERVAL_MS || '300000', 10),
+  WAL_CHECKPOINT_INTERVAL_MS:
+    parseInt(process.env.WAL_CHECKPOINT_INTERVAL_MS || '300000', 10) || 300000,
 
   // ─── BlueArkive Billing ────────────────────────────────────
   /** BlueArkive billing page URL (user-facing, NOT PiyAPI) */
@@ -63,7 +64,7 @@ export const config = {
 
   // ─── Security ──────────────────────────────────────────────
   /** Session timeout in ms (0 = disabled) */
-  SESSION_TIMEOUT_MS: parseInt(process.env.SESSION_TIMEOUT_MS || '0', 10),
+  SESSION_TIMEOUT_MS: parseInt(process.env.SESSION_TIMEOUT_MS || '0', 10) || 0,
 } as const
 
 /** Type for the config object */
@@ -91,7 +92,14 @@ export const FEATURE_FLAG_DEFAULTS: Record<string, boolean> = {
   silent_prompter: true,
   /** Enable Semantic Search in Command Palette */
   semantic_search: true,
-  /** Enable PHI auto-detection and masking */
+  /**
+   * Enable local PHI auto-detection and masking before upload.
+   * NOTE: PiyAPI performs server-side PHI detection automatically on store_memory
+   * (detects MRN, NAME, DATE, INSURANCE, EMAIL, PHONE). This flag only controls
+   * whether the app also runs local PHI scanning before data leaves the device.
+   * Default: false (rely on PiyAPI server-side detection). Enable for healthcare
+   * or regulated environments where client-side pre-screening is required.
+   */
   phi_detection: false,
   /** Enable telemetry (anonymized usage data) */
   telemetry: false,

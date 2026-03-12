@@ -39,15 +39,12 @@ export function registerEntityHandlers(): void {
         const features = await cam.getFeatureAccess()
 
         if (features.knowledgeGraphInteractive) {
-          const { getBackend } = await import('../handlers/graph.handlers')
+          const { getBackend } = await import('../../services/backend/BackendSingleton')
           const backend = getBackend()
-          const isHealthy = await backend.healthCheck()
+          const health = await backend.healthCheck()
 
-          // Runtime check — extractEntities may not exist on all backend versions
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          const backendAny = backend as any
-          if (isHealthy && typeof backendAny.extractEntities === 'function') {
-            const cloudResult = await backendAny.extractEntities(
+          if (health.status === 'healthy' && typeof backend.extractEntities === 'function') {
+            const cloudResult = await backend.extractEntities(
               params.text,
               params.namespace || 'meetings'
             )
@@ -65,6 +62,12 @@ export function registerEntityHandlers(): void {
                 endOffset: (e.end_offset as number) ?? (e.endOffset as number) ?? 0,
               }))
             }
+          }
+          // F3: Also ingest raw text into KG for entity/fact extraction
+          if (health.status === 'healthy') {
+            backend.kgIngest(params.text).catch(() => {
+              /* non-critical */
+            })
           }
         }
       } catch (err) {

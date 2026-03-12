@@ -13,123 +13,150 @@ export function createLogo3D(container, options = {}) {
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
   container.appendChild(renderer.domElement)
 
-  // Lights
-  scene.add(new THREE.AmbientLight(0xffffff, 0.5))
+  /*
+   * Geometry Reference (matches icon.svg exactly):
+   *   SVG: center=512, outerOrbit=300, midRing=220, innerRing=140, core=80
+   *   Ratios (normalized to midRing=2.2):
+   *     outerOrbit = 300/220 * 2.2 = 3.0
+   *     midRing    = 2.2
+   *     innerRing  = 140/220 * 2.2 = 1.4
+   *     core       = 80/220  * 2.2 = 0.8
+   *   Arc sweep = 90° = Math.PI/2  (quarter circle, NOT 120°)
+   */
 
-  const dirLight1 = new THREE.DirectionalLight(0xffffff, 1.5)
-  dirLight1.position.set(10, 10, 5)
-  scene.add(dirLight1)
+  // Lights — dramatic, high contrast
+  scene.add(new THREE.AmbientLight(0xffffff, 0.15))
 
-  const dirLight2 = new THREE.DirectionalLight(0x3b82f6, 1)
-  dirLight2.position.set(-10, -5, -5)
-  scene.add(dirLight2)
+  const keyLight = new THREE.DirectionalLight(0xffffff, 1.2)
+  keyLight.position.set(8, 8, 10)
+  scene.add(keyLight)
 
-  const dirLight3 = new THREE.DirectionalLight(0x22d3ee, 0.6)
-  dirLight3.position.set(0, -8, 3)
-  scene.add(dirLight3)
+  const fillLight = new THREE.DirectionalLight(0x0066ff, 1.0)
+  fillLight.position.set(-8, -4, -5)
+  scene.add(fillLight)
 
-  const pointLight = new THREE.PointLight(0xa78bfa, 0.8)
-  pointLight.position.set(5, 5, 5)
-  scene.add(pointLight)
-
-  // --- Rings Group ---
+  // ――― RINGS GROUP ―――
   const ringsGroup = new THREE.Group()
   scene.add(ringsGroup)
 
-  // Outer ring (cyan glow) match from icon.svg
-  const outerGeom = new THREE.TorusGeometry(2.8, 0.04, 32, 100)
-  const outerMat = new THREE.MeshStandardMaterial({
-    color: 0x06b6d4,
-    emissive: 0x06b6d4,
-    emissiveIntensity: 0.5,
+  // 1. Outer Orbit (r=3.0) — faint dashed-style precision track
+  const outerGeom = new THREE.TorusGeometry(3.0, 0.015, 16, 128)
+  const outerMat = new THREE.MeshBasicMaterial({
+    color: 0xffffff,
     transparent: true,
-    opacity: 0.6,
+    opacity: 0.08,
   })
   const outerRing = new THREE.Mesh(outerGeom, outerMat)
   ringsGroup.add(outerRing)
 
-  // Inner spinning ring group
+  // Inner spinning group (holds mid ring + arcs)
   const innerRingsGroup = new THREE.Group()
   ringsGroup.add(innerRingsGroup)
 
-  // Inner spinning ring match from icon.svg
-  const innerGeom = new THREE.TorusGeometry(2.2, 0.08, 32, 100)
-  const innerMat = new THREE.MeshStandardMaterial({
-    color: 0x3b82f6,
-    emissive: 0x3b82f6,
-    emissiveIntensity: 0.8,
+  // 2. Mid Ring (r=2.2) — dark glass structural ring
+  const midGeom = new THREE.TorusGeometry(2.2, 0.06, 64, 128)
+  const midMat = new THREE.MeshPhysicalMaterial({
+    color: 0x0a0f1d,
+    emissive: 0x00ccff,
+    emissiveIntensity: 0.08,
+    roughness: 0.15,
+    metalness: 0.9,
+    clearcoat: 1.0,
+    clearcoatRoughness: 0.1,
     transparent: true,
-    opacity: 0.8,
+    opacity: 0.85,
+  })
+  const midRing = new THREE.Mesh(midGeom, midMat)
+  innerRingsGroup.add(midRing)
+
+  // 3. Inner Ring (r=1.4) — precision frame
+  const innerGeom = new THREE.TorusGeometry(1.4, 0.015, 16, 100)
+  const innerMat = new THREE.MeshBasicMaterial({
+    color: 0xffffff,
+    transparent: true,
+    opacity: 0.04,
   })
   const innerRing = new THREE.Mesh(innerGeom, innerMat)
-  innerRingsGroup.add(innerRing)
+  ringsGroup.add(innerRing)
 
-  // Wave arcs (Left and Right) match from icon.svg
-  const arcGeom = new THREE.TorusGeometry(2.22, 0.1, 32, 64, Math.PI / 2)
-  const arcMat = new THREE.MeshStandardMaterial({
-    color: 0x22d3ee,
-    emissive: 0x22d3ee,
-    emissiveIntensity: 2.5,
+  // 4. Wave Arcs — 90° quarter-circles on r=2.2, 180° rotationally symmetric
+  //    Math.PI/2 = 90° sweep (matches SVG exactly)
+  const arcGeom = new THREE.TorusGeometry(2.2, 0.12, 64, 64, Math.PI / 2)
+
+  // Arc 1: Cyan → Blue (top-left in SVG)
+  const arc1Mat = new THREE.MeshPhysicalMaterial({
+    color: 0x00f0ff,
+    emissive: 0x00f0ff,
+    emissiveIntensity: 3.5,
+    roughness: 0.2,
+    metalness: 0.7,
   })
-
-  const arc1 = new THREE.Mesh(arcGeom, arcMat)
-  arc1.rotation.set(0, 0, Math.PI / 4)
+  const arc1 = new THREE.Mesh(arcGeom, arc1Mat)
+  // Rotate so it sweeps from "left" to "top" (like M 292 512 → 512 292 in SVG)
+  arc1.rotation.set(0, 0, Math.PI / 2)
   innerRingsGroup.add(arc1)
 
-  const arc2 = new THREE.Mesh(arcGeom, arcMat)
-  arc2.rotation.set(0, 0, Math.PI / 4 + Math.PI)
+  // Arc 2: Blue → Cyan (bottom-right in SVG, 180° opposite)
+  const arc2Mat = new THREE.MeshPhysicalMaterial({
+    color: 0x0055ff,
+    emissive: 0x0055ff,
+    emissiveIntensity: 3.5,
+    roughness: 0.2,
+    metalness: 0.7,
+  })
+  const arc2 = new THREE.Mesh(arcGeom, arc2Mat)
+  // 180° rotated from arc1, perfectly symmetric
+  arc2.rotation.set(0, 0, Math.PI / 2 + Math.PI)
   innerRingsGroup.add(arc2)
 
-  // --- Core Group ---
+  // ――― CORE GROUP ―――
   const coreGroup = new THREE.Group()
   scene.add(coreGroup)
 
-  // Center solid recording dot match from icon.svg (#22D3EE)
-  const solidDotGeom = new THREE.SphereGeometry(0.8, 64, 64)
-  const solidDotMat = new THREE.MeshPhysicalMaterial({
-    color: 0x22d3ee,
-    emissive: 0x06b6d4,
-    emissiveIntensity: 0.2,
-    roughness: 0.1,
-    metalness: 0.2,
+  // 5. Core Orb (r=0.8) — glossy glass sphere
+  const coreGeom = new THREE.SphereGeometry(0.8, 64, 64)
+  const coreMat = new THREE.MeshPhysicalMaterial({
+    color: 0xffffff,
+    emissive: 0x0284c7,
+    emissiveIntensity: 1.2,
+    roughness: 0.05,
+    metalness: 0.4,
     clearcoat: 1.0,
-    clearcoatRoughness: 0.1,
+    clearcoatRoughness: 0.0,
+    transmission: 0.5,
+    thickness: 2.0,
   })
-  const solidDot = new THREE.Mesh(solidDotGeom, solidDotMat)
-  coreGroup.add(solidDot)
+  const core = new THREE.Mesh(coreGeom, coreMat)
+  coreGroup.add(core)
 
-  // Dot inner highlight match from icon.svg (#0EA5E9)
-  const highlightGeom = new THREE.SphereGeometry(0.5, 32, 32)
-  const highlightMat = new THREE.MeshBasicMaterial({
-    color: 0x0ea5e9,
+  // 6. Inner white-hot center
+  const hotGeom = new THREE.SphereGeometry(0.4, 32, 32)
+  const hotMat = new THREE.MeshBasicMaterial({
+    color: 0xffffff,
     transparent: true,
-    opacity: 0.8,
-    blending: THREE.AdditiveBlending,
-    depthWrite: false,
+    opacity: 0.9,
   })
-  const highlight = new THREE.Mesh(highlightGeom, highlightMat)
-  highlight.position.set(0, 0, 0.4)
-  coreGroup.add(highlight)
+  const hotCenter = new THREE.Mesh(hotGeom, hotMat)
+  coreGroup.add(hotCenter)
 
-  // Illuminating the entire scene from the center dot
-  const coreLight = new THREE.PointLight(0x22d3ee, 10, 15, 2)
+  // 7. Core lighting
+  const coreLight = new THREE.PointLight(0x00f0ff, 18, 12, 1.5)
+  const blueLight = new THREE.PointLight(0x0044ff, 12, 20, 2)
   coreGroup.add(coreLight)
+  coreGroup.add(blueLight)
 
-  // Mouse interactivity
-  let targetRotationX = 0
-  let targetRotationY = 0
+  // ――― INTERACTION ―――
+  let targetRotX = 0
+  let targetRotY = 0
 
   if (interactive) {
-    document.addEventListener('mousemove', event => {
-      const mouseX = (event.clientX / window.innerWidth) * 2 - 1
-      const mouseY = -(event.clientY / window.innerHeight) * 2 + 1
-
-      targetRotationX = mouseX * 0.5
-      targetRotationY = mouseY * 0.5
+    document.addEventListener('mousemove', e => {
+      targetRotX = ((e.clientX / window.innerWidth) * 2 - 1) * 0.3
+      targetRotY = (-(e.clientY / window.innerHeight) * 2 + 1) * 0.3
     })
   }
 
-  // Animation Loop
+  // ――― ANIMATION ―――
   let lastTime = 0
   let elapsed = 0
 
@@ -141,24 +168,22 @@ export function createLogo3D(container, options = {}) {
 
     requestAnimationFrame(animate)
 
-    // Outer ring slow breathing tilt
-    outerRing.rotation.x = Math.sin(elapsed * 0.5) * 0.2
-    outerRing.rotation.y = Math.cos(elapsed * 0.5) * 0.2
+    // Outer orbit: gentle breathing tilt
+    outerRing.rotation.x = Math.sin(elapsed * 0.4) * 0.15
+    outerRing.rotation.y = Math.cos(elapsed * 0.4) * 0.15
 
-    // Inner ring smooth spinning
-    innerRingsGroup.rotation.z = -elapsed * 1.5
-    innerRingsGroup.rotation.x = 0.1
-    innerRingsGroup.rotation.y = Math.sin(elapsed) * 0.1
+    // Mid ring + arcs: slow spin
+    innerRingsGroup.rotation.z = -elapsed * 0.8
+    innerRingsGroup.rotation.x = Math.sin(elapsed * 0.6) * 0.08
 
-    // Core floating and subtle rotation
-    coreGroup.position.y = Math.sin(elapsed * 2) * 0.1
-    coreGroup.rotation.y = elapsed * 0.2
-    coreGroup.rotation.x = Math.sin(elapsed) * 0.1
+    // Core: subtle float and slow rotation
+    coreGroup.position.y = Math.sin(elapsed * 1.5) * 0.08
+    coreGroup.rotation.y = elapsed * 0.15
 
-    // Interactive tilt
+    // Interactive tilt (lerp for smoothness)
     if (interactive) {
-      scene.rotation.x += (targetRotationY - scene.rotation.x) * 0.05
-      scene.rotation.y += (targetRotationX - scene.rotation.y) * 0.05
+      scene.rotation.x += (targetRotY - scene.rotation.x) * 0.04
+      scene.rotation.y += (targetRotX - scene.rotation.y) * 0.04
     }
 
     renderer.render(scene, camera)

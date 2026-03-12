@@ -21,7 +21,6 @@ import { EncryptionService } from './EncryptionService'
 import { PiyAPIBackend } from './backend/PiyAPIBackend'
 import { KeyStorageService } from './KeyStorageService'
 import { Logger } from './Logger'
-import { config } from '../config/environment'
 import type { Memory } from './backend/IBackendProvider'
 import {
   createSyncQueueItem,
@@ -38,7 +37,7 @@ import { getDatabase } from '../database/connection'
  * Allowed table names for sync operations (SQL injection protection)
  * Task 30.10: ALLOWED_TABLES whitelist
  */
-const ALLOWED_TABLES = ['meetings', 'transcripts', 'notes', 'entities'] as const
+const ALLOWED_TABLES = ['meetings', 'transcripts', 'notes', 'entities', 'audio_highlights'] as const
 type AllowedTable = (typeof ALLOWED_TABLES)[number]
 
 /**
@@ -246,6 +245,13 @@ export class SyncManager {
 
       const syncedIds: string[] = []
       const errors: string[] = []
+      // E2: Collect create events for batch processing instead of one-by-one
+      const pendingCreates: Array<{
+        memory: Memory
+        event: { table_name: string; record_id: string; id: string; operation_type: string }
+        queueItemId: string
+      }> = []
+      let processedCount = 0
 
       // Process each event
       for (const event of pendingEvents) {
@@ -285,7 +291,7 @@ export class SyncManager {
             const memory: Memory = {
               content: encryptedPayload.ciphertext,
               namespace: `meetings.${event.table_name}`,
-              tags: [event.table_name, event.operation_type],
+              tags: [event.table_name, event.operation_type, `rid:${event.record_id}`],
               metadata: {
                 record_id: event.record_id,
                 iv: encryptedPayload.iv,
@@ -294,7 +300,10 @@ export class SyncManager {
                 algorithm: encryptedPayload.algorithm,
                 created_at: event.created_at,
                 encrypted: true,
-                skip_server_embedding: !!embeddingData,
+                // E-CRIT: Always skip server embedding for encrypted content.
+                // PiyAPI would generate embeddings from ciphertext (garbage vectors).
+                // We send the client-side plaintext embedding instead (L276-279).
+                skip_server_embedding: true,
               },
               embedding: embeddingData,
               sourceType: event.table_name,
@@ -304,29 +313,20 @@ export class SyncManager {
             // Route to correct PiyAPI operation based on event type
             switch (event.operation_type) {
               case 'create': {
-                // Task 30.5: POST to /api/v1/memories
-                const memoryResult = await this.backend.createMemory(memory)
-
-                // Wait for PiyAPI to generate embeddings (async, ~2-4s)
-                // Without this, immediate search returns zero semantic results
-                if (memoryResult?.id) {
-                  this.waitForEmbedding(memoryResult.id).catch(() => {
-                    // Non-blocking — search may return incomplete results
-                  })
-                }
+                // E2: Collect creates for batch processing (handled after loop)
+                pendingCreates.push({ memory, event, queueItemId: event.id })
                 break
               }
 
               case 'update': {
-                // Find existing cloud memory by record_id, then update
-                const existingMemories = await this.backend.getMemories(
+                // P1-4 FIX: Use getMemories + metadata filter instead of semanticSearch on UUID.
+                // UUIDs have no semantic meaning — semanticSearch was returning wrong results.
+                const updateResults = await this.backend.getMemories(
                   `meetings.${event.table_name}`,
-                  100,
+                  50,
                   0
                 )
-                const existing = existingMemories.find(
-                  (m: Memory) => m.metadata?.record_id === event.record_id
-                )
+                const existing = updateResults.find(r => r.metadata?.record_id === event.record_id)
 
                 if (existing?.id) {
                   await this.backend.updateMemory(existing.id, memory)
@@ -341,15 +341,14 @@ export class SyncManager {
               }
 
               case 'delete': {
-                // Find existing cloud memory by record_id, then delete
-                const deleteMemories = await this.backend.getMemories(
+                // P1-4 FIX: Use getMemories + metadata filter instead of semanticSearch on UUID.
+                // UUIDs have no semantic meaning — semanticSearch was returning wrong results.
+                const deleteResults = await this.backend.getMemories(
                   `meetings.${event.table_name}`,
-                  100,
+                  50,
                   0
                 )
-                const toDelete = deleteMemories.find(
-                  (m: Memory) => m.metadata?.record_id === event.record_id
-                )
+                const toDelete = deleteResults.find(r => r.metadata?.record_id === event.record_id)
 
                 if (toDelete?.id) {
                   await this.backend.deleteMemory(toDelete.id)
@@ -370,9 +369,11 @@ export class SyncManager {
             }
           }
 
-          // Task 30.6: Mark synced_at on success (atomic with queue deletion)
-          this.markSyncedAtomic(event.table_name, event.record_id, event.id)
-          syncedIds.push(event.id)
+          // Task 30.6: Mark synced_at on success (skip creates — handled by batch below)
+          if (event.operation_type !== 'create') {
+            this.markSyncedAtomic(event.table_name, event.record_id, event.id)
+            syncedIds.push(event.id)
+          }
 
           this.log.info(`Synced ${event.operation_type} ${event.table_name}:${event.record_id}`)
         } catch (error: unknown) {
@@ -382,12 +383,34 @@ export class SyncManager {
             ((error as Record<string, unknown>)?.statusCode as number) ||
             0
 
-          // Classify error: permanent (4xx / serialization) vs retryable (network / 5xx)
+          // Classify error: permanent (4xx except 401) vs retryable (network / 5xx / 401)
+          // R3: 401 is NOT permanent — attempt token refresh instead of dead-lettering
+          const is401 = statusCode === 401
           const isPermanent =
-            (statusCode >= 400 && statusCode < 500) ||
-            errorMsg.includes('JSON') ||
-            errorMsg.includes('Invalid') ||
-            errorMsg.includes('Forbidden')
+            !is401 &&
+            ((statusCode >= 400 && statusCode < 500) ||
+              errorMsg.includes('JSON') ||
+              errorMsg.includes('Invalid') ||
+              errorMsg.includes('Forbidden'))
+
+          // R3: On 401, attempt Supabase token refresh and update BackendSingleton
+          if (is401 && this.userId) {
+            try {
+              const { setBackendToken } = await import('./backend/BackendSingleton')
+              const freshToken = await KeyStorageService.getAccessToken(this.userId)
+              if (freshToken) {
+                setBackendToken(freshToken, this.userId)
+                this.backend.setAccessToken(freshToken, this.userId)
+                this.log.info('401 received — refreshed token, will retry on next sync')
+              }
+            } catch (refreshErr) {
+              this.log.warn('Token refresh on 401 failed:', refreshErr)
+            }
+            // Don't dead-letter — mark as retryable
+            incrementSyncRetry(event.id)
+            errors.push(`${event.table_name}:${event.record_id} - 401 (token refreshed)`)
+            continue
+          }
 
           if (isPermanent) {
             // Dead-letter: log and remove from queue to stop infinite retries
@@ -433,9 +456,38 @@ export class SyncManager {
         this.log.debug(`Deleted ${syncedIds.length} synced events from queue`)
       }
 
+      // E2: Batch-create all pending create events in one API call (up to 50)
+      if (pendingCreates.length > 0) {
+        try {
+          const batchMemories = pendingCreates.map(pc => pc.memory)
+          const batchResults = await this.backend.batchCreateMemories(batchMemories)
+          for (let i = 0; i < pendingCreates.length; i++) {
+            const pc = pendingCreates[i]
+            if (pc && batchResults[i]?.id) {
+              this.markSyncedAtomic(pc.event.table_name, pc.event.record_id, pc.queueItemId)
+              processedCount++
+            }
+          }
+          this.log.info(`Batch-created ${pendingCreates.length} memories in one API call`)
+        } catch (batchErr) {
+          this.log.warn('Batch create failed, falling back to individual creates:', batchErr)
+          for (const pc of pendingCreates) {
+            try {
+              await this.backend.createMemory(pc.memory)
+              this.markSyncedAtomic(pc.event.table_name, pc.event.record_id, pc.queueItemId)
+              processedCount++
+            } catch (individualErr) {
+              errors.push(
+                `Create failed for ${pc.event.record_id}: ${(individualErr as Error).message}`
+              )
+            }
+          }
+        }
+      }
+
       return {
         success: errors.length === 0,
-        syncedCount: syncedIds.length,
+        syncedCount: syncedIds.length + processedCount,
         failedCount: errors.length,
         errors,
       }
@@ -445,69 +497,35 @@ export class SyncManager {
   }
 
   /**
-   * Poll embedding status until ready
-   * Task 30.12: Implement embedding status polling (GAP-16)
+   * Poll embedding status for a memory.
+   * E4 optimization: Single delayed check instead of 10×1s polling loop.
+   * PiyAPI embeddings are typically ready in <2s; one check at 3s suffices.
    *
    * @param memoryId - Memory ID to poll
-   * @param maxAttempts - Maximum polling attempts (default: 10)
-   * @param intervalMs - Polling interval in milliseconds (default: 1000)
    * @returns Final embedding status
    */
   public async pollEmbeddingStatus(
     memoryId: string,
-    maxAttempts: number = 10,
-    intervalMs: number = 1000
+    _maxAttempts: number = 1,
+    _intervalMs: number = 3000
   ): Promise<EmbeddingStatus> {
-    this.log.debug(`Polling embedding status for memory: ${memoryId}`)
+    this.log.debug(`Checking embedding status for memory: ${memoryId}`)
 
-    for (let attempt = 0; attempt < maxAttempts; attempt++) {
-      try {
-        // Fetch this specific memory by ID via direct API call
-        const token = this.backend.getAccessToken?.()
-        if (!token) {
-          this.log.debug('No access token for embedding poll')
-          return 'pending'
-        }
+    // Wait 3 seconds for PiyAPI to generate embeddings
+    await new Promise(resolve => setTimeout(resolve, 3000))
 
-        // Use backend's base URL — already correctly set for both proxy and direct modes
-        // Proxy mode: baseUrl = .../piyapi-proxy → .../piyapi-proxy/memories/{id}
-        // Direct mode: baseUrl = .../api/v1 → .../api/v1/memories/{id}
-        const baseUrl = this.backend.getBaseUrl?.()
-        const memoryUrl = baseUrl
-          ? `${baseUrl}/memories/${memoryId}`
-          : `${config.BLUEARKIVE_API_URL}/api/v1/memories/${memoryId}`
+    try {
+      // P3: Use backend.getMemories instead of raw fetch to go through
+      // proper auth, proxy mode, and error handling
+      const memories = await this.backend.getMemories(`memory:${memoryId}`, 1, 0)
+      const memory = memories?.[0]
+      if (!memory) return 'pending'
 
-        const res = await fetch(memoryUrl, { headers: { Authorization: `Bearer ${token}` } })
-
-        if (!res.ok) {
-          this.log.debug(`Memory fetch returned ${res.status}`)
-          if (res.status === 404) return 'failed'
-          // Transient error — wait and retry
-          await new Promise(resolve => setTimeout(resolve, intervalMs))
-          continue
-        }
-
-        const memory = await res.json()
-        const embeddingStatus = (memory?.embedding_status ||
-          memory?.metadata?.embedding_status ||
-          'pending') as EmbeddingStatus
-
-        this.log.debug(`Embedding status (attempt ${attempt + 1}): ${embeddingStatus}`)
-
-        if (embeddingStatus === 'ready' || embeddingStatus === 'failed') {
-          return embeddingStatus
-        }
-
-        // Wait before next poll
-        await new Promise(resolve => setTimeout(resolve, intervalMs))
-      } catch (error) {
-        this.log.error('Error polling embedding status:', (error as Error).message)
-        return 'failed'
-      }
+      return (memory.metadata?.embedding_status as EmbeddingStatus) || 'pending'
+    } catch (error) {
+      this.log.debug('Embedding check failed (non-critical):', (error as Error).message)
+      return 'pending'
     }
-
-    this.log.warn(`Embedding status polling timed out after ${maxAttempts} attempts`)
-    return 'pending'
   }
 
   /**
@@ -587,16 +605,6 @@ export class SyncManager {
   }
 
   /**
-   * Wait for PiyAPI to generate embeddings for a memory.
-   * Consolidated to delegate to pollEmbeddingStatus (NEW-09 fix).
-   */
-  private async waitForEmbedding(memoryId: string, maxWaitMs = 10_000): Promise<boolean> {
-    const maxAttempts = Math.max(1, Math.ceil(maxWaitMs / 1000))
-    const status = await this.pollEmbeddingStatus(memoryId, maxAttempts, 1000)
-    return status === 'ready'
-  }
-
-  /**
    * Chunk content if it exceeds plan limits
    * Task 30.11: Implement content size limits and chunking (GAP-N15)
    *
@@ -633,10 +641,31 @@ export class SyncManager {
     const numChunks = Math.ceil(contentLength / sizeLimit)
     const parentId = uuidv4()
 
-    for (let i = 0; i < numChunks; i++) {
-      const start = i * sizeLimit
-      const end = Math.min((i + 1) * sizeLimit, contentLength)
-      const chunkContent = content.substring(start, end)
+    // E5: Semantic-boundary chunking — split on sentence/newline boundaries
+    // instead of character positions that break words mid-syllable
+    let remaining = content
+    let chunkIndex = 0
+    while (remaining.length > 0) {
+      let chunkContent: string
+      if (remaining.length <= sizeLimit) {
+        chunkContent = remaining
+        remaining = ''
+      } else {
+        // Find the last sentence boundary within the size limit
+        const slice = remaining.substring(0, sizeLimit)
+        // Try newline, then period+space, then space as fallback
+        let splitAt = slice.lastIndexOf('\n')
+        if (splitAt < sizeLimit * 0.5) splitAt = slice.lastIndexOf('. ')
+        if (splitAt < sizeLimit * 0.5) splitAt = slice.lastIndexOf(' ')
+        if (splitAt < sizeLimit * 0.3) {
+          splitAt = sizeLimit // fallback to hard cut
+        } else {
+          splitAt += 1 // include the delimiter
+        }
+
+        chunkContent = remaining.substring(0, splitAt).trim()
+        remaining = remaining.substring(splitAt).trim()
+      }
 
       chunks.push({
         ...payload,
@@ -644,9 +673,15 @@ export class SyncManager {
         content: chunkContent,
         original_text: chunkContent,
         parent_id: parentId,
-        chunk_index: i,
-        total_chunks: numChunks,
+        chunk_index: chunkIndex,
+        total_chunks: -1, // P6: Set after loop — semantic chunking may differ from math estimate
       })
+      chunkIndex++
+    }
+
+    // P6: Now that we know the actual count, set total_chunks correctly
+    for (const chunk of chunks) {
+      chunk.total_chunks = chunks.length
     }
 
     this.log.debug(`Split content into ${numChunks} chunks`)

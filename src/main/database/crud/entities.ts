@@ -20,20 +20,34 @@ export function createEntity(input: CreateEntityInput): Entity {
     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
   `)
 
+  const confidence = input.confidence ?? null
+  const startOffset = input.start_offset ?? null
+  const endOffset = input.end_offset ?? null
+  const transcriptId = input.transcript_id || null
+
   stmt.run(
     input.id,
     input.meeting_id,
     input.type,
     input.text,
-    input.confidence || null,
-    input.start_offset || null,
-    input.end_offset || null,
-    input.transcript_id || null
+    confidence,
+    startOffset,
+    endOffset,
+    transcriptId
   )
 
-  const entity = getEntityById(input.id)
-  if (!entity) {
-    throw new Error(`Failed to read back entity after INSERT: ${input.id}`)
+  // Build the return object directly — avoids an extra SELECT round-trip
+  const createdAt = Math.floor(Date.now() / 1000)
+  const entity: Entity = {
+    id: input.id,
+    meeting_id: input.meeting_id,
+    type: input.type,
+    text: input.text,
+    confidence,
+    start_offset: startOffset,
+    end_offset: endOffset,
+    transcript_id: transcriptId,
+    created_at: createdAt,
   }
 
   createSyncQueueItem({
@@ -67,32 +81,38 @@ export function createEntities(inputs: CreateEntityInput[]): Entity[] {
         input.meeting_id,
         input.type,
         input.text,
-        input.confidence || null,
-        input.start_offset || null,
-        input.end_offset || null,
+        input.confidence ?? null,
+        input.start_offset ?? null,
+        input.end_offset ?? null,
         input.transcript_id || null
       )
     }
-  })
 
-  insertMany(inputs)
-
-  return inputs.map(input => {
-    const entity = getEntityById(input.id)
-    if (!entity) {
-      throw new Error(`Failed to read back entity after INSERT: ${input.id}`)
+    // Create sync queue items inside the same transaction for atomicity
+    for (const input of entities) {
+      const entity = getEntityById(input.id)
+      if (entity) {
+        createSyncQueueItem({
+          id: uuidv4(),
+          operation_type: 'create',
+          table_name: 'entities',
+          record_id: entity.id,
+          payload: entity as unknown as Record<string, unknown>,
+        })
+      }
     }
 
-    createSyncQueueItem({
-      id: uuidv4(),
-      operation_type: 'create',
-      table_name: 'entities',
-      record_id: entity.id,
-      payload: entity as unknown as Record<string, unknown>,
+    // Return entities read inside the transaction
+    return entities.map(input => {
+      const entity = getEntityById(input.id)
+      if (!entity) {
+        throw new Error(`Failed to read back entity after INSERT: ${input.id}`)
+      }
+      return entity
     })
-
-    return entity
   })
+
+  return insertMany(inputs)
 }
 
 /**
@@ -196,13 +216,16 @@ export function getEntityCountByType(meetingId: string): Record<string, number> 
 export function searchEntities(meetingId: string, searchText: string): Entity[] {
   const db = getDatabase()
 
+  // Escape LIKE special characters to prevent SQL injection via pattern manipulation
+  const safeText = searchText.replace(/[%_\\]/g, '\\$&')
+
   const stmt = db.prepare(`
     SELECT * FROM entities 
-    WHERE meeting_id = ? AND text LIKE ?
+    WHERE meeting_id = ? AND text LIKE ? ESCAPE '\\'
     ORDER BY created_at ASC
   `)
 
-  return stmt.all(meetingId, `%${searchText}%`) as Entity[]
+  return stmt.all(meetingId, `%${safeText}%`) as Entity[]
 }
 
 /**
@@ -233,8 +256,24 @@ export function deleteEntity(id: string): boolean {
 export function deleteEntitiesByMeetingId(meetingId: string): number {
   const db = getDatabase()
 
+  // Fetch entity IDs before deleting to enqueue sync deletions
+  const entities = db
+    .prepare('SELECT id FROM entities WHERE meeting_id = ?')
+    .all(meetingId) as Array<{ id: string }>
+
   const stmt = db.prepare('DELETE FROM entities WHERE meeting_id = ?')
   const result = stmt.run(meetingId)
+
+  // Enqueue sync deletions for each entity
+  for (const entity of entities) {
+    createSyncQueueItem({
+      id: uuidv4(),
+      operation_type: 'delete',
+      table_name: 'entities',
+      record_id: entity.id,
+      payload: { id: entity.id },
+    })
+  }
 
   return result.changes
 }
@@ -245,8 +284,24 @@ export function deleteEntitiesByMeetingId(meetingId: string): number {
 export function deleteEntitiesByTranscriptId(transcriptId: string): number {
   const db = getDatabase()
 
+  // Fetch entity IDs before deleting to enqueue sync deletions
+  const entities = db
+    .prepare('SELECT id FROM entities WHERE transcript_id = ?')
+    .all(transcriptId) as Array<{ id: string }>
+
   const stmt = db.prepare('DELETE FROM entities WHERE transcript_id = ?')
   const result = stmt.run(transcriptId)
+
+  // Enqueue sync deletions for each entity
+  for (const entity of entities) {
+    createSyncQueueItem({
+      id: uuidv4(),
+      operation_type: 'delete',
+      table_name: 'entities',
+      record_id: entity.id,
+      payload: { id: entity.id },
+    })
+  }
 
   return result.changes
 }

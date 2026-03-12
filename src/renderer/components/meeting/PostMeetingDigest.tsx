@@ -28,7 +28,7 @@ export const PostMeetingDigest: React.FC<PostMeetingDigestProps> = ({
 }) => {
   const [activeTab, setActiveTab] = useState<'summary' | 'actions' | 'pinned'>('summary')
   const [exportingType, setExportingType] = useState<'markdown' | 'pdf' | 'json' | null>(null)
-  const mins = Math.round(duration / 60)
+  const mins = Math.round(duration / 60) || null
 
   const handleExport = async (format: 'markdown' | 'pdf' | 'json') => {
     setExportingType(format)
@@ -39,7 +39,8 @@ export const PostMeetingDigest: React.FC<PostMeetingDigestProps> = ({
         includeAudio: false,
       })
       if (res.success && res.data) {
-        log.info('Exported to', res.data.filePath)
+        // The export response contains `content` and `filename`, not `filePath`
+        log.info('Exported', format, '→', res.data.filename, `(${res.data.content.length} chars)`)
       } else {
         log.error('Export failed:', res.error)
       }
@@ -65,7 +66,11 @@ export const PostMeetingDigest: React.FC<PostMeetingDigestProps> = ({
 
   const itemVariants: Variants = {
     hidden: { opacity: 0, y: 10 },
-    visible: { opacity: 1, y: 0, transition: { type: 'spring', stiffness: 400, damping: 30 } },
+    visible: {
+      opacity: 1,
+      y: 0,
+      transition: { type: 'spring', stiffness: 350, damping: 28, mass: 0.8 },
+    },
   }
 
   return (
@@ -74,10 +79,12 @@ export const PostMeetingDigest: React.FC<PostMeetingDigestProps> = ({
         <div className="ui-digest-meta">
           <div className="ui-digest-meta-primary">
             <TrendingUp size={14} />
-            <span>{mins} min</span>
+            <span>{mins ? `${mins} min` : '< 1 min'}</span>
           </div>
           <span>·</span>
-          <span>{participantCount} participants</span>
+          <span>
+            {participantCount} participant{participantCount !== 1 ? 's' : ''}
+          </span>
         </div>
 
         <div className="ui-digest-tabs relative">
@@ -93,7 +100,7 @@ export const PostMeetingDigest: React.FC<PostMeetingDigestProps> = ({
                   layoutId="activeTabIndicator"
                   className="ui-digest-tab-indicator absolute inset-0 z-0 bg-[var(--color-bg-active)] rounded-[var(--radius-sm)] border border-[var(--color-border-subtle)]"
                   initial={false}
-                  transition={{ type: 'spring', stiffness: 500, damping: 40 }}
+                  transition={{ type: 'spring', stiffness: 350, damping: 28, mass: 0.8 }}
                 />
               )}
             </button>
@@ -101,12 +108,12 @@ export const PostMeetingDigest: React.FC<PostMeetingDigestProps> = ({
         </div>
       </div>
 
-      <div className="ui-digest-content scrollbar-webkit relative min-h-[300px]">
+      <div className="ui-digest-content scrollbar-webkit">
         <AnimatePresence mode="wait">
           {activeTab === 'summary' && (
             <motion.div
               key="summary"
-              className="ui-digest-section absolute inset-x-0"
+              className="ui-digest-section px-6"
               variants={containerVariants}
               initial="hidden"
               animate="visible"
@@ -154,7 +161,7 @@ export const PostMeetingDigest: React.FC<PostMeetingDigestProps> = ({
           {activeTab === 'actions' && (
             <motion.div
               key="actions"
-              className="ui-digest-section absolute inset-x-0"
+              className="ui-digest-section px-6"
               variants={containerVariants}
               initial="hidden"
               animate="visible"
@@ -176,6 +183,15 @@ export const PostMeetingDigest: React.FC<PostMeetingDigestProps> = ({
                   </div>
                 </motion.div>
               ))}
+              {(!actionItems || actionItems.length === 0) && (
+                <motion.div
+                  variants={itemVariants}
+                  className="ui-digest-text"
+                  style={{ opacity: 0.5, textAlign: 'center', padding: '24px 0' }}
+                >
+                  No action items detected in this meeting.
+                </motion.div>
+              )}
               <motion.div variants={itemVariants} className="mt-6">
                 <h4 className="text-xs font-semibold text-[var(--color-text-secondary)] uppercase tracking-wider mb-3 px-1">
                   Sync Integrations
@@ -262,7 +278,7 @@ export const PostMeetingDigest: React.FC<PostMeetingDigestProps> = ({
           {activeTab === 'pinned' && (
             <motion.div
               key="pinned"
-              className="ui-digest-section absolute inset-x-0"
+              className="ui-digest-section px-6"
               variants={containerVariants}
               initial="hidden"
               animate="visible"
@@ -276,6 +292,15 @@ export const PostMeetingDigest: React.FC<PostMeetingDigestProps> = ({
                   <div className="ui-digest-pinned-text">{p.text}</div>
                 </motion.div>
               ))}
+              {(!pinnedMoments || pinnedMoments.length === 0) && (
+                <motion.div
+                  variants={itemVariants}
+                  className="ui-digest-text"
+                  style={{ opacity: 0.5, textAlign: 'center', padding: '24px 0' }}
+                >
+                  No bookmarked moments for this meeting.
+                </motion.div>
+              )}
             </motion.div>
           )}
         </AnimatePresence>

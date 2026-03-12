@@ -28,7 +28,7 @@ function draw() {
     currentHeights[i] += (specificTarget - currentHeights[i]) * 0.2
     const h = currentHeights[i]
 
-    ctx.fillStyle = isRecording ? '#10b981' : '#6b7280'
+    ctx.fillStyle = isRecording ? '#ff9f0a' : '#6b7280'
     ctx.beginPath()
     ctx.roundRect(startX + i * (barWidth + gap), centerY - h / 2, barWidth, h, 2)
     ctx.fill()

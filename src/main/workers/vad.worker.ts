@@ -93,7 +93,8 @@ class VADWorker {
     try {
       // Load ONNX model using onnxruntime-node
       this.session = await ort.InferenceSession.create(modelPath, {
-        executionProviders: ['cpu'],
+        // OPT-1: Use DirectML GPU on Windows for faster VAD
+        executionProviders: process.platform === 'win32' ? ['dml', 'cpu'] : ['cpu'],
         graphOptimizationLevel: 'all',
       })
 

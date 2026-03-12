@@ -45,6 +45,25 @@ export function useSystemState() {
 
     loadUserData()
 
+    // Periodic quota refresh so exhaustion is detected mid-session
+    const quotaInterval = setInterval(async () => {
+      try {
+        const quotaRes = await window.electronAPI?.quota?.check()
+        if (quotaRes?.success && quotaRes.data) {
+          setQuotaData(
+            quotaRes.data as {
+              used: number
+              limit: number
+              remaining: number
+              exhausted: boolean
+            }
+          )
+        }
+      } catch {
+        /* ignore */
+      }
+    }, 60_000) // Every 60 seconds
+
     const onTierRefresh = (e: Event) => {
       const detail = (e as CustomEvent).detail
       if (detail?.tier) setCurrentTier(detail.tier)
@@ -52,7 +71,10 @@ export function useSystemState() {
     }
 
     window.addEventListener('tier-refreshed', onTierRefresh)
-    return () => window.removeEventListener('tier-refreshed', onTierRefresh)
+    return () => {
+      window.removeEventListener('tier-refreshed', onTierRefresh)
+      clearInterval(quotaInterval)
+    }
   }, [setCurrentTier, setQuotaData, setDeviceInfo])
 
   // Auto tier-refresh on focus

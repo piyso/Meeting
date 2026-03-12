@@ -253,6 +253,9 @@ export class KeyStorageService {
       this.deleteKey(KeyType.PLAN_TIER, userId),
       this.deleteKey(KeyType.BILLING_STATUS, userId),
     ])
+    // I14 fix: Clear current user ID to prevent phantom auth state
+    // Without this, getCurrentUserId() still returns the deleted user's ID
+    await this.clearCurrentUserId()
   }
 
   /**
@@ -297,7 +300,19 @@ export class KeyStorageService {
    */
   public static async validateAccessToken(userId: string, token: string): Promise<boolean> {
     const storedToken = await this.getAccessToken(userId)
-    return storedToken === token
+    if (!storedToken || !token) return false
+    // I15 fix: Use timing-safe comparison to prevent timing attacks.
+    // === leaks token length via response timing differences.
+    try {
+      const crypto = await import('crypto')
+      const a = Buffer.from(storedToken, 'utf-8')
+      const b = Buffer.from(token, 'utf-8')
+      if (a.length !== b.length) return false
+      return crypto.timingSafeEqual(a, b)
+    } catch {
+      // Fallback if crypto is unavailable (should never happen in Node)
+      return storedToken === token
+    }
   }
 
   /**

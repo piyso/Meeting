@@ -12,6 +12,7 @@ import {
   Activity,
   Database,
   Lock,
+  Code,
 } from 'lucide-react'
 import { Select } from '../ui/Select'
 import { Toggle } from '../ui/Toggle'
@@ -87,6 +88,8 @@ const DEFAULT_SETTINGS: SettingsState = {
 export const SettingsView: React.FC = () => {
   const [settings, setSettings] = useState<SettingsState>(DEFAULT_SETTINGS)
   const [loading, setLoading] = useState(true)
+  const currentTier = useAppStore(s => s.currentTier)
+  const setGlobalTier = useAppStore(s => s.setCurrentTier)
   const [modelStatus, setModelStatus] = useState<string>('Checking...')
   const [userInfo, setUserInfo] = useState<{
     email: string
@@ -252,11 +255,11 @@ export const SettingsView: React.FC = () => {
       icon: <Mic size={20} className="text-[var(--color-violet)]" />,
       content: (
         <>
-          <div className="flex items-center justify-between h-[40px]">
+          <div className="flex flex-wrap items-center justify-between gap-2 min-h-[40px]">
             <span className="text-[var(--text-sm)] text-[var(--color-text-secondary)]">
               Audio source
             </span>
-            <div className="w-64">
+            <div className="w-full max-w-[16rem]">
               <Select
                 value={settings.preferredAudioDevice}
                 onChange={e => updateSetting('preferredAudioDevice', e.target.value)}
@@ -267,7 +270,7 @@ export const SettingsView: React.FC = () => {
               />
             </div>
           </div>
-          <div className="flex items-center justify-between h-[40px]">
+          <div className="flex flex-wrap items-center justify-between gap-2 min-h-[40px]">
             <span className="text-[var(--text-sm)] text-[var(--color-text-secondary)]">
               Fallback to microphone
             </span>
@@ -276,7 +279,7 @@ export const SettingsView: React.FC = () => {
               onChange={e => updateSetting('audioFallbackEnabled', e.target.checked)}
             />
           </div>
-          <div className="flex items-center justify-between h-[40px]">
+          <div className="flex flex-wrap items-center justify-between gap-2 min-h-[40px]">
             <span className="text-[var(--text-sm)] text-[var(--color-text-secondary)]">
               Keep audio files
             </span>
@@ -294,7 +297,7 @@ export const SettingsView: React.FC = () => {
       icon: <Type size={20} className="text-[var(--color-teal)]" />,
       content: (
         <>
-          <div className="flex items-center justify-between h-[40px]">
+          <div className="flex flex-wrap items-center justify-between gap-2 min-h-[40px]">
             <span className="text-[var(--text-sm)] text-[var(--color-text-secondary)]">
               Hardware tier
             </span>
@@ -302,16 +305,16 @@ export const SettingsView: React.FC = () => {
               {tierDisplay}
             </Badge>
           </div>
-          <div className="flex items-center justify-between h-[40px]">
+          <div className="flex flex-wrap items-center justify-between gap-2 min-h-[40px]">
             <span className="text-[var(--text-sm)] text-[var(--color-text-secondary)]">
               AI models
             </span>
             <Badge variant={modelStatus === 'Ready' ? 'success' : 'outline'}>{modelStatus}</Badge>
           </div>
-          <div className="flex items-center justify-between h-[40px]">
+          <div className="flex flex-wrap items-center justify-between gap-2 min-h-[40px]">
             <span className="text-[var(--text-sm)] text-[var(--color-text-secondary)]">
               Cloud transcription
-              {userInfo?.tier === 'free' && (
+              {currentTier === 'free' && (
                 <Lock
                   size={12}
                   className="inline ml-1.5 opacity-60 text-[var(--color-amber)] mb-0.5"
@@ -320,7 +323,7 @@ export const SettingsView: React.FC = () => {
             </span>
             <Toggle
               checked={settings.useCloudTranscription}
-              disabled={userInfo?.tier === 'free'}
+              disabled={currentTier === 'free'}
               onChange={e => updateSetting('useCloudTranscription', e.target.checked)}
             />
           </div>
@@ -333,10 +336,10 @@ export const SettingsView: React.FC = () => {
       icon: <Brain size={20} className="text-[var(--color-sky)]" />,
       content: (
         <>
-          <div className="flex items-center justify-between h-[40px]">
+          <div className="flex flex-wrap items-center justify-between gap-2 min-h-[40px]">
             <span className="text-[var(--text-sm)] text-[var(--color-text-secondary)]">
               Auto-expand notes
-              {userInfo?.tier === 'free' && (
+              {currentTier === 'free' && (
                 <Lock
                   size={12}
                   className="inline ml-1.5 opacity-60 text-[var(--color-amber)] mb-0.5"
@@ -345,15 +348,15 @@ export const SettingsView: React.FC = () => {
             </span>
             <Toggle
               checked={settings.autoExpandNotes}
-              disabled={userInfo?.tier === 'free'}
+              disabled={currentTier === 'free'}
               onChange={e => updateSetting('autoExpandNotes', e.target.checked)}
             />
           </div>
-          <div className="flex items-center justify-between h-[40px]">
+          <div className="flex flex-wrap items-center justify-between gap-2 min-h-[40px]">
             <span className="text-[var(--text-sm)] text-[var(--color-text-secondary)]">
               Intelligence engine
             </span>
-            <div className="w-64">
+            <div className="w-full max-w-[16rem]">
               <Select
                 value={settings.llmEngine}
                 onChange={e => updateSetting('llmEngine', e.target.value)}
@@ -364,7 +367,7 @@ export const SettingsView: React.FC = () => {
               />
             </div>
           </div>
-          <div className="flex items-center justify-between h-[40px]">
+          <div className="flex flex-wrap items-center justify-between gap-2 min-h-[40px]">
             <span className="text-[var(--text-sm)] text-[var(--color-text-secondary)]">
               Show smart chips
             </span>
@@ -453,7 +456,7 @@ export const SettingsView: React.FC = () => {
               <div className="flex items-center justify-between h-[40px] px-2">
                 <span className="text-[var(--text-sm)] text-[var(--color-text-secondary)]">
                   Cloud Sync (E2EE)
-                  {userInfo?.tier === 'free' && (
+                  {currentTier === 'free' && (
                     <Lock
                       size={12}
                       className="inline ml-1.5 opacity-60 text-[var(--color-amber)] mb-0.5"
@@ -462,7 +465,7 @@ export const SettingsView: React.FC = () => {
                 </span>
                 <Toggle
                   checked={settings.syncEnabled}
-                  disabled={userInfo?.tier === 'free'}
+                  disabled={currentTier === 'free'}
                   onChange={e => updateSetting('syncEnabled', e.target.checked)}
                 />
               </div>
@@ -477,11 +480,11 @@ export const SettingsView: React.FC = () => {
       icon: <HardDrive size={20} className="text-[var(--color-text-secondary)]" />,
       content: (
         <>
-          <div className="flex items-center justify-between h-[40px]">
+          <div className="flex flex-wrap items-center justify-between gap-2 min-h-[40px]">
             <span className="text-[var(--text-sm)] text-[var(--color-text-secondary)]">
               Max disk usage
             </span>
-            <div className="w-64">
+            <div className="w-full max-w-[16rem]">
               <Select
                 value={String(settings.maxDiskUsage)}
                 onChange={e => updateSetting('maxDiskUsage', Number(e.target.value))}
@@ -495,7 +498,7 @@ export const SettingsView: React.FC = () => {
               />
             </div>
           </div>
-          <div className="flex items-center justify-between h-[40px]">
+          <div className="flex flex-wrap items-center justify-between gap-2 min-h-[40px]">
             <span className="text-[var(--text-sm)] text-[var(--color-text-secondary)]">
               Auto-delete old meetings
             </span>
@@ -505,11 +508,11 @@ export const SettingsView: React.FC = () => {
             />
           </div>
           {settings.autoDeleteOldMeetings && (
-            <div className="flex items-center justify-between h-[40px]">
+            <div className="flex flex-wrap items-center justify-between gap-2 min-h-[40px]">
               <span className="text-[var(--text-sm)] text-[var(--color-text-secondary)]">
                 Delete after
               </span>
-              <div className="w-64">
+              <div className="w-full max-w-[16rem]">
                 <Select
                   value={String(settings.autoDeleteAfterDays)}
                   onChange={e => updateSetting('autoDeleteAfterDays', Number(e.target.value))}
@@ -585,8 +588,8 @@ export const SettingsView: React.FC = () => {
                   <span className="text-[var(--text-sm)] text-[var(--color-text-secondary)]">
                     Plan
                   </span>
-                  <Badge variant={userInfo.tier === 'pro' ? 'success' : 'default'}>
-                    {userInfo.tier.charAt(0).toUpperCase() + userInfo.tier.slice(1)}
+                  <Badge variant={currentTier === 'pro' ? 'success' : 'default'}>
+                    {currentTier.charAt(0).toUpperCase() + currentTier.slice(1)}
                   </Badge>
                 </div>
                 <div className="flex items-center justify-between min-h-[40px] gap-3">
@@ -665,18 +668,16 @@ export const SettingsView: React.FC = () => {
               </div>
 
               <div className="pt-6 border-t border-[var(--color-border-subtle)]">
-                {userInfo.tier !== 'enterprise' && (
+                {currentTier !== 'enterprise' && (
                   <UpgradePrompt
                     feature="cloudSync"
                     featureLabel={
-                      userInfo.tier === 'free'
-                        ? 'Cloud Sync & AI Features'
-                        : 'Premium Tier Expansion'
+                      currentTier === 'free' ? 'Cloud Sync & AI Features' : 'Premium Tier Expansion'
                     }
-                    currentTier={userInfo.tier}
-                    requiredTier={userInfo.tier === 'free' ? 'starter' : 'pro'}
+                    currentTier={currentTier}
+                    requiredTier={currentTier === 'free' ? 'starter' : 'pro'}
                     onUpgrade={() => {
-                      openUpgrade(userInfo.tier === 'free' ? 'starter' : 'pro')
+                      openUpgrade(currentTier === 'free' ? 'starter' : 'pro')
                     }}
                   />
                 )}
@@ -704,6 +705,65 @@ export const SettingsView: React.FC = () => {
       ),
     },
   ]
+
+  // Dev-only tier switcher — only visible in Vite dev builds (tree-shaken in production)
+  if (import.meta.env.DEV) {
+    sections.push({
+      id: 'dev-tools',
+      title: 'Developer Tools',
+      icon: <Code size={20} className="text-[var(--color-rose)]" />,
+      content: (
+        <>
+          <div className="flex items-center justify-between min-h-[40px]">
+            <span className="text-[var(--text-sm)] text-[var(--color-text-secondary)]">
+              Simulate user tier
+            </span>
+            <Badge variant={currentTier === 'pro' ? 'success' : 'outline'}>
+              {currentTier.charAt(0).toUpperCase() + currentTier.slice(1)}
+            </Badge>
+          </div>
+          <div className="flex gap-2 mt-2">
+            {(['free', 'starter', 'pro'] as const).map(tier => (
+              <button
+                key={tier}
+                onClick={() => setGlobalTier(tier)}
+                style={{
+                  padding: '8px 20px',
+                  borderRadius: 'var(--radius-md)',
+                  fontSize: 'var(--text-sm)',
+                  fontWeight: 600,
+                  cursor: 'pointer',
+                  transition: 'all 150ms ease',
+                  border:
+                    currentTier === tier
+                      ? '1.5px solid var(--color-violet)'
+                      : '1px solid var(--color-border-subtle)',
+                  background:
+                    currentTier === tier ? 'rgba(139, 92, 246, 0.15)' : 'rgba(255, 255, 255, 0.03)',
+                  color: currentTier === tier ? '#d8b4fe' : 'var(--color-text-secondary)',
+                  boxShadow: currentTier === tier ? '0 0 12px rgba(139, 92, 246, 0.15)' : 'none',
+                }}
+              >
+                {tier.charAt(0).toUpperCase() + tier.slice(1)}
+              </button>
+            ))}
+          </div>
+          <p
+            className="mt-3"
+            style={{
+              fontSize: 'var(--text-xs)',
+              color: 'var(--color-text-tertiary)',
+              opacity: 0.7,
+              lineHeight: 1.5,
+            }}
+          >
+            ⚠️ Dev only — instantly switches the global Zustand tier. Navigate to Knowledge Graph,
+            Weekly Digest, or Ask Meetings to see gating. Hidden in production.
+          </p>
+        </>
+      ),
+    })
+  }
 
   if (loading) {
     return (

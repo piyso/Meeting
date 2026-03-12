@@ -54,7 +54,10 @@
   background-color: #007bff;
   color: white;
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition:
+    background-color 0.2s ease,
+    transform 0.2s ease,
+    box-shadow 0.2s ease;
 }
 
 .export-button:hover {
@@ -105,6 +108,7 @@
 .password-input:focus {
   outline: none;
   border-color: #007bff;
+  box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.25);
 }
 
 .error-message {
@@ -142,7 +146,9 @@
   border: none;
   border-radius: 6px;
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition:
+    background-color 0.2s ease,
+    border-color 0.2s ease;
 }
 
 .cancel-button {
@@ -290,7 +296,9 @@
   background-color: white;
   color: #495057;
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition:
+    background-color 0.2s ease,
+    border-color 0.2s ease;
   display: flex;
   align-items: center;
   gap: 8px;

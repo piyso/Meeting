@@ -480,7 +480,7 @@ export function registerAuthHandlers(): void {
       getAuthService().recordActivity()
       return { success: true, data: undefined }
     } catch {
-      return { success: true } // Non-critical — don't error on activity tracking
+      return { success: true, data: undefined } // Non-critical — don't error on activity tracking
     }
   })
 

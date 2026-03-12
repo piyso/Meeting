@@ -146,6 +146,7 @@ export class DatabaseService {
 
     // Post-filter by tags if specified (tags stored as JSON array)
     let filteredMeetings = meetings
+    let filteredTotal = totalRow.count
     if (params.tags && params.tags.length > 0) {
       filteredMeetings = meetings.filter(m => {
         if (!m.tags) return false
@@ -156,9 +157,13 @@ export class DatabaseService {
           return false
         }
       })
+      // C10 fix: When tags are applied, the SQL total is wrong because tag
+      // filtering happens client-side. Use the filtered count as total so
+      // hasMore is computed correctly.
+      filteredTotal = filteredMeetings.length
     }
 
-    return { meetings: filteredMeetings, total: totalRow.count }
+    return { meetings: filteredMeetings, total: filteredTotal }
   }
 
   updateMeeting(id: string, updates: UpdateMeetingInput): Meeting {
@@ -244,7 +249,17 @@ export class DatabaseService {
     return createEntity(input)
   }
 
-  getEntitiesByMeeting(meetingId: string, _types?: string[]): Entity[] {
+  getEntitiesByMeeting(meetingId: string, types?: string[]): Entity[] {
+    // I18 fix: actually use the types filter parameter
+    if (types && types.length > 0) {
+      const db = this.getDb()
+      const placeholders = types.map(() => '?').join(', ')
+      return db
+        .prepare(
+          `SELECT * FROM entities WHERE meeting_id = ? AND type IN (${placeholders}) ORDER BY created_at DESC`
+        )
+        .all(meetingId, ...types) as Entity[]
+    }
     return getEntitiesByMeetingId(meetingId)
   }
 
@@ -403,9 +418,9 @@ export class DatabaseService {
    * Rebuild FTS5 indexes from source tables.
    * Use after crash recovery or if full-text search returns stale results.
    */
-  rebuildFtsIndexes(): { transcripts: boolean; notes: boolean } {
+  rebuildFtsIndexes(): { transcripts: boolean; notes: boolean; entities: boolean } {
     const db = this.getDb()
-    const result = { transcripts: false, notes: false }
+    const result = { transcripts: false, notes: false, entities: false }
 
     try {
       db.exec("INSERT INTO transcripts_fts(transcripts_fts) VALUES ('rebuild')")
@@ -419,6 +434,14 @@ export class DatabaseService {
       result.notes = true
     } catch {
       // Same
+    }
+
+    // I11 fix: Also rebuild entities_fts which was previously missing
+    try {
+      db.exec("INSERT INTO entities_fts(entities_fts) VALUES ('rebuild')")
+      result.entities = true
+    } catch {
+      // entities_fts may not exist in older schemas
     }
 
     return result

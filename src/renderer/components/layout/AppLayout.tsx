@@ -1,4 +1,5 @@
 import React, { Suspense, lazy } from 'react'
+import { WindowsTitleBar } from './WindowsTitleBar'
 import { useAppStore } from '../../store/appStore'
 import { ZenRail } from './ZenRail'
 import { DynamicIsland } from './DynamicIsland'
@@ -10,30 +11,19 @@ import { GlobalContextBar } from '../command/GlobalContextBar'
 import { DeviceWallDialog } from '../meeting/DeviceWallDialog'
 import { IntelligenceWallDialog } from '../meeting/IntelligenceWallDialog'
 import { useAudioSession } from '../../hooks/useAudioSession'
-import { useAudioStatus } from '../../hooks/queries/useAudioStatus'
+
+// Determine platform globally
+const platform = window.electronAPI?.platform || 'web'
+
 import { useSystemState } from '../../hooks/useSystemState'
 import { useSyncEngine } from '../../hooks/useSyncEngine'
 import { ConflictMergeDialog } from '../meeting/ConflictMergeDialog'
 
 // Error fallback component for failed lazy loads
 const LazyLoadError: React.FC<{ name: string }> = ({ name }) => (
-  <div style={{ padding: 32, textAlign: 'center', color: 'var(--color-text-muted, #888)' }}>
-    <p style={{ fontSize: 14 }}>Failed to load {name}</p>
-    <button
-      onClick={() => window.location.reload()}
-      style={{
-        marginTop: 8,
-        padding: '6px 16px',
-        borderRadius: 6,
-        border: '1px solid var(--color-border, #333)',
-        background: 'transparent',
-        color: 'inherit',
-        cursor: 'pointer',
-        fontSize: 13,
-      }}
-    >
-      Reload
-    </button>
+  <div className="ui-app-error-state">
+    <p>Failed to load {name}</p>
+    <button onClick={() => window.location.reload()}>Reload</button>
   </div>
 )
 
@@ -85,6 +75,11 @@ const PricingView = lazy(() =>
 export const AppLayout: React.FC = () => {
   const activeView = useAppStore(s => s.activeView)
   const navigate = useAppStore(s => s.navigate)
+
+  // ── Platform CSS Injection ─────────────────────────────────
+  React.useEffect(() => {
+    document.body.setAttribute('data-platform', platform)
+  }, [])
   const focusMode = useAppStore(s => s.focusMode)
   const recordingState = useAppStore(s => s.recordingState)
   const isOnline = useAppStore(s => s.isOnline)
@@ -147,6 +142,7 @@ export const AppLayout: React.FC = () => {
       try {
         const res = await window.electronAPI.meeting.start({})
         if (res.success && res.data) {
+          useAppStore.getState().setActiveMeetingId(res.data.meeting.id)
           navigate('meeting-detail', res.data.meeting.id)
         } else {
           setRecordingState('idle')
@@ -159,16 +155,25 @@ export const AppLayout: React.FC = () => {
     // toggle-recording: start if idle, stop if recording
     const handleToggleRecording = async () => {
       const state = useAppStore.getState()
-      if (state.recordingState === 'recording') {
-        // Inline stop logic — avoids depending on handleStopRecording declaration order
+      if (state.recordingState === 'recording' || state.recordingState === 'paused') {
+        // Finalize pause accounting before stopping (mirrors handleStopRecording)
+        if (state.recordingState === 'paused' && state.recordingPausedAt) {
+          state.setRecordingTotalPausedMs(
+            state.recordingTotalPausedMs + (Date.now() - state.recordingPausedAt)
+          )
+          state.setRecordingPausedAt(null)
+        }
         setRecordingState('processing')
         try {
           if (state.activeMeetingId) {
-            await window.electronAPI?.audio?.stopCapture?.({ meetingId: state.activeMeetingId })
+            // meeting:stop saves end_time/duration AND stops audio internally (L159-164
+            // of meeting.handlers.ts) — no need to call audio:stopCapture separately
+            await window.electronAPI?.meeting?.stop?.({ meetingId: state.activeMeetingId })
           }
         } catch {
-          /* ignore */
+          /* ignore — best-effort cleanup */
         }
+        useAppStore.getState().setActiveMeetingId(null)
         setTimeout(() => setRecordingState('idle'), 2000)
       } else if (state.recordingState === 'idle') {
         handleGlobalShortcut()
@@ -260,20 +265,42 @@ export const AppLayout: React.FC = () => {
   // ── ⌘+Shift+B bookmark shortcut + Widget IPC ────────────
   React.useEffect(() => {
     const handleBookmarkShortcut = async (e: KeyboardEvent) => {
-      if (e.metaKey && e.shiftKey && e.key.toLowerCase() === 'b') {
+      if ((e.metaKey || e.ctrlKey) && e.shiftKey && e.key.toLowerCase() === 'b') {
         e.preventDefault()
         await executeBookmark()
       }
     }
 
+    const handlePauseShortcut = async (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.shiftKey && e.key.toLowerCase() === 'p') {
+        e.preventDefault()
+        window.dispatchEvent(new CustomEvent('toggle-pause'))
+      }
+    }
+
+    const handleQuickBookmark = async () => {
+      await executeBookmark()
+    }
+
+    window.addEventListener('quick-bookmark', handleQuickBookmark)
+
     const unsubBookmarkIPC = window.electronAPI?.on?.bookmarkRequested?.(() => {
       executeBookmark()
     })
 
+    const unsubPauseIPC = window.electronAPI?.on?.pauseRequested?.(() => {
+      window.dispatchEvent(new CustomEvent('toggle-pause'))
+    })
+
     window.addEventListener('keydown', handleBookmarkShortcut)
+    window.addEventListener('keydown', handlePauseShortcut)
+
     return () => {
       window.removeEventListener('keydown', handleBookmarkShortcut)
+      window.removeEventListener('keydown', handlePauseShortcut)
+      window.removeEventListener('quick-bookmark', handleQuickBookmark)
       if (unsubBookmarkIPC) unsubBookmarkIPC()
+      if (unsubPauseIPC) unsubPauseIPC()
     }
   }, [executeBookmark])
 
@@ -298,8 +325,7 @@ export const AppLayout: React.FC = () => {
   }, [navigate])
 
   const meetingId = activeView === 'meeting-detail' ? selectedMeetingId : null
-  const { startCapture, stopCapture } = useAudioSession(meetingId)
-  const { currentVolume } = useAudioStatus(meetingId)
+  const { startCapture, stopCapture: _stopCapture, pauseCapture, resumeCapture } = useAudioSession(meetingId)
 
   // React to store state to trigger actual backend capture
   React.useEffect(() => {
@@ -320,36 +346,70 @@ export const AppLayout: React.FC = () => {
 
   // Stop recording via API hook and complete UI state shift
   const handleStopRecording = React.useCallback(async () => {
-    setRecordingState('processing')
-    if (meetingId) {
-      await stopCapture()
+    // If stopping from paused state, finalize pause duration accounting
+    const state = useAppStore.getState()
+    if (state.recordingState === 'paused' && state.recordingPausedAt) {
+      state.setRecordingTotalPausedMs(
+        state.recordingTotalPausedMs + (Date.now() - state.recordingPausedAt)
+      )
+      state.setRecordingPausedAt(null)
     }
+    setRecordingState('processing')
+    if (state.activeMeetingId) {
+      // meeting.stop() saves end_time/duration AND stops audio internally
+      // No separate stopCapture() needed — avoids double-stop race condition (C3)
+      await window.electronAPI?.meeting?.stop?.({ meetingId: state.activeMeetingId })
+    }
+    useAppStore.getState().setActiveMeetingId(null)
     setTimeout(() => setRecordingState('idle'), 2000)
-  }, [meetingId, stopCapture, setRecordingState])
+  }, [setRecordingState])
+
+  // Pause/Resume recording
+  const handlePauseRecording = React.useCallback(async () => {
+    const state = useAppStore.getState()
+    // Use activeMeetingId from store — not the view-dependent meetingId
+    // This ensures pause works even when user navigates away from meeting-detail
+    if (!state.activeMeetingId) return
+    const currentState = state.recordingState
+    if (currentState === 'recording') {
+      try {
+        await pauseCapture()
+        state.setRecordingPausedAt(Date.now())
+        setRecordingState('paused')
+        state.addToast({ type: 'info', title: '⏸ Recording paused', duration: 2000 })
+      } catch {
+        state.addToast({ type: 'error', title: 'Failed to pause', duration: 3000 })
+      }
+    } else if (currentState === 'paused') {
+      try {
+        await resumeCapture()
+        if (state.recordingPausedAt) {
+          state.setRecordingTotalPausedMs(
+            state.recordingTotalPausedMs + (Date.now() - state.recordingPausedAt)
+          )
+          state.setRecordingPausedAt(null)
+        }
+        setRecordingState('recording')
+        state.addToast({ type: 'success', title: '▶ Recording resumed', duration: 2000 })
+      } catch {
+        state.addToast({ type: 'error', title: 'Failed to resume', duration: 3000 })
+      }
+    }
+  }, [pauseCapture, resumeCapture, setRecordingState])
+
+  // Attach window event listener for toggle-pause so the effect above can trigger it,
+  // or so keyboard shortcuts can trigger it globally.
+  React.useEffect(() => {
+    const onTogglePause = () => handlePauseRecording()
+    window.addEventListener('toggle-pause', onTogglePause)
+    return () => window.removeEventListener('toggle-pause', onTogglePause)
+  }, [handlePauseRecording])
 
   // Show minimal loading screen while checking onboarding status
   if (initializing) {
     return (
-      <div
-        className="ui-app-layout"
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          height: '100vh',
-          background: 'var(--color-bg-primary, #020617)',
-        }}
-      >
-        <div
-          style={{
-            color: 'var(--color-text-tertiary, #64748b)',
-            fontSize: 13,
-            fontFamily: 'var(--font-mono, monospace)',
-            letterSpacing: '0.1em',
-          }}
-        >
-          Initializing...
-        </div>
+      <div className="ui-app-layout ui-app-initializing">
+        <div className="ui-app-initializing-text">Initializing...</div>
       </div>
     )
   }
@@ -369,7 +429,11 @@ export const AppLayout: React.FC = () => {
 
   return (
     <div className="ui-app-layout">
-      <div className="ui-app-drag-region drag-region" />
+      {platform === 'win32' ? (
+        <WindowsTitleBar />
+      ) : (
+        <div className="ui-app-drag-region drag-region" />
+      )}
 
       <ZenRail
         activeView={activeView}
@@ -384,30 +448,14 @@ export const AppLayout: React.FC = () => {
         syncStatus={syncStatus}
         onBack={activeView === 'meeting-detail' ? () => navigate('meeting-list') : undefined}
         onStopRecording={handleStopRecording}
-        audioLevel={currentVolume}
+        onPauseRecording={handlePauseRecording}
       />
 
       <OfflineBanner isOnline={isOnline} />
 
       {/* Session Expiring Warning Banner */}
       {sessionExpiringMs !== null && (
-        <div
-          style={{
-            position: 'fixed',
-            top: 56,
-            left: 88,
-            right: 0,
-            zIndex: 100,
-            background: 'linear-gradient(135deg, #b45309, #92400e)',
-            color: 'white',
-            padding: '10px 16px',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            fontSize: 13,
-            fontWeight: 500,
-          }}
-        >
+        <div className="ui-app-session-banner">
           <span>
             ⚠️ Your session will expire in {Math.ceil(sessionExpiringMs / 60_000)} minutes due to
             inactivity.
@@ -416,16 +464,6 @@ export const AppLayout: React.FC = () => {
             onClick={() => {
               window.electronAPI?.auth?.recordActivity?.().catch(() => {})
               setSessionExpiringMs(null)
-            }}
-            style={{
-              background: 'rgba(255,255,255,0.2)',
-              border: '1px solid rgba(255,255,255,0.3)',
-              color: 'white',
-              padding: '4px 14px',
-              borderRadius: 6,
-              cursor: 'pointer',
-              fontWeight: 600,
-              fontSize: 12,
             }}
           >
             Stay Active

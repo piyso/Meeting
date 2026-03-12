@@ -176,9 +176,13 @@ function setupTranscriptEventForwarding(
       speakerId?: string
       speakerName?: string
     }) => {
-      // Get main window via Electron API (no circular imports)
-      const windows = BrowserWindow.getAllWindows()
-      const mainWindow: BrowserWindow | null = windows.length > 0 ? (windows[0] ?? null) : null
+      // C6 fix: avoid circular require('electron/main') which can cause getMainWindow()
+      // to return undefined during module initialization. Use Electron's window registry.
+      const allWindows = BrowserWindow.getAllWindows()
+      const mainWindow: BrowserWindow | null =
+        allWindows.find((w: BrowserWindow) => !w.isDestroyed() && w.getBounds().width > 400) ||
+        allWindows[0] ||
+        null
 
       if (!mainWindow || mainWindow.isDestroyed()) {
         return

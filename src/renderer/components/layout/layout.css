@@ -22,9 +22,12 @@
   z-index: 50;
 }
 .ui-app-main {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
   overflow: hidden;
   transition: left var(--transition-base);
-  padding: 0 var(--space-16) var(--space-16);
+  padding: 0;
 }
 .ui-app-loader {
   width: 100%;
@@ -58,20 +61,21 @@
   border-radius: 34px; /* Perfect pill shape */
 
   /* Sovereign Obsidian Glass */
-  background: var(--color-bg-panel);
+  background: rgba(10, 10, 12, 0.4);
   @supports ((-webkit-backdrop-filter: none) or (backdrop-filter: none)) {
     background: linear-gradient(
       145deg,
-      rgba(255, 255, 255, 0.04) 0%,
+      rgba(255, 255, 255, 0.05) 0%,
       rgba(255, 255, 255, 0.01) 100%
     );
-    backdrop-filter: blur(48px) saturate(140%);
-    -webkit-backdrop-filter: blur(48px) saturate(140%);
+    backdrop-filter: blur(64px) saturate(160%);
+    -webkit-backdrop-filter: blur(64px) saturate(160%);
   }
   border: 1px solid var(--color-border-subtle);
   box-shadow:
-    0 12px 40px rgba(0, 0, 0, 0.6),
-    inset 0 1px 0 rgba(255, 255, 255, 0.05);
+    0 16px 48px -12px rgba(0, 0, 0, 0.4),
+    inset 0 1px 0 rgba(255, 255, 255, 0.1),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.02);
   transition:
     transform var(--transition-bounce),
     opacity var(--transition-base);
@@ -95,11 +99,11 @@
 /* DynamicIsland */
 .ui-dynamic-island {
   position: fixed;
-  top: var(--space-16); /* Align perfectly with macOS traffic lights */
+  top: var(--space-16);
   height: var(--h-xl);
   left: 50%;
-  transform: translateX(-50%) translateZ(0); /* Center + GPU composite */
-  width: max-content; /* True island behavior, dynamically hugs contents */
+  transform: translateX(-50%) translateZ(0);
+  width: max-content;
   min-width: 120px;
   max-width: 500px;
   z-index: 40;
@@ -109,43 +113,109 @@
   gap: var(--space-16);
   padding: 0 var(--space-16);
   border-radius: var(--radius-full);
-  transition: all 400ms var(--ease-spring);
-  will-change: width, height, box-shadow;
+  contain: style paint; /* Isolate paint — not layout (conflicts with max-content) */
 
-  /* Sovereign Glass Formula */
-  background: rgba(10, 10, 12, 0.6);
-  backdrop-filter: blur(32px) saturate(120%);
-  -webkit-backdrop-filter: blur(32px) saturate(120%);
+  /* Explicit compositor-safe transitions */
+  transition:
+    padding 350ms cubic-bezier(0.25, 1, 0.2, 1.15),
+    background 300ms ease-out,
+    border-color 300ms ease-out,
+    box-shadow 300ms ease-out;
+  will-change: transform; /* Single GPU-compositable property */
+
+  /* Deep premium frost glass for best readability and aesthetics */
+  background: linear-gradient(180deg, rgba(20, 20, 24, 0.35) 0%, rgba(10, 10, 12, 0.55) 100%);
+  backdrop-filter: blur(48px) saturate(180%);
+  -webkit-backdrop-filter: blur(48px) saturate(180%);
   border: 1px solid var(--color-border-subtle);
   box-shadow:
-    0 8px 32px rgba(0, 0, 0, 0.4),
-    inset 0 1px 0 rgba(255, 255, 255, 0.05);
+    0 16px 48px -12px rgba(0, 0, 0, 0.35),
+    inset 0 1px 0 rgba(255, 255, 255, 0.1),
+    0 0 0 1px rgba(255, 255, 255, 0.02);
+}
+
+/* Windows Offset */
+body[data-platform='win32'] .ui-dynamic-island {
+  top: 40px;
 }
 
 /* ── States & Morphing ── */
 .ui-di-state-idle {
-  background: var(--color-bg-panel);
-  border: 1px solid var(--color-border-subtle);
+  background: rgba(14, 14, 18, 0.4);
+  border: 1px solid rgba(255, 255, 255, 0.04);
 }
 
 .ui-di-state-recording {
-  background: rgba(5, 5, 8, 0.85); /* Darker core to make the glow pop */
-  border: 1px solid rgba(6, 182, 212, 0.2); /* Cyan border */
+  background: linear-gradient(180deg, rgba(20, 10, 0, 0.5) 0%, rgba(10, 5, 0, 0.7) 100%);
+  border: 1px solid rgba(245, 158, 11, 0.2);
   box-shadow:
-    0 0 20px rgba(6, 182, 212, 0.15),
-    inset 0 1px 0 rgba(255, 255, 255, 0.05);
-  animation: glow-breathe-recording 4s ease-in-out infinite;
+    0 16px 48px -12px rgba(0, 0, 0, 0.5),
+    inset 0 1px 0 rgba(255, 255, 255, 0.1);
+}
+
+/* Glow via ::after pseudo — animates opacity (compositor-only, zero paint cost) */
+.ui-di-state-recording::after {
+  content: '';
+  position: absolute;
+  inset: -4px;
+  border-radius: inherit;
+  background: radial-gradient(ellipse at center, rgba(245, 158, 11, 0.2) 0%, transparent 70%);
+  pointer-events: none;
+  animation: glow-pulse 2.5s ease-in-out infinite;
+  z-index: -1;
+}
+
+.ui-di-state-paused {
+  background: linear-gradient(180deg, rgba(20, 15, 0, 0.45) 0%, rgba(10, 8, 0, 0.65) 100%);
+  border: 1px solid rgba(251, 191, 36, 0.25);
+  box-shadow:
+    0 16px 48px -12px rgba(0, 0, 0, 0.5),
+    inset 0 1px 0 rgba(255, 255, 255, 0.08);
+}
+
+.ui-di-state-paused::after {
+  content: '';
+  position: absolute;
+  inset: -4px;
+  border-radius: inherit;
+  background: radial-gradient(ellipse at center, rgba(251, 191, 36, 0.15) 0%, transparent 70%);
+  pointer-events: none;
+  animation: glow-pulse 3.5s ease-in-out infinite;
+  z-index: -1;
 }
 
 .ui-di-state-processing {
-  background: rgba(15, 15, 17, 0.85);
-  border: 1px solid rgba(167, 139, 250, 0.2);
-  box-shadow: 0 0 20px rgba(167, 139, 250, 0.2); /* Violet glow */
-  animation: glow-breathe-processing 4s ease-in-out infinite;
+  background: linear-gradient(180deg, rgba(24, 18, 32, 0.5) 0%, rgba(15, 15, 17, 0.7) 100%);
+  border: 1px solid rgba(167, 139, 250, 0.15);
+  box-shadow:
+    0 16px 48px -12px rgba(0, 0, 0, 0.5),
+    inset 0 1px 0 rgba(255, 255, 255, 0.15);
+}
+
+.ui-di-state-processing::after {
+  content: '';
+  position: absolute;
+  inset: -4px;
+  border-radius: inherit;
+  background: radial-gradient(ellipse at center, rgba(167, 139, 250, 0.2) 0%, transparent 70%);
+  pointer-events: none;
+  animation: glow-pulse 2.5s ease-in-out infinite;
+  z-index: -1;
+}
+
+/* Compositor-only: animate opacity, not box-shadow */
+@keyframes glow-pulse {
+  0%,
+  100% {
+    opacity: 0.3;
+  }
+  50% {
+    opacity: 1;
+  }
 }
 
 .ui-di-expanded {
-  min-width: 380px;
+  padding: 0 var(--space-24); /* Expand via padding, not min-width — avoids layout recalc */
 }
 
 /* Specificity override: surface-glass-premium sets transform:translateZ(0)
@@ -155,37 +225,18 @@
   transform: translateX(-50%) translateZ(0);
 }
 
-@keyframes glow-breathe-recording {
-  0%,
-  100% {
-    box-shadow: 0 0 16px rgba(59, 130, 246, 0.1);
-  }
-  50% {
-    box-shadow: 0 0 24px rgba(59, 130, 246, 0.25);
-  }
-}
-
-@keyframes glow-breathe-processing {
-  0%,
-  100% {
-    box-shadow: 0 0 16px rgba(167, 139, 250, 0.15);
-  }
-  50% {
-    box-shadow: 0 0 28px rgba(167, 139, 250, 0.35);
-  }
-}
-
 /* ── Idle Content ── */
 .ui-dynamic-island-idle-content {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 12px;
 }
 
 .ui-di-view-name {
   font-size: 13px;
-  font-weight: 500;
-  color: var(--color-text-secondary);
+  font-weight: 600;
+  letter-spacing: var(--tracking-tight);
+  color: var(--color-text-primary);
   white-space: nowrap;
 }
 
@@ -193,12 +244,14 @@
   display: flex;
   align-items: center;
   gap: 4px;
-  font-size: 10px;
-  color: var(--color-text-tertiary);
-  background: rgba(255, 255, 255, 0.05);
-  padding: 2px 6px;
-  border-radius: 4px;
-  border: 1px solid var(--color-border-subtle);
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--color-text-secondary);
+  background: rgba(255, 255, 255, 0.08); /* Brighter glass for readability */
+  padding: 3px 8px;
+  border-radius: 6px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
   animation: fade-in 200ms var(--ease-snappy);
 }
 
@@ -216,13 +269,16 @@
 /* ── Hover Content ── */
 .ui-di-transcript-preview {
   margin-left: 8px;
-  font-size: 12px;
+  font-size: 13px;
+  font-weight: 500;
   color: var(--color-text-secondary);
-  max-width: 200px;
+  max-width: 240px;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  animation: slide-right-fade 300ms var(--ease-spring);
+  -webkit-mask-image: linear-gradient(to right, black 80%, transparent 100%);
+  mask-image: linear-gradient(to right, black 80%, transparent 100%);
+  animation: slide-right-fade 300ms cubic-bezier(0.25, 1, 0.2, 1.15);
 }
 
 @keyframes slide-right-fade {
@@ -265,10 +321,14 @@
   display: flex;
   align-items: center;
   gap: var(--space-8);
-  background: rgba(59, 130, 246, 0.05); /* Softer background */
+  /* Crisp, uncolored structure glass */
+  background: rgba(255, 255, 255, 0.06);
   padding: 4px 12px;
   border-radius: var(--radius-full);
-  border: 1px solid rgba(59, 130, 246, 0.15); /* Softer border */
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.05),
+    0 2px 12px rgba(0, 0, 0, 0.3);
 }
 
 .ui-di-mode-icon {
@@ -276,59 +336,84 @@
   margin-right: 4px;
 }
 .ui-dynamic-island-recording .ui-di-mode-icon {
-  color: var(--color-blue);
+  color: var(--color-amber); /* Apple system microphone color */
 }
 
 .ui-dynamic-island-rec-dot {
   width: 8px;
   height: 8px;
   border-radius: 50%;
-  background: var(--color-blue);
+  background: var(--color-amber);
 }
 .ui-dynamic-island-rec-label {
   font-size: 10px;
   letter-spacing: var(--tracking-wide);
-  color: var(--color-blue);
+  color: var(--color-amber);
   font-weight: 700;
   text-transform: uppercase;
 }
 .ui-dynamic-island-rec-time {
   font-family: var(--font-mono);
-  font-size: var(--text-sm);
-  color: var(--color-blue);
+  font-size: 13px;
+  color: var(--color-amber);
+  font-weight: 500;
+  letter-spacing: 0.5px;
   margin: 0 4px;
   font-variant-numeric: tabular-nums;
-  min-width: 48px;
+  min-width: 54px;
 }
 
 .ui-dynamic-island-stop-btn {
   position: relative;
   margin-left: 8px;
-  width: 24px;
-  height: 24px;
+  width: 26px;
+  height: 26px;
   display: flex;
   align-items: center;
   justify-content: center;
-  border-radius: 4px;
-  background: var(--color-blue);
-  color: #000;
-  border: none;
+  border-radius: 50%; /* Perfect circular chip */
+  background: rgba(244, 63, 94, 0.15); /* Rose tint */
+  color: var(--color-rose);
+  border: 1px solid rgba(244, 63, 94, 0.3);
   cursor: pointer;
-  transition: all 150ms var(--ease-snappy);
+  outline: none;
+  transition:
+    background-color 300ms cubic-bezier(0.25, 1, 0.2, 1.15),
+    transform 300ms cubic-bezier(0.25, 1, 0.2, 1.15);
   overflow: hidden;
 }
 
+.ui-dynamic-island-stop-btn:hover {
+  background: rgba(244, 63, 94, 0.25);
+  transform: scale(1.1);
+}
+
 .ui-dynamic-island-stop-btn:active {
-  transform: scale(0.9);
+  transform: scale(0.92);
 }
 
 .ui-dynamic-island-stop-btn.is-holding {
-  background: #fff;
+  background: var(--color-rose);
+  color: #fff;
+  border-color: var(--color-rose);
+}
+
+.ui-dynamic-island-stop-btn:focus-visible,
+.ui-dynamic-island-pause-btn:focus-visible {
+  outline: none;
+  box-shadow:
+    0 0 0 2px var(--color-bg-root),
+    0 0 0 4px var(--color-violet);
 }
 
 .ui-di-stop-icon {
   position: relative;
   z-index: 2;
+  transition: transform 200ms var(--ease-snappy);
+}
+
+.ui-dynamic-island-stop-btn:hover .ui-di-stop-icon {
+  transform: scale(1.1);
 }
 
 .ui-di-hold-ring {
@@ -337,9 +422,9 @@
   width: calc(100% + 4px);
   height: calc(100% + 4px);
   fill: none;
-  stroke: var(--color-blue);
+  stroke: var(--color-rose);
   stroke-width: 4;
-  stroke-dasharray: 63; /* 2 * pi * 10 */
+  stroke-dasharray: 63; /* 2 * pi * ~10 */
   stroke-dashoffset: 63;
   transform: rotate(-90deg);
   z-index: 1;
@@ -368,7 +453,7 @@
   background: rgba(167, 139, 250, 0.1);
   border-radius: var(--radius-full);
   border: 1px solid var(--color-violet);
-  box-shadow: 0 0 12px rgba(167, 139, 250, 0.3);
+  box-shadow: 0 0 12px rgba(167, 139, 250, 0.15);
 }
 .ui-dynamic-island-proc-dot {
   width: 8px;
@@ -471,7 +556,11 @@
     0 0 0 1px rgba(139, 92, 246, 0.1) inset;
   opacity: 0;
   pointer-events: none;
-  transition: all 400ms var(--ease-spring);
+  transition:
+    opacity 400ms var(--ease-spring),
+    transform 400ms var(--ease-spring),
+    background-color 400ms var(--ease-spring),
+    border-color 400ms var(--ease-spring);
   cursor: pointer;
 }
 
@@ -483,11 +572,11 @@
 
 .ui-silent-prompter:hover {
   background: var(--color-bg-panel);
-  border-color: rgba(139, 92, 246, 0.4);
+  border-color: rgba(139, 92, 246, 0.3);
   transform: translateX(-50%) translateY(2px) scale(1.02);
   box-shadow:
-    0 12px 48px rgba(0, 0, 0, 0.5),
-    0 0 20px rgba(139, 92, 246, 0.2);
+    0 12px 48px rgba(0, 0, 0, 0.3),
+    0 0 16px rgba(139, 92, 246, 0.1);
 }
 
 .ui-silent-prompter-icon {
@@ -521,4 +610,31 @@
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+/* ==========================================================================
+   High Contrast (Forced Colors) Accessibility Fixes (Issue 22)
+   ========================================================================== */
+@media (forced-colors: active) {
+  /* Ensure borders are visible on active elements */
+  .ui-di-state-idle,
+  .ui-di-state-recording,
+  .ui-di-state-processing,
+  .ui-zen-rail,
+  .ui-dynamic-island {
+    border: 1px solid CanvasText;
+    background: Canvas;
+  }
+
+  /* Icons and text */
+  .ui-dynamic-island-idle-content *,
+  .ui-zen-rail-item * {
+    color: CanvasText;
+  }
+
+  /* Focused states */
+  *:focus-visible {
+    outline: 2px solid Highlight !important;
+    outline-offset: 2px;
+  }
 }

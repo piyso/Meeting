@@ -17,14 +17,14 @@ export function useKeyboardShortcuts() {
       }
 
       // Cmd+K → Command Palette (actions)
-      if (meta && !e.shiftKey && e.key === 'k') {
+      if (meta && !e.shiftKey && e.key.toLowerCase() === 'k') {
         e.preventDefault()
         toggleCommandPalette()
         return
       }
 
       // Cmd+N → New Meeting dialog
-      if (meta && !e.shiftKey && e.key === 'n') {
+      if (meta && !e.shiftKey && e.key.toLowerCase() === 'n') {
         e.preventDefault()
         window.dispatchEvent(new CustomEvent('open-new-meeting'))
         return
@@ -66,7 +66,7 @@ export function useKeyboardShortcuts() {
       }
 
       // Cmd+J → Collapse/expand notes pane
-      if (meta && !e.shiftKey && e.key === 'j') {
+      if (meta && !e.shiftKey && e.key.toLowerCase() === 'j') {
         e.preventDefault()
         window.dispatchEvent(new CustomEvent('toggle-notes-pane'))
       }

@@ -48,7 +48,7 @@ class AudioCaptureManager {
       }
 
       // Detect platform
-      const isMacOS = navigator.platform.toLowerCase().includes('mac')
+      const isMacOS = window.electronAPI?.platform === 'darwin'
 
       let stream: MediaStream
 
@@ -158,17 +158,29 @@ class AudioCaptureManager {
    * @param deviceId - Desktop capturer source ID
    * @returns MediaStream with audio track
    */
-  private async startWindowsSystemAudioCapture(deviceId: string): Promise<MediaStream> {
+  private async startWindowsSystemAudioCapture(_deviceId: string): Promise<MediaStream> {
     try {
-      // Get media stream from desktopCapturer
-      // Note: The actual desktopCapturer call happens in main process
-      // We use getUserMedia with chromeMediaSourceId constraint
+      // Issue 13: Get a valid chromeMediaSourceId from the main process via desktopCapturer
+      const sources = await window.electronAPI.desktopCapturerSources()
+      if (!sources || sources.length === 0) {
+        throw new Error('No desktop capturer sources found for system audio')
+      }
+      // Use the first screen source — its ID is required for chromeMediaSourceId
+      const firstSource = sources[0]
+      if (!firstSource) {
+        throw new Error('Desktop capturer returned empty sources')
+      }
+      const sourceId = firstSource.id
+
+      log.info(`Using desktop capturer source: ${sourceId}`)
+
+      // Get media stream from desktopCapturer with valid source ID
       const stream = await navigator.mediaDevices.getUserMedia({
         audio: {
           // @ts-expect-error - Electron-specific constraint
           mandatory: {
             chromeMediaSource: 'desktop',
-            chromeMediaSourceId: deviceId,
+            chromeMediaSourceId: sourceId,
           },
         },
         video: false,
@@ -310,11 +322,16 @@ class AudioCaptureManager {
     timestamp: number
     sampleRate: number
   }): void {
-    // Send chunk to main process via IPC
-    // Note: Float32Array needs to be converted to regular array for IPC
+    // OPT-15: Send raw Float32Array via ipcRenderer.send — Electron's structured clone
+    // handles TypedArrays natively without copying. The original code used Array.from()
+    // which converted Float32Array → regular number[], doubling memory and creating
+    // ~288MB/hour of GC churn during recording. This avoids that overhead.
+    //
+    // NOTE: ipcRenderer.postMessage's transfer only supports MessagePort[], NOT
+    // ArrayBuffer[], so zero-copy transfer is not available in Electron IPC.
     if (window.electronAPI?.ipcRenderer) {
       window.electronAPI.ipcRenderer.send('audio:chunk', {
-        data: Array.from(data.data),
+        data: data.data,
         timestamp: data.timestamp,
         sampleRate: data.sampleRate,
       })

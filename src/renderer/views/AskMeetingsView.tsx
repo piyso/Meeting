@@ -11,6 +11,7 @@ import { useAppStore } from '../store/appStore'
 import { ChevronLeft, Send, Trash2 } from 'lucide-react'
 import { IconButton } from '../components/ui/IconButton'
 import { AISourceBadge } from '../components/ui/AISourceBadge'
+import { ProTeaseOverlay } from '../components/ui/ProTeaseOverlay'
 import type { SemanticSearchResult } from '../../types/ipc'
 import './ask-meetings.css'
 
@@ -116,6 +117,7 @@ export default function AskMeetingsView() {
   const [isLoaded, setIsLoaded] = useState(false)
   const [input, setInput] = useState('')
   const [isLoading, setIsLoading] = useState(false)
+  const [confirmClear, setConfirmClear] = useState(false)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLTextAreaElement>(null)
 
@@ -148,17 +150,25 @@ export default function AskMeetingsView() {
   // Persist history
   useEffect(() => {
     if (!isLoaded) return
-    localStorage.setItem(
-      `${STORAGE_KEY_PREFIX}:${userId}`,
-      JSON.stringify(messages.filter(m => !m.isStreaming))
-    )
+    // Bug #9 fix: cap at 50 messages to avoid exceeding localStorage 5MB limit
+    const cappedMessages = messages.filter(m => !m.isStreaming).slice(-50)
+    try {
+      localStorage.setItem(`${STORAGE_KEY_PREFIX}:${userId}`, JSON.stringify(cappedMessages))
+    } catch {
+      // QuotaExceededError — silently fail, non-critical
+    }
   }, [messages, userId, isLoaded])
 
   const handleClearHistory = () => {
-    if (window.confirm('Are you sure you want to clear your chat history?')) {
-      setMessages([])
-      localStorage.removeItem(`${STORAGE_KEY_PREFIX}:${userId}`)
+    if (!confirmClear) {
+      setConfirmClear(true)
+      // Auto-dismiss after 3 seconds if user doesn't confirm
+      setTimeout(() => setConfirmClear(false), 3000)
+      return
     }
+    setMessages([])
+    localStorage.removeItem(`${STORAGE_KEY_PREFIX}:${userId}`)
+    setConfirmClear(false)
   }
 
   // Auto-scroll to bottom when new messages appear
@@ -237,8 +247,13 @@ export default function AskMeetingsView() {
         let sources: ChatMessage['sources'] = []
         let contextText = ''
 
-        if (searchResult.success && searchResult.data && searchResult.data.length > 0) {
-          sources = searchResult.data.map((r: SemanticSearchResult) => ({
+        // searchResult.data may be { results: [...], query } (object) or SemanticSearchResult[] (array)
+        const rawData = searchResult.data as unknown
+        const searchResults: SemanticSearchResult[] =
+          Array.isArray(rawData) ? rawData : ((rawData as { results?: SemanticSearchResult[] })?.results || [])
+
+        if (searchResult.success && searchResults.length > 0) {
+          sources = searchResults.map((r: SemanticSearchResult) => ({
             meetingId: r.meeting?.id || '',
             meetingTitle: r.meeting?.title || 'Untitled Meeting',
             snippet: r.snippet,
@@ -246,7 +261,7 @@ export default function AskMeetingsView() {
           }))
 
           // Build context from top results for LLM
-          contextText = searchResult.data
+          contextText = searchResults
             .map(
               (r: SemanticSearchResult, i: number) =>
                 `[Source ${i + 1}: ${r.meeting?.title || 'Meeting'}]\n${r.snippet}`
@@ -298,6 +313,40 @@ export default function AskMeetingsView() {
     }
   }
 
+  // ── Full-page lock for free/starter users ──
+  const isAiLocked = currentTier === 'free' || currentTier === 'starter'
+  if (isAiLocked) {
+    return (
+      <div className="ask-meetings-view" id="ask-meetings-view">
+        <header className="ui-header">
+          <IconButton
+            icon={<ChevronLeft size={18} />}
+            onClick={() => navigate('meeting-list')}
+            className="mr-2"
+            tooltip="Back to Meetings"
+          />
+          <div className="ui-header-title">
+            <h1>Ask Your Meetings</h1>
+            <span className="ui-header-subtitle">
+              AI-powered search across all your transcripts
+            </span>
+          </div>
+        </header>
+        <div style={{ flex: 1, position: 'relative' }}>
+          <ProTeaseOverlay
+            title="Unlock Ask Your Meetings"
+            description={
+              currentTier === 'starter'
+                ? 'AI conversational search is a Pro feature.'
+                : 'Upgrade to search across all your meeting transcripts with AI.'
+            }
+            targetTier="pro"
+          />
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="ask-meetings-view" id="ask-meetings-view">
       {/* Header */}
@@ -306,7 +355,7 @@ export default function AskMeetingsView() {
           icon={<ChevronLeft size={18} />}
           onClick={() => navigate('meeting-list')}
           className="mr-2"
-          tooltip="Back"
+          tooltip="Back to Meetings"
         />
         <div className="ui-header-title">
           <h1>Ask Your Meetings</h1>
@@ -316,8 +365,12 @@ export default function AskMeetingsView() {
           <IconButton
             icon={<Trash2 size={16} />}
             onClick={handleClearHistory}
-            tooltip="Clear Chat Context"
-            className="text-[var(--color-text-tertiary)] hover:text-[var(--color-rose)] transition-colors"
+            tooltip={confirmClear ? 'Click again to confirm' : 'Clear Chat Context'}
+            className={
+              confirmClear
+                ? 'text-[var(--color-rose)] animate-pulse transition-colors'
+                : 'text-[var(--color-text-tertiary)] hover:text-[var(--color-rose)] transition-colors'
+            }
           />
         </div>
       </header>
@@ -385,11 +438,7 @@ export default function AskMeetingsView() {
               >
                 {msg.role === 'assistant' && (
                   <div className="absolute -top-3 left-4" style={{ transform: 'translateY(-50%)' }}>
-                    <AISourceBadge
-                      source={
-                        currentTier === 'free' || currentTier === 'starter' ? 'cloud' : 'edge'
-                      }
-                    />
+                    <AISourceBadge source="edge" />
                   </div>
                 )}
                 {msg.isStreaming && !msg.content ? (
@@ -417,7 +466,7 @@ export default function AskMeetingsView() {
                         }
                       }}
                     >
-                      📄 {src.meetingTitle} ({Math.round(src.relevance * 100)}%)
+                      📄 {src.meetingTitle} ({Math.round(Math.min(src.relevance, 1) * 100)}%)
                     </button>
                   ))}
                 </div>
@@ -428,49 +477,48 @@ export default function AskMeetingsView() {
         <div ref={messagesEndRef} />
       </div>
 
-      {/* Input Area */}
-      <form className="ask-meetings-input" onSubmit={handleSubmit} id="ask-meetings-input-form">
-        <textarea
-          ref={inputRef}
-          value={input}
-          onChange={e => setInput(e.target.value)}
-          onKeyDown={handleKeyDown}
-          placeholder="Ask anything about your meetings..."
-          rows={1}
-          className="ask-meetings-textarea"
-          disabled={isLoading}
-          id="ask-meetings-textarea"
-        />
-        <IconButton
-          icon={
-            isLoading ? (
-              <svg
-                width="18"
-                height="18"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                className="animate-spin"
-              >
-                <circle cx="12" cy="12" r="10"></circle>
-                <path d="M12 2a10 10 0 0 1 10 10"></path>
-              </svg>
-            ) : (
-              <Send size={18} />
-            )
-          }
-          onClick={e => {
-            e.preventDefault()
-            handleSubmit(e as unknown as React.FormEvent<HTMLFormElement>)
-          }}
-          disabled={!input.trim() || isLoading}
-          className="ask-meetings-send"
-          tooltip="Send Message"
-        />
-      </form>
+      {/* Input Area Dock */}
+      <div className="ui-ask-input-dock">
+        <form className="ask-meetings-input" onSubmit={handleSubmit} id="ask-meetings-input-form">
+          <textarea
+            ref={inputRef}
+            value={input}
+            onChange={e => setInput(e.target.value)}
+            onKeyDown={handleKeyDown}
+            placeholder="Ask anything about your meetings..."
+            rows={1}
+            className="ask-meetings-textarea"
+            disabled={isLoading}
+            id="ask-meetings-textarea"
+          />
+          <IconButton
+            icon={
+              isLoading ? (
+                <svg
+                  width="18"
+                  height="18"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  className="animate-spin"
+                >
+                  <circle cx="12" cy="12" r="10"></circle>
+                  <path d="M12 2a10 10 0 0 1 10 10"></path>
+                </svg>
+              ) : (
+                <Send size={18} />
+              )
+            }
+            onClick={() => handleSubmit()}
+            disabled={!input.trim() || isLoading}
+            className="ask-meetings-send"
+            tooltip="Send Message"
+          />
+        </form>
+      </div>
     </div>
   )
 }

@@ -89,6 +89,22 @@ export function useAudioSession(meetingId: string | null) {
     }
   }, [meetingId, setRecordingStartTime])
 
+  const pauseCapture = useCallback(async () => {
+    try {
+      await window.electronAPI.audio.pauseCapture?.()
+    } catch (error) {
+      log.error('Error pausing capture:', error)
+    }
+  }, [])
+
+  const resumeCapture = useCallback(async () => {
+    try {
+      await window.electronAPI.audio.resumeCapture?.()
+    } catch (error) {
+      log.error('Error resuming capture:', error)
+    }
+  }, [])
+
   return {
     isCapturing,
     captureMode,
@@ -97,6 +113,8 @@ export function useAudioSession(meetingId: string | null) {
     checkPermissionStatus,
     startCapture,
     stopCapture,
+    pauseCapture,
+    resumeCapture,
     setPermissionStatus, // To override from UI
   }
 }

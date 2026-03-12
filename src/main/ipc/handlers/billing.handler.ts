@@ -117,10 +117,10 @@ export function registerBillingHandlers(): void {
   ipcMain.handle(IPC_CHANNELS.billing.openCheckout, async (_, params: { targetTier?: string }) => {
     try {
       const { KeyStorageService } = await import('../../services/KeyStorageService')
-      const { shell } = require('electron')
+      const { shell } = await import('electron')
       const keytar = await import('keytar')
 
-      const token = await keytar.default.getPassword('bluearkive', 'access-token')
+      // C5: token intentionally NOT fetched — never pass JWT as URL query param
 
       const userId = await KeyStorageService.getCurrentUserId()
       const email = (await keytar.default.getPassword('bluearkive', 'user-email')) || ''
@@ -136,7 +136,10 @@ export function registerBillingHandlers(): void {
       if (email) url.searchParams.set('email', email)
       if (tier) url.searchParams.set('current_tier', tier)
       if (params?.targetTier) url.searchParams.set('target_tier', params.targetTier)
-      if (token) url.searchParams.set('token', token)
+      // C5 fix: Do NOT pass JWT token as URL query parameter — it leaks via
+      // browser history, server logs, and HTTP Referer headers.
+      // The billing page should authenticate via Supabase session or a server-side
+      // short-lived token exchange instead.
 
       if (config.BLUEARKIVE_FUNCTIONS_URL) {
         url.searchParams.set('api_base', config.BLUEARKIVE_FUNCTIONS_URL)

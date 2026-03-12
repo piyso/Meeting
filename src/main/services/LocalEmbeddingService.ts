@@ -101,7 +101,8 @@ export class LocalEmbeddingService {
       // Load ONNX model
       log.info('[LocalEmbeddingService] Loading ONNX model...')
       this.session = await ort.InferenceSession.create(this.modelPath, {
-        executionProviders: ['cpu'],
+        // OPT-1: Use DirectML GPU on Windows for 2-10x speedup, falls back to CPU
+        executionProviders: process.platform === 'win32' ? ['dml', 'cpu'] : ['cpu'],
         graphOptimizationLevel: 'all',
       })
 

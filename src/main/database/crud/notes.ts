@@ -13,38 +13,42 @@ import { v4 as uuidv4 } from 'uuid'
 export function createNote(input: CreateNoteInput): Note {
   const db = getDatabase()
 
-  const stmt = db.prepare(`
-    INSERT INTO notes (
-      id, meeting_id, timestamp, original_text, augmented_text,
-      context, is_augmented
-    ) VALUES (?, ?, ?, ?, ?, ?, ?)
-  `)
+  const createTxn = db.transaction(() => {
+    const stmt = db.prepare(`
+      INSERT INTO notes (
+        id, meeting_id, timestamp, original_text, augmented_text,
+        context, is_augmented
+      ) VALUES (?, ?, ?, ?, ?, ?, ?)
+    `)
 
-  stmt.run(
-    input.id,
-    input.meeting_id,
-    input.timestamp,
-    input.original_text,
-    input.augmented_text || null,
-    input.context || null,
-    input.is_augmented ? 1 : 0
-  )
+    stmt.run(
+      input.id,
+      input.meeting_id,
+      input.timestamp,
+      input.original_text,
+      input.augmented_text || null,
+      input.context || null,
+      input.is_augmented ? 1 : 0
+    )
 
-  const note = getNoteById(input.id)
-  if (!note) {
-    throw new Error(`Failed to read back note after INSERT: ${input.id}`)
-  }
+    const note = getNoteById(input.id)
+    if (!note) {
+      throw new Error(`Failed to read back note after INSERT: ${input.id}`)
+    }
 
-  // Queue sync event
-  createSyncQueueItem({
-    id: uuidv4(),
-    operation_type: 'create',
-    table_name: 'notes',
-    record_id: note.id,
-    payload: note as unknown as Record<string, unknown>,
+    // Queue sync event inside transaction for atomicity
+    createSyncQueueItem({
+      id: uuidv4(),
+      operation_type: 'create',
+      table_name: 'notes',
+      record_id: note.id,
+      payload: note as unknown as Record<string, unknown>,
+    })
+
+    return note
   })
 
-  return note
+  return createTxn()
 }
 
 /**
@@ -126,27 +130,31 @@ export function updateNote(id: string, input: UpdateNoteInput): Note | null {
 
   values.push(id)
 
-  const stmt = db.prepare(`
-    UPDATE notes 
-    SET ${updates.join(', ')}
-    WHERE id = ?
-  `)
+  const updateTxn = db.transaction(() => {
+    const stmt = db.prepare(`
+      UPDATE notes 
+      SET ${updates.join(', ')}
+      WHERE id = ?
+    `)
 
-  stmt.run(...values)
+    stmt.run(...values)
 
-  const updatedNote = getNoteById(id)
-  if (updatedNote) {
-    // Queue sync event
-    createSyncQueueItem({
-      id: uuidv4(),
-      operation_type: 'update',
-      table_name: 'notes',
-      record_id: updatedNote.id,
-      payload: updatedNote as unknown as Record<string, unknown>,
-    })
-  }
+    const updatedNote = getNoteById(id)
+    if (updatedNote) {
+      // Queue sync event inside transaction for atomicity
+      createSyncQueueItem({
+        id: uuidv4(),
+        operation_type: 'update',
+        table_name: 'notes',
+        record_id: updatedNote.id,
+        payload: updatedNote as unknown as Record<string, unknown>,
+      })
+    }
 
-  return updatedNote
+    return updatedNote
+  })
+
+  return updateTxn()
 }
 
 /**
@@ -178,8 +186,24 @@ export function deleteNote(id: string): boolean {
 export function deleteNotesByMeetingId(meetingId: string): number {
   const db = getDatabase()
 
+  // Fetch IDs before deleting so we can enqueue sync deletions
+  const notes = db.prepare('SELECT id FROM notes WHERE meeting_id = ?').all(meetingId) as Array<{
+    id: string
+  }>
+
   const stmt = db.prepare('DELETE FROM notes WHERE meeting_id = ?')
   const result = stmt.run(meetingId)
+
+  // Enqueue sync deletions for each note
+  for (const note of notes) {
+    createSyncQueueItem({
+      id: uuidv4(),
+      operation_type: 'delete',
+      table_name: 'notes',
+      record_id: note.id,
+      payload: { id: note.id },
+    })
+  }
 
   return result.changes
 }

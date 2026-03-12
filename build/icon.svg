@@ -1,21 +1,94 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<svg width="1024" height="1024" xmlns="http://www.w3.org/2000/svg">
-  <!-- Background -->
-  <rect width="1024" height="1024" rx="200" fill="#0F172A"/>
+<svg width="1024" height="1024" viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg">
+  <!--
+    PiyNotes Logo — Canonical Reference
+    Center: (512, 512)
+    Layers (inside→out):
+      Core Orb:        r=80
+      Inner Ring:      r=140  (precision frame)
+      Mid Ring:        r=220  (structural ring + wave arcs sit here)
+      Outer Orbit:     r=300  (faint dashed track)
+    Wave Arcs:  Quarter-circle (90°) arcs on r=220, diagonally opposite.
+      Arc 1: Left→Top    (292,512) → (512,292)
+      Arc 2: Right→Bottom (732,512) → (512,732)
+    All geometry is 180° rotationally symmetric about center (512,512).
+  -->
+  <defs>
+    <!-- Background: Deep abyssal gradient -->
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0C1120"/>
+      <stop offset="100%" stop-color="#040608"/>
+    </linearGradient>
 
-  <!-- Outer ring (cyan glow) -->
-  <circle cx="512" cy="512" r="280" fill="none" stroke="rgba(6,182,212,0.25)" stroke-width="8"/>
+    <!-- Glass rim highlight -->
+    <linearGradient id="rim" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="rgba(255,255,255,0.12)"/>
+      <stop offset="100%" stop-color="rgba(255,255,255,0.0)"/>
+    </linearGradient>
 
-  <!-- Inner spinning ring -->
-  <circle cx="512" cy="512" r="220" fill="none" stroke="rgba(59,130,246,0.4)" stroke-width="12"/>
+    <!-- Arc gradient: Cyan → Blue (top-left arc) -->
+    <linearGradient id="arc-tl" x1="292" y1="512" x2="512" y2="292" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#00F0FF"/>
+      <stop offset="100%" stop-color="#0055FF"/>
+    </linearGradient>
 
-  <!-- Wave arcs (left and right) -->
-  <path d="M 292 512 A 220 220 0 0 1 512 292" fill="none" stroke="rgba(34,211,238,0.6)" stroke-width="12" stroke-linecap="round"/>
-  <path d="M 732 512 A 220 220 0 0 1 512 732" fill="none" stroke="rgba(34,211,238,0.6)" stroke-width="12" stroke-linecap="round"/>
+    <!-- Arc gradient: Cyan → Blue (bottom-right arc, reversed) -->
+    <linearGradient id="arc-br" x1="732" y1="512" x2="512" y2="732" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#00F0FF"/>
+      <stop offset="100%" stop-color="#0055FF"/>
+    </linearGradient>
 
-  <!-- Center recording dot -->
-  <circle cx="512" cy="512" r="80" fill="#22D3EE"/>
+    <!-- Core orb: offset radial for 3D sphere illusion -->
+    <radialGradient id="core" cx="40%" cy="38%" r="62%">
+      <stop offset="0%" stop-color="#FFFFFF"/>
+      <stop offset="20%" stop-color="#A5F3FC"/>
+      <stop offset="55%" stop-color="#0EA5E9"/>
+      <stop offset="100%" stop-color="#0369A1"/>
+    </radialGradient>
 
-  <!-- Dot inner highlight -->
-  <circle cx="512" cy="512" r="50" fill="#0EA5E9" opacity="0.6"/>
+    <!-- Neon glow filter -->
+    <filter id="glow" x="-30%" y="-30%" width="160%" height="160%">
+      <feGaussianBlur stdDeviation="14" result="b1"/>
+      <feGaussianBlur stdDeviation="6" result="b2"/>
+      <feMerge>
+        <feMergeNode in="b1"/>
+        <feMergeNode in="b2"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+
+    <!-- Core shadow + cyan halo -->
+    <filter id="core-fx" x="-50%" y="-50%" width="200%" height="200%">
+      <feDropShadow dx="0" dy="12" stdDeviation="20" flood-color="#000" flood-opacity="0.7"/>
+      <feDropShadow dx="0" dy="0" stdDeviation="28" flood-color="#00D4FF" flood-opacity="0.25"/>
+    </filter>
+  </defs>
+
+  <!-- 1. Base squircle -->
+  <rect width="1024" height="1024" rx="230" fill="url(#bg)"/>
+  <rect x="2" y="2" width="1020" height="1020" rx="228" fill="none" stroke="url(#rim)" stroke-width="3"/>
+
+  <!-- 2. Ambient backlight -->
+  <circle cx="512" cy="512" r="340" fill="#0088FF" opacity="0.06" filter="url(#glow)"/>
+
+  <!-- 3. Outer Orbit — faint dashed precision track -->
+  <circle cx="512" cy="512" r="300" fill="none" stroke="rgba(255,255,255,0.06)" stroke-width="1.5" stroke-dasharray="4 16"/>
+
+  <!-- 4. Mid Ring — structural ring where arcs sit -->
+  <circle cx="512" cy="512" r="220" fill="none" stroke="rgba(56,189,248,0.15)" stroke-width="4"/>
+
+  <!-- 5. Wave Arcs — exact 90° quarter-circles on r=220, 180° rotationally symmetric -->
+  <!--    Arc 1: starts at (292,512) = (cx-r, cy), ends at (512,292) = (cx, cy-r) -->
+  <path d="M 292 512 A 220 220 0 0 1 512 292" fill="none" stroke="url(#arc-tl)" stroke-width="12" stroke-linecap="round" filter="url(#glow)"/>
+  <!--    Arc 2: starts at (732,512) = (cx+r, cy), ends at (512,732) = (cx, cy+r) -->
+  <path d="M 732 512 A 220 220 0 0 1 512 732" fill="none" stroke="url(#arc-br)" stroke-width="12" stroke-linecap="round" filter="url(#glow)"/>
+
+  <!-- 6. Inner precision ring -->
+  <circle cx="512" cy="512" r="140" fill="none" stroke="rgba(255,255,255,0.04)" stroke-width="1.5"/>
+
+  <!-- 7. Core Orb — 3D radial gradient sphere -->
+  <circle cx="512" cy="512" r="80" fill="url(#core)" filter="url(#core-fx)"/>
+
+  <!-- 8. Core specular highlight — offset top-left for 3D depth -->
+  <ellipse cx="488" cy="480" rx="24" ry="12" transform="rotate(-30 488 480)" fill="#FFFFFF" opacity="0.35"/>
 </svg>

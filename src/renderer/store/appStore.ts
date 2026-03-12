@@ -29,10 +29,12 @@ interface AppState {
   isAuthenticated: boolean
 
   // ── Recording ──
-  recordingState: 'idle' | 'starting' | 'recording' | 'stopping' | 'processing'
+  recordingState: 'idle' | 'starting' | 'recording' | 'paused' | 'stopping' | 'processing'
   activeMeetingId: string | null
   audioMode: 'system' | 'microphone' | 'none'
   recordingStartTime: number | null
+  recordingPausedAt: number | null
+  recordingTotalPausedMs: number
   lastTranscriptLine: string | null
   liveCoachTip: string | null
   entityCount: number
@@ -64,6 +66,8 @@ interface AppState {
   navigate: (view: AppState['activeView'], meetingId?: string) => void
   setRecordingState: (state: AppState['recordingState'], mode?: AppState['audioMode']) => void
   setRecordingStartTime: (time: number | null) => void
+  setRecordingPausedAt: (time: number | null) => void
+  setRecordingTotalPausedMs: (ms: number) => void
   setLastTranscriptLine: (line: string | null) => void
   setLiveCoachTip: (tip: string | null) => void
   setEntityCount: (count: number) => void
@@ -76,6 +80,7 @@ interface AppState {
   removeToast: (id: string) => void
   setIsOnline: (isOnline: boolean) => void
   setSyncStatus: (status: AppState['syncStatus']) => void
+  setActiveMeetingId: (id: string | null) => void
   setLastSyncTimestamp: (timestamp: number | null) => void
 }
 
@@ -96,6 +101,8 @@ export const useAppStore = create<AppState>()(set => ({
   activeMeetingId: null,
   audioMode: 'none',
   recordingStartTime: null,
+  recordingPausedAt: null,
+  recordingTotalPausedMs: 0,
   lastTranscriptLine: null,
   liveCoachTip: null,
   entityCount: 0,
@@ -118,11 +125,18 @@ export const useAppStore = create<AppState>()(set => ({
 
   // Actions
   setCurrentTier: tier => set({ currentTier: tier }),
+  setActiveMeetingId: activeMeetingId => set({ activeMeetingId }),
   setQuotaData: quotaData => set({ quotaData }),
   setDeviceInfo: deviceInfo => set({ deviceInfo }),
   setAIEngineStatus: aiEngineStatus => set({ aiEngineStatus }),
 
-  navigate: (view, meetingId) => set({ activeView: view, selectedMeetingId: meetingId ?? null }),
+  navigate: (view, meetingId) =>
+    set(s => ({
+      activeView: view,
+      // Only overwrite selectedMeetingId when explicitly provided.
+      // This preserves it for back-navigation to meeting-detail.
+      selectedMeetingId: meetingId !== undefined ? meetingId : s.selectedMeetingId,
+    })),
 
   setRecordingState: (recordingState, audioMode) =>
     set(s => ({
@@ -130,6 +144,8 @@ export const useAppStore = create<AppState>()(set => ({
       audioMode: audioMode ?? s.audioMode,
       // Auto-clear start time when returning to idle
       recordingStartTime: recordingState === 'idle' ? null : s.recordingStartTime,
+      recordingPausedAt: recordingState === 'idle' ? null : s.recordingPausedAt,
+      recordingTotalPausedMs: recordingState === 'idle' ? 0 : s.recordingTotalPausedMs,
       lastTranscriptLine: recordingState === 'idle' ? null : s.lastTranscriptLine,
       liveCoachTip: recordingState === 'idle' ? null : s.liveCoachTip,
       entityCount: recordingState === 'idle' ? 0 : s.entityCount,
@@ -138,6 +154,8 @@ export const useAppStore = create<AppState>()(set => ({
     })),
 
   setRecordingStartTime: recordingStartTime => set({ recordingStartTime }),
+  setRecordingPausedAt: recordingPausedAt => set({ recordingPausedAt }),
+  setRecordingTotalPausedMs: recordingTotalPausedMs => set({ recordingTotalPausedMs }),
   setLastTranscriptLine: lastTranscriptLine => set({ lastTranscriptLine }),
   setLiveCoachTip: liveCoachTip => set({ liveCoachTip }),
   setEntityCount: entityCount => set({ entityCount }),
@@ -150,16 +168,15 @@ export const useAppStore = create<AppState>()(set => ({
 
   toggleGlobalContext: () => set(s => ({ globalContextOpen: !s.globalContextOpen })),
 
-  addToast: toast =>
-    set(s => {
-      const id = crypto.randomUUID()
-      const duration = toast.duration ?? 5000
-      // Auto-dismiss after duration
-      setTimeout(() => {
-        useAppStore.getState().removeToast(id)
-      }, duration)
-      return { toasts: [...s.toasts, { ...toast, id, duration }] }
-    }),
+  addToast: toast => {
+    const id = crypto.randomUUID()
+    const duration = toast.duration ?? 5000
+    set(s => ({ toasts: [...s.toasts, { ...toast, id, duration }] }))
+    // Auto-dismiss — outside setter to avoid side effects in reducer
+    setTimeout(() => {
+      useAppStore.getState().removeToast(id)
+    }, duration)
+  },
 
   removeToast: id => set(s => ({ toasts: s.toasts.filter(t => t.id !== id) })),
 
@@ -168,6 +185,8 @@ export const useAppStore = create<AppState>()(set => ({
   setLastSyncTimestamp: timestamp => {
     if (timestamp) {
       localStorage.setItem('bluearkive:lastSyncTimestamp', timestamp.toString())
+    } else {
+      localStorage.removeItem('bluearkive:lastSyncTimestamp')
     }
     set({ lastSyncTimestamp: timestamp })
   },

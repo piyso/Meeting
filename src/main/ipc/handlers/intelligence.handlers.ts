@@ -157,11 +157,11 @@ export function registerIntelligenceHandlers(): void {
             const quota = await quotaManager.checkQuota(status.tier)
 
             if (!quota.exhausted) {
-              const { getBackend } = await import('./graph.handlers')
+              const { getBackend } = await import('../../services/backend/BackendSingleton')
               const backend = getBackend()
-              const isHealthy = await backend.healthCheck()
+              const health = await backend.healthCheck()
 
-              if (isHealthy) {
+              if (health.status === 'healthy') {
                 const cloudPrompts: Record<string, string> = {
                   question: `Based on this meeting discussion, suggest ONE insightful follow-up question that hasn't been addressed yet:\n\n${params.recentContext}\n\nSUGGESTED QUESTION:`,
                   action: `Identify action items from this discussion. Format each on a new line as "- [Person]: [Task]". If none, say "No action items yet.":\n\n${params.recentContext}\n\nACTION ITEMS:`,
@@ -270,8 +270,8 @@ export function registerIntelligenceHandlers(): void {
 
           if (!quota.exhausted) {
             useCloud = true
-            // Record usage (synchronous)
-            quotaManager.recordUsage()
+            // NOTE: recordUsage() moved to AFTER confirmed cloud success (line ~319)
+            // to avoid losing quota on failed requests
           } else {
             // Quota exhausted — emit intelligence wall event
             log.info('Cloud AI quota exhausted, emitting intelligence wall event')
@@ -293,14 +293,22 @@ export function registerIntelligenceHandlers(): void {
       // ── Cloud path (Starter+ with remaining quota) ──
       if (useCloud) {
         try {
-          const { getBackend } = await import('../handlers/graph.handlers')
+          const { getBackend } = await import('../../services/backend/BackendSingleton')
           const backend = getBackend()
-          const isHealthy = await backend.healthCheck()
+          const health = await backend.healthCheck()
 
-          if (isHealthy) {
+          if (health.status === 'healthy') {
             const askResult = await backend.ask(params.question, params.namespace || 'meetings')
 
             if (askResult?.answer) {
+              // Record quota usage AFTER confirmed success (not before)
+              try {
+                const { getQueryQuotaManager } = await import('../../services/QueryQuotaManager')
+                getQueryQuotaManager().recordUsage()
+              } catch {
+                /* non-critical */
+              }
+
               // Stream the answer to renderer for consistency with local path
               try {
                 event.sender.send('intelligence:streamToken', {

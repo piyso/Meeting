@@ -1,4 +1,5 @@
 import React from 'react'
+import { modLabel } from '../../utils/platformShortcut'
 import { FileText, Search, Settings, Brain, CalendarDays, MessageSquare, Lock } from 'lucide-react'
 import { IconButton } from '../ui/IconButton'
 import { useAppStore } from '../../store/appStore'
@@ -73,19 +74,26 @@ export const ZenRail: React.FC<ZenRailProps> = ({
       </div>
 
       <div className="ui-zen-rail-item">
-        <IconButton
-          icon={<MessageSquare size={18} />}
-          active={activeView === 'ask-meetings'}
-          onClick={() => onNavigate('ask-meetings')}
-          tooltip="Ask Meetings"
-        />
+        <div className="relative">
+          <IconButton
+            icon={<MessageSquare size={18} />}
+            active={activeView === 'ask-meetings'}
+            onClick={() => onNavigate('ask-meetings')}
+            tooltip="Ask Meetings"
+          />
+          {showUpgrade && (
+            <div className="absolute -top-1 -right-1 bg-[var(--color-bg-base)] rounded-full p-[2px] shadow-sm z-10">
+              <Lock size={10} className="text-[var(--color-amber)]" />
+            </div>
+          )}
+        </div>
       </div>
 
       <div className="ui-zen-rail-item">
         <IconButton
           icon={<Search size={18} />}
           onClick={toggleCommandPalette}
-          tooltip="Search (Cmd+K)"
+          tooltip={`Search (${modLabel}+K)`}
         />
       </div>
 
@@ -93,37 +101,8 @@ export const ZenRail: React.FC<ZenRailProps> = ({
         <div className="ui-zen-rail-item">
           <button
             onClick={onUpgrade}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              width: 36,
-              height: 36,
-              borderRadius: 12,
-              background:
-                'linear-gradient(135deg, rgba(139, 92, 246, 0.15), rgba(59, 130, 246, 0.15))',
-              border: '1px solid rgba(139, 92, 246, 0.3)',
-              color: '#d8b4fe',
-              cursor: 'pointer',
-              transition: 'all 0.3s cubic-bezier(0.25, 1, 0.5, 1)',
-              boxShadow:
-                '0 4px 12px rgba(139, 92, 246, 0.15), inset 0 1px 0 rgba(255, 255, 255, 0.1)',
-            }}
-            onMouseEnter={e => {
-              e.currentTarget.style.transform = 'scale(1.05)'
-              e.currentTarget.style.boxShadow =
-                '0 8px 20px rgba(139, 92, 246, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.2)'
-              e.currentTarget.style.background =
-                'linear-gradient(135deg, rgba(139, 92, 246, 0.25), rgba(59, 130, 246, 0.25))'
-            }}
-            onMouseLeave={e => {
-              e.currentTarget.style.transform = 'scale(1)'
-              e.currentTarget.style.boxShadow =
-                '0 4px 12px rgba(139, 92, 246, 0.15), inset 0 1px 0 rgba(255, 255, 255, 0.1)'
-              e.currentTarget.style.background =
-                'linear-gradient(135deg, rgba(139, 92, 246, 0.15), rgba(59, 130, 246, 0.15))'
-            }}
-            title={`Upgrade to Pro — You're on ${userTier.charAt(0).toUpperCase() + userTier.slice(1)}`}
+            className="ui-zen-rail-upgrade-btn"
+            title={`Upgrade to Pro — You're on ${(userTier ?? 'free').charAt(0).toUpperCase() + (userTier ?? 'free').slice(1)}`}
           >
             <svg
               width="18"

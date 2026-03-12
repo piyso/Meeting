@@ -73,9 +73,12 @@ export function initializeDatabase(config?: Partial<DatabaseConfig>): Database.D
   db.pragma('synchronous = NORMAL') // Balanced safety/speed
   db.pragma('cache_size = -8000') // 8MB cache (right-sized for typical DB size)
   db.pragma('temp_store = MEMORY') // Store temp tables in memory
-  db.pragma('mmap_size = 268435456') // 256MB memory-mapped I/O (was 2GB — caused memory pressure on 16GB machines)
+
+  // Platform-conditional mmap/busy_timeout: NTFS + Windows Defender causes slower I/O
+  const isWindows = process.platform === 'win32'
+  db.pragma(`mmap_size = ${isWindows ? 67108864 : 268435456}`) // 64MB on Windows, 256MB on macOS
   db.pragma('wal_autocheckpoint = 1000') // Checkpoint every 1000 pages
-  db.pragma('busy_timeout = 5000') // Defense-in-depth: 5s wait on lock contention (also set via constructor)
+  db.pragma(`busy_timeout = ${isWindows ? 10000 : 5000}`) // 10s on Windows (Defender file locks), 5s on macOS
 
   // Enable foreign keys
   db.pragma('foreign_keys = ON')
@@ -95,6 +98,8 @@ export function initializeDatabase(config?: Partial<DatabaseConfig>): Database.D
       // Non-critical — checkpoint will be retried next interval
     }
   }, 300_000) // Every 5 minutes
+  // OPT-16: Prevent timer from keeping process alive on Windows (zombie process fix)
+  if (walCheckpointTimer.unref) walCheckpointTimer.unref()
 
   log.info('Database initialized successfully')
 

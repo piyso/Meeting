@@ -52,8 +52,10 @@ export const AudioIndicator: React.FC<AudioIndicatorProps> = ({ audioLevel, isRe
     }
 
     return () => {
-      workerPool.release()
-      hasTransferred.current = false
+      if (hasTransferred.current) {
+        workerPool.release()
+        hasTransferred.current = false
+      }
     }
   }, [])
 

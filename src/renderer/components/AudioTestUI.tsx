@@ -144,16 +144,16 @@ export const AudioTestUI: React.FC<AudioTestUIProps> = ({
         <div className="platform-indicator">
           <span className="platform-label">Platform:</span>
           <span className="platform-value">
-            {process.platform === 'darwin'
+            {window.electronAPI?.platform === 'darwin'
               ? '🍎 macOS'
-              : process.platform === 'win32'
+              : window.electronAPI?.platform === 'win32'
                 ? '🪟 Windows'
                 : '🐧 Linux'}
           </span>
           <span className="platform-hint">
-            {process.platform === 'darwin'
+            {window.electronAPI?.platform === 'darwin'
               ? '(Requires Screen Recording permission)'
-              : process.platform === 'win32'
+              : window.electronAPI?.platform === 'win32'
                 ? '(Requires Stereo Mix enabled)'
                 : '(System audio support varies)'}
           </span>
@@ -331,7 +331,7 @@ export const AudioTestUI: React.FC<AudioTestUIProps> = ({
             <div className="result-guidance">
               <h5>{testResult.systemAudio.guidance.title}</h5>
               <p className="guidance-description">
-                {process.platform === 'darwin'
+                {window.electronAPI?.platform === 'darwin'
                   ? 'macOS requires Screen Recording permission to capture system audio. Follow these steps:'
                   : 'Windows requires Stereo Mix to be enabled for system audio capture. Follow these steps:'}
               </p>

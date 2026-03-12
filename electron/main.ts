@@ -1,4 +1,4 @@
-import { app, BrowserWindow, globalShortcut, screen } from 'electron'
+import { app, BrowserWindow, globalShortcut, screen, session } from 'electron'
 import path from 'path'
 import { setupIPC, cleanupIPC } from '../src/main/ipc/setup'
 import { getDatabaseService } from '../src/main/services/DatabaseService'
@@ -44,7 +44,10 @@ try {
   // Not installed or in development, skip
 }
 
-// Handle creating/removing shortcuts on Windows when installing/uninstalling
+// Handle creating/removing shortcuts on Windows when installing/uninstalling.
+// NOTE: This is dead code with the current NSIS installer config.
+// NSIS handles shortcuts natively via createDesktopShortcut/createStartMenuShortcut.
+// Kept for potential future Squirrel migration.
 if (process.platform === 'win32') {
   try {
     if (require('electron-squirrel-startup')) {
@@ -62,7 +65,7 @@ if (!gotLock) {
 }
 
 // Focus existing window when a second instance is launched (or deep link received)
-app.on('second-instance', (_event, argv) => {
+app.on('second-instance', async (_event, argv) => {
   if (mainWindow) {
     if (mainWindow.isMinimized()) mainWindow.restore()
     mainWindow.focus()
@@ -70,7 +73,18 @@ app.on('second-instance', (_event, argv) => {
   // Handle deep link on Windows/Linux (argv contains the URL)
   const deepLink = argv.find(arg => arg.startsWith('bluearkive://'))
   if (deepLink && mainWindow) {
-    mainWindow.webContents.send('deep-link', deepLink)
+    // Route auth callbacks to AuthService (Issue 27 fix)
+    if (deepLink.includes('/auth/callback')) {
+      try {
+        const { getAuthService } = await import('../src/main/services/AuthService')
+        const result = await getAuthService().handleOAuthCallback(deepLink)
+        mainWindow.webContents.send('auth:oauthSuccess', result)
+      } catch (err) {
+        mainWindow.webContents.send('auth:oauthError', { error: String(err) })
+      }
+    } else {
+      mainWindow.webContents.send('deep-link', deepLink)
+    }
   }
 })
 
@@ -158,9 +172,11 @@ const createWidgetWindow = () => {
     y: screenHeight - widgetHeight - padding,
     frame: false,
     transparent: true,
+    backgroundColor: '#00000000', // Issue 16: DWM fallback — prevents solid black when compositing is disabled
+    ...(process.platform === 'win32' ? { backgroundMaterial: 'acrylic' as const } : {}), // OPT-12: Win11 acrylic blur
     alwaysOnTop: true,
     hasShadow: false, // We render the drop shadow in CSS for better border-radius control
-    type: 'panel', // macOS specific: treats it as a floating utility panel
+    ...(process.platform === 'darwin' ? { type: 'panel' as const } : {}), // macOS: floating utility panel
     resizable: false,
     show: false, // Hidden until told to show
     webPreferences: {
@@ -216,33 +232,63 @@ app.whenReady().then(async () => {
 
   // Initialize services
   log.info('Initializing services...')
-  getDatabaseService() // Initialize database (delegates to connection.ts)
-  CrashReporter.addBreadcrumb('lifecycle', 'Database initialized')
+  let dbInitFailed = false
+  try {
+    getDatabaseService() // Initialize database (delegates to connection.ts)
+    CrashReporter.addBreadcrumb('lifecycle', 'Database initialized')
+  } catch (dbErr) {
+    dbInitFailed = true
+    log.error('CRITICAL: Database initialization failed — app will start without DB:', dbErr)
+    CrashReporter.addBreadcrumb('lifecycle', `Database init FAILED: ${dbErr}`)
+  }
 
-  // Setup IPC handlers
+  // Setup IPC handlers (must be after DB init)
   setupIPC()
   CrashReporter.addBreadcrumb('lifecycle', 'IPC handlers registered')
   log.info('IPC handlers registered')
 
-  // Create windows
+  // OPT-8: Parallelize window creation + model download service init
+  // Database + IPC must be sequential, but windows can be created concurrently
   createWindow()
   createWidgetWindow()
 
-  // Wire model download progress to the renderer window
+  // Wire model download progress to the renderer window (async, non-blocking)
   if (mainWindow) {
     getModelDownloadService().setMainWindow(mainWindow)
+
+    // Show error dialog if database failed to initialize
+    if (dbInitFailed) {
+      const { dialog } = require('electron')
+      dialog.showErrorBox(
+        'Database Error',
+        'BlueArkive could not initialize its database. Some features may not work.\n\n' +
+          'Try restarting the app. If the problem persists, check the logs at:\n' +
+          '~/Library/Logs/BlueArkive/bluearkive.log'
+      )
+    }
   }
 
   // Register Global OS Hotkey for instant recording
-  globalShortcut.register('CommandOrControl+Shift+Space', () => {
-    log.info('Global shortcut triggered: Cmd+Shift+Space')
+  // Issue 17: Check registration success — Ctrl+Shift+Space conflicts with CJK IME on Windows
+  const shortcutHandler = () => {
+    log.info('Global shortcut triggered')
     if (mainWindow) {
       if (mainWindow.isMinimized()) mainWindow.restore()
       mainWindow.show()
       mainWindow.focus()
       mainWindow.webContents.send('global-shortcut:start-recording')
     }
-  })
+  }
+  const registered = globalShortcut.register('CommandOrControl+Shift+Space', shortcutHandler)
+  if (!registered) {
+    log.warn('Primary shortcut Ctrl+Shift+Space failed (IME conflict?), trying fallback...')
+    const fallback = globalShortcut.register('CommandOrControl+Shift+F9', shortcutHandler)
+    if (fallback) {
+      log.info('Fallback shortcut Ctrl+Shift+F9 registered')
+    } else {
+      log.error('Both primary and fallback global shortcuts failed to register')
+    }
+  }
 
   // On macOS, re-create window when dock icon is clicked and no windows are open
   app.on('activate', () => {
@@ -254,14 +300,34 @@ app.whenReady().then(async () => {
   })
 
   // Register deep-link protocol (bluearkive://)
+  // Issue 28: Fix dev mode on Windows — pass process.execPath + project path
   if (!app.isDefaultProtocolClient('bluearkive')) {
-    app.setAsDefaultProtocolClient('bluearkive')
+    if (app.isPackaged) {
+      app.setAsDefaultProtocolClient('bluearkive')
+    } else if (process.platform === 'win32') {
+      app.setAsDefaultProtocolClient('bluearkive', process.execPath, [
+        path.resolve(process.argv[1] || '.'),
+      ])
+    } else {
+      app.setAsDefaultProtocolClient('bluearkive')
+    }
   }
 
   // macOS: handle deep links via open-url event
-  app.on('open-url', (_event, url) => {
+  app.on('open-url', async (_event, url) => {
     if (mainWindow) {
-      mainWindow.webContents.send('deep-link', url)
+      // Route auth callbacks to AuthService (Issue 27 fix)
+      if (url.includes('/auth/callback')) {
+        try {
+          const { getAuthService } = await import('../src/main/services/AuthService')
+          const result = await getAuthService().handleOAuthCallback(url)
+          mainWindow.webContents.send('auth:oauthSuccess', result)
+        } catch (err) {
+          mainWindow.webContents.send('auth:oauthError', { error: String(err) })
+        }
+      } else {
+        mainWindow.webContents.send('deep-link', url)
+      }
     }
   })
 
@@ -273,6 +339,73 @@ app.whenReady().then(async () => {
       })
       log.info('Auto-update check initiated')
     }, 10_000)
+  }
+
+  // OPT-21: Content Security Policy — blocks inline scripts from AI-generated content
+  // Critical security fix: sandbox:false + no CSP = RCE vector via innerHTML injection
+  // Dev mode: Vite's @vitejs/plugin-react injects an inline preamble script for
+  // Fast Refresh / HMR. Without 'unsafe-inline', CSP blocks it and the app crashes.
+  // Production: built bundle has zero inline scripts, so strict 'self' is safe.
+  const isDev = !app.isPackaged
+  const scriptSrc = isDev ? "script-src 'self' 'unsafe-inline'" : "script-src 'self'"
+
+  session.defaultSession.webRequest.onHeadersReceived(
+    (
+      details: { responseHeaders?: Record<string, string[]> },
+      callback: (response: { responseHeaders?: Record<string, string[]> }) => void
+    ) => {
+      callback({
+        responseHeaders: {
+          ...details.responseHeaders,
+          'Content-Security-Policy': [
+            "default-src 'self'; " +
+              `${scriptSrc}; ` +
+              "connect-src 'self' https://*.supabase.co wss://*.deepgram.com https://api.deepgram.com https://api.piyapi.cloud https://dl.bluearkive.com; " +
+              "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; " +
+              "img-src 'self' data: blob:; " +
+              "font-src 'self' https://fonts.gstatic.com; " +
+              "media-src 'self' mediastream: blob:;",
+          ],
+        },
+      })
+    }
+  )
+
+  // OPT-13: GPU crash recovery — reload renderer instead of blank screen
+  if (mainWindow) {
+    mainWindow.webContents.on('render-process-gone', (_event, details) => {
+      log.error(`Renderer process gone: ${details.reason} (exit code: ${details.exitCode})`)
+      if (details.reason === 'crashed' || details.reason === 'oom') {
+        log.info('Attempting renderer reload after crash...')
+        setTimeout(() => {
+          if (mainWindow && !mainWindow.isDestroyed()) {
+            mainWindow.reload()
+          }
+        }, 1000)
+      }
+    })
+
+    app.on('child-process-gone', (_event, details) => {
+      log.error(`Child process gone: ${details.type} — ${details.reason}`)
+      if (details.type === 'GPU' && mainWindow && !mainWindow.isDestroyed()) {
+        log.warn('GPU process crashed — UI may need reload')
+      }
+    })
+  }
+
+  // Issue 26: Auto-launch at login on Windows (production only)
+  // Only set on first launch — subsequent launches respect user's choice
+  // Users can disable via Windows Settings → Startup Apps
+  if (process.platform === 'win32' && app.isPackaged) {
+    const loginSettings = app.getLoginItemSettings()
+    if (!loginSettings.wasOpenedAtLogin && loginSettings.openAtLogin === false) {
+      // First launch (or user hasn't been registered yet) — register once
+      app.setLoginItemSettings({
+        openAtLogin: true,
+        openAsHidden: true,
+      })
+      log.info('Windows auto-launch registered (first time)')
+    }
   }
 })
 

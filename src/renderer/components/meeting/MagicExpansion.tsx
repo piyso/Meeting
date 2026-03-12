@@ -1,5 +1,6 @@
 import React from 'react'
 import { X, Sparkles } from 'lucide-react'
+import { modLabel } from '../../utils/platformShortcut'
 
 interface MagicExpansionProps {
   content: string
@@ -37,7 +38,7 @@ export const MagicExpansion: React.FC<MagicExpansionProps> = ({
         <button
           onClick={onReject}
           className="opacity-0 group-hover:opacity-100 transition-opacity w-6 h-6 flex items-center justify-center rounded-[var(--radius-sm)] text-[var(--color-text-tertiary)] hover:bg-[rgba(251,113,133,0.1)] hover:text-[var(--color-rose)]"
-          title="Reject (Ctrl+Z)"
+          title={`Reject (${modLabel}+Z)`}
         >
           <X size={14} />
         </button>

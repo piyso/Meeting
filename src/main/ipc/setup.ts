@@ -43,7 +43,7 @@ import { registerHighlightHandlers } from './handlers/highlight.handlers'
 export function setupIPC(): void {
   log.info('Setting up IPC handlers...')
 
-  // Register all 21 handler modules
+  // Register all 22 handler modules
   registerMeetingHandlers()
   registerAudioHandlers()
   registerModelHandlers()

@@ -17,9 +17,12 @@ export const Badge = React.forwardRef<HTMLSpanElement, BadgeProps>(
         whileHover={{
           y: -1,
           scale: 1.02,
-          transition: { type: 'spring', stiffness: 400, damping: 25 },
+          transition: { type: 'spring', stiffness: 350, damping: 28, mass: 0.8 },
         }}
-        whileTap={{ scale: 0.95, transition: { type: 'spring', stiffness: 400, damping: 25 } }}
+        whileTap={{
+          scale: 0.95,
+          transition: { type: 'spring', stiffness: 350, damping: 28, mass: 0.8 },
+        }}
         {...props}
       >
         {children}

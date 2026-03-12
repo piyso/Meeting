@@ -1,4 +1,5 @@
 import React, { useState } from 'react'
+import { modKey } from '../../utils/platformShortcut'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   Square,
@@ -12,10 +13,13 @@ import {
   Sparkles,
   PenLine,
   Send,
+  Pause,
+  Play,
 } from 'lucide-react'
 
 interface MiniWidgetProps {
   isRecording: boolean
+  isPaused?: boolean
   elapsedTime: string
   lastTranscriptLine: string
   audioMode?: 'system' | 'microphone' | 'none'
@@ -26,11 +30,13 @@ interface MiniWidgetProps {
   onRestore: () => void
   onStop: () => void
   onBookmark: () => void
+  onPauseToggle?: () => void
   onQuickNote: (text: string) => void
 }
 
 export const MiniWidget: React.FC<MiniWidgetProps> = ({
   isRecording,
+  isPaused,
   elapsedTime,
   lastTranscriptLine,
   audioMode = 'none',
@@ -41,6 +47,7 @@ export const MiniWidget: React.FC<MiniWidgetProps> = ({
   onRestore,
   onStop,
   onBookmark,
+  onPauseToggle,
   onQuickNote,
 }) => {
   const [isNoteExpanded, setIsNoteExpanded] = useState(false)
@@ -60,8 +67,8 @@ export const MiniWidget: React.FC<MiniWidgetProps> = ({
     setIsNoteExpanded(false)
   }
 
-  // Ultra-premium spring animation spec for Framer Motion
-  const springSpec = { type: 'spring', stiffness: 400, damping: 30 } as const
+  // Ultra-premium organic spring animation spec
+  const springSpec = { type: 'spring', stiffness: 350, damping: 28, mass: 0.8 } as const
 
   return (
     <motion.div
@@ -79,7 +86,7 @@ export const MiniWidget: React.FC<MiniWidgetProps> = ({
             initial={{ opacity: 0 }}
             animate={{ opacity: 0.15 }}
             exit={{ opacity: 0 }}
-            transition={{ duration: 0.5 }}
+            transition={{ type: 'spring', stiffness: 400, damping: 30, mass: 0.8 }}
             className="absolute inset-0 bg-[var(--color-violet)] blur-2xl pointer-events-none"
           />
         )}
@@ -91,13 +98,17 @@ export const MiniWidget: React.FC<MiniWidgetProps> = ({
         className="flex items-center justify-between mb-2 relative z-10"
       >
         <div className="flex items-center gap-2">
-          {isRecording ? (
-            <div className="w-2 h-2 rounded-full bg-[var(--color-blue)] animate-pulse shadow-[0_0_8px_var(--color-blue)]" />
+          {isRecording || isPaused ? (
+            <div
+              className={`w-2 h-2 rounded-full ${isPaused ? 'bg-[var(--color-amber)]' : 'bg-[var(--color-blue)] animate-pulse shadow-[0_0_8px_var(--color-blue)]'}`}
+            />
           ) : (
             <div className="w-2 h-2 rounded-full bg-[var(--color-emerald)]" />
           )}
-          <span className="font-mono text-[13px] font-medium text-[var(--color-text-primary)]">
-            {elapsedTime}
+          <span
+            className={`font-mono text-[13px] font-medium ${isPaused ? 'text-[var(--color-amber)]' : 'text-[var(--color-text-primary)]'}`}
+          >
+            {isPaused ? 'Paused' : elapsedTime}
           </span>
           <div className="flex items-center gap-1.5 ml-1 opacity-50">
             {audioMode !== 'none' && <AudioIcon size={12} className="text-[var(--color-violet)]" />}
@@ -115,7 +126,7 @@ export const MiniWidget: React.FC<MiniWidgetProps> = ({
         </div>
 
         <div className="flex items-center gap-1.5">
-          {isRecording && (
+          {(isRecording || isPaused) && (
             <>
               <motion.button
                 whileHover={{ scale: 1.05 }}
@@ -124,7 +135,7 @@ export const MiniWidget: React.FC<MiniWidgetProps> = ({
                   e.stopPropagation()
                   setIsNoteExpanded(!isNoteExpanded)
                 }}
-                className={`w-6 h-6 rounded-md flex items-center justify-center text-[var(--color-text-secondary)] transition-colors widget-nodrag ${
+                className={`w-6 h-6 rounded-md flex items-center justify-center text-[var(--color-text-secondary)] transition-colors widget-nodrag outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-violet)] focus-visible:ring-offset-2 focus-visible:ring-offset-black ${
                   isNoteExpanded
                     ? 'bg-[var(--color-violet)] text-white'
                     : 'bg-[rgba(255,255,255,0.06)] hover:bg-[rgba(255,255,255,0.1)] hover:text-white'
@@ -140,8 +151,8 @@ export const MiniWidget: React.FC<MiniWidgetProps> = ({
                   e.stopPropagation()
                   onBookmark()
                 }}
-                className="w-6 h-6 rounded-md bg-[rgba(255,255,255,0.06)] flex items-center justify-center text-[var(--color-text-secondary)] hover:text-white hover:bg-[var(--color-violet)] transition-colors widget-nodrag"
-                title="Bookmark Moment (⌘+Shift+B)"
+                className="w-6 h-6 rounded-md bg-[rgba(255,255,255,0.06)] flex items-center justify-center text-[var(--color-text-secondary)] hover:text-white hover:bg-[var(--color-violet)] transition-colors widget-nodrag outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-violet)] focus-visible:ring-offset-2 focus-visible:ring-offset-black"
+                title={`Bookmark Moment (${modKey}+Shift+B)`}
               >
                 <BookmarkPlus size={12} />
               </motion.button>
@@ -154,12 +165,33 @@ export const MiniWidget: React.FC<MiniWidgetProps> = ({
               e.stopPropagation()
               onRestore()
             }}
-            className="w-6 h-6 rounded-md bg-[rgba(255,255,255,0.06)] flex items-center justify-center text-[var(--color-text-secondary)] hover:text-white hover:bg-[rgba(255,255,255,0.1)] transition-colors transform rotate-45 widget-nodrag"
+            className="w-6 h-6 rounded-md bg-[rgba(255,255,255,0.06)] flex items-center justify-center text-[var(--color-text-secondary)] hover:text-white hover:bg-[rgba(255,255,255,0.1)] transition-colors transform rotate-45 widget-nodrag outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-black"
             title="Expand to Full App"
           >
             <Maximize2 size={12} />
           </motion.button>
-          {isRecording && (
+
+          {(isRecording || isPaused) && (
+            <motion.button
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              onClick={e => {
+                e.stopPropagation()
+                onPauseToggle?.()
+              }}
+              className="w-6 h-6 rounded-md flex items-center justify-center text-[var(--color-text-secondary)] transition-colors widget-nodrag hover:bg-[rgba(255,255,255,0.15)] bg-[rgba(255,255,255,0.06)] outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-violet)] focus-visible:ring-offset-2 focus-visible:ring-offset-black"
+              title={isPaused ? 'Resume Capture (⌘+Shift+P)' : 'Pause Capture (⌘+Shift+P)'}
+              aria-label={isPaused ? 'Resume archiving' : 'Pause archiving'}
+            >
+              {isPaused ? (
+                <Play size={10} fill="currentColor" />
+              ) : (
+                <Pause size={10} fill="currentColor" />
+              )}
+            </motion.button>
+          )}
+
+          {(isRecording || isPaused) && (
             <motion.button
               whileHover={{ scale: 1.05 }}
               whileTap={{ scale: 0.95 }}
@@ -167,7 +199,7 @@ export const MiniWidget: React.FC<MiniWidgetProps> = ({
                 e.stopPropagation()
                 onStop()
               }}
-              className="w-6 h-6 rounded-md bg-[var(--color-blue)] flex items-center justify-center text-white hover:bg-white hover:text-black transition-colors widget-nodrag ml-0.5"
+              className="w-6 h-6 rounded-md bg-[var(--color-blue)] flex items-center justify-center text-white hover:bg-white hover:text-black transition-colors widget-nodrag ml-0.5 outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-blue)] focus-visible:ring-offset-2 focus-visible:ring-offset-black"
               title="Stop Archiving"
             >
               <Square size={10} fill="currentColor" />

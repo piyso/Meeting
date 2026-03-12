@@ -1,3 +1,19 @@
+/* ── Instrument Sans — Local Font Face (CSP-safe) ── */
+@font-face {
+  font-family: 'Instrument Sans';
+  src: url('/fonts/instrument-sans-regular.woff2') format('woff2');
+  font-weight: 400 700; /* Variable font covers 400-700 */
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Instrument Sans';
+  src: url('/fonts/instrument-sans-italic.woff2') format('woff2');
+  font-weight: 400 500;
+  font-style: italic;
+  font-display: swap;
+}
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -7,50 +23,28 @@
    Complete token system + effects + utilities
    ════════════════════════════════════════════════ */
 
-/* ── Font Face Declarations ── */
-/* Note: Regular (400) and Mono fonts not available — using system fallbacks */
-/* Fonts are loaded from the public directory so Vite can resolve them */
-@font-face {
-  font-family: 'Geist';
-  src: url('/fonts/geist-medium.woff2') format('woff2');
-  font-weight: 500;
-  font-display: swap;
-}
-@font-face {
-  font-family: 'Geist';
-  src: url('/fonts/geist-semibold.woff2') format('woff2');
-  font-weight: 600;
-  font-display: swap;
-}
-@font-face {
-  font-family: 'Geist';
-  src: url('/fonts/geist-bold.woff2') format('woff2');
-  font-weight: 700;
-  font-display: swap;
-}
-
 /* ── CSS Custom Properties (Design Tokens) ── */
 :root {
   /* Base Surfaces (Sovereign Obsidian Depth) */
   --color-bg-root: #000000;
-  --color-bg-panel: rgba(10, 10, 12, 0.7);
+  --color-bg-panel: rgba(10, 10, 12, 0.65);
   --color-bg-glass: rgba(255, 255, 255, 0.02);
-  --color-bg-glass-hover: rgba(255, 255, 255, 0.05);
+  --color-bg-glass-hover: rgba(255, 255, 255, 0.04);
   --color-bg-elevated: rgba(18, 18, 20, 0.85); /* Elevated solid background */
   --color-bg-hover: rgba(255, 255, 255, 0.06);
 
   /* Borders & Lights */
-  --color-border: rgba(255, 255, 255, 0.08); /* Sovereign subtle borders */
+  --color-border: rgba(255, 255, 255, 0.06); /* Sovereign subtle borders */
   --color-border-inset: rgba(255, 255, 255, 0.03);
-  --color-border-subtle: rgba(255, 255, 255, 0.05);
-  --color-glow-violet: rgba(139, 92, 246, 0.15);
-  --color-glow-emerald: rgba(52, 211, 153, 0.15);
+  --color-border-subtle: rgba(255, 255, 255, 0.04);
+  --color-glow-violet: rgba(167, 139, 250, 0.25);
+  --color-glow-emerald: rgba(52, 211, 153, 0.25);
 
   /* Text Hierarchy (High Contrast) */
   --color-text-primary: #ffffff;
-  --color-text-secondary: #a1a1aa;
-  --color-text-tertiary: #52525b;
-  --color-text-muted: #71717a; /* Used in AskMeetings, Tooltips, Empty States */
+  --color-text-secondary: #8e8e93; /* Apple native secondary grey */
+  --color-text-tertiary: #636366; /* Apple native tertiary grey */
+  --color-text-muted: #636366; /* System grey — readable against dark surfaces */
   --color-title: #ffffff; /* Used in prominent dialog headers */
 
   /* Semantic Accents (Desaturated & Elegant) */
@@ -71,10 +65,10 @@
   --chip-action-bg: rgba(251, 113, 133, 0.08);
   --chip-action-text: #fda4af;
 
-  /* Typography */
-  --font-heading: 'Geist', 'Inter', system-ui, sans-serif;
-  --font-body: 'Geist', 'Inter', system-ui, sans-serif;
-  --font-mono: 'Geist Mono', 'JetBrains Mono', monospace;
+  /* Typography (Apple Tahoe / SF Pro Emulation via Instrument Sans) */
+  --font-heading: 'Instrument Sans', 'SF Pro Display', -apple-system, system-ui, sans-serif;
+  --font-body: 'Instrument Sans', 'SF Pro Text', -apple-system, system-ui, sans-serif;
+  --font-mono: 'Geist Mono', 'SF Mono', 'JetBrains Mono', monospace;
 
   /* Type Scale */
   --text-xs: 0.75rem;
@@ -85,16 +79,29 @@
   --text-xl: 1.5rem;
   --text-2xl: 2rem;
 
-  /* Tracking */
-  --tracking-tight: -0.02em;
-  --tracking-wide: 0.05em;
-  --tracking-widest: 0.1em;
+  /* Tracking (Apple SF Pro Exact Metrics) */
+  --tracking-tighter: -0.04em; /* For massive headers (40px+) */
+  --tracking-tight: -0.02em; /* For standard UI (14px - 16px) */
+  --tracking-wide: 0.015em; /* For micro metadata (11-12px uppercase) */
+  --tracking-widest: 0.04em; /* For all-caps labels */
 
   /* Line Heights */
-  --leading-relaxed: 1.625;
+  --leading-relaxed: 1.5;
 
   /* Active States */
   --color-bg-active: rgba(255, 255, 255, 0.08);
+
+  /* Apple Tahoe Native Shadows & Materials */
+  --shadow-macos-sm: 0 1px 3px rgba(0, 0, 0, 0.1), 0 1px 0 rgba(255, 255, 255, 0.05) inset;
+  --shadow-macos-md:
+    0 4px 12px rgba(0, 0, 0, 0.15), 0 1px 0 rgba(255, 255, 255, 0.1) inset,
+    0 0 0 1px rgba(255, 255, 255, 0.02);
+  --shadow-macos-lg:
+    0 12px 32px -4px rgba(0, 0, 0, 0.3), 0 4px 12px -2px rgba(0, 0, 0, 0.2),
+    0 1px 0 rgba(255, 255, 255, 0.05) inset, 0 0 0 1px rgba(255, 255, 255, 0.03);
+  --shadow-macos-xl:
+    0 24px 64px -8px rgba(0, 0, 0, 0.4), 0 8px 24px -4px rgba(0, 0, 0, 0.2),
+    0 1px 0 rgba(255, 255, 255, 0.05) inset, 0 0 0 1px rgba(255, 255, 255, 0.04);
 
   /* Structural Spacing (8px Grid) */
   --space-6: 6px; /* Tight inner padding */
@@ -148,7 +155,12 @@ html,
 body,
 #root {
   height: 100%;
-  background: var(--color-bg-root);
+  /* Apple-like Ambient Mesh: Deep void with microscopic atmospheric light for glass to refract */
+  background-color: #020203;
+  background-image:
+    radial-gradient(ellipse at 80% 0%, rgba(167, 139, 250, 0.05) 0%, transparent 50%),
+    radial-gradient(ellipse at 10% 100%, rgba(56, 189, 248, 0.03) 0%, transparent 40%);
+  background-attachment: fixed;
   color: var(--color-text-primary);
   font-family: var(--font-body);
   font-size: var(--text-base);
@@ -156,7 +168,7 @@ body,
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   overflow: hidden;
-  letter-spacing: var(--tracking-tight);
+  letter-spacing: var(--tracking-tight); /* Default tighten for Geist/Inter */
 }
 
 /* Allow scrolling when landing page is active */
@@ -177,26 +189,51 @@ body:has(.calm-landing) {
 }
 
 .sovereign-glass-panel {
-  background: var(--color-bg-panel);
-  backdrop-filter: blur(24px);
-  -webkit-backdrop-filter: blur(24px);
+  background: linear-gradient(145deg, rgba(14, 14, 18, 0.4) 0%, rgba(8, 8, 10, 0.6) 100%);
+  backdrop-filter: blur(64px) saturate(160%);
+  -webkit-backdrop-filter: blur(64px) saturate(160%);
   border: 1px solid var(--color-border-subtle);
   box-shadow:
-    inset 0 1px 1px var(--color-border-inset),
-    0 8px 32px rgba(0, 0, 0, 0.4);
+    0 16px 48px -12px rgba(0, 0, 0, 0.4),
+    inset 0 1px 0 rgba(255, 255, 255, 0.1),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.02);
 }
 
 /* ── Premium Glass Texture Formula ── */
 .surface-glass-premium {
-  background: linear-gradient(145deg, rgba(255, 255, 255, 0.03) 0%, rgba(255, 255, 255, 0.01) 100%);
+  background: linear-gradient(145deg, rgba(14, 14, 18, 0.5) 0%, rgba(8, 8, 10, 0.65) 100%);
+  backdrop-filter: blur(64px) saturate(160%);
+  -webkit-backdrop-filter: blur(64px) saturate(160%);
+  border: 1px solid var(--color-border);
+  box-shadow:
+    inset 0 1px 1px rgba(255, 255, 255, 0.05),
+    0 4px 12px rgba(0, 0, 0, 0.2);
+}
+
+/* ── Apple Tahoe Native Materials ── */
+.tahoe-glass-heavy {
+  background: var(--color-bg-panel);
+  backdrop-filter: blur(64px) saturate(180%);
+  -webkit-backdrop-filter: blur(64px) saturate(180%);
+  border: 1px solid var(--color-border-subtle);
+  box-shadow: var(--shadow-macos-lg);
+}
+
+.tahoe-glass-popover {
+  background: rgba(18, 18, 20, 0.85); /* Slightly more opaque for floating menus */
+  backdrop-filter: blur(40px) saturate(150%);
+  -webkit-backdrop-filter: blur(40px) saturate(150%);
+  border: 1px solid var(--color-border);
+  box-shadow: var(--shadow-macos-md);
+  border-radius: var(--radius-lg);
+}
+
+.tahoe-glass-base {
+  background: var(--color-bg-glass);
   backdrop-filter: blur(24px) saturate(120%);
   -webkit-backdrop-filter: blur(24px) saturate(120%);
-  box-shadow:
-    0 4px 24px -1px rgba(0, 0, 0, 0.4),
-    0 1px 0 0 rgba(255, 255, 255, 0.1) inset,
-    0 0 0 1px rgba(255, 255, 255, 0.05);
-  border-radius: var(--radius-xl);
-  transform: translateZ(0);
+  border: 1px solid var(--color-border-inset);
+  box-shadow: var(--shadow-macos-sm);
 }
 
 /* ── Film Grain Noise Overlay ── */
@@ -214,16 +251,19 @@ body:has(.calm-landing) {
 /* ── Premium Hover Effect ── */
 .premium-hover {
   transition:
-    transform 400ms cubic-bezier(0.2, 0.8, 0.2, 1),
-    box-shadow 400ms cubic-bezier(0.2, 0.8, 0.2, 1);
-  will-change: transform;
+    transform 500ms cubic-bezier(0.16, 1, 0.3, 1),
+    box-shadow 500ms cubic-bezier(0.16, 1, 0.3, 1),
+    background 500ms cubic-bezier(0.16, 1, 0.3, 1);
+  will-change: transform, box-shadow;
 }
 .premium-hover:hover {
-  transform: translateY(-1px) scale(1.01);
+  transform: translateY(-2px) scale(1.005);
+  background: linear-gradient(145deg, rgba(255, 255, 255, 0.06) 0%, rgba(255, 255, 255, 0.01) 100%);
   box-shadow:
-    0 8px 24px -4px rgba(0, 0, 0, 0.5),
-    0 0 0 1px var(--color-border-subtle),
-    0 0 12px var(--color-glow-violet);
+    0 12px 32px -4px rgba(0, 0, 0, 0.3),
+    0 0 0 1px rgba(255, 255, 255, 0.08),
+    0 0 16px rgba(167, 139, 250, 0.1),
+    inset 0 1px 0 rgba(255, 255, 255, 0.15);
 }
 
 /* ── Staggered Entrance Choreography ── */
@@ -252,26 +292,51 @@ body:has(.calm-landing) {
   background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0); /* Invisible by default */
-  border: 4px solid transparent; /* Increase click area while keeping visual thumb skinny */
+  background-color: rgba(100, 100, 100, 0.3);
+  border: 4px solid transparent;
   background-clip: padding-box;
   border-radius: var(--radius-full);
   min-height: 48px;
-  transition: all var(--transition-base);
+  transition: background-color 300ms var(--ease-fluid);
 }
-:hover::-webkit-scrollbar-thumb {
-  background-color: rgba(255, 255, 255, 0.15); /* Appears gently on hover of container */
+::-webkit-scrollbar-thumb:hover {
+  background-color: rgba(100, 100, 100, 0.5);
   border: 4px solid transparent;
   background-clip: padding-box;
 }
-::-webkit-scrollbar-thumb:hover {
-  background-color: rgba(255, 255, 255, 0.3); /* Gets brighter when directly hovered */
-}
 ::-webkit-scrollbar-thumb:active {
-  background-color: rgba(255, 255, 255, 0.4);
+  background-color: rgba(100, 100, 100, 0.6);
 }
 ::-webkit-scrollbar-corner {
   background: transparent;
+}
+
+/* For explicitly applying the premium scrollbar to nested overflow containers without relying solely on global pseudo-selectors */
+.sovereign-scrollbar::-webkit-scrollbar {
+  width: 14px;
+  height: 14px;
+}
+.sovereign-scrollbar::-webkit-scrollbar-thumb {
+  background-color: rgba(100, 100, 100, 0.3);
+  border: 4px solid transparent;
+  background-clip: padding-box;
+  border-radius: var(--radius-full);
+  min-height: 48px;
+}
+.sovereign-scrollbar::-webkit-scrollbar-thumb:hover {
+  background-color: rgba(100, 100, 100, 0.5);
+}
+
+@media (prefers-color-scheme: dark) {
+  ::-webkit-scrollbar-thumb {
+    background-color: rgba(255, 255, 255, 0.15);
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background-color: rgba(255, 255, 255, 0.25);
+  }
+  ::-webkit-scrollbar-thumb:active {
+    background-color: rgba(255, 255, 255, 0.35);
+  }
 }
 
 /* ── Window Blur (Lost Focus) State ── */
@@ -303,7 +368,7 @@ body:has(.calm-landing) {
     rgba(255, 255, 255, 0.03) 75%
   );
   background-size: 200% 100%;
-  animation: shimmer 1.5s infinite;
+  animation: shimmer 2.5s cubic-bezier(0.2, 0.8, 0.2, 1) infinite;
   border-radius: var(--radius-md);
 }
 
@@ -345,7 +410,6 @@ body:has(.calm-landing) {
   color: transparent;
   -webkit-background-clip: text;
   background-clip: text;
-  animation: iridescent 4s linear infinite;
   animation: iridescent 4s linear infinite;
   display: inline-block;
 }

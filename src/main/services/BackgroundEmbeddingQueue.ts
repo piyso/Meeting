@@ -41,6 +41,8 @@ export class BackgroundEmbeddingQueue {
     this.timer = setInterval(() => {
       this.processQueue().catch(err => log.debug('Queue processing error:', err))
     }, this.INTERVAL_MS)
+    // OPT-16: Don't let this timer prevent clean app shutdown
+    if (this.timer.unref) this.timer.unref()
 
     log.info('Background embedding queue started')
   }
@@ -89,34 +91,41 @@ export class BackgroundEmbeddingQueue {
       const { getLocalEmbeddingService } = await import('./LocalEmbeddingService')
       const embeddingService = getLocalEmbeddingService()
 
-      for (const item of batch) {
-        try {
-          const result = await embeddingService.embed(item.text)
-
-          // Persist the embedding as BLOB to the transcripts table
+      // OPT-6: Process batch items in parallel (up to BATCH_SIZE concurrent)
+      const results = await Promise.allSettled(
+        batch.map(async item => {
           try {
-            const { getDatabase } = await import('../database/connection')
-            const db = getDatabase()
-            const buffer = Buffer.from(new Float32Array(result.embedding).buffer)
-            db.prepare('UPDATE transcripts SET embedding_blob = ? WHERE id = ?').run(
-              buffer,
-              item.id
-            )
-          } catch (dbErr) {
-            log.debug(`Failed to persist embedding for ${item.id}:`, dbErr)
-          }
+            const result = await embeddingService.embed(item.text)
 
-          log.debug(
-            `Embedded "${item.text.substring(0, 40)}..." → ${result.dimensions}d in ${result.generationTimeMs}ms`
-          )
-        } catch (err) {
-          log.debug(`Failed to embed item ${item.id}:`, err)
-          // Don't re-queue failed items to prevent infinite loops
-        }
-      }
+            // Persist the embedding as BLOB to the transcripts table
+            try {
+              const { getDatabase } = await import('../database/connection')
+              const db = getDatabase()
+              const buffer = Buffer.from(new Float32Array(result.embedding).buffer)
+              db.prepare('UPDATE transcripts SET embedding_blob = ? WHERE id = ?').run(
+                buffer,
+                item.id
+              )
+            } catch (dbErr) {
+              log.debug(`Failed to persist embedding for ${item.id}:`, dbErr)
+            }
+
+            log.debug(
+              `Embedded "${item.text.substring(0, 40)}..." → ${result.dimensions}d in ${result.generationTimeMs}ms`
+            )
+          } catch (err) {
+            log.debug(`Failed to embed item ${item.id}:`, err)
+            // Don't re-queue failed items to prevent infinite loops
+          }
+        })
+      )
+
+      const succeeded = results.filter(r => r.status === 'fulfilled').length
 
       if (batch.length > 0) {
-        log.info(`Processed ${batch.length} embeddings (${this.queue.length} remaining)`)
+        log.info(
+          `Processed ${succeeded}/${batch.length} embeddings (${this.queue.length} remaining)`
+        )
       }
     } catch (err) {
       log.error('Embedding queue batch failed:', err)
@@ -142,8 +151,17 @@ export class BackgroundEmbeddingQueue {
    * Flush the queue — process all remaining items immediately.
    */
   async flush(): Promise<void> {
-    while (this.queue.length > 0) {
+    // I13 fix: Add max iterations guard to prevent infinite loop.
+    // If processQueue() fails at batch level, items get re-queued via unshift(),
+    // causing flush() to spin forever. Cap at 3× queue length iterations.
+    const maxIterations = Math.max(10, this.queue.length * 3)
+    let iterations = 0
+    while (this.queue.length > 0 && iterations < maxIterations) {
       await this.processQueue()
+      iterations++
+    }
+    if (this.queue.length > 0) {
+      log.warn(`flush() hit max iterations (${maxIterations}), ${this.queue.length} items remain`)
     }
   }
 

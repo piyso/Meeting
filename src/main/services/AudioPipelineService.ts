@@ -10,7 +10,7 @@
 import { EventEmitter } from 'events'
 import fs from 'fs'
 import path from 'path'
-import os from 'os'
+import { app } from 'electron'
 import { getASRService } from './ASRService'
 import { getTranscriptService } from './TranscriptService'
 import { config } from '../config/environment'
@@ -18,6 +18,15 @@ import { Logger } from './Logger'
 
 const log = Logger.create('AudioPipeline')
 const TEMP_PREFIX = 'bluearkive-audio-'
+
+// Issue 20: Use app userData cache instead of os.tmpdir() to avoid Windows Disk Cleanup
+function getAudioCacheDir(): string {
+  const cacheDir = path.join(app.getPath('userData'), 'cache', 'audio')
+  if (!fs.existsSync(cacheDir)) {
+    fs.mkdirSync(cacheDir, { recursive: true })
+  }
+  return cacheDir
+}
 
 interface PipelineConfig {
   sampleRate: number // 16000 (Whisper's expected rate)
@@ -83,6 +92,7 @@ export class AudioPipelineService extends EventEmitter {
   private writeStream: fs.WriteStream | null = null
   private isProcessingChunk = false
   private pendingChunkProcess = false
+  private isPaused = false
 
   /**
    * Start capturing audio for a meeting.
@@ -105,7 +115,10 @@ export class AudioPipelineService extends EventEmitter {
     this.segmentCounter = 0
 
     // ── Create temp file for crash-resilient disk buffering ──
-    this.tempFilePath = path.join(os.tmpdir(), `${TEMP_PREFIX}${meetingId}-${Date.now()}.raw`)
+    this.tempFilePath = path.join(
+      getAudioCacheDir(),
+      `${TEMP_PREFIX}${meetingId}-${Date.now()}.raw`
+    )
     try {
       this.writeStream = fs.createWriteStream(this.tempFilePath, { flags: 'w' })
     } catch (err) {
@@ -148,7 +161,7 @@ export class AudioPipelineService extends EventEmitter {
    * Called by audio IPC handler when renderer sends PCM buffers.
    */
   processAudioChunk(audioData: Float32Array): void {
-    if (!this.isCapturing || !this.currentMeetingId) return
+    if (!this.isCapturing || !this.currentMeetingId || this.isPaused) return
 
     // ── Max recording duration guard ──────────────────────────
     const maxDurationMs = config.MAX_RECORDING_DURATION_MS
@@ -246,7 +259,7 @@ export class AudioPipelineService extends EventEmitter {
         /* already gone */
       }
       this.tempFilePath = path.join(
-        os.tmpdir(),
+        getAudioCacheDir(),
         `${TEMP_PREFIX}${this.currentMeetingId}-${Date.now()}.raw`
       )
       try {
@@ -327,7 +340,7 @@ export class AudioPipelineService extends EventEmitter {
    */
   private recoverOrphanedAudio(currentMeetingId: string): void {
     try {
-      const tmpDir = os.tmpdir()
+      const tmpDir = getAudioCacheDir()
       const files = fs
         .readdirSync(tmpDir)
         .filter(f => f.startsWith(TEMP_PREFIX) && !f.includes(currentMeetingId))
@@ -442,6 +455,27 @@ export class AudioPipelineService extends EventEmitter {
   }
 
   /**
+   * I1 fix: Pause audio processing — chunks are silently dropped.
+   * Resources stay allocated for instant resume.
+   */
+  pause(): void {
+    if (!this.isCapturing) return
+    this.isPaused = true
+    this.emit('status', { meetingId: this.currentMeetingId, status: 'paused' })
+    log.info(`Audio capture paused for meeting ${this.currentMeetingId}`)
+  }
+
+  /**
+   * I1 fix: Resume audio processing after a pause.
+   */
+  resume(): void {
+    if (!this.isCapturing) return
+    this.isPaused = false
+    this.emit('status', { meetingId: this.currentMeetingId, status: 'capturing' })
+    log.info(`Audio capture resumed for meeting ${this.currentMeetingId}`)
+  }
+
+  /**
    * Get current pipeline status.
    */
   getStatus() {
@@ -470,6 +504,29 @@ export class AudioPipelineService extends EventEmitter {
             id: 'system-audio',
             label: 'System Audio (via ScreenCaptureKit)',
             kind: 'system' as const,
+            isDefault: true,
+            isAvailable: true,
+            deviceType: 'built-in' as const,
+            connectionType: 'internal' as const,
+          },
+        ]
+      }
+      // Issue 4: Return WASAPI loopback + default microphone stubs for Windows
+      if (process.platform === 'win32') {
+        return [
+          {
+            id: 'wasapi-loopback',
+            label: 'System Audio (WASAPI Loopback)',
+            kind: 'system' as const,
+            isDefault: true,
+            isAvailable: true,
+            deviceType: 'built-in' as const,
+            connectionType: 'internal' as const,
+          },
+          {
+            id: 'default-microphone',
+            label: 'Default Microphone',
+            kind: 'input' as const,
             isDefault: true,
             isAvailable: true,
             deviceType: 'built-in' as const,

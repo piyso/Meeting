@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useMemo } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import './MeetingListSidebar.css'
 
@@ -33,10 +33,11 @@ export const MeetingListSidebar: React.FC<MeetingListSidebarProps> = ({
     refetchInterval: 30000, // Refetch every 30 seconds
   })
 
-  const meetings = response?.data?.items || []
-
-  // Sort meetings by start_time (most recent first)
-  const sortedMeetings = [...meetings].sort((a, b) => b.start_time - a.start_time)
+  // Sort meetings by start_time (most recent first) — memoized to avoid re-sorting on every render
+  const sortedMeetings = useMemo(() => {
+    const items = response?.data?.items || []
+    return [...items].sort((a, b) => b.start_time - a.start_time)
+  }, [response?.data?.items])
 
   const handleMeetingClick = (meetingId: string) => {
     if (editingId) return // prevent selection during rename
@@ -75,7 +76,7 @@ export const MeetingListSidebar: React.FC<MeetingListSidebarProps> = ({
   }
 
   const formatDate = (timestamp: number): string => {
-    const date = new Date(timestamp)
+    const date = new Date(timestamp * 1000) // start_time is unix seconds
     const now = new Date()
     const diffMs = now.getTime() - date.getTime()
     const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24))

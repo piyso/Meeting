@@ -564,7 +564,7 @@ export interface ErrorEvent {
 
 export interface GraphNode {
   id: string
-  type: 'meeting' | 'person' | 'topic' | 'decision' | 'action'
+  type: 'meeting' | 'person' | 'topic' | 'decision' | 'action' | 'action_item'
   label: string
   metadata: Record<string, unknown>
   createdAt: number
@@ -582,6 +582,7 @@ export interface GraphEdge {
     | 'supports'
     | 'questions'
     | 'implements'
+    | 'parent'
   weight: number
   metadata: Record<string, unknown>
 }
@@ -601,8 +602,8 @@ export interface GetGraphParams {
 export interface Contradiction {
   id: string
   type: 'contradicts' | 'supersedes'
-  meeting1: Meeting
-  meeting2: Meeting
+  meeting1: { id: string; title: string } | null
+  meeting2: { id: string; title: string } | null
   statement1: string
   statement2: string
   confidence: number
@@ -629,11 +630,15 @@ export interface WeeklyDigest {
     totalMeetings: number
     totalHours: number
     uniqueParticipants: number
+    aiSummary?: string
   }
 
   keyDecisions: Array<{
     text: string
     meetingId: string
+    meetingTitle?: string
+    meetingDate?: number
+    sourceContext?: string
     timestamp: number
     confidence: number
   }>
@@ -645,6 +650,9 @@ export interface WeeklyDigest {
     items: Array<{
       text: string
       meetingId: string
+      meetingTitle?: string
+      meetingDate?: number
+      sourceContext?: string
       assignee: string | null
       dueDate: number | null
       status: 'open' | 'completed' | 'overdue'
@@ -654,8 +662,8 @@ export interface WeeklyDigest {
   contradictions: Contradiction[]
 
   entityAggregation: {
-    topPeople: Array<{ name: string; meetingCount: number }>
-    topTopics: Array<{ topic: string; mentionCount: number }>
+    topPeople: Array<{ name: string; meetingCount: number; meetingTitles?: string[] }>
+    topTopics: Array<{ topic: string; mentionCount: number; meetingTitles?: string[] }>
   }
 }
 
@@ -664,6 +672,8 @@ export interface GenerateDigestParams {
   startDate?: number
   endDate?: number
   namespace?: string
+  periodType?: 'daily' | 'weekly' | 'monthly'
+  userId?: string
 }
 
 // ============================================================================
@@ -757,6 +767,8 @@ export interface ElectronAPI {
     listDevices: () => Promise<IPCResponse<AudioDevice[]>>
     startCapture: (params: StartAudioCaptureParams) => Promise<IPCResponse<AudioCaptureStatus>>
     stopCapture: (params: StopAudioCaptureParams) => Promise<IPCResponse<void>>
+    pauseCapture: () => Promise<IPCResponse<void>>
+    resumeCapture: () => Promise<IPCResponse<void>>
     getStatus: () => Promise<IPCResponse<AudioCaptureStatus>>
     preFlightTest: () => Promise<IPCResponse<PreFlightTestResult>>
     openSoundSettings: () => Promise<IPCResponse<void>>
@@ -897,12 +909,12 @@ export interface ElectronAPI {
       nodeId: string
       maxDepth?: number
       namespace?: string
-    }) => Promise<IPCResponse<unknown>>
+    }) => Promise<IPCResponse<GraphData>>
     search: (params: {
       query: string
       limit?: number
       namespace?: string
-    }) => Promise<IPCResponse<unknown>>
+    }) => Promise<IPCResponse<{ results: GraphNode[] }>>
     getStats: () => Promise<
       IPCResponse<{ totalNodes: number; totalEdges: number; clusters: number }>
     >
@@ -919,7 +931,7 @@ export interface ElectronAPI {
   // Weekly digest operations
   digest: {
     generate: (params: GenerateDigestParams) => Promise<IPCResponse<WeeklyDigest>>
-    getLatest: () => Promise<IPCResponse<WeeklyDigest | null>>
+    getLatest: (params?: { periodType?: string }) => Promise<IPCResponse<WeeklyDigest | null>>
   }
 
   // Export & GDPR operations
@@ -941,6 +953,7 @@ export interface ElectronAPI {
   widget: {
     updateState: (state: {
       isRecording: boolean
+      isPaused?: boolean
       elapsedTime: string
       lastTranscriptLine: string
       audioMode?: 'system' | 'microphone' | 'none'
@@ -952,6 +965,7 @@ export interface ElectronAPI {
     }) => Promise<IPCResponse<void>>
     triggerBookmark: () => Promise<IPCResponse<void>>
     submitQuickNote: (note: string) => Promise<IPCResponse<void>>
+    triggerPauseToggle: () => Promise<IPCResponse<void>>
   }
 
   // Highlight (bookmark) operations
@@ -989,6 +1003,17 @@ export interface ElectronAPI {
     delete: (id: string) => Promise<IPCResponse<{ deleted: boolean }>>
   }
 
+  // Window controls (Windows title bar)
+  windowControls: {
+    minimize: () => Promise<IPCResponse>
+    maximize: () => Promise<IPCResponse>
+    close: () => Promise<IPCResponse>
+    isMaximized: () => Promise<boolean>
+  }
+
+  // Issue 13: Desktop capturer sources for WASAPI system audio
+  desktopCapturerSources: () => Promise<Array<{ id: string; name: string }>>
+
   // Event listeners (streaming)
   on: {
     transcriptChunk: (callback: (chunk: TranscriptChunk) => void) => () => void
@@ -999,6 +1024,7 @@ export interface ElectronAPI {
     widgetStateUpdated: (
       callback: (state: {
         isRecording: boolean
+        isPaused?: boolean
         elapsedTime: string
         lastTranscriptLine: string
         audioMode?: 'system' | 'microphone' | 'none'
@@ -1015,8 +1041,11 @@ export interface ElectronAPI {
     ) => () => void
     showIntelligenceWall: (callback: (data: { used: number; limit: number }) => void) => () => void
     bookmarkRequested: (callback: () => void) => () => void
+    pauseRequested: (callback: () => void) => () => void
     quickNoteRequested: (callback: (text: string) => void) => () => void
     deepLink: (callback: (url: string) => void) => () => void
+    windowMaximized: (callback: () => void) => () => void
+    windowUnmaximized: (callback: () => void) => () => void
   }
 
   // IPC Renderer (for audio capture module)

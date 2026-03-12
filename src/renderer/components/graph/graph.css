@@ -60,6 +60,8 @@
 /* ── Details Panel Sidebar ── */
 .graph-sidebar {
   width: 320px;
+  flex-shrink: 1;
+  min-width: 200px;
   background: rgba(15, 15, 17, 0.6);
   backdrop-filter: blur(24px);
   -webkit-backdrop-filter: blur(24px);
@@ -70,6 +72,17 @@
   animation: slide-in-right 300ms var(--ease-spring) forwards;
   position: relative;
   z-index: 10;
+}
+@media (max-width: 700px) {
+  .graph-sidebar {
+    width: 100%;
+    min-width: 0;
+    border-left: none;
+    border-top: 1px solid var(--color-border-inset);
+  }
+  .graph-main-area {
+    flex-direction: column;
+  }
 }
 
 @keyframes slide-in-right {
@@ -104,7 +117,9 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: all var(--transition-fast);
+  transition:
+    background var(--transition-fast),
+    color var(--transition-fast);
 }
 
 .graph-sidebar-close:hover {
@@ -154,7 +169,9 @@
   cursor: pointer;
   font-weight: 600;
   margin-top: var(--space-8);
-  transition: all var(--transition-fast);
+  transition:
+    transform var(--transition-fast),
+    box-shadow var(--transition-fast);
   box-shadow: 0 4px 12px var(--color-glow-violet);
 }
 

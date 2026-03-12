@@ -17,39 +17,44 @@ import { v4 as uuidv4 } from 'uuid'
 export function createTranscript(input: CreateTranscriptInput): Transcript {
   const db = getDatabase()
 
-  const stmt = db.prepare(`
-    INSERT INTO transcripts (
-      id, meeting_id, start_time, end_time, text, confidence,
-      speaker_id, speaker_name, words
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-  `)
+  const createTxn = db.transaction(() => {
+    const stmt = db.prepare(`
+      INSERT INTO transcripts (
+        id, meeting_id, start_time, end_time, text, confidence,
+        speaker_id, speaker_name, words
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `)
 
-  stmt.run(
-    input.id,
-    input.meeting_id,
-    input.start_time,
-    input.end_time,
-    input.text,
-    input.confidence || null,
-    input.speaker_id || null,
-    input.speaker_name || null,
-    input.words ? JSON.stringify(input.words) : null
-  )
+    stmt.run(
+      input.id,
+      input.meeting_id,
+      input.start_time,
+      input.end_time,
+      input.text,
+      input.confidence ?? null,
+      input.speaker_id || null,
+      input.speaker_name || null,
+      input.words ? JSON.stringify(input.words) : null
+    )
 
-  const transcript = getTranscriptById(input.id)
-  if (!transcript) {
-    throw new Error(`Failed to read back transcript after INSERT: ${input.id}`)
-  }
+    const transcript = getTranscriptById(input.id)
+    if (!transcript) {
+      throw new Error(`Failed to read back transcript after INSERT: ${input.id}`)
+    }
 
-  createSyncQueueItem({
-    id: uuidv4(),
-    operation_type: 'create',
-    table_name: 'transcripts',
-    record_id: transcript.id,
-    payload: transcript as unknown as Record<string, unknown>,
+    // Sync inside transaction for atomicity
+    createSyncQueueItem({
+      id: uuidv4(),
+      operation_type: 'create',
+      table_name: 'transcripts',
+      record_id: transcript.id,
+      payload: transcript as unknown as Record<string, unknown>,
+    })
+
+    return transcript
   })
 
-  return transcript
+  return createTxn()
 }
 
 /**
@@ -73,32 +78,35 @@ export function createTranscripts(inputs: CreateTranscriptInput[]): Transcript[]
         input.start_time,
         input.end_time,
         input.text,
-        input.confidence || null,
+        input.confidence ?? null,
         input.speaker_id || null,
         input.speaker_name || null,
         input.words ? JSON.stringify(input.words) : null
       )
     }
-  })
 
-  insertMany(inputs)
+    // Sync inside transaction for atomicity
+    const results: Transcript[] = []
+    for (const input of transcripts) {
+      const transcript = getTranscriptById(input.id)
+      if (!transcript) {
+        throw new Error(`Failed to read back transcript after INSERT: ${input.id}`)
+      }
 
-  return inputs.map(input => {
-    const transcript = getTranscriptById(input.id)
-    if (!transcript) {
-      throw new Error(`Failed to read back transcript after INSERT: ${input.id}`)
+      createSyncQueueItem({
+        id: uuidv4(),
+        operation_type: 'create',
+        table_name: 'transcripts',
+        record_id: transcript.id,
+        payload: transcript as unknown as Record<string, unknown>,
+      })
+
+      results.push(transcript)
     }
-
-    createSyncQueueItem({
-      id: uuidv4(),
-      operation_type: 'create',
-      table_name: 'transcripts',
-      record_id: transcript.id,
-      payload: transcript as unknown as Record<string, unknown>,
-    })
-
-    return transcript
+    return results
   })
+
+  return insertMany(inputs)
 }
 
 /**
@@ -213,26 +221,30 @@ export function updateTranscript(id: string, input: UpdateTranscriptInput): Tran
 
   values.push(id)
 
-  const stmt = db.prepare(`
-    UPDATE transcripts 
-    SET ${updates.join(', ')}
-    WHERE id = ?
-  `)
+  const updateTxn = db.transaction(() => {
+    const stmt = db.prepare(`
+      UPDATE transcripts 
+      SET ${updates.join(', ')}
+      WHERE id = ?
+    `)
 
-  stmt.run(...values)
+    stmt.run(...values)
 
-  const updatedTranscript = getTranscriptById(id)
-  if (updatedTranscript) {
-    createSyncQueueItem({
-      id: uuidv4(),
-      operation_type: 'update',
-      table_name: 'transcripts',
-      record_id: updatedTranscript.id,
-      payload: updatedTranscript as unknown as Record<string, unknown>,
-    })
-  }
+    const updatedTranscript = getTranscriptById(id)
+    if (updatedTranscript) {
+      createSyncQueueItem({
+        id: uuidv4(),
+        operation_type: 'update',
+        table_name: 'transcripts',
+        record_id: updatedTranscript.id,
+        payload: updatedTranscript as unknown as Record<string, unknown>,
+      })
+    }
 
-  return updatedTranscript
+    return updatedTranscript
+  })
+
+  return updateTxn()
 }
 
 /**
@@ -263,8 +275,24 @@ export function deleteTranscript(id: string): boolean {
 export function deleteTranscriptsByMeetingId(meetingId: string): number {
   const db = getDatabase()
 
+  // Fetch IDs before deleting so we can enqueue sync deletions
+  const transcripts = db
+    .prepare('SELECT id FROM transcripts WHERE meeting_id = ?')
+    .all(meetingId) as Array<{ id: string }>
+
   const stmt = db.prepare('DELETE FROM transcripts WHERE meeting_id = ?')
   const result = stmt.run(meetingId)
+
+  // Enqueue sync deletions for each transcript
+  for (const transcript of transcripts) {
+    createSyncQueueItem({
+      id: uuidv4(),
+      operation_type: 'delete',
+      table_name: 'transcripts',
+      record_id: transcript.id,
+      payload: { id: transcript.id },
+    })
+  }
 
   return result.changes
 }

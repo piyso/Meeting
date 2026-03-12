@@ -60,8 +60,8 @@ export const GraphCanvas: React.FC<GraphCanvasProps> = ({
     // Identify targets for contradictions to highlight them
     const contradictionMeetingIds = new Set<string>()
     contradictions.forEach(c => {
-      contradictionMeetingIds.add(c.meeting1.id)
-      contradictionMeetingIds.add(c.meeting2.id)
+      if (c.meeting1?.id) contradictionMeetingIds.add(c.meeting1.id)
+      if (c.meeting2?.id) contradictionMeetingIds.add(c.meeting2.id)
     })
 
     // Setup simulation
@@ -151,6 +151,7 @@ export const GraphCanvas: React.FC<GraphCanvasProps> = ({
     createGradient('grad-default', '#6b7280')
 
     const getGradientId = (type: string) => {
+      if (type === 'action_item') return 'url(#grad-action)'
       if (['meeting', 'person', 'topic', 'decision', 'action'].includes(type)) {
         return `url(#grad-${type})`
       }
@@ -171,8 +172,10 @@ export const GraphCanvas: React.FC<GraphCanvasProps> = ({
       .data(d3Edges)
       .join('line')
       .attr('stroke', d => (d.type === 'contradicts' ? '#ef4444' : '#9ca3af'))
-      .attr('stroke-width', d => Math.max(1.5, (d.weight || 1) * 1.5))
-      .attr('stroke-opacity', d => (d.type === 'contradicts' ? 0.9 : 0.3 + (d.weight || 0.1) * 0.2))
+      .attr('stroke-width', d => Math.max(1.5, (Number(d.weight) || 1) * 1.5))
+      .attr('stroke-opacity', d =>
+        d.type === 'contradicts' ? 0.9 : 0.3 + (Number(d.weight) || 0.1) * 0.2
+      )
       .attr('stroke-dasharray', d => (d.type === 'contradicts' ? '4,4' : 'none'))
       .attr('filter', d => (d.type === 'contradicts' ? 'url(#red-glow)' : null))
       .attr('marker-end', d => `url(#arrow${d.type === 'contradicts' ? '-contradicts' : ''})`)

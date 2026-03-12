@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react'
+import { modKey } from '../utils/platformShortcut'
 import '../views/views.css'
 import { Plus, FileText, Search } from 'lucide-react'
 import { useAppStore } from '../store/appStore'
@@ -8,9 +9,8 @@ import { EmptyState } from '../components/ui/EmptyState'
 import { MeetingCardSkeleton } from '../components/ui/Skeletons'
 import { Button } from '../components/ui/Button'
 import { ContextMenu, MenuItem } from '../components/ui/ContextMenu'
-import { SyncStatusBadge } from '../components/ui/SyncStatusBadge'
 import { rendererLog } from '../utils/logger'
-import { motion } from 'framer-motion'
+import { motion, AnimatePresence } from 'framer-motion'
 
 const log = rendererLog.create('MeetingList')
 
@@ -21,9 +21,12 @@ import { useVirtualizer } from '@tanstack/react-virtual'
 export default function MeetingListView() {
   const navigate = useAppStore(s => s.navigate)
   const setRecordingState = useAppStore(s => s.setRecordingState)
+  const recordingState = useAppStore(s => s.recordingState)
+  const activeMeetingId = useAppStore(s => s.activeMeetingId)
   const queryClient = useQueryClient()
   const { data: response, isLoading } = useMeetings()
-  const meetings = response?.items || []
+  const meetingsData = response?.items
+  const meetings = useMemo(() => meetingsData ?? [], [meetingsData])
 
   const [dialogOpen, setDialogOpen] = useState(false)
   const [ctxMenu, setCtxMenu] = useState<{ x: number; y: number; id: string } | null>(null)
@@ -39,9 +42,8 @@ export default function MeetingListView() {
       for (const entry of entries) {
         // Scroll container has padding: 48px on left/right
         const availableWidth = entry.contentRect.width - 96
-        // Grid: minmax(300px, 1fr) with 24px gap
-        // cols * 300 + (cols - 1) * 24 <= availableWidth
-        const cols = Math.max(1, Math.floor((availableWidth + 24) / 324))
+        // Grid: minmax(280px, 1fr) with 20px gap
+        const cols = Math.max(1, Math.floor((availableWidth + 20) / 300))
         setColumns(cols)
       }
     })
@@ -70,6 +72,10 @@ export default function MeetingListView() {
       const res = await window.electronAPI.meeting.start({})
       if (res.success && res.data) {
         log.info('Meeting created:', res.data.meeting.id)
+        useAppStore.getState().setActiveMeetingId(res.data.meeting.id)
+        // P12 fix: Set recording start time immediately so DynamicIsland timer
+        // starts without waiting for audio capture initialization
+        useAppStore.getState().setRecordingStartTime(Date.now())
         queryClient.invalidateQueries({ queryKey: ['meetings'] })
         navigate('meeting-detail', res.data.meeting.id)
       } else {
@@ -94,15 +100,21 @@ export default function MeetingListView() {
   const handleStartMeeting = async (config: string | { title?: string }) => {
     setDialogOpen(false)
     setRecordingState('starting')
-    const title = typeof config === 'string' ? config : config?.title
-    const res = await window.electronAPI.meeting.start({
-      title: typeof title === 'string' ? title : undefined,
-    })
-    if (res.success && res.data) {
-      queryClient.invalidateQueries({ queryKey: ['meetings'] })
-      navigate('meeting-detail', res.data.meeting.id)
-    } else {
-      log.error('Failed to start meeting:', res.error)
+    try {
+      const title = typeof config === 'string' ? config : config?.title
+      const res = await window.electronAPI.meeting.start({
+        title: typeof title === 'string' ? title : undefined,
+      })
+      if (res.success && res.data) {
+        useAppStore.getState().setActiveMeetingId(res.data.meeting.id)
+        queryClient.invalidateQueries({ queryKey: ['meetings'] })
+        navigate('meeting-detail', res.data.meeting.id)
+      } else {
+        log.error('Failed to start meeting:', res.error)
+        setRecordingState('idle')
+      }
+    } catch (err) {
+      log.error('Meeting start exception:', err)
       setRecordingState('idle')
     }
   }
@@ -155,7 +167,7 @@ export default function MeetingListView() {
     participant_count?: number | null
   }
 
-  const groupMeetingsByDate = (meetings: MeetingItem[]) => {
+  const groupMeetingsByDate = useCallback((meetings: MeetingItem[]) => {
     const now = new Date()
     const today = new Date(now.getFullYear(), now.getMonth(), now.getDate())
     const yesterday = new Date(today.getTime() - 86400000)
@@ -188,15 +200,19 @@ export default function MeetingListView() {
     }
 
     return groups
-  }
+  }, []) // Empty deps because it doesn't depend on external props, just a helper
 
-  const filteredMeetings = meetings.filter(m => {
-    if (!searchQuery) return true
-    const q = searchQuery.toLowerCase()
-    return m.title && m.title.toLowerCase().includes(q)
-  })
+  const filteredMeetings = useMemo(() => {
+    return meetings.filter(m => {
+      if (!searchQuery) return true
+      const q = searchQuery.toLowerCase()
+      return m.title && m.title.toLowerCase().includes(q)
+    })
+  }, [meetings, searchQuery])
 
-  const dateGroups = groupMeetingsByDate(filteredMeetings as MeetingItem[])
+  const dateGroups = useMemo(() => {
+    return groupMeetingsByDate(filteredMeetings as MeetingItem[])
+  }, [filteredMeetings, groupMeetingsByDate])
 
   type VirtualRow = { type: 'header'; label: string } | { type: 'row'; items: MeetingItem[] }
 
@@ -267,51 +283,100 @@ export default function MeetingListView() {
   }
 
   return (
-    <div ref={scrollRef} className="ui-view-meeting-list scrollbar-webkit">
+    <div ref={scrollRef} className="ui-view-meeting-list scrollbar-webkit sovereign-scrollbar">
       <motion.div
-        className="ui-view-meeting-list-header w-full justify-between gap-4"
+        className="ui-view-meeting-list-header"
         initial={{ opacity: 0, y: -20 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5, ease: 'easeOut' }}
+        transition={{ type: 'spring', stiffness: 350, damping: 28, mass: 0.8 }}
       >
-        <button onClick={handleQuickStart} className="ui-hero-start-btn no-drag shrink-0">
-          <div className="ui-hero-start-btn-bg"></div>
+        {/* --- LEFT: Hero Button --- */}
+        <AnimatePresence mode="wait">
+          {recordingState !== 'idle' && activeMeetingId ? (
+            <motion.button
+              key="active-banner"
+              initial={{ opacity: 0, scale: 0.96 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.96 }}
+              transition={{ type: 'spring', stiffness: 350, damping: 28, mass: 0.8 }}
+              onClick={() => navigate('meeting-detail', activeMeetingId)}
+              className="ui-hero-start-btn no-drag shrink-0 border border-[var(--color-amber)] bg-[rgba(245,158,11,0.05)] hover:bg-[rgba(245,158,11,0.1)] transition-colors group"
+            >
+              <div className="ui-hero-start-btn-content relative z-10 w-full flex items-center justify-between px-2">
+                <div className="flex items-center gap-4">
+                  <div className="flex items-center justify-center w-10 h-10 rounded-full bg-[rgba(245,158,11,0.1)] text-[var(--color-amber)]">
+                    <div
+                      className={`w-3 h-3 rounded-full ${recordingState === 'paused' ? 'bg-[var(--color-amber)]' : 'bg-red-500 animate-pulse'}`}
+                    />
+                  </div>
+                  <div className="flex flex-col items-start gap-0.5">
+                    <span className="font-medium text-[var(--color-text-primary)] text-[15px] tracking-tight">
+                      Active session
+                    </span>
+                    <span className="text-[13px] text-[var(--color-text-secondary)]">
+                      {recordingState === 'paused' ? 'Paused' : 'Recording in progress'}
+                    </span>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2 text-[var(--color-amber)] text-[13px] font-medium opacity-80 group-hover:opacity-100 transition-opacity translate-x-1 pr-2">
+                  Return to Meeting
+                  <Plus className="rotate-45" size={16} />
+                </div>
+              </div>
+              {/* Background Glow */}
+              <div className="absolute inset-0 bg-gradient-to-r from-[var(--color-amber)]/0 to-[var(--color-amber)]/5 opacity-50 pointer-events-none rounded-[16px]"></div>
+            </motion.button>
+          ) : (
+            <motion.button
+              key="start-btn"
+              initial={{ opacity: 0, scale: 0.96 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.96 }}
+              transition={{ type: 'spring', stiffness: 350, damping: 28, mass: 0.8 }}
+              onClick={handleQuickStart}
+              className="ui-hero-start-btn no-drag shrink-0"
+            >
+              <div className="ui-hero-start-btn-bg"></div>
 
-          <div className="ui-hero-start-btn-content">
-            <div className="ui-hero-start-btn-icon-wrapper">
-              <Plus size={24} strokeWidth={2.5} />
-            </div>
+              <div className="ui-hero-start-btn-content">
+                <div className="ui-hero-start-btn-icon-wrapper">
+                  <Plus size={24} strokeWidth={2.5} />
+                </div>
 
-            <div className="ui-hero-start-btn-text-block">
-              <span className="ui-hero-start-btn-title">Start New Meeting</span>
-              <span className="ui-hero-start-btn-desc">Capture mic and system audio instantly</span>
-            </div>
+                <div className="ui-hero-start-btn-text-block">
+                  <span className="ui-hero-start-btn-title">Start New Meeting</span>
+                  <span className="ui-hero-start-btn-desc">
+                    Capture mic and system audio instantly
+                  </span>
+                </div>
 
-            <div className="ui-hero-start-btn-shortcut">
-              <kbd>⌘</kbd>
-              <kbd>N</kbd>
-            </div>
-          </div>
-        </button>
+                <div className="ui-hero-start-btn-shortcut">
+                  <kbd>{modKey}</kbd>
+                  <kbd>N</kbd>
+                </div>
+              </div>
+            </motion.button>
+          )}
+        </AnimatePresence>
 
-        <div className="flex items-center gap-4 no-drag shrink-0">
-          <div className="flex items-center px-3 py-1.5 rounded-full bg-[rgba(255,255,255,0.03)] border border-[rgba(255,255,255,0.08)] text-[12px] font-medium text-[var(--color-text-secondary)] tracking-wide shadow-sm">
-            {meetings.length} meeting{meetings.length !== 1 ? 's' : ''} total
-          </div>
-          <SyncStatusBadge />
-          <div className="relative w-64 group shrink-0">
+        {/* --- RIGHT: Search + Count --- */}
+        <div className="flex flex-col items-end gap-2 no-drag shrink-0">
+          <div className="relative group">
             <Search
-              size={14}
-              className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[var(--color-text-secondary)] opacity-70 transition-colors group-focus-within:opacity-100 group-focus-within:text-[var(--color-text-primary)]"
+              size={13}
+              className="absolute left-3 top-1/2 -translate-y-1/2 text-[#8E8E93] group-focus-within:text-white transition-colors"
             />
             <input
               type="text"
-              placeholder="Search meetings..."
+              placeholder="Search"
               value={searchQuery}
               onChange={e => setSearchQuery(e.target.value)}
-              className="w-full bg-[rgba(255,255,255,0.04)] backdrop-blur-md border border-[rgba(255,255,255,0.12)] rounded-full pl-9 pr-4 py-2 text-[13px] text-[var(--color-text-primary)] placeholder-[rgba(255,255,255,0.4)] outline-none transition-all hover:bg-[rgba(255,255,255,0.06)] hover:border-[rgba(255,255,255,0.18)] focus:bg-[rgba(255,255,255,0.08)] focus:border-[rgba(255,255,255,0.25)] focus:shadow-[0_4px_24px_rgba(0,0,0,0.3)]"
+              className="ui-meeting-search-input"
             />
           </div>
+          <span className="text-[12px] text-[#636366] select-none pr-1">
+            {meetings.length} meeting{meetings.length !== 1 ? 's' : ''}
+          </span>
         </div>
       </motion.div>
 
@@ -343,7 +408,13 @@ export default function MeetingListView() {
                   className="ui-view-meeting-list-section-title !mb-0 border-none pb-2"
                   initial={{ opacity: 0, x: -20 }}
                   animate={{ opacity: 1, x: 0 }}
-                  transition={{ delay: 0.1, duration: 0.4 }}
+                  transition={{
+                    delay: 0.1,
+                    type: 'spring',
+                    stiffness: 350,
+                    damping: 28,
+                    mass: 0.8,
+                  }}
                 >
                   {row.label}
                 </motion.h2>
@@ -352,7 +423,7 @@ export default function MeetingListView() {
                   style={{
                     display: 'grid',
                     gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))`,
-                    gap: '24px',
+                    gap: '20px',
                   }}
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}

@@ -61,7 +61,7 @@ export class ErrorBoundary extends Component<Props, State> {
 
       if (this.props.isGlobal) {
         return (
-          <div className="fixed inset-0 flex items-center justify-center bg-[var(--color-bg-root)] z-[9999] animate-fade-in p-6">
+          <div className="fixed inset-0 flex items-center justify-center bg-transparent z-[9999] animate-fade-in p-6">
             <div className="surface-glass-premium p-8 max-w-lg w-full text-center flex flex-col items-center">
               <div className="w-16 h-16 rounded-full bg-[var(--color-rose)]/10 text-[var(--color-rose)] flex items-center justify-center mb-6">
                 <AlertTriangle size={32} />

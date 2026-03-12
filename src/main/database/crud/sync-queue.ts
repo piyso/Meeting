@@ -8,7 +8,7 @@ import type { SyncQueueItem, CreateSyncQueueInput, OperationType } from '../../.
 /**
  * Allowed table names for sync operations (SQL injection protection)
  */
-const ALLOWED_TABLES = ['meetings', 'transcripts', 'notes', 'entities']
+const ALLOWED_TABLES = ['meetings', 'transcripts', 'notes', 'entities', 'audio_highlights']
 
 /**
  * Validate table name against whitelist
@@ -35,19 +35,23 @@ export function createSyncQueueItem(input: CreateSyncQueueInput): SyncQueueItem 
     ) VALUES (?, ?, ?, ?, ?)
   `)
 
-  stmt.run(
-    input.id,
-    input.operation_type,
-    input.table_name,
-    input.record_id,
-    input.payload ? JSON.stringify(input.payload) : null
-  )
+  const payloadStr = input.payload ? JSON.stringify(input.payload) : null
 
-  const item = getSyncQueueItemById(input.id)
-  if (!item) {
-    throw new Error(`Failed to read back sync queue item after INSERT: ${input.id}`)
+  stmt.run(input.id, input.operation_type, input.table_name, input.record_id, payloadStr)
+
+  // Return constructed object directly instead of reading back from DB.
+  // All fields are known from the input — the extra SELECT was unnecessary
+  // and expensive when called in bulk loops (entity sync, etc.)
+  return {
+    id: input.id,
+    operation_type: input.operation_type,
+    table_name: input.table_name,
+    record_id: input.record_id,
+    payload: payloadStr,
+    retry_count: 0,
+    created_at: Math.floor(Date.now() / 1000),
+    last_attempt: null,
   }
-  return item
 }
 
 /**
@@ -69,7 +73,7 @@ export function getPendingSyncItems(limit: number = 50): SyncQueueItem[] {
 
   const stmt = db.prepare(`
     SELECT * FROM sync_queue 
-    WHERE last_attempt IS NULL OR retry_count < 10
+    WHERE last_attempt IS NULL OR retry_count < 100
     ORDER BY created_at ASC
     LIMIT ?
   `)
@@ -178,7 +182,7 @@ export function getPendingSyncCount(): number {
 
   const stmt = db.prepare(`
     SELECT COUNT(*) as count FROM sync_queue 
-    WHERE last_attempt IS NULL OR retry_count < 10
+    WHERE last_attempt IS NULL OR retry_count < 100
   `)
   const result = stmt.get() as { count: number }
 
@@ -186,14 +190,14 @@ export function getPendingSyncCount(): number {
 }
 
 /**
- * Get failed sync items (retry_count >= 10)
+ * Get failed sync items (retry_count >= 100)
  */
 export function getFailedSyncItems(): SyncQueueItem[] {
   const db = getDatabase()
 
   const stmt = db.prepare(`
     SELECT * FROM sync_queue 
-    WHERE retry_count >= 10
+    WHERE retry_count >= 100
     ORDER BY created_at ASC
   `)
 
@@ -219,7 +223,7 @@ export function clearSyncQueue(): number {
 export function clearFailedSyncItems(): number {
   const db = getDatabase()
 
-  const stmt = db.prepare('DELETE FROM sync_queue WHERE retry_count >= 10')
+  const stmt = db.prepare('DELETE FROM sync_queue WHERE retry_count >= 100')
   const result = stmt.run()
 
   return result.changes

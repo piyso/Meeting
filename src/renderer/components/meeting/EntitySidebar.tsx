@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useMemo, useState } from 'react'
 import type { Entity } from '../../../types/database'
 import {
   Hash,
@@ -26,6 +26,9 @@ export const EntitySidebar: React.FC<EntitySidebarProps> = ({ meetingId, onClose
   const [error, setError] = useState<string | null>(null)
   const currentTier = useAppStore(s => s.currentTier)
 
+  const recordingState = useAppStore(s => s.recordingState)
+  const isRecording = recordingState === 'recording' || recordingState === 'paused'
+
   const [filter, setFilter] = useState('')
 
   useEffect(() => {
@@ -48,26 +51,38 @@ export const EntitySidebar: React.FC<EntitySidebarProps> = ({ meetingId, onClose
     if (meetingId) {
       fetchEntities()
     }
-  }, [meetingId])
 
-  // Group and filter entities
-  const grouped = entities.reduce(
-    (acc, entity) => {
-      if (filter && !entity.text.toLowerCase().includes(filter.toLowerCase())) return acc
+    // I20 fix: Poll for new entities every 15s during active recording
+    // so newly discovered entities appear without requiring sidebar close/reopen
+    if (meetingId && isRecording) {
+      const interval = setInterval(fetchEntities, 15_000)
+      return () => clearInterval(interval)
+    }
+    return undefined
+  }, [meetingId, isRecording])
 
-      const type = entity.type
-      if (!type) return acc
-      if (!acc[type]) acc[type] = new Map()
+  // Group and filter entities (memoized — can be large)
+  const grouped = useMemo(
+    () =>
+      entities.reduce(
+        (acc, entity) => {
+          if (filter && !entity.text.toLowerCase().includes(filter.toLowerCase())) return acc
 
-      // De-dupe by text
-      const textLower = entity.text.toLowerCase()
-      const existing = acc[type]?.get(textLower)
-      if (!existing || (entity.confidence || 0) > (existing.confidence || 0)) {
-        acc[type]?.set(textLower, entity)
-      }
-      return acc
-    },
-    {} as Record<string, Map<string, Entity>>
+          const type = entity.type
+          if (!type) return acc
+          if (!acc[type]) acc[type] = new Map()
+
+          // De-dupe by text
+          const textLower = entity.text.toLowerCase()
+          const existing = acc[type]?.get(textLower)
+          if (!existing || (entity.confidence || 0) > (existing.confidence || 0)) {
+            acc[type]?.set(textLower, entity)
+          }
+          return acc
+        },
+        {} as Record<string, Map<string, Entity>>
+      ),
+    [entities, filter]
   )
 
   const getTypeIcon = (type: string) => {
@@ -164,7 +179,7 @@ export const EntitySidebar: React.FC<EntitySidebarProps> = ({ meetingId, onClose
                       {(type === 'ORGANIZATION' || type === 'LOCATION') &&
                         (currentTier === 'free' || currentTier === 'starter') && (
                           <span className="ml-2 text-[10px] inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-[var(--color-amber)]/10 text-[var(--color-amber)] border border-[var(--color-amber)]/20 shadow-sm font-medium tracking-wide">
-                            🔓 Cloud-Enriched
+                            🔒 Cloud-Enriched
                           </span>
                         )}
                     </div>

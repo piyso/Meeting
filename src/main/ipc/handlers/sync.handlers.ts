@@ -1,6 +1,5 @@
 import { ipcMain } from 'electron'
 import { SyncManager } from '../../services/SyncManager'
-import { PiyAPIBackend } from '../../services/backend/PiyAPIBackend'
 
 let syncManager: SyncManager | null = null
 
@@ -69,7 +68,18 @@ export function registerSyncHandlers(): void {
           },
         }
       }
-      const backend = new PiyAPIBackend()
+      // S2: Use shared BackendSingleton instead of creating separate PiyAPIBackend
+      const { getBackend, setBackendToken } =
+        await import('../../services/backend/BackendSingleton')
+      const { KeyStorageService } = await import('../../services/KeyStorageService')
+
+      // Set token on shared singleton so all handlers share same authenticated backend
+      const accessToken = await KeyStorageService.getAccessToken(userId)
+      if (accessToken) {
+        setBackendToken(accessToken, userId)
+      }
+
+      const backend = getBackend()
       // Stop old SyncManager to prevent orphaned auto-sync intervals
       if (syncManager) {
         syncManager.stopAutoSync()
@@ -97,6 +107,9 @@ export function registerSyncHandlers(): void {
         syncManager.stopAutoSync()
         syncManager = null
       }
+      // Clear stale tokens from shared BackendSingleton to prevent cross-session reuse
+      const { resetBackend } = await import('../../services/backend/BackendSingleton')
+      resetBackend()
       return { success: true, data: undefined }
     } catch (error) {
       return {
@@ -119,7 +132,7 @@ export function registerSyncHandlers(): void {
       await authService.startGoogleAuth()
 
       // The callback will be handled via deep link (bluearkive://auth/callback)
-      // handleOAuthCallback() is called from app.on('open-url') in main.ts
+      // handleOAuthCallback() is called directly in main.ts: open-url (macOS) / second-instance (Windows)
       return {
         success: true,
         data: {

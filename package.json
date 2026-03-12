@@ -140,7 +140,6 @@
       "!**/node_modules/node-llama-cpp/bins/**",
       "!**/node_modules/node-llama-cpp/dist/cli/**",
       "!**/node_modules/onnxruntime-node/bin/napi-v6/linux/**",
-      "!**/node_modules/onnxruntime-node/bin/napi-v6/win32/**",
       "!**/node_modules/three/**",
       "!**/node_modules/@react-three/**",
       "!**/node_modules/lucide-react/**",
@@ -203,6 +202,9 @@
       "type": "distribution",
       "minimumSystemVersion": "11.0",
       "darkModeSupport": true,
+      "files": [
+        "!**/node_modules/onnxruntime-node/bin/napi-v6/win32/**"
+      ],
       "extendInfo": {
         "NSMicrophoneUsageDescription": "BlueArkive needs microphone access to record meeting audio for transcription.",
         "NSScreenCaptureDescription": "BlueArkive needs screen recording permission to capture system audio during meetings.",
@@ -236,8 +238,7 @@
         {
           "target": "nsis",
           "arch": [
-            "x64",
-            "ia32"
+            "x64"
           ]
         },
         {
@@ -251,6 +252,11 @@
       "publisherName": "BlueArkive",
       "verifyUpdateCodeSignature": false,
       "requestedExecutionLevel": "asInvoker",
+      "files": [
+        "!**/node_modules/onnxruntime-node/bin/napi-v6/darwin/**",
+        "!**/node_modules/node-llama-cpp/prebuilds/mac-*/**",
+        "!**/node_modules/node-llama-cpp/prebuilds/linux-*/**"
+      ],
       "fileAssociations": [
         {
           "ext": "pnotes",
@@ -370,5 +376,13 @@
       "**/node-llama-cpp/**",
       "resources/models/**/*"
     ]
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/piyso/piynoteskiro.git"
+  },
+  "homepage": "https://bluearkive.com",
+  "bugs": {
+    "url": "https://github.com/piyso/piynoteskiro/issues"
   }
 }

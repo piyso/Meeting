@@ -12,21 +12,27 @@ type PromptMode = (typeof PROMPT_MODES)[number]
 export function useSilentPrompter(
   meetingId: string | null,
   isRecording: boolean,
-  transcripts: Array<{ text: string; startTime: number }>
+  transcripts: Array<{ text: string; startTime?: number; start_time?: number }>
 ) {
   const [suggestion, setSuggestion] = useState<string | null>(null)
   const [suggestionMode, setSuggestionMode] = useState<PromptMode | null>(null)
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const modeIndexRef = useRef(0)
+  const dismissTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  // Stable ref for transcripts — avoids useCallback/useEffect dependency churn
+  const transcriptsRef = useRef(transcripts)
+  transcriptsRef.current = transcripts
 
   const generateSuggestion = useCallback(async () => {
-    if (!meetingId || transcripts.length === 0) return
+    const currentTranscripts = transcriptsRef.current
+    if (!meetingId || currentTranscripts.length === 0) return
 
     // Get last 5 minutes of transcript
-    const now = transcripts[transcripts.length - 1]?.startTime || 0
+    const now = currentTranscripts[currentTranscripts.length - 1]?.startTime ?? currentTranscripts[currentTranscripts.length - 1]?.start_time ?? 0
     const fiveMinAgo = now - 300
-    const recentText = transcripts
-      .filter(t => t.startTime >= fiveMinAgo)
+    const recentText = currentTranscripts
+      .filter(t => (t.startTime ?? t.start_time ?? 0) >= fiveMinAgo)
       .map(t => t.text)
       .join(' ')
 
@@ -49,12 +55,19 @@ export function useSilentPrompter(
           setSuggestion(text)
           setSuggestionMode(currentMode ?? null)
           useAppStore.getState().setLiveCoachTip(text)
+          // Auto-dismiss stale tips after 30 seconds
+          if (dismissTimerRef.current) clearTimeout(dismissTimerRef.current)
+          dismissTimerRef.current = setTimeout(() => {
+            setSuggestion(null)
+            setSuggestionMode(null)
+            useAppStore.getState().setLiveCoachTip(null)
+          }, 30_000)
         }
       }
     } catch {
       // Silently fail — suggestions are non-critical
     }
-  }, [meetingId, transcripts])
+  }, [meetingId]) // Only depends on meetingId — transcripts read from ref
 
   useEffect(() => {
     if (isRecording && meetingId) {
@@ -68,6 +81,7 @@ export function useSilentPrompter(
       }
     } else {
       if (intervalRef.current) clearInterval(intervalRef.current)
+      if (dismissTimerRef.current) clearTimeout(dismissTimerRef.current)
       setSuggestion(null)
       setSuggestionMode(null)
       useAppStore.getState().setLiveCoachTip(null)

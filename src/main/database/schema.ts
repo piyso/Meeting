@@ -5,7 +5,7 @@
  * Includes tables, indexes, FTS5 full-text search, and triggers.
  */
 
-export const SCHEMA_VERSION = 2
+export const SCHEMA_VERSION = 3
 
 /**
  * Core table schemas
@@ -27,6 +27,9 @@ CREATE TABLE IF NOT EXISTS meetings (
 );
 
 -- Transcripts table
+-- NOTE: start_time/end_time are REAL (seconds with sub-second precision)
+-- while meetings.start_time is INTEGER (epoch seconds). This is intentional —
+-- transcripts need sub-second alignment for audio sync.
 CREATE TABLE IF NOT EXISTS transcripts (
   id TEXT PRIMARY KEY,
   meeting_id TEXT NOT NULL,
@@ -216,6 +219,7 @@ CREATE INDEX IF NOT EXISTS idx_notes_updated ON notes(updated_at DESC);
 -- Entities indexes
 CREATE INDEX IF NOT EXISTS idx_entities_meeting ON entities(meeting_id);
 CREATE INDEX IF NOT EXISTS idx_entities_type ON entities(type);
+CREATE INDEX IF NOT EXISTS idx_entities_meeting_type ON entities(meeting_id, type);
 
 -- Sync queue indexes
 CREATE INDEX IF NOT EXISTS idx_sync_queue_pending ON sync_queue(retry_count, created_at);
@@ -265,13 +269,20 @@ CREATE VIRTUAL TABLE IF NOT EXISTS notes_fts USING fts5(
   content=notes,
   content_rowid=rowid
 );
+
+-- Entities full-text search
+CREATE VIRTUAL TABLE IF NOT EXISTS entities_fts USING fts5(
+  text,
+  content=entities,
+  content_rowid=rowid
+);
 `
 
 /**
  * FTS5 triggers to keep search indexes synchronized
  */
 export const CREATE_FTS_TRIGGERS = `
--- Transcripts FTS triggers
+-- Transcripts FTS triggers (with WHEN guards to avoid re-indexing on non-text updates)
 CREATE TRIGGER IF NOT EXISTS transcripts_fts_insert AFTER INSERT ON transcripts BEGIN
   INSERT INTO transcripts_fts(rowid, text) VALUES (new.rowid, new.text);
 END;
@@ -281,13 +292,15 @@ CREATE TRIGGER IF NOT EXISTS transcripts_fts_delete AFTER DELETE ON transcripts 
   VALUES ('delete', old.rowid, old.text);
 END;
 
-CREATE TRIGGER IF NOT EXISTS transcripts_fts_update AFTER UPDATE ON transcripts BEGIN
+CREATE TRIGGER IF NOT EXISTS transcripts_fts_update AFTER UPDATE ON transcripts
+  WHEN old.text IS NOT new.text
+BEGIN
   INSERT INTO transcripts_fts(transcripts_fts, rowid, text) 
   VALUES ('delete', old.rowid, old.text);
   INSERT INTO transcripts_fts(rowid, text) VALUES (new.rowid, new.text);
 END;
 
--- Notes FTS triggers
+-- Notes FTS triggers (with WHEN guards to avoid re-indexing on non-text updates)
 CREATE TRIGGER IF NOT EXISTS notes_fts_insert AFTER INSERT ON notes BEGIN
   INSERT INTO notes_fts(rowid, original_text, augmented_text) 
   VALUES (new.rowid, new.original_text, new.augmented_text);
@@ -298,11 +311,31 @@ CREATE TRIGGER IF NOT EXISTS notes_fts_delete AFTER DELETE ON notes BEGIN
   VALUES ('delete', old.rowid, old.original_text, old.augmented_text);
 END;
 
-CREATE TRIGGER IF NOT EXISTS notes_fts_update AFTER UPDATE ON notes BEGIN
+CREATE TRIGGER IF NOT EXISTS notes_fts_update AFTER UPDATE ON notes
+  WHEN old.original_text IS NOT new.original_text OR old.augmented_text IS NOT new.augmented_text
+BEGIN
   INSERT INTO notes_fts(notes_fts, rowid, original_text, augmented_text) 
   VALUES ('delete', old.rowid, old.original_text, old.augmented_text);
   INSERT INTO notes_fts(rowid, original_text, augmented_text) 
   VALUES (new.rowid, new.original_text, new.augmented_text);
+END;
+
+-- Entities FTS triggers
+CREATE TRIGGER IF NOT EXISTS entities_fts_insert AFTER INSERT ON entities BEGIN
+  INSERT INTO entities_fts(rowid, text) VALUES (new.rowid, new.text);
+END;
+
+CREATE TRIGGER IF NOT EXISTS entities_fts_delete AFTER DELETE ON entities BEGIN
+  INSERT INTO entities_fts(entities_fts, rowid, text)
+  VALUES ('delete', old.rowid, old.text);
+END;
+
+CREATE TRIGGER IF NOT EXISTS entities_fts_update AFTER UPDATE ON entities
+  WHEN old.text IS NOT new.text
+BEGIN
+  INSERT INTO entities_fts(entities_fts, rowid, text)
+  VALUES ('delete', old.rowid, old.text);
+  INSERT INTO entities_fts(rowid, text) VALUES (new.rowid, new.text);
 END;
 `
 

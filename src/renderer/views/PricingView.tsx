@@ -24,16 +24,21 @@ const features: PricingFeature[] = [
   { name: 'Weekly AI Digests', free: false, starter: false, pro: true },
 ]
 
+interface BillingConfig {
+  tiers?: { id: string; price: string; yearlyPrice?: string }[]
+}
+
 export const PricingView: React.FC = () => {
   const navigate = useAppStore(s => s.navigate)
   const addToast = useAppStore(s => s.addToast)
-  const [currentTier, setCurrentTier] = useState<string>('free')
+  const currentTier = useAppStore(s => s.currentTier)
+  const setGlobalTier = useAppStore(s => s.setCurrentTier)
   const [licenseKey, setLicenseKey] = useState('')
   const [isActivating, setIsActivating] = useState(false)
   const [sysMem, setSysMem] = useState<number>(16)
   const [billingInterval, setBillingInterval] = useState<'monthly' | 'yearly'>('monthly')
 
-  const [config, setConfig] = useState<unknown>(null)
+  const [config, setConfig] = useState<BillingConfig | null>(null)
 
   const fetchTier = useCallback(async () => {
     try {
@@ -44,13 +49,13 @@ export const PricingView: React.FC = () => {
       if (res) {
         const userData = res.data !== undefined ? res.data : res
         if (userData && userData.tier) {
-          setCurrentTier(userData.tier)
+          setGlobalTier(userData.tier)
         }
       }
     } catch (err) {
       console.error('Failed to fetch user tier:', err)
     }
-  }, [])
+  }, [setGlobalTier])
 
   useEffect(() => {
     fetchTier()
@@ -84,10 +89,7 @@ export const PricingView: React.FC = () => {
   }, [fetchTier])
 
   const getPriceNum = (tierId: string, fallback: string) => {
-    const configData = config as {
-      tiers?: { id: string; price: string; yearlyPrice?: string }[]
-    } | null
-    const tier = configData?.tiers?.find(t => t.id === tierId)
+    const tier = config?.tiers?.find(t => t.id === tierId)
     if (billingInterval === 'yearly' && tier?.yearlyPrice) {
       return tier.yearlyPrice.replace('$', '')
     }
@@ -132,7 +134,7 @@ export const PricingView: React.FC = () => {
         tier: string
       }
       const updatedUser = res.data !== undefined ? res.data : res
-      setCurrentTier(updatedUser.tier)
+      setGlobalTier(updatedUser.tier)
       addToast({
         type: 'success',
         title: 'Upgrade Successful',

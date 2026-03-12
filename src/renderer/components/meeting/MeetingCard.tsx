@@ -1,5 +1,5 @@
 import React from 'react'
-import { Badge } from '../ui/Badge'
+import { Clock, Users, FileText, StickyNote } from 'lucide-react'
 import './meeting.css'
 
 interface MeetingCardProps {
@@ -20,6 +20,7 @@ interface MeetingCardProps {
 export const MeetingCard: React.FC<MeetingCardProps> = ({
   id,
   title,
+  date,
   duration,
   participantCount,
   hasTranscript,
@@ -44,16 +45,46 @@ export const MeetingCard: React.FC<MeetingCardProps> = ({
     window.dispatchEvent(new CustomEvent('prefetch-meeting', { detail: { id } }))
   }
 
+  const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
+    const rect = e.currentTarget.getBoundingClientRect()
+    const x = e.clientX - rect.left
+    const y = e.clientY - rect.top
+    e.currentTarget.style.setProperty('--mouse-x', `${x}px`)
+    e.currentTarget.style.setProperty('--mouse-y', `${y}px`)
+  }
+
+  // Format the date for display
+  const formattedDate = date.toLocaleDateString('en-US', {
+    weekday: 'long',
+    month: 'short',
+    day: 'numeric',
+  })
+
+  const formattedTime = date.toLocaleTimeString('en-US', {
+    hour: 'numeric',
+    minute: '2-digit',
+    hour12: true,
+  })
+
+  // P14 fix: Show human-friendly duration; 0 or null → "< 1m" instead of misleading "0m"
+  const durationDisplay =
+    durationMins <= 0
+      ? '< 1m'
+      : durationMins >= 60
+        ? `${Math.floor(durationMins / 60)}h ${durationMins % 60}m`
+        : `${durationMins}m`
+
   return (
     <div
-      className="ui-meeting-card stagger-child premium-hover"
+      className="ui-meeting-card stagger-child premium-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-violet)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--color-bg-root)]"
       style={{ animationDelay: `${Math.min(index * 40, 480)}ms` }}
       onClick={() => onClick(id)}
       onContextMenu={e => onContextMenu(e, id)}
       onMouseEnter={handleMouseEnter}
+      onMouseMove={handleMouseMove}
       role="button"
       tabIndex={0}
-      aria-label={`${title}, ${durationMins} minutes, ${participantCount} participants`}
+      aria-label={`${title}, ${durationDisplay}, ${participantCount} participants`}
       onKeyDown={e => {
         if (e.key === 'Enter' || e.key === ' ') {
           e.preventDefault()
@@ -61,6 +92,7 @@ export const MeetingCard: React.FC<MeetingCardProps> = ({
         }
       }}
     >
+      {/* Title */}
       {isRenaming ? (
         <input
           autoFocus
@@ -69,8 +101,10 @@ export const MeetingCard: React.FC<MeetingCardProps> = ({
           onBlur={() => onRenameSubmit?.(inputValue)}
           onKeyDown={e => {
             if (e.key === 'Enter') {
+              e.stopPropagation()
               onRenameSubmit?.(inputValue)
             } else if (e.key === 'Escape') {
+              e.stopPropagation()
               onRenameSubmit?.(title)
             }
           }}
@@ -82,52 +116,33 @@ export const MeetingCard: React.FC<MeetingCardProps> = ({
           {title}
         </h3>
       )}
+
+      {/* Date & Time */}
+      <div className="ui-meeting-card-date">
+        {formattedDate} · {formattedTime}
+      </div>
+
+      {/* Metadata Row */}
       <div className="ui-meeting-card-meta">
         <span>
-          <svg
-            width="12"
-            height="12"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          >
-            <circle cx="12" cy="12" r="10"></circle>
-            <polyline points="12 6 12 12 16 14"></polyline>
-          </svg>
-          {durationMins}m
+          <Clock size={12} strokeWidth={2} />
+          {durationDisplay}
         </span>
         <span>
-          <svg
-            width="12"
-            height="12"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          >
-            <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
-            <circle cx="9" cy="7" r="4"></circle>
-            <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
-            <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
-          </svg>
+          <Users size={12} strokeWidth={2} />
           {participantCount}
         </span>
-      </div>
-      <div className="ui-meeting-card-badges">
         {hasTranscript && (
-          <Badge variant="default" className="ui-meeting-card-badge-transcribed">
+          <span className="ui-meeting-card-meta-badge">
+            <FileText size={11} strokeWidth={2} />
             Transcribed
-          </Badge>
+          </span>
         )}
         {hasNotes && (
-          <Badge variant="default" className="ui-meeting-card-badge-notes">
+          <span className="ui-meeting-card-meta-badge">
+            <StickyNote size={11} strokeWidth={2} />
             Notes
-          </Badge>
+          </span>
         )}
       </div>
     </div>

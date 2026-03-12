@@ -17,6 +17,7 @@ const mockWebContents = {
 const mockMainWindow = {
   webContents: mockWebContents,
   isDestroyed: vi.fn(() => false),
+  getSize: vi.fn(() => [1200, 800]),
 }
 
 vi.mock('electron', () => ({

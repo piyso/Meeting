@@ -26,14 +26,11 @@ export const TranscriptPanel: React.FC<TranscriptPanelProps> = ({
     overscan: 10,
   })
 
-  // Auto-scroll logic
+  // Auto-scroll logic — use virtualizer's scrollToIndex for correct behavior with dynamic heights
   useEffect(() => {
     if (!autoScroll || !isRecording || segments.length === 0) return
-    const el = parentRef.current
-    if (el) {
-      el.scrollTop = el.scrollHeight
-    }
-  }, [segments.length, autoScroll, isRecording])
+    rowVirtualizer.scrollToIndex(segments.length - 1, { align: 'end' })
+  }, [segments.length, autoScroll, isRecording, rowVirtualizer])
 
   const handleScroll = () => {
     const el = parentRef.current
@@ -49,8 +46,8 @@ export const TranscriptPanel: React.FC<TranscriptPanelProps> = ({
 
   const jumpToLatest = () => {
     setAutoScroll(true)
-    if (parentRef.current) {
-      parentRef.current.scrollTop = parentRef.current.scrollHeight
+    if (segments.length > 0) {
+      rowVirtualizer.scrollToIndex(segments.length - 1, { align: 'end' })
     }
   }
 
@@ -82,7 +79,7 @@ export const TranscriptPanel: React.FC<TranscriptPanelProps> = ({
     <div className="ui-transcript-panel" role="log" aria-live={autoScroll ? 'polite' : 'off'}>
       <div
         ref={parentRef}
-        className="ui-transcript-scroll scrollbar-webkit"
+        className="ui-transcript-scroll scrollbar-webkit sovereign-scrollbar"
         onScroll={handleScroll}
       >
         <div

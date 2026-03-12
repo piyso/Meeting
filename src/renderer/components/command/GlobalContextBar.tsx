@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useDeferredValue } from 'react'
+import React, { useEffect, useRef, useState, useDeferredValue } from 'react'
 import { createPortal } from 'react-dom'
 import { Sparkles, FileText, Loader2 } from 'lucide-react'
 import { useSemanticSearch } from '../../hooks/queries/useSearch'
@@ -12,6 +12,8 @@ interface GlobalContextBarProps {
 
 export const GlobalContextBar: React.FC<GlobalContextBarProps> = ({ open, onClose }) => {
   const [query, setQuery] = useState('')
+  const queryRef = useRef(query)
+  queryRef.current = query
   const deferredQuery = useDeferredValue(query)
   const navigate = useAppStore(s => s.navigate)
 
@@ -25,15 +27,14 @@ export const GlobalContextBar: React.FC<GlobalContextBarProps> = ({ open, onClos
 
     const handleKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') onClose()
-      // Enter handling is mostly visual or can trigger a deeper view if we add one later
-      if (e.key === 'Enter' && query.trim()) {
-        // Future: could trigger an explicit 'ask' to the LLM instead of just search
+      if (e.key === 'Enter' && queryRef.current.trim()) {
+        // Future: could trigger an explicit 'ask' to the LLM
       }
     }
 
     if (open) window.addEventListener('keydown', handleKey)
     return () => window.removeEventListener('keydown', handleKey)
-  }, [open, onClose, query])
+  }, [open, onClose])
 
   if (!open) return null
 
@@ -78,7 +79,7 @@ export const GlobalContextBar: React.FC<GlobalContextBarProps> = ({ open, onClos
                   className="flex items-center gap-1 bg-[var(--color-bg-glass)] border border-[var(--color-border-subtle)] px-2 py-1 rounded text-[11px] text-[var(--color-text-tertiary)] hover:bg-[var(--color-bg-panel)] transition-colors cursor-pointer"
                 >
                   <FileText size={10} /> {r.meeting.title || 'Untitled'}
-                  <span className="opacity-50 ml-1">{(r.relevance * 100).toFixed(0)}%</span>
+                  <span className="opacity-50 ml-1">{(Math.min(r.relevance, 1) * 100).toFixed(0)}%</span>
                 </button>
               ))}
             </div>

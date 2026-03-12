@@ -531,7 +531,9 @@ export class AuditLogger {
         log.timestamp,
       ]
         .map(value => {
-          const str = String(value).replace(/\\"/g, '"')
+          // Issue 18: Properly escape for RFC 4180 CSV —
+          // preserve backslashes (Windows paths) and double internal quotes
+          const str = String(value)
           return `"${str.replace(/"/g, '""')}"`
         })
         .join(',')

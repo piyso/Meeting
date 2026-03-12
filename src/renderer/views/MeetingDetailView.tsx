@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { SplitPane } from '../components/ui/SplitPane'
 import '../views/views.css'
 import { TranscriptPanel } from '../components/meeting/TranscriptPanel'
@@ -8,19 +8,24 @@ import { useAppStore } from '../store/appStore'
 import { useTranscriptStream } from '../hooks/queries/useTranscriptStream'
 import { useDigest } from '../hooks/useDigest'
 import { useQuery } from '@tanstack/react-query'
+import { useMemo } from 'react'
 
 import { EntitySidebar } from '../components/meeting/EntitySidebar'
 import { Tooltip } from '../components/ui/Tooltip'
 import { SilentPrompter } from '../components/meeting/SilentPrompter'
 import { useSilentPrompter } from '../hooks/useSilentPrompter'
 import { Tag } from 'lucide-react'
+import { RecordingToolbar } from '../components/meeting/RecordingToolbar'
 
 export default function MeetingDetailView() {
   const recordingState = useAppStore(s => s.recordingState)
   const selectedMeetingId = useAppStore(s => s.selectedMeetingId)
-  const isRecording = recordingState === 'recording'
-  const isPostMeeting = recordingState === 'processing' || recordingState === 'idle'
-  const { digest, isGenerating, error: digestError } = useDigest(selectedMeetingId)
+  const isRecording = recordingState === 'recording' || recordingState === 'paused'
+  const isPostMeeting =
+    recordingState === 'processing' || (recordingState === 'idle' && !!selectedMeetingId)
+  const currentTier = useAppStore(s => s.currentTier)
+  const isAiLocked = currentTier === 'free' || currentTier === 'starter'
+  const { digest, isGenerating, error: digestError } = useDigest(selectedMeetingId, isAiLocked)
 
   const [showEntities, setShowEntities] = useState(false)
 
@@ -47,21 +52,37 @@ export default function MeetingDetailView() {
     transcripts
   )
 
-  // Track latest transcripts in a ref for polling interval
-  const transcriptsRef = React.useRef(transcripts)
-  useEffect(() => {
-    transcriptsRef.current = transcripts
-  }, [transcripts])
+  // I19 fix: Fetch actual bookmark highlights from DB instead of hardcoded []
+  const { data: highlightsData } = useQuery({
+    queryKey: ['highlights', selectedMeetingId],
+    queryFn: async () => {
+      if (!selectedMeetingId) return []
+      const res = await window.electronAPI.highlight?.list?.(selectedMeetingId)
+      if (res?.success && res.data) return res.data
+      return []
+    },
+    enabled: !!selectedMeetingId && isPostMeeting,
+  })
+
+  const pinnedMoments = useMemo(() => {
+    if (!highlightsData || !Array.isArray(highlightsData)) return []
+    return highlightsData.map(h => {
+      const sec = h.start_time || 0
+      const mm = String(Math.floor(sec / 60)).padStart(2, '0')
+      const ss = String(Math.floor(sec % 60)).padStart(2, '0')
+      return { timestamp: `${mm}:${ss}`, text: h.label || 'Bookmark' }
+    })
+  }, [highlightsData])
 
   // Wire latest transcript line to global store for DynamicIsland / Widget
   const setLastTranscriptLine = useAppStore(s => s.setLastTranscriptLine)
   useEffect(() => {
-    if (isRecording && transcripts.length > 0) {
+    if ((recordingState === 'recording' || recordingState === 'paused') && transcripts.length > 0) {
       const last = transcripts[transcripts.length - 1] as { speaker_name?: string; text: string }
       const speaker = last.speaker_name || 'Speaker'
       setLastTranscriptLine(`${speaker}: ${last.text}`)
     }
-  }, [isRecording, transcripts, setLastTranscriptLine])
+  }, [recordingState, transcripts, setLastTranscriptLine])
 
   // Fetch meeting data for PostMeetingDigest
   const { data: meetingData } = useQuery({
@@ -83,19 +104,21 @@ export default function MeetingDetailView() {
 
   // Transform transcript data into segment format for TranscriptPanel
   // Transcripts are a union of (Transcript | TranscriptChunk) with overlapping fields
-  const segments = transcripts.map((t, i) => {
-    const rec = t as Record<string, unknown>
-    return {
-      id: String(rec.transcriptId || rec.id || `s-${i}`),
-      speakerName: String(rec.speaker_name || 'Unknown Speaker'),
-      speakerColor: (['violet', 'teal', 'amber', 'rose'] as const)[i % 4] || 'violet',
-      timestamp: formatTimestamp(Number(rec.startTime || rec.start_time || 0)),
-      text: String(rec.text || ''),
-      isPinned: false,
-      isEdited: false,
-      isLive: isRecording && i === transcripts.length - 1,
-    }
-  })
+  const segments = useMemo(() => {
+    return transcripts.map((t, i) => {
+      const rec = t as unknown as Record<string, unknown>
+      return {
+        id: String(rec.transcriptId || rec.id || `s-${i}`),
+        speakerName: String(rec.speaker_name || 'Unknown Speaker'),
+        speakerColor: (['violet', 'teal', 'amber', 'rose'] as const)[i % 4] || 'violet',
+        timestamp: formatTimestamp(Number(rec.startTime || rec.start_time || 0)),
+        text: String(rec.text || ''),
+        isPinned: false,
+        isEdited: false,
+        isLive: isRecording && i === transcripts.length - 1,
+      }
+    })
+  }, [transcripts, isRecording])
 
   if (!selectedMeetingId) {
     return <div className="ui-view-meeting-detail-empty">No Meeting ID selected</div>
@@ -108,9 +131,9 @@ export default function MeetingDetailView() {
   return (
     <div className="ui-view-meeting-detail animate-fade-in">
       {/* Header: Title */}
-      <div className="flex items-center px-4 pt-2">
+      <div className="flex items-center px-6 pt-3 pb-3 border-b border-white/[0.04]">
         <input
-          className="bg-transparent border-none text-xl font-semibold text-[var(--color-text-primary)] outline-none w-full placeholder-[var(--color-text-tertiary)]"
+          className="bg-transparent border-none text-[18px] font-semibold text-[var(--color-text-primary)] outline-none w-full placeholder-[var(--color-text-tertiary)] tracking-tight focus-visible:ring-2 focus-visible:ring-[var(--color-violet)] focus-visible:ring-offset-4 focus-visible:ring-offset-black rounded-sm transition-shadow"
           value={editableTitle}
           placeholder="Untitled Meeting"
           onChange={e => {
@@ -135,26 +158,27 @@ export default function MeetingDetailView() {
         <button
           onClick={() => setShowEntities(!showEntities)}
           title="Toggle Entities"
-          style={{
-            background: showEntities ? 'var(--color-violet)' : 'transparent',
-            color: showEntities ? '#fff' : 'var(--color-text-tertiary)',
-            border: 'none',
-            padding: '6px',
-            borderRadius: '6px',
-            cursor: 'pointer',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            transition: 'all 0.2s',
-            marginLeft: 'auto',
-          }}
+          aria-label="Toggle Entities"
+          aria-pressed={showEntities}
+          className={`ml-auto flex-shrink-0 p-1.5 rounded-md transition-all duration-200 outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-violet)] focus-visible:ring-offset-2 focus-visible:ring-offset-black ${
+            showEntities
+              ? 'bg-[var(--color-violet)] text-white hover:bg-[var(--color-violet)]'
+              : 'bg-transparent text-[var(--color-text-tertiary)] hover:bg-white/5 hover:text-white'
+          }`}
         >
-          <Tag size={18} />
+          <Tag size={16} />
         </button>
       </div>
 
+      <RecordingToolbar
+        onStop={() => window.dispatchEvent(new CustomEvent('toggle-recording'))}
+        onPause={() => window.dispatchEvent(new CustomEvent('toggle-pause'))}
+        onResume={() => window.dispatchEvent(new CustomEvent('toggle-pause'))}
+        onBookmark={() => window.dispatchEvent(new CustomEvent('quick-bookmark'))}
+      />
+
       {/* Silent Prompter Absolute Positioned in this container */}
-      <div className="relative z-50 inline-block mt-4 ml-[72px]">
+      <div className="relative z-50 inline-block mt-4 ml-4 sm:ml-[72px]">
         <Tooltip
           content="Live AI Coach: Automatically suggests questions and actions during your meeting"
           position="bottom"
@@ -203,22 +227,25 @@ export default function MeetingDetailView() {
                   duration={meetingData?.duration || 0}
                   participantCount={meetingData?.participant_count || 1}
                   summary={digest?.summary}
-                  decisions={
-                    digest?.decisions
-                      ? typeof digest.decisions === 'string'
-                        ? JSON.parse(digest.decisions)
-                        : digest.decisions
-                      : []
-                  }
-                  actionItems={
-                    digest?.actionItems
-                      ? typeof digest.actionItems === 'string'
-                        ? JSON.parse(digest.actionItems)
-                        : digest.actionItems
-                      : []
-                  }
-                  // TODO: Wire to future audio_highlights table for precise moment playback
-                  pinnedMoments={[]}
+                  decisions={(() => {
+                    if (!digest?.decisions) return []
+                    if (typeof digest.decisions !== 'string') return digest.decisions
+                    try {
+                      return JSON.parse(digest.decisions)
+                    } catch {
+                      return []
+                    }
+                  })()}
+                  actionItems={(() => {
+                    if (!digest?.actionItems) return []
+                    if (typeof digest.actionItems !== 'string') return digest.actionItems
+                    try {
+                      return JSON.parse(digest.actionItems)
+                    } catch {
+                      return []
+                    }
+                  })()}
+                  pinnedMoments={pinnedMoments}
                 />
               )}
             </div>
@@ -227,7 +254,7 @@ export default function MeetingDetailView() {
 
         {/* Far Right Column (Entity Sidebar - slide in) */}
         {showEntities && (
-          <div className="ui-view-meeting-detail-side" style={{ minWidth: 280, paddingLeft: 0 }}>
+          <div className="ui-view-meeting-detail-side">
             <EntitySidebar meetingId={selectedMeetingId} onClose={() => setShowEntities(false)} />
           </div>
         )}

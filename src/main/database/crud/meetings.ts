@@ -13,39 +13,44 @@ import { v4 as uuidv4 } from 'uuid'
 export function createMeeting(input: CreateMeetingInput): Meeting {
   const db = getDatabase()
 
-  const stmt = db.prepare(`
-    INSERT INTO meetings (
-      id, title, start_time, end_time, duration, participant_count, 
-      tags, namespace, performance_tier
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-  `)
+  const createMeetingTxn = db.transaction(() => {
+    const stmt = db.prepare(`
+      INSERT INTO meetings (
+        id, title, start_time, end_time, duration, participant_count, 
+        tags, namespace, performance_tier
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `)
 
-  stmt.run(
-    input.id,
-    input.title || null,
-    input.start_time,
-    input.end_time || null,
-    input.duration || null,
-    input.participant_count || null,
-    input.tags ? JSON.stringify(input.tags) : null,
-    input.namespace || 'default',
-    input.performance_tier || null
-  )
+    stmt.run(
+      input.id,
+      input.title || null,
+      input.start_time,
+      input.end_time ?? null,
+      input.duration ?? null,
+      input.participant_count ?? null,
+      input.tags ? JSON.stringify(input.tags) : null,
+      input.namespace || 'default',
+      input.performance_tier || null
+    )
 
-  const meeting = getMeetingById(input.id)
-  if (!meeting) {
-    throw new Error(`Failed to read back meeting after INSERT: ${input.id}`)
-  }
+    const meeting = getMeetingById(input.id)
+    if (!meeting) {
+      throw new Error(`Failed to read back meeting after INSERT: ${input.id}`)
+    }
 
-  createSyncQueueItem({
-    id: uuidv4(),
-    operation_type: 'create',
-    table_name: 'meetings',
-    record_id: meeting.id,
-    payload: meeting as unknown as Record<string, unknown>,
+    // Create sync item inside the transaction — atomic with the INSERT
+    createSyncQueueItem({
+      id: uuidv4(),
+      operation_type: 'create',
+      table_name: 'meetings',
+      record_id: meeting.id,
+      payload: meeting as unknown as Record<string, unknown>,
+    })
+
+    return meeting
   })
 
-  return meeting
+  return createMeetingTxn()
 }
 
 /**
@@ -168,26 +173,30 @@ export function updateMeeting(id: string, input: UpdateMeetingInput): Meeting | 
 
   values.push(id)
 
-  const stmt = db.prepare(`
-    UPDATE meetings 
-    SET ${updates.join(', ')}
-    WHERE id = ?
-  `)
+  const updateMeetingTxn = db.transaction(() => {
+    const stmt = db.prepare(`
+      UPDATE meetings 
+      SET ${updates.join(', ')}
+      WHERE id = ?
+    `)
+    stmt.run(...values)
 
-  stmt.run(...values)
+    const updatedMeeting = getMeetingById(id)
+    if (updatedMeeting) {
+      // Create sync item inside the transaction — atomic with the UPDATE
+      createSyncQueueItem({
+        id: uuidv4(),
+        operation_type: 'update',
+        table_name: 'meetings',
+        record_id: updatedMeeting.id,
+        payload: updatedMeeting as unknown as Record<string, unknown>,
+      })
+    }
 
-  const updatedMeeting = getMeetingById(id)
-  if (updatedMeeting) {
-    createSyncQueueItem({
-      id: uuidv4(),
-      operation_type: 'update',
-      table_name: 'meetings',
-      record_id: updatedMeeting.id,
-      payload: updatedMeeting as unknown as Record<string, unknown>,
-    })
-  }
+    return updatedMeeting
+  })
 
-  return updatedMeeting
+  return updateMeetingTxn()
 }
 
 /**

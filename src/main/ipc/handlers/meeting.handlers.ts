@@ -97,6 +97,8 @@ export function registerMeetingHandlers(): void {
           },
           10 * 60 * 1000
         )
+        // OPT-16: Don't let this timer prevent clean app shutdown
+        if (walCheckpointInterval.unref) walCheckpointInterval.unref()
 
         return {
           success: true,
@@ -106,6 +108,11 @@ export function registerMeetingHandlers(): void {
           },
         }
       } catch (error) {
+        // Clean up WAL interval on failure — prevents leaked timer
+        if (walCheckpointInterval) {
+          clearInterval(walCheckpointInterval)
+          walCheckpointInterval = null
+        }
         log.error('Failed to start meeting:', error)
         return {
           success: false,
@@ -130,6 +137,14 @@ export function registerMeetingHandlers(): void {
 
         if (!meeting) {
           throw new Error(`Meeting not found: ${params.meetingId}`)
+        }
+
+        // Guard: verify meeting is actually in progress (no end_time yet)
+        if (meeting.end_time) {
+          log.warn(
+            `[meeting:stop] Meeting ${params.meetingId} already stopped at ${meeting.end_time}`
+          )
+          return { success: true, data: undefined } // Idempotent — already stopped
         }
 
         const endTime = Math.floor(Date.now() / 1000)
@@ -317,6 +332,7 @@ export function registerMeetingHandlers(): void {
     'meeting:export',
     async (_event, params: ExportMeetingParams): Promise<IPCResponse<ExportMeetingResponse>> => {
       try {
+        const { dialog } = await import('electron')
         const db = getDatabaseService()
         const meeting = db.getMeeting(params.meetingId)
 
@@ -351,19 +367,24 @@ export function registerMeetingHandlers(): void {
           .all(params.meetingId) as Array<{ type: string; text: string; confidence: number }>
 
         const format = params.format || 'json'
+        let content: string
+        let fileFormat: 'markdown' | 'json'
 
         if (format === 'markdown' || format === 'pdf') {
-          // For PDF requests, generate markdown (PDF rendering is a frontend concern)
-          const md = [
+          // M2 fix: Use MM:SS offset from meeting start instead of absolute epoch time
+          const meetingStartSec = meeting.start_time || 0
+          content = [
             `# ${meeting.title || 'Meeting'}`,
             `**Date:** ${new Date(meeting.start_time * 1000).toLocaleString()}`,
             `**Duration:** ${meeting.duration ? Math.round(meeting.duration / 60) + ' minutes' : 'N/A'}`,
             '',
             '## Transcript',
-            ...transcripts.map(
-              t =>
-                `**${t.speaker_name || 'Speaker'}** (${new Date(t.start_time * 1000).toLocaleTimeString()}): ${t.text}`
-            ),
+            ...transcripts.map(t => {
+              const offsetSec = Math.max(0, (t.start_time || 0) - meetingStartSec)
+              const mm = String(Math.floor(offsetSec / 60)).padStart(2, '0')
+              const ss = String(Math.floor(offsetSec % 60)).padStart(2, '0')
+              return `**${t.speaker_name || 'Speaker'}** [${mm}:${ss}]: ${t.text}`
+            }),
             '',
             '## Notes',
             ...notes.map(n => `- ${n.augmented_text || n.original_text}`),
@@ -373,32 +394,43 @@ export function registerMeetingHandlers(): void {
               e => `- **${e.type}**: ${e.text} (${Math.round((e.confidence || 0) * 100)}%)`
             ),
           ].join('\n')
-
-          return {
-            success: true,
-            data: {
-              content: md,
-              format: 'markdown',
-              filename: `${meeting.title || 'meeting'}-${meeting.id.slice(0, 8)}.md`,
-            },
-          }
+          fileFormat = 'markdown'
+        } else {
+          // JSON format (default)
+          content = JSON.stringify(
+            { meeting, transcripts, notes, entities, exportedAt: new Date().toISOString() },
+            null,
+            2
+          )
+          fileFormat = 'json'
         }
 
-        // JSON format (default)
-        const exportData = {
-          meeting,
-          transcripts,
-          notes,
-          entities,
-          exportedAt: new Date().toISOString(),
+        // I4 fix: Show save dialog so user can actually save the exported file
+        const ext = fileFormat === 'json' ? 'json' : 'md'
+        const safeTitle = (meeting.title || 'meeting').replace(/[/\\:*?"<>|]/g, '_')
+        const defaultFilename = `${safeTitle}-${meeting.id.slice(0, 8)}.${ext}`
+
+        const { filePath } = await dialog.showSaveDialog({
+          title: 'Export Meeting',
+          defaultPath: defaultFilename,
+          filters:
+            fileFormat === 'json'
+              ? [{ name: 'JSON', extensions: ['json'] }]
+              : [{ name: 'Markdown', extensions: ['md'] }],
+        })
+
+        if (filePath) {
+          const fs = await import('fs')
+          fs.writeFileSync(filePath, content, 'utf-8')
+          log.info(`Meeting exported to: ${filePath}`)
         }
 
         return {
           success: true,
           data: {
-            content: JSON.stringify(exportData, null, 2),
-            format: 'json',
-            filename: `${meeting.title || 'meeting'}-${meeting.id.slice(0, 8)}.json`,
+            content,
+            format: fileFormat,
+            filename: defaultFilename,
           },
         }
       } catch (error) {

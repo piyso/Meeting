@@ -8,6 +8,8 @@
 import { v4 as uuid } from 'uuid'
 import { getDatabase } from '../connection'
 import { Logger } from '../../services/Logger'
+import { createSyncQueueItem } from './sync-queue'
+import { v4 as uuidv4 } from 'uuid'
 
 const log = Logger.create('HighlightsCRUD')
 
@@ -48,7 +50,7 @@ export function createHighlight(params: {
 
   log.info('Created highlight', { id, meetingId, startTime, endTime })
 
-  return {
+  const highlight: Highlight = {
     id,
     meeting_id: meetingId,
     start_time: startTime,
@@ -57,6 +59,21 @@ export function createHighlight(params: {
     color: color || '#7c3aed',
     created_at: Math.floor(Date.now() / 1000),
   }
+
+  // I17 fix: Add to sync queue so highlights propagate to cloud
+  try {
+    createSyncQueueItem({
+      id: uuidv4(),
+      operation_type: 'create',
+      table_name: 'audio_highlights',
+      record_id: id,
+      payload: highlight as unknown as Record<string, unknown>,
+    })
+  } catch {
+    // Sync queue is non-critical — bookmark works locally regardless
+  }
+
+  return highlight
 }
 
 /**
@@ -89,6 +106,18 @@ export function deleteHighlight(id: string): boolean {
 
   if (result.changes > 0) {
     log.info('Deleted highlight', { id })
+    // I17 fix: Sync deletion to cloud
+    try {
+      createSyncQueueItem({
+        id: uuidv4(),
+        operation_type: 'delete',
+        table_name: 'audio_highlights',
+        record_id: id,
+        payload: { id },
+      })
+    } catch {
+      // Non-critical
+    }
     return true
   }
 

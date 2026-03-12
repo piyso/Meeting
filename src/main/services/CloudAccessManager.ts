@@ -257,13 +257,13 @@ export class CloudAccessManager {
    */
   private async getCurrentUserId(): Promise<string | null> {
     try {
-      // Try to get access token to determine if user is logged in
-      const users = await KeyStorageService.getAllUsers()
-      if (users.length === 0) {
-        return null
-      }
+      // M12 fix: Use the stored current user ID instead of picking users[0].
+      // getAllUsers() returns arbitrary ordering — wrong user's tier could be checked.
+      const currentUserId = await KeyStorageService.getCurrentUserId()
+      if (currentUserId) return currentUserId
 
-      // Return first user (single-user app for now)
+      // Fallback: if no current user is set, try getAllUsers()[0] for backwards compat
+      const users = await KeyStorageService.getAllUsers()
       return users[0] || null
     } catch (error) {
       log.error('[CloudAccessManager] Failed to get current user:', error)
@@ -286,11 +286,32 @@ export class CloudAccessManager {
 
   /**
    * Check if user has valid access token
+   * P2-2 FIX: Now also checks JWT expiry to prevent 401 cascades
    */
   private async hasValidAccessToken(userId: string): Promise<boolean> {
     try {
       const token = await KeyStorageService.getAccessToken(userId)
-      return token !== null && token.length > 0
+      if (!token || token.length === 0) return false
+
+      // Decode JWT payload to check expiry (without verifying signature — that's the server's job)
+      try {
+        const payloadPart = token.split('.')[1]
+        if (payloadPart) {
+          const payload = JSON.parse(Buffer.from(payloadPart, 'base64').toString())
+          if (payload.exp) {
+            const expiresAt = payload.exp * 1000 // JWT exp is in seconds
+            const bufferMs = 30_000 // 30s buffer to avoid edge-case expiry during request
+            if (Date.now() >= expiresAt - bufferMs) {
+              log.info('[CloudAccessManager] Token expired, marking as invalid')
+              return false
+            }
+          }
+        }
+      } catch {
+        // JWT decode failed — token may be opaque, treat as valid and let API decide
+      }
+
+      return true
     } catch (error) {
       log.error('[CloudAccessManager] Failed to check access token:', error)
       return false

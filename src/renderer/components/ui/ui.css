@@ -10,18 +10,24 @@
   font-family: var(--font-body);
   font-weight: 500;
   border-radius: var(--radius-md);
-  transition: all var(--transition-base);
+  transition:
+    transform 300ms var(--ease-spring),
+    box-shadow 300ms var(--ease-spring),
+    background 150ms var(--ease-fluid),
+    color 150ms var(--ease-fluid),
+    border-color 150ms var(--ease-fluid);
   cursor: pointer;
   border: 1px solid transparent;
   outline: none;
   white-space: nowrap;
+  will-change: transform, box-shadow;
 }
 .ui-btn:active:not(:disabled) {
-  transform: scale(0.96);
-  transition: transform 50ms var(--ease-snappy);
+  transform: scale(0.95) translateY(1px);
+  transition: transform 50ms cubic-bezier(0.1, 0.9, 0.2, 1);
 }
 .ui-btn:disabled {
-  opacity: 0.5;
+  opacity: 0.4;
   cursor: not-allowed;
   pointer-events: none;
 }
@@ -33,13 +39,24 @@
 
 /* Button Variants */
 .ui-btn-primary {
-  background: var(--color-violet);
+  background: var(--color-violet); /* Flat, solid core */
   color: #ffffff;
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+  box-shadow:
+    0 2px 4px rgba(0, 0, 0, 0.1),
+    0 4px 12px rgba(139, 92, 246, 0.15),
+    inset 0 1px 0 rgba(255, 255, 255, 0.2);
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+  letter-spacing: 0.01em;
 }
+
 .ui-btn-primary:hover:not(:disabled) {
-  background: #b794f4;
-  box-shadow: 0 4px 12px rgba(167, 139, 250, 0.2);
+  background: #9d74f8; /* Lighter violet on hover */
+  border-color: rgba(255, 255, 255, 0.15);
+  box-shadow:
+    0 4px 16px rgba(139, 92, 246, 0.2),
+    inset 0 1px 0 rgba(255, 255, 255, 0.3);
+  transform: translateY(-1px) scale(1.01);
 }
 
 .ui-btn-secondary {
@@ -126,12 +143,23 @@
   color: var(--color-text-primary);
   font-family: var(--font-body);
   font-size: var(--text-sm);
-  transition: all var(--transition-fast);
+  transition:
+    border-color 400ms cubic-bezier(0.16, 1, 0.3, 1),
+    box-shadow 400ms cubic-bezier(0.16, 1, 0.3, 1),
+    background-color 400ms cubic-bezier(0.16, 1, 0.3, 1);
   outline: none;
   box-shadow:
     0 4px 24px -1px rgba(0, 0, 0, 0.2),
     0 1px 0 0 rgba(255, 255, 255, 0.05) inset,
     0 0 0 1px rgba(255, 255, 255, 0.05);
+}
+.ui-input:focus {
+  border-color: rgba(167, 139, 250, 0.6);
+  background: rgba(255, 255, 255, 0.05);
+  box-shadow:
+    0 0 0 2px rgba(167, 139, 250, 0.3),
+    0 4px 12px rgba(0, 0, 0, 0.2),
+    0 1px 0 0 rgba(255, 255, 255, 0.1) inset;
 }
 .ui-input.has-icon {
   padding-left: 36px;
@@ -139,13 +167,9 @@
 .ui-input.has-error {
   border-color: rgba(251, 113, 133, 0.5);
 }
-.ui-input:focus {
-  border-color: rgba(255, 255, 255, 0.12);
-  background: rgba(255, 255, 255, 0.05);
-  box-shadow:
-    0 8px 32px rgba(0, 0, 0, 0.3),
-    0 1px 0 0 rgba(255, 255, 255, 0.15) inset,
-    0 0 0 1px rgba(255, 255, 255, 0.1);
+.ui-input.has-error:focus {
+  border-color: rgba(251, 113, 133, 0.8);
+  box-shadow: 0 0 0 2px rgba(251, 113, 133, 0.3);
 }
 .ui-input-icon {
   position: absolute;
@@ -265,14 +289,18 @@
   position: absolute;
   z-index: 50;
   padding: var(--space-4) var(--space-8);
-  background: var(--color-bg-panel);
-  border: 1px solid var(--color-border-subtle);
-  border-radius: var(--radius-sm);
   font-size: var(--text-xs);
   color: var(--color-text-primary);
   white-space: nowrap;
   pointer-events: none;
-  backdrop-filter: blur(12px);
+
+  /* Tahoe Popover Glass */
+  background: rgba(18, 18, 20, 0.85);
+  backdrop-filter: blur(40px) saturate(150%);
+  -webkit-backdrop-filter: blur(40px) saturate(150%);
+  border: 1px solid var(--color-border);
+  box-shadow: var(--shadow-macos-md);
+  border-radius: var(--radius-md);
 }
 .tooltip-top {
   bottom: 100%;
@@ -301,7 +329,14 @@
   flex-direction: column;
   width: 480px;
   max-height: 90vh;
-  box-shadow: 0 24px 48px -12px rgba(0, 0, 0, 0.5);
+
+  /* Tahoe Heavy Glass */
+  background: var(--color-bg-panel);
+  backdrop-filter: blur(64px) saturate(180%);
+  -webkit-backdrop-filter: blur(64px) saturate(180%);
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-macos-xl);
 }
 .ui-dialog-header {
   padding: var(--space-20) var(--space-24) var(--space-12);
@@ -310,6 +345,7 @@
 .ui-dialog-header h2 {
   font-size: var(--text-lg);
   font-weight: 600;
+  letter-spacing: var(--tracking-tighter);
   margin: 0;
 }
 .ui-dialog-body {
@@ -326,7 +362,7 @@
   font-size: 11px;
   font-weight: 600;
   text-transform: uppercase;
-  letter-spacing: 0.05em;
+  letter-spacing: var(--tracking-widest);
 }
 .badge-default {
   background: var(--color-bg-glass);
@@ -371,9 +407,15 @@
   cursor: pointer;
   animation: toast-slide-up 400ms var(--ease-spring) forwards;
   will-change: transform, opacity;
-  box-shadow:
-    0 12px 32px -4px rgba(0, 0, 0, 0.5),
-    0 0 0 1px var(--color-border-subtle);
+
+  /* Tahoe Popover Glass */
+  background: rgba(18, 18, 20, 0.85);
+  backdrop-filter: blur(40px) saturate(150%);
+  -webkit-backdrop-filter: blur(40px) saturate(150%);
+  border: 1px solid var(--color-border);
+  border-left-width: 4px; /* Leave space for status color */
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-macos-lg);
 }
 @keyframes toast-slide-up {
   from {
@@ -398,8 +440,9 @@
   border-left-color: var(--color-rose);
 }
 .ui-toast-title {
-  font-weight: 500;
+  font-weight: 600;
   font-size: var(--text-sm);
+  letter-spacing: var(--tracking-tight);
 }
 .ui-toast-message {
   font-size: var(--text-xs);
@@ -419,20 +462,47 @@
   min-height: 480px;
   padding: var(--space-64) var(--space-32);
   border-radius: var(--radius-xl);
-  background:
-    radial-gradient(circle at center, rgba(139, 92, 246, 0.05) 0%, transparent 70%),
-    var(--color-bg-glass);
+
+  /* Tahoe Heavy Glass */
+  background: var(--color-bg-panel);
+  backdrop-filter: blur(64px) saturate(180%);
+  -webkit-backdrop-filter: blur(64px) saturate(180%);
   border: 1px solid var(--color-border-subtle);
-  box-shadow: inset 0 0 40px rgba(0, 0, 0, 0.2);
+  box-shadow: var(--shadow-macos-lg);
+
+  position: relative;
+  overflow: hidden;
 }
+
+.ui-empty-state::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 200px;
+  height: 200px;
+  background: var(--color-violet);
+  border-radius: 50%;
+  mix-blend-mode: screen;
+  opacity: 0.05;
+  filter: blur(64px);
+  pointer-events: none;
+}
+
 .ui-empty-icon-wrapper {
-  color: var(--color-violet);
+  color: #c4b5fd;
   margin-bottom: var(--space-24);
   animation: float 6s ease-in-out infinite;
-  background: rgba(139, 92, 246, 0.1);
+  background: rgba(167, 139, 250, 0.05);
   padding: var(--space-20);
   border-radius: 50%;
-  box-shadow: 0 0 32px var(--color-glow-violet);
+  border: 1px solid rgba(167, 139, 250, 0.2);
+  box-shadow:
+    0 0 24px rgba(167, 139, 250, 0.1),
+    inset 0 1px 0 rgba(255, 255, 255, 0.1);
+  position: relative;
+  z-index: 10;
 }
 @keyframes float {
   0%,
@@ -447,8 +517,10 @@
   font-size: var(--text-xl);
   font-weight: 600;
   color: var(--color-text-primary);
-  letter-spacing: -0.02em;
+  letter-spacing: var(--tracking-tight);
   margin-bottom: var(--space-8);
+  position: relative;
+  z-index: 10;
 }
 .ui-empty-desc {
   font-size: var(--text-base);
@@ -456,9 +528,13 @@
   max-width: 420px;
   line-height: var(--leading-relaxed);
   margin-bottom: var(--space-32);
+  position: relative;
+  z-index: 10;
 }
 .ui-empty-action {
   animation: slide-up 400ms var(--ease-spring) 200ms both;
+  position: relative;
+  z-index: 10;
 }
 
 /* Context Menu */
@@ -468,6 +544,14 @@
   width: 220px;
   padding: var(--space-4);
   z-index: 9999;
+
+  /* Tahoe Popover Glass */
+  background: rgba(18, 18, 20, 0.85);
+  backdrop-filter: blur(40px) saturate(150%);
+  -webkit-backdrop-filter: blur(40px) saturate(150%);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-macos-xl);
 }
 .ui-menu-item {
   display: flex;
@@ -484,7 +568,8 @@
   cursor: pointer;
 }
 .ui-menu-item:hover:not(:disabled) {
-  background: var(--color-bg-glass-hover);
+  background: linear-gradient(90deg, rgba(167, 139, 250, 0.15) 0%, rgba(255, 255, 255, 0.05) 100%);
+  box-shadow: inset 4px 0 0 0 var(--color-violet); /* Left accent bar */
 }
 .ui-menu-item:disabled {
   opacity: 0.5;
@@ -520,7 +605,10 @@
   font-weight: 500;
   border: 1px solid transparent;
   cursor: pointer;
-  transition: all var(--transition-fast);
+  transition:
+    background-color var(--transition-fast),
+    transform var(--transition-fast),
+    border-color var(--transition-fast);
 }
 .ui-smart-chip:disabled {
   cursor: default;
@@ -571,18 +659,35 @@
   border: 1px solid transparent;
   border-radius: var(--radius-md);
   cursor: pointer;
-  transition: all var(--transition-fast);
+  transition:
+    transform 300ms var(--ease-spring),
+    box-shadow 300ms var(--ease-spring),
+    background 150ms var(--ease-fluid),
+    color 150ms var(--ease-fluid);
   outline: none;
+  will-change: transform;
 }
 .ui-icon-btn:hover:not(:disabled) {
   background: var(--color-bg-glass-hover);
   color: #ffffff;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+.ui-icon-btn:active:not(:disabled) {
+  transform: scale(0.92);
+  transition: transform 50ms cubic-bezier(0.1, 0.9, 0.2, 1);
+}
+.ui-icon-btn:focus-visible {
+  box-shadow:
+    0 0 0 2px var(--color-bg-root),
+    0 0 0 4px var(--color-violet);
+  background: var(--color-bg-glass);
 }
 .ui-icon-btn.active {
-  background: rgba(167, 139, 250, 0.2); /* Slightly stronger violet glass */
+  background: rgba(167, 139, 250, 0.15);
   color: #ffffff;
-  border-color: transparent; /* Remove the hard border */
-  box-shadow: 0 0 20px rgba(167, 139, 250, 0.3); /* Pure outer aura glow, no inset lines */
+  border-color: transparent;
+  box-shadow: 0 0 12px rgba(167, 139, 250, 0.15);
 }
 .ui-icon-btn:disabled {
   opacity: 0.5;
@@ -728,13 +833,13 @@
 .ui-header {
   flex-shrink: 0;
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  padding: var(--space-24) var(--space-32);
-  gap: var(--space-16);
+  padding: var(--space-24) clamp(var(--space-16), 3vw, var(--space-32));
+  gap: var(--space-12);
   border-bottom: 1px solid var(--color-border-subtle);
-  background: rgba(15, 15, 17, 0.8);
-  backdrop-filter: blur(24px);
-  -webkit-backdrop-filter: blur(24px);
+  background: transparent;
+  min-width: 0;
   z-index: 10;
 }
 
@@ -749,7 +854,9 @@
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  transition: all var(--transition-fast);
+  transition:
+    background-color var(--transition-fast),
+    transform var(--transition-fast);
 }
 
 .ui-back-button:hover {
@@ -765,6 +872,7 @@
 .ui-header-title h1 {
   font-size: var(--text-xl);
   font-weight: 600;
+  letter-spacing: var(--tracking-tighter);
   margin: 0 0 2px;
   background: linear-gradient(135deg, #fff 0%, #a1a1aa 100%);
   background-clip: text;

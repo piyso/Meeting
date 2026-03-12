@@ -1,4 +1,5 @@
 import React, { useEffect, useState, useRef } from 'react'
+import { modKey, modLabel } from '../../utils/platformShortcut'
 import { motion, AnimatePresence } from 'framer-motion'
 import { TranscriptPanel } from '../meeting/TranscriptPanel'
 import { MiniWidget } from '../meeting/MiniWidget'
@@ -21,7 +22,7 @@ const TutorialNotePane: React.FC<{
   const chars = aiResponse.split('')
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' && e.metaKey && !isExpanded) {
+    if (e.key === 'Enter' && (e.metaKey || e.ctrlKey) && !isExpanded) {
       e.preventDefault()
       onExpand()
     }
@@ -36,7 +37,7 @@ const TutorialNotePane: React.FC<{
             initial={{ opacity: 0, scale: 0.95, y: -10 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95, y: 10 }}
-            transition={{ ease: 'easeOut', duration: 0.3 }}
+            transition={{ type: 'spring', stiffness: 350, damping: 28, mass: 0.8 }}
             className="absolute bottom-full mb-6 left-1/2 -translate-x-1/2 flex flex-col items-center bg-[rgba(167,139,250,0.1)] border border-[var(--color-violet)]/40 rounded-2xl p-6 shadow-[0_0_50px_rgba(167,139,250,0.15)] backdrop-blur-xl w-max z-[100]"
           >
             <span className="text-lg font-bold text-white tracking-tight">
@@ -68,7 +69,7 @@ const TutorialNotePane: React.FC<{
             value={content}
             onChange={e => setContent(e.target.value)}
             onKeyDown={handleKeyDown}
-            placeholder="Start typing your notes... (Cmd+Enter to expand via AI)"
+            placeholder={`Start typing your notes... (${modLabel}+Enter to expand via AI)`}
             className="w-full h-24 bg-transparent resize-none outline-none placeholder-[var(--color-text-tertiary)] font-body"
             disabled={isExpanded}
           />
@@ -77,7 +78,7 @@ const TutorialNotePane: React.FC<{
             <motion.div
               initial={{ height: 0, opacity: 0 }}
               animate={{ height: 'auto', opacity: 1 }}
-              transition={{ duration: 0.4 }}
+              transition={{ type: 'spring', stiffness: 350, damping: 28, mass: 0.8 }}
               className="ai-expansion mt-4 pl-4 border-l-2 border-[var(--color-violet)] bg-[var(--color-violet)]/10 p-4 rounded-r-xl overflow-hidden shadow-sm"
             >
               <strong className="text-[var(--color-violet)] flex items-center gap-2 mb-2 font-semibold">
@@ -171,7 +172,7 @@ export const GhostMeetingTutorial: React.FC<GhostMeetingTutorialProps> = ({ onCo
         speakerName: 'System',
         speakerColor: 'violet',
         timestamp: '00:15',
-        text: 'Just use Magic Notes below. Type a few words, press ⌘+Enter, and the local AI instantly expands it using the transcript context.',
+        text: `Just use Magic Notes below. Type a few words, press ${modKey}+Enter, and the local AI instantly expands it using the transcript context.`,
         isLive: true,
         isEdited: false,
         isPinned: false,
@@ -204,7 +205,7 @@ export const GhostMeetingTutorial: React.FC<GhostMeetingTutorialProps> = ({ onCo
   }, [])
 
   return (
-    <div className="w-full h-full relative bg-[var(--color-bg-root)] overflow-hidden flex justify-center">
+    <div className="w-full h-full relative overflow-hidden flex justify-center">
       {/* 1:1 REPLICA OF MeetingDetailView.tsx BACKGROUND APP LAYER */}
       <motion.div
         className="absolute inset-x-0 top-0 bottom-[100px] flex justify-center pt-[var(--space-24)] px-[calc(var(--space-24)*2)]"
@@ -213,7 +214,7 @@ export const GhostMeetingTutorial: React.FC<GhostMeetingTutorialProps> = ({ onCo
           opacity: step >= 4 ? 0.35 : 1,
           filter: step >= 4 ? 'blur(6px)' : 'blur(0px)',
         }}
-        transition={{ duration: 0.8, ease: [0.25, 1, 0.5, 1] }}
+        transition={{ type: 'spring', stiffness: 300, damping: 24, mass: 0.8 }}
       >
         <div
           className="w-full max-w-6xl h-full flex flex-col gap-[var(--space-16)] ui-view-meeting-detail"
@@ -277,8 +278,8 @@ export const GhostMeetingTutorial: React.FC<GhostMeetingTutorialProps> = ({ onCo
                   initial={{ opacity: 0, scale: 0.95, y: 10, x: -10 }}
                   animate={{ opacity: 1, scale: 1, y: 0, x: 0 }}
                   exit={{ opacity: 0, scale: 0.95, y: -10, x: -10 }}
-                  transition={{ ease: 'easeOut', duration: 0.3 }}
-                  className="absolute top-[100%] left-0 mt-4 flex flex-col items-start bg-[rgba(167,139,250,0.1)] border border-[var(--color-violet)]/40 rounded-2xl p-6 shadow-[0_0_50px_rgba(167,139,250,0.15)] backdrop-blur-xl w-[400px]"
+                  transition={{ type: 'spring', stiffness: 400, damping: 30, mass: 0.8 }}
+                  className="absolute top-[100%] left-0 mt-4 flex flex-col items-start bg-[rgba(167,139,250,0.1)] border border-[var(--color-violet)]/40 rounded-2xl p-6 shadow-[0_0_50px_rgba(167,139,250,0.15)] backdrop-blur-xl w-full max-w-[400px]"
                 >
                   <div className="flex items-start gap-4">
                     <ArrowUp
@@ -362,8 +363,8 @@ export const GhostMeetingTutorial: React.FC<GhostMeetingTutorialProps> = ({ onCo
               <motion.div
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.2, duration: 0.5 }}
-                className="flex flex-col items-center select-none w-[420px]"
+                transition={{ type: 'spring', stiffness: 350, damping: 28, mass: 0.8, delay: 0.1 }}
+                className="flex flex-col items-center select-none w-full max-w-[420px]"
               >
                 <ArrowUp
                   size={28}
@@ -412,7 +413,7 @@ export const GhostMeetingTutorial: React.FC<GhostMeetingTutorialProps> = ({ onCo
         <motion.div
           initial={{ opacity: 0, y: 30 }}
           animate={{ opacity: step >= 1 ? 1 : 0, y: step >= 1 ? 0 : 30 }}
-          transition={{ duration: 0.6, ease: [0.25, 1, 0.5, 1] }}
+          transition={{ type: 'spring', stiffness: 300, damping: 24, mass: 0.8 }}
         >
           <Button
             variant="primary"

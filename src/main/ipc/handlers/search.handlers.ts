@@ -42,22 +42,12 @@ export function registerSearchHandlers(): void {
           error: { code: 'INVALID_PARAMS', message: 'query is required', timestamp: Date.now() },
         }
       }
-      // Gate cross-meeting semantic search for free tier
+      // P2-3 FIX: Removed early gate here that returned blocked:true for free tier.
+      // Free users still get local semantic search; only cloud search is tier-gated below.
+      // Check cloud access for the cloud-search portion
       const { getCloudAccessManager } = await import('../../services/CloudAccessManager')
       const cam = getCloudAccessManager()
       const features = await cam.getFeatureAccess()
-
-      if (!features.semanticSearch) {
-        return {
-          success: true,
-          data: {
-            results: [],
-            query: params.query || '',
-            blocked: true,
-            reason: 'Semantic search requires Starter or Pro plan',
-          },
-        }
-      }
 
       // ── Local semantic search (always runs for Starter+) ──
       const embeddingService = getLocalEmbeddingService()
@@ -65,6 +55,10 @@ export function registerSearchHandlers(): void {
       // Load transcripts with pre-computed embeddings from DB
       const { getDatabase } = await import('../../database/connection')
       const db = getDatabase()
+      // Scope to a single meeting if meetingId is provided (much faster for in-meeting search)
+      const meetingFilter = params.meetingId ? 'AND t.meeting_id = ?' : ''
+      const queryParams = params.meetingId ? [params.meetingId] : []
+
       const rows = db
         .prepare(
           `
@@ -72,12 +66,12 @@ export function registerSearchHandlers(): void {
                m.title as meeting_title
         FROM transcripts t
         JOIN meetings m ON m.id = t.meeting_id
-        WHERE t.text IS NOT NULL AND LENGTH(t.text) > 0
+        WHERE t.text IS NOT NULL AND LENGTH(t.text) > 0 ${meetingFilter}
         ORDER BY t.created_at DESC
         LIMIT 500
       `
         )
-        .all() as Array<{
+        .all(...queryParams) as Array<{
         id: string
         meeting_id: string
         text: string
@@ -143,54 +137,119 @@ export function registerSearchHandlers(): void {
       let cloudResults: Array<{
         snippet: string
         relevance: number
-        source: 'local' | 'cloud-semantic' | 'cloud-hybrid'
+        source: 'local' | 'cloud-semantic' | 'cloud-hybrid' | 'cloud-fuzzy'
         meeting: { id: string; title: string }
       }> = []
       try {
-        const { getBackend } = await import('../handlers/graph.handlers')
+        const { getBackend } = await import('../../services/backend/BackendSingleton')
         const backend = getBackend()
-        const isHealthy = await backend.healthCheck()
+        const health = await backend.healthCheck()
 
-        if (isHealthy) {
+        if (health.status === 'healthy') {
           const namespace = params.namespace || 'meetings'
           const limit = params.limit || 10
 
           if (features.hybridSearch) {
             // Pro+: Hybrid search (semantic + keyword) — best quality
             const cloudHits = await backend.hybridSearch(params.query, namespace, limit)
-            cloudResults = cloudHits.map(hit => ({
-              snippet: (hit.memory?.content || '').substring(0, 200),
-              relevance: hit.similarity ?? 0.5,
-              source: 'cloud-hybrid' as const,
-              meeting: {
-                id: String(
-                  hit.memory?.metadata?.meeting_id || hit.memory?.metadata?.meetingId || ''
-                ),
-                title: String(
-                  hit.memory?.metadata?.meeting_title ||
-                    hit.memory?.metadata?.meetingTitle ||
-                    'Cloud Result'
-                ),
-              },
-            }))
+            cloudResults = cloudHits.map(hit => {
+              // E-CRIT: Cloud memories are encrypted — don't show ciphertext as snippet.
+              // Use metadata title or a sanitized fallback.
+              const isEncrypted = hit.memory?.metadata?.encrypted === true
+              const snippet = isEncrypted
+                ? String(
+                    hit.memory?.metadata?.meeting_title ||
+                      hit.memory?.metadata?.meetingTitle ||
+                      'Cloud result'
+                  )
+                : (hit.memory?.content || '').substring(0, 200)
+              return {
+                snippet,
+                relevance: Number(hit.similarity) || 0.5,
+                source: 'cloud-hybrid' as const,
+                _piyApiMemoryId: hit.memory?.id || '', // P1-3: track actual PiyAPI memory ID
+                meeting: {
+                  id: String(
+                    hit.memory?.metadata?.meeting_id || hit.memory?.metadata?.meetingId || ''
+                  ),
+                  title: String(
+                    hit.memory?.metadata?.meeting_title ||
+                      hit.memory?.metadata?.meetingTitle ||
+                      'Cloud Result'
+                  ),
+                },
+              }
+            })
           } else if (features.semanticSearch) {
             // Starter: Semantic search only
             const cloudHits = await backend.semanticSearch(params.query, namespace, limit)
-            cloudResults = cloudHits.map(hit => ({
-              snippet: (hit.memory?.content || '').substring(0, 200),
-              relevance: hit.similarity ?? 0.5,
-              source: 'cloud-semantic' as const,
-              meeting: {
-                id: String(
-                  hit.memory?.metadata?.meeting_id || hit.memory?.metadata?.meetingId || ''
-                ),
-                title: String(
-                  hit.memory?.metadata?.meeting_title ||
-                    hit.memory?.metadata?.meetingTitle ||
-                    'Cloud Result'
-                ),
-              },
-            }))
+            cloudResults = cloudHits.map(hit => {
+              const isEncrypted = hit.memory?.metadata?.encrypted === true
+              const snippet = isEncrypted
+                ? String(
+                    hit.memory?.metadata?.meeting_title ||
+                      hit.memory?.metadata?.meetingTitle ||
+                      'Cloud result'
+                  )
+                : (hit.memory?.content || '').substring(0, 200)
+              return {
+                snippet,
+                relevance: Number(hit.similarity) || 0.5,
+                source: 'cloud-semantic' as const,
+                _piyApiMemoryId: hit.memory?.id || '', // P1-3: track actual PiyAPI memory ID
+                meeting: {
+                  id: String(
+                    hit.memory?.metadata?.meeting_id || hit.memory?.metadata?.meetingId || ''
+                  ),
+                  title: String(
+                    hit.memory?.metadata?.meeting_title ||
+                      hit.memory?.metadata?.meetingTitle ||
+                      'Cloud Result'
+                  ),
+                },
+              }
+            })
+          } else {
+            // Free tier: Fuzzy search (typo-tolerant, no plan requirement)
+            const cloudHits = await backend.fuzzySearch(params.query, namespace, limit)
+            cloudResults = cloudHits.map(hit => {
+              const isEncrypted = hit.memory?.metadata?.encrypted === true
+              const snippet = isEncrypted
+                ? String(
+                    hit.memory?.metadata?.meeting_title ||
+                      hit.memory?.metadata?.meetingTitle ||
+                      'Cloud result'
+                  )
+                : (hit.memory?.content || '').substring(0, 200)
+              return {
+                snippet,
+                relevance: Number(hit.similarity) || 0.4,
+                source: 'cloud-fuzzy' as const,
+                _piyApiMemoryId: hit.memory?.id || '', // P1-3: track actual PiyAPI memory ID
+                meeting: {
+                  id: String(
+                    hit.memory?.metadata?.meeting_id || hit.memory?.metadata?.meetingId || ''
+                  ),
+                  title: String(
+                    hit.memory?.metadata?.meeting_title ||
+                      hit.memory?.metadata?.meetingTitle ||
+                      'Cloud Result'
+                  ),
+                },
+              }
+            })
+          }
+
+          // P1-3 FIX: Track actual PiyAPI memory IDs for feedback (not local meeting IDs)
+          if (cloudResults.length > 0) {
+            const memoryIds = cloudResults
+              .map(r => (r as unknown as { _piyApiMemoryId?: string })._piyApiMemoryId)
+              .filter((id): id is string => !!id && id.length > 0)
+            if (memoryIds.length > 0) {
+              backend.feedbackPositive(memoryIds).catch(() => {
+                /* non-critical */
+              })
+            }
           }
         }
       } catch (cloudErr) {

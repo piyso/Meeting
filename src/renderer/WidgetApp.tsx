@@ -14,6 +14,7 @@ import { motion } from 'framer-motion'
 
 export const WidgetApp: React.FC = () => {
   const [isRecording, setIsRecording] = useState(false)
+  const [isPaused, setIsPaused] = useState(false)
   const [elapsedTime, setElapsedTime] = useState('00:00:00')
   const [lastTranscriptLine, setLastTranscriptLine] = useState('')
   const [audioMode, setAudioMode] = useState<'system' | 'microphone' | 'none'>('none')
@@ -25,6 +26,7 @@ export const WidgetApp: React.FC = () => {
   useEffect(() => {
     const unsubscribe = window.electronAPI.on.widgetStateUpdated(state => {
       setIsRecording(state.isRecording)
+      setIsPaused(!!state.isPaused)
       setElapsedTime(state.elapsedTime)
       setLastTranscriptLine(state.lastTranscriptLine)
       if (state.audioMode) setAudioMode(state.audioMode)
@@ -44,6 +46,9 @@ export const WidgetApp: React.FC = () => {
   }
 
   const handleStop = () => {
+    // TODO: When widget:triggerStop IPC channel is added, use it here
+    // to route through main process and find the activeMeetingId.
+    // For now, 'current' is handled by the main process stopCapture handler.
     window.electronAPI.audio.stopCapture({ meetingId: 'current' })
   }
 
@@ -53,6 +58,10 @@ export const WidgetApp: React.FC = () => {
 
   const handleQuickNote = (text: string) => {
     window.electronAPI.widget.submitQuickNote(text)
+  }
+
+  const handlePauseToggle = () => {
+    window.electronAPI.widget.triggerPauseToggle()
   }
 
   return (
@@ -71,6 +80,7 @@ export const WidgetApp: React.FC = () => {
       >
         <MiniWidget
           isRecording={isRecording}
+          isPaused={isPaused}
           elapsedTime={elapsedTime}
           lastTranscriptLine={lastTranscriptLine}
           audioMode={audioMode}
@@ -82,6 +92,7 @@ export const WidgetApp: React.FC = () => {
           onStop={handleStop}
           onBookmark={handleBookmark}
           onQuickNote={handleQuickNote}
+          onPauseToggle={handlePauseToggle}
         />
       </motion.div>
     </div>

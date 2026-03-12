@@ -1,4 +1,4 @@
-import { ipcMain } from 'electron'
+import { ipcMain, BrowserWindow } from 'electron'
 import { Logger } from '../../services/Logger'
 
 const log = Logger.create('NoteHandlers')
@@ -153,49 +153,56 @@ export function registerNoteHandlers(): void {
         } else {
           // PRO PATH: PiyAPI Context Sessions API (token-budgeted retrieval)
           try {
-            const { getBackend } = await import('./graph.handlers')
+            const { getBackend } = await import('../../services/backend/BackendSingleton')
             const backend = getBackend()
 
-            // Blueprint §2.4: Use Context Sessions for semantic context retrieval
-            const sessionResult = await backend.createContextSession({
-              namespace: 'meetings.transcripts',
-              token_budget: 2048,
-              time_range: {
-                start: (params.timestamp || 0) - 60,
-                end: (params.timestamp || 0) + 10,
-              },
-              filters: { meeting_id: params.meetingId },
-            })
+            // P1-6 FIX: Check health before cloud calls to prevent unhelpful errors when offline
+            const health = await backend.healthCheck()
+            if (health.status !== 'healthy') {
+              log.debug('[note:expand] Cloud unhealthy, falling back to local AI')
+              // Fall through to local path below
+            } else {
+              // Blueprint §2.4: Use Context Sessions for semantic context retrieval
+              const sessionResult = await backend.createContextSession({
+                namespace: 'meetings.transcripts',
+                token_budget: 2048,
+                time_range: {
+                  start: (params.timestamp || 0) - 60,
+                  end: (params.timestamp || 0) + 10,
+                },
+                filters: { meeting_id: params.meetingId },
+              })
 
-            let cloudContext = context.contextText
-            if (sessionResult?.context_session_id) {
-              const contextData = await backend.retrieveContext(
-                sessionResult.context_session_id,
-                params.text
-              )
-              if (contextData?.context) {
-                cloudContext = contextData.context
+              let cloudContext = context.contextText
+              if (sessionResult?.context_session_id) {
+                const contextData = await backend.retrieveContext(
+                  sessionResult.context_session_id,
+                  params.text
+                )
+                if (contextData?.context) {
+                  cloudContext = contextData.context
+                }
               }
-            }
 
-            // Use /ask endpoint with enriched context
-            const result = await backend.ask(
-              `You are an executive assistant helping write meeting notes.\n\nCONTEXT (what was being discussed):\n${cloudContext}\n\nUSER'S BRIEF NOTE:\n${params.text}\n\nINSTRUCTIONS:\n1. Expand the user's note into 1-2 clear, professional sentences\n2. Include specific details from the context (numbers, names, deadlines)\n3. Write in third person ("The team decided..." not "We decided...")\n4. Be concise - maximum 50 words\n5. Do not add information not present in the context\n\nEXPANDED NOTE:`
-            )
+              // Use /ask endpoint with enriched context
+              const result = await backend.ask(
+                `You are an executive assistant helping write meeting notes.\n\nCONTEXT (what was being discussed):\n${cloudContext}\n\nUSER'S BRIEF NOTE:\n${params.text}\n\nINSTRUCTIONS:\n1. Expand the user's note into 1-2 clear, professional sentences\n2. Include specific details from the context (numbers, names, deadlines)\n3. Write in third person ("The team decided..." not "We decided...")\n4. Be concise - maximum 50 words\n5. Do not add information not present in the context\n\nEXPANDED NOTE:`
+              )
 
-            // Record cloud AI usage for quota tracking
-            quotaManager.recordUsage()
+              // Record cloud AI usage AFTER confirmed success (not before)
+              quotaManager.recordUsage()
 
-            return {
-              success: true,
-              data: {
-                expandedText: result.answer,
-                context: cloudContext,
-                tokensUsed: 0,
-                inferenceTime: 0,
-                sourceSegments: context.transcripts.map((t: { id: string }) => t.id),
-                source: 'cloud',
-              },
+              return {
+                success: true,
+                data: {
+                  expandedText: result.answer,
+                  context: cloudContext,
+                  tokensUsed: 0,
+                  inferenceTime: 0,
+                  sourceSegments: context.transcripts.map((t: { id: string }) => t.id),
+                  source: 'cloud',
+                },
+              }
             }
           } catch (err) {
             // Fall through to local AI if cloud fails
@@ -306,12 +313,22 @@ EXPANDED NOTE:`
             temperature: 0.1,
             maxTokens: 100,
           })
+
+          // Persist expanded text to DB — without this, augmented_text stays NULL
+          if (expandedText) {
+            const { updateNote: updateNoteDb } = await import('../../database/crud/notes')
+            updateNoteDb(noteId, { augmented_text: expandedText })
+          }
+
           results.push({ noteId, expandedText })
 
-          // Emit progress event to renderer
-          const { BrowserWindow } = await import('electron')
-          const win = BrowserWindow.getAllWindows()[0]
-          if (win) {
+          // Emit progress event to renderer — C6 fix: avoid circular require('electron/main')
+          // BrowserWindow.getAllWindows() queries Electron's window registry directly
+          const allWindows = BrowserWindow.getAllWindows()
+          const win =
+            allWindows.find((w: BrowserWindow) => !w.isDestroyed() && w.getBounds().width > 400) ||
+            allWindows[0]
+          if (win && !win.isDestroyed()) {
             win.webContents.send('event:batchExpandProgress', {
               total: params.noteIds.length,
               completed: i + 1,

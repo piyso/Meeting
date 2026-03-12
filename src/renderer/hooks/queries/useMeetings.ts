@@ -11,5 +11,7 @@ export function useMeetings(params: ListMeetingsParams = { limit: 50, offset: 0 
       }
       return response.data ?? { items: [], total: 0, limit: 10, offset: 0, hasMore: false }
     },
+    staleTime: 15_000, // Serve cached list for 15s — mutations invalidate anyway
+    gcTime: 10 * 60_000, // Keep in cache for 10min after unmount
   })
 }

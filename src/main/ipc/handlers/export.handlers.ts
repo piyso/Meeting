@@ -12,21 +12,8 @@ export function registerExportHandlers(): void {
   // export:userData — Export all user data (GDPR compliance, Starter+)
   ipcMain.handle('export:userData', async (_, params) => {
     try {
-      // Tier gate: export requires Starter+ (cloud sync tier)
-      const { getCloudAccessManager } = await import('../../services/CloudAccessManager')
-      const cam = getCloudAccessManager()
-      const features = await cam.getFeatureAccess()
-
-      if (!features.cloudSync) {
-        return {
-          success: false,
-          error: {
-            code: 'TIER_REQUIRED',
-            message: 'Data export requires Starter plan or higher',
-            timestamp: Date.now(),
-          },
-        }
-      }
+      // GDPR Article 20: Right to data portability applies to ALL tiers.
+      // No tier gate — every user can export their own data.
 
       const db = getDatabase()
       const format = params?.format || 'json'
@@ -155,34 +142,26 @@ export function registerExportHandlers(): void {
   // export:deleteAllData — GDPR right to be forgotten (deletes local + requests cloud deletion)
   ipcMain.handle('export:deleteAllData', async () => {
     try {
-      const { getCloudAccessManager } = await import('../../services/CloudAccessManager')
-      const cam = getCloudAccessManager()
-      const features = await cam.getFeatureAccess()
-
-      if (!features.cloudSync) {
-        return {
-          success: false,
-          error: {
-            code: 'TIER_REQUIRED',
-            message: 'Data deletion requires Starter plan or higher',
-            timestamp: Date.now(),
-          },
-        }
-      }
+      // GDPR Article 17: Right to erasure applies to ALL tiers.
+      // No tier gate — every user can delete their own data.
 
       // Request cloud data deletion
       let cloudDeleted = false
       try {
-        const { getBackend } = await import('./graph.handlers')
+        const { getBackend } = await import('../../services/backend/BackendSingleton')
         const backend = getBackend()
-        const isHealthy = await backend.healthCheck()
-        if (isHealthy) {
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          const backendAny = backend as any
-          if (typeof backendAny.deleteAllData === 'function') {
-            await backendAny.deleteAllData()
-            cloudDeleted = true
+        const health = await backend.healthCheck()
+        if (health.status === 'healthy') {
+          // F6: Use proper GDPR exportAll before deletion (user gets a download link)
+          const exportResult = await backend.exportAll('all')
+          if (exportResult?.download_url) {
+            log.info(`GDPR export created: ${exportResult.download_url}`)
           }
+
+          // P2-6 FIX: Removed deduplicate(dryRun=false) that was here — pointless before deletion
+
+          const deleted = await backend.deleteAllData()
+          cloudDeleted = deleted
         }
       } catch (err) {
         log.warn('Cloud data deletion failed', err)
@@ -190,21 +169,44 @@ export function registerExportHandlers(): void {
 
       // Delete local data
       const db = getDatabase()
-      const tables = ['transcripts', 'notes', 'entities', 'sync_queue']
+      // Delete ALL user data tables including FTS, audit trails, and ancillary data
+      // Order: children first, parents last (FK constraints: transcripts/notes/entities → meetings)
+      const tables = [
+        'transcripts',
+        'notes',
+        'entities',
+        'action_items',
+        'digests',
+        'audio_highlights',
+        'sync_queue',
+        'query_usage',
+        'meeting_templates',
+        'devices',
+        'audit_logs',
+        'encryption_keys',
+        'settings',
+        'meetings', // LAST — parent table referenced by FKs above
+      ]
       for (const table of tables) {
         try {
           db.prepare(`DELETE FROM ${table}`).run()
         } catch {
-          // Table may not exist
+          // Table may not exist in older DB schemas
         }
       }
 
-      // Delete meetings last (foreign key references)
-      try {
-        db.prepare('DELETE FROM meetings').run()
-      } catch {
-        // Ignore
+      // Clear FTS virtual tables (separate since they need different handling)
+      // I11 fix: include entities_fts — was missing, causing stale search results
+      for (const fts of ['transcripts_fts', 'notes_fts', 'entities_fts']) {
+        try {
+          db.prepare(`DELETE FROM ${fts}`).run()
+        } catch {
+          // FTS table may not exist
+        }
       }
+
+      // C8 fix: meetings table already deleted in the loop above (last in the array)
+      // Removed duplicate DELETE FROM meetings that was here
 
       log.info(`Data deletion complete. Cloud: ${cloudDeleted ? 'yes' : 'no'}`)
       return {

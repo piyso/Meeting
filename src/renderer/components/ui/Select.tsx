@@ -13,7 +13,7 @@ export const Select = React.forwardRef<HTMLSelectElement, SelectProps>(
       <div className={`ui-select-group ${className}`}>
         {label && <label className="ui-select-label">{label}</label>}
         <div className="ui-select-wrapper">
-          <select ref={ref} className="ui-select" {...props}>
+          <select ref={ref} className="ui-select" {...props} value={props.value ?? ''}>
             {options.map(opt => (
               <option key={opt.value} value={opt.value}>
                 {opt.label}

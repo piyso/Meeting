@@ -165,6 +165,7 @@ export const IPC_CHANNELS = {
   widget: {
     updateState: 'widget:updateState',
     triggerBookmark: 'widget:triggerBookmark',
+    triggerPauseToggle: 'widget:triggerPauseToggle',
     submitQuickNote: 'widget:submitQuickNote',
   },
 
@@ -234,6 +235,7 @@ export const IPC_CHANNELS = {
     audioFallback: 'audio:fallbackOccurred',
     bookmarkRequested: 'event:bookmarkRequested',
     quickNoteRequested: 'event:quickNoteRequested',
+    pauseRequested: 'event:pauseRequested',
   },
 } as const
 

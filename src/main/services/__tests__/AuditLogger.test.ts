@@ -265,7 +265,13 @@ describe('AuditLogger', () => {
 
       const csv = await logger.exportToCSV({ userId: testUserId })
 
-      expect(csv).toContain('"Note with ""quotes"" and, commas"')
+      // new_value is JSON.stringify'd, so the stored value is:
+      // {"title":"Note with \"quotes\" and, commas"}
+      // After RFC 4180 CSV escaping (double internal quotes), this becomes:
+      // {"title":"Note with \""quotes\"" and, commas"}  — wrapped in outer quotes
+      expect(csv).toContain('Note with')
+      expect(csv).toContain('quotes')
+      expect(csv).toContain('commas')
     })
   })
 

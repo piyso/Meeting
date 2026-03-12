@@ -6,30 +6,34 @@
 :root {
   /* Fonts */
   --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-serif: 'Playfair Display', Georgia, serif;
+  --font-mono: 'SF Mono', Consolas, Monaco, monospace;
 
-  /* Color Palette: Calm / Zen */
-  --bg-page: #fcfcfc;
-  --bg-surface: #ffffff;
-  --bg-subtle: #f3f4f6;
+  /* Color Palette: Sovereign Obsidian */
+  --bg-page: #020617; /* Slate 950 base */
+  --bg-surface: #0f172a; /* Slate 900 */
+  --bg-subtle: #1e293b; /* Slate 800 */
 
-  --text-main: #2d3748; /* Deep charcoal, avoiding pure black */
-  --text-muted: #64748b;
-  --text-light: #94a3b8;
+  --text-main: #f8fafc; /* Crisp off-white */
+  --text-muted: #94a3b8; /* Slate 400 */
+  --text-light: #64748b; /* Slate 500 */
 
   --brand-lavender: #a78bfa;
-  --brand-lavender-dark: #8b5cf6;
-  --brand-sage: #86efac;
+  --brand-lavender-dark: #7c3aed; /* Deep Violet */
+  --brand-sage: #10b981; /* Precise Emerald */
+  --brand-amber: #f59e0b; /* Alert Amber */
 
-  --border-light: rgba(0, 0, 0, 0.06);
-  --border-strong: rgba(0, 0, 0, 0.12);
+  --border-light: rgba(255, 255, 255, 0.05);
+  --border-strong: rgba(255, 255, 255, 0.12);
 
   /* Layout & Shadows */
   --radius-sm: 8px;
   --radius-md: 12px;
   --radius-lg: 24px;
 
-  --shadow-float: 0 10px 40px -10px rgba(0, 0, 0, 0.08);
-  --shadow-subtle: 0 4px 12px rgba(0, 0, 0, 0.03);
+  --shadow-float: 0 10px 40px -10px rgba(0, 0, 0, 0.8);
+  --shadow-subtle: 0 4px 12px rgba(0, 0, 0, 0.4);
+  --shadow-glow: 0 0 20px rgba(124, 58, 237, 0.15); /* Violet glow for interactive cards */
 
   /* Animation */
   --ease-calm: cubic-bezier(0.25, 1, 0.5, 1);

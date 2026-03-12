@@ -5,7 +5,7 @@
  * Implements audio capture, device enumeration, and pre-flight testing.
  */
 
-import { ipcMain } from 'electron'
+import { ipcMain, powerSaveBlocker } from 'electron'
 import { Logger } from '../../services/Logger'
 
 const log = Logger.create('AudioHandlers')
@@ -22,6 +22,8 @@ import type {
 
 // Local state for first-chunk logging
 let hasLoggedFirstChunk = false
+// Issue 19: powerSaveBlocker ID for active recording
+let sleepBlockerId: number | null = null
 
 /**
  * Register all audio-related IPC handlers
@@ -30,17 +32,19 @@ export function registerAudioHandlers(): void {
   const audioPipeline = getAudioPipelineService()
 
   // Handle audio chunks from renderer
+  // OPT-15: Renderer sends raw Float32Array (structured clone handles it natively)
   ipcMain.on(
     'audio:chunk',
     (
       _event,
       chunk: {
-        data: Float32Array
+        data: Float32Array | number[]
         sampleRate: number
         timestamp: number
       }
     ) => {
-      // Convert raw audio data to Float32Array if needed
+      // Structured clone may deserialize Float32Array as a regular object on some
+      // Electron versions, so always ensure we have a proper Float32Array
       const audioChunk =
         chunk.data instanceof Float32Array ? chunk.data : new Float32Array(chunk.data)
 
@@ -48,8 +52,8 @@ export function registerAudioHandlers(): void {
       if (!hasLoggedFirstChunk) {
         log.info('📥 First audio chunk received:')
         log.info(`   Sample rate: ${chunk.sampleRate}Hz`)
-        log.info(`   Chunk size: ${chunk.data.length} samples`)
-        log.info(`   Duration: ${(chunk.data.length / chunk.sampleRate).toFixed(2)}s`)
+        log.info(`   Chunk size: ${audioChunk.length} samples`)
+        log.info(`   Duration: ${(audioChunk.length / chunk.sampleRate).toFixed(2)}s`)
 
         if (chunk.sampleRate === 16000) {
           log.info('✅ Audio is correctly configured for 16kHz (Whisper requirement)')
@@ -99,7 +103,23 @@ export function registerAudioHandlers(): void {
         // Reset first-chunk logging flag for new capture session
         hasLoggedFirstChunk = false
 
+        // OPT-10: Elevate process priority during recording
+        try {
+          const os = await import('os')
+          os.setPriority(os.constants.priority.PRIORITY_ABOVE_NORMAL)
+          log.info('Process priority elevated for recording')
+        } catch (e) {
+          log.warn('Could not elevate process priority:', e)
+        }
+
         await audioPipeline.startCapture(params.meetingId)
+
+        // Issue 19: Prevent system sleep during recording
+        // Start AFTER startCapture succeeds — prevents leak if startCapture throws
+        if (sleepBlockerId === null) {
+          sleepBlockerId = powerSaveBlocker.start('prevent-display-sleep')
+          log.info(`powerSaveBlocker started (id: ${sleepBlockerId})`)
+        }
 
         const status = audioPipeline.getStatus()
 
@@ -128,12 +148,40 @@ export function registerAudioHandlers(): void {
     }
   )
 
+  // Issue 13: Get desktop capturer sources for WASAPI system audio on Windows
+  ipcMain.handle('desktop-capturer-sources', async () => {
+    try {
+      const { desktopCapturer } = await import('electron')
+      const sources = await desktopCapturer.getSources({ types: ['screen'] })
+      return sources.map(s => ({ id: s.id, name: s.name }))
+    } catch (error) {
+      log.error('Failed to get desktop capturer sources:', error)
+      return []
+    }
+  })
+
   // Stop audio capture
   ipcMain.handle(
     'audio:stopCapture',
     async (_event, _params: StopAudioCaptureParams): Promise<IPCResponse<void>> => {
       try {
         await audioPipeline.stopCapture()
+
+        // Issue 19: Release powerSaveBlocker when recording stops
+        if (sleepBlockerId !== null) {
+          powerSaveBlocker.stop(sleepBlockerId)
+          log.info(`powerSaveBlocker stopped (id: ${sleepBlockerId})`)
+          sleepBlockerId = null
+        }
+
+        // OPT-10: Reset process priority to normal
+        try {
+          const os = await import('os')
+          os.setPriority(os.constants.priority.PRIORITY_NORMAL)
+          log.info('Process priority reset to normal')
+        } catch (e) {
+          log.warn('Could not reset process priority:', e)
+        }
 
         return {
           success: true,
@@ -153,6 +201,45 @@ export function registerAudioHandlers(): void {
       }
     }
   )
+
+  // I1 fix: Pause audio capture — renderer calls this via useAudioSession.pauseCapture()
+  ipcMain.handle('audio:pauseCapture', async (): Promise<IPCResponse<void>> => {
+    try {
+      // Set paused flag on pipeline — it will stop processing chunks but keep resources alive
+      audioPipeline.pause?.()
+      log.info('Audio capture paused')
+      return { success: true, data: undefined }
+    } catch (error) {
+      log.error('Failed to pause audio capture:', error)
+      return {
+        success: false,
+        error: {
+          code: 'AUDIO_PAUSE_FAILED',
+          message: error instanceof Error ? error.message : 'Unknown error',
+          timestamp: Date.now(),
+        },
+      }
+    }
+  })
+
+  // I1 fix: Resume audio capture — renderer calls this via useAudioSession.resumeCapture()
+  ipcMain.handle('audio:resumeCapture', async (): Promise<IPCResponse<void>> => {
+    try {
+      audioPipeline.resume?.()
+      log.info('Audio capture resumed')
+      return { success: true, data: undefined }
+    } catch (error) {
+      log.error('Failed to resume audio capture:', error)
+      return {
+        success: false,
+        error: {
+          code: 'AUDIO_RESUME_FAILED',
+          message: error instanceof Error ? error.message : 'Unknown error',
+          timestamp: Date.now(),
+        },
+      }
+    }
+  })
 
   // Get audio capture status
   ipcMain.handle('audio:getStatus', async (): Promise<IPCResponse<AudioCaptureStatus>> => {
@@ -380,9 +467,9 @@ export function registerAudioHandlers(): void {
     try {
       const { shell } = await import('electron')
 
-      // Validate URL to prevent security issues
-      if (!url.startsWith('http://') && !url.startsWith('https://')) {
-        throw new Error('Invalid URL: Only HTTP and HTTPS URLs are allowed')
+      // Validate URL to prevent security issues — HTTPS only
+      if (!url.startsWith('https://')) {
+        throw new Error('Invalid URL: Only HTTPS URLs are allowed')
       }
 
       await shell.openExternal(url)
@@ -700,6 +787,18 @@ export function registerAudioHandlers(): void {
         // For now, delegate to basic startCapture
         hasLoggedFirstChunk = false
         await audioPipeline.startCapture(params.meetingId)
+
+        // Match normal startCapture — prevent sleep & elevate priority
+        if (sleepBlockerId === null) {
+          sleepBlockerId = powerSaveBlocker.start('prevent-display-sleep')
+          log.info(`powerSaveBlocker started via fallback (id: ${sleepBlockerId})`)
+        }
+        try {
+          const os = await import('os')
+          os.setPriority(os.constants.priority.PRIORITY_ABOVE_NORMAL)
+        } catch {
+          /* best effort */
+        }
 
         return {
           success: true,

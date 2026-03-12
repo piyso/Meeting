@@ -8,6 +8,7 @@
       name="description"
       content="The deeply private, perfectly quiet meeting recorder that runs entirely on your machine. No cloud. No compromise."
     />
+    <link rel="icon" href="favicon.ico" type="image/x-icon" />
     <link rel="preconnect" href="https://rsms.me/" />
     <link rel="stylesheet" href="https://rsms.me/inter/inter.css" />
     <link rel="stylesheet" href="styles.css" />
@@ -23,19 +24,19 @@
   </head>
   <body>
     <!-- Top Nav -->
-    <nav class="nav">
+    <nav class="nav" style="background: rgba(2, 6, 23, 0.85); border-bottom: 1px solid rgba(255,255,255,0.05);">
       <div class="container nav-inner">
-        <a href="/" class="brand" style="display: flex; align-items: center">
+        <a href="/" class="brand" style="display: flex; align-items: center; color: var(--text-main);">
           <div id="nav-logo-3d" style="width: 32px; height: 32px; margin-right: 8px"></div>
-          <strong>BlueArkive</strong>
+          <strong>PiyNotes</strong>
         </a>
         <div class="nav-links">
-          <a href="#features">Capabilities</a>
-          <a href="#security">Architecture</a>
-          <a href="#pricing">Pricing</a>
+          <a href="#features">Architecture</a>
+          <a href="#security">Security</a>
+          <a href="#pricing">Nodes</a>
         </div>
         <div class="nav-cta">
-          <a href="#download" class="btn btn-primary btn-sm">Get Early Access</a>
+          <a href="#download" class="btn btn-primary btn-sm" style="background: var(--brand-lavender-dark);">Initialize Core</a>
         </div>
       </div>
     </nav>
@@ -48,11 +49,10 @@
           <div
             class="badge-pill"
             style="
-              border: 1px solid rgba(239, 68, 68, 0.3);
-              background: rgba(239, 68, 68, 0.1);
-              color: #ef4444;
-              font-weight: 600;
-              letter-spacing: 0.5px;
+              border: 1px solid rgba(167, 139, 250, 0.3);
+              background: rgba(167, 139, 250, 0.05);
+              color: var(--brand-lavender);
+              font-family: var(--font-mono);
             "
           >
             <span
@@ -61,27 +61,30 @@
                 width: 6px;
                 height: 6px;
                 border-radius: 50%;
-                background: #ef4444;
+                background: var(--brand-sage);
                 margin-right: 8px;
                 animation: pulse 2s infinite;
+                box-shadow: 0 0 10px var(--brand-sage);
               "
             ></span>
-            EARLY ACCESS: STRICTLY LIMITED CAPACITY
+            v0.3.0 CORE ONLINE
           </div>
-          <h1>Be perfectly<br />present.</h1>
-          <p class="hero-subtitle">
-            Most AI apps secretly upload your conversations. BlueArkive is different. It runs
-            entirely on your Mac, capturing flawless meeting notes
-            <i>without ever touching the internet</i>. No subscriptions. No bots. Just perfect
-            privacy.
+          <h1 style="color: var(--text-main); background: none; -webkit-text-fill-color: initial;">The Sovereign<br />Memory Fabric.</h1>
+          <p class="hero-subtitle" style="font-family: var(--font-serif); font-style: italic; font-size: 1.5rem; color: var(--text-muted); margin-bottom: 24px;">
+            Constructing the Autonomous Agentic Web.
+          </p>
+          <p class="hero-subtitle" style="font-size: 1.1rem; line-height: 1.8;">
+            You own your context. PiyNotes runs <strong style="color: var(--text-main);">100% locally</strong> on your machine.
+            No creepy bots joining your calls. No data harvesting. 
+            Just flawless, invisible intelligence.
           </p>
           <div class="hero-actions">
-            <a href="#download" class="btn btn-primary btn-lg">
-              Download Free
-              <span class="btn-subtext">macOS · Apple Silicon & Intel</span>
+            <a href="#download" class="btn btn-primary btn-lg" style="background: var(--text-main); color: var(--bg-page);">
+              Deploy Your Node 
+              <span class="btn-subtext" id="hero-os-label" style="color: rgba(2, 6, 23, 0.7); font-family: var(--font-mono);">macOS · Windows · Linux</span>
             </a>
-            <p class="trust-microcopy">
-              <strong>🔒 Zero Risk:</strong> No account. No credit card. 100% offline.
+            <p class="trust-microcopy" style="font-family: var(--font-mono);">
+              <strong style="color: var(--brand-sage);">[✓] FREE FOREVER:</strong> Zero cost. Zero cloud. Zero compromise.
             </p>
           </div>
         </div>
@@ -97,15 +100,13 @@
           "
         >
           <div id="hero-logo-3d" style="width: 350px; height: 350px; margin-bottom: -40px"></div>
-          <div class="widget-demo">
-            <div class="widget-glass">
-              <div class="pulse-ring"></div>
-              <div class="pulse-dot"></div>
-              <span class="widget-text">Listening quietly...</span>
-              <span class="widget-time">00:14:23</span>
-            </div>
-            <p class="widget-caption">Auto-hiding widget keeps you focused</p>
+          <div class="widget-demo" style="background: rgba(15, 23, 42, 0.8); border: 1px solid rgba(255, 255, 255, 0.1); box-shadow: var(--shadow-glow);">
+            <div class="pulse-ring" style="background: var(--brand-sage);"></div>
+            <div class="pulse-dot" style="background: var(--brand-sage); box-shadow: 0 0 10px var(--brand-sage);"></div>
+            <span class="widget-text" style="color: var(--text-main); font-family: var(--font-mono); font-size: 0.85rem;">Listening silently...</span>
+            <span class="widget-time" style="color: var(--brand-sage);">00:14:23</span>
           </div>
+          <p class="widget-caption" style="font-family: var(--font-mono);">Background inference active.</p>
         </div>
       </div>
     </header>
@@ -123,7 +124,7 @@
         </div>
         <div class="metric">
           <h3>Lightning Fast</h3>
-          <p>Powered by your Mac</p>
+          <p>Powered by your hardware</p>
         </div>
         <div class="metric">
           <h3>Offline</h3>
@@ -184,18 +185,18 @@
           <!-- Large Feature 4 -->
           <div class="bento-card col-span-2 split-card reveal">
             <div class="bento-content">
-              <span class="tag">MADE FOR MAC</span>
-              <h3>Optimized for your computer.</h3>
+              <span class="tag">RUNS EVERYWHERE</span>
+              <h3>Your hardware. Your intelligence.</h3>
               <p>
-                BlueArkive runs beautifully on any modern Mac. Because it uses the power of your own
-                computer instead of expensive cloud servers, we can offer the entire product
-                completely for free.
+                BlueArkive runs beautifully on Mac, Windows, and Linux. Because it uses the power of your own
+                computer instead of expensive cloud servers, the entire product is
+                completely free — forever.
               </p>
             </div>
             <div class="tier-visual">
-              <div class="tier"><strong>8GB Mac</strong> <span>Fast & Smooth</span></div>
-              <div class="tier"><strong>16GB Mac</strong> <span>Balanced Power</span></div>
-              <div class="tier"><strong>32GB+ Mac</strong> <span>Maximum Quality</span></div>
+              <div class="tier"><strong>macOS</strong> <span>Apple Silicon & Intel</span></div>
+              <div class="tier"><strong>Windows</strong> <span>x64 Installer & Portable</span></div>
+              <div class="tier"><strong>Linux</strong> <span>AppImage, .deb, .rpm</span></div>
             </div>
           </div>
         </div>
@@ -308,543 +309,220 @@
           Free. Private. No account needed. Yours forever.
         </p>
 
-        <!-- Mac Download (shown by default) -->
-        <div id="mac-download" style="margin-top: 40px">
+        <!-- ═══ macOS Download ═══ -->
+        <div id="dl-mac" style="margin-top: 40px">
           <a
-            id="dl-primary"
+            id="dl-mac-primary"
             href="https://dl.bluearkive.com/BlueArkive-0.3.0-mac-arm64.dmg"
             class="btn btn-primary btn-lg"
             style="padding: 20px 48px; font-size: 1.2rem"
           >
-            ↓ Download for Mac
+            ↓ Download for macOS
             <span class="btn-subtext" id="dl-chip-label">Apple Silicon · arm64 · 188 MB</span>
           </a>
           <p style="margin-top: 12px">
             <a
-              id="dl-alt-link"
+              id="dl-mac-alt"
               href="https://dl.bluearkive.com/BlueArkive-0.3.0-mac-x64.dmg"
-              style="
-                font-size: 0.85rem;
-                color: var(--text-muted);
-                text-decoration: underline;
-                cursor: pointer;
-              "
+              style="font-size: 0.85rem; color: var(--text-muted); text-decoration: underline; cursor: pointer;"
             >
-              Download for Intel Mac instead (x64 · 192 MB)
+              Download for Intel Mac instead (x64)
             </a>
           </p>
         </div>
 
-        <!-- Windows / Linux Coming Soon (hidden by default, shown via JS) -->
-        <div
-          id="other-os-download"
-          style="
-            display: none;
-            margin-top: 40px;
-            max-width: 480px;
-            margin-left: auto;
-            margin-right: auto;
-          "
-        >
-          <div
-            style="
-              background: var(--bg-surface);
-              border: 1px solid var(--border-light);
-              border-radius: 16px;
-              padding: 36px 28px;
-            "
+        <!-- ═══ Windows Download ═══ -->
+        <div id="dl-win" style="display: none; margin-top: 40px">
+          <a
+            id="dl-win-primary"
+            href="https://dl.bluearkive.com/BlueArkive-Setup-0.3.0.exe"
+            class="btn btn-primary btn-lg"
+            style="padding: 20px 48px; font-size: 1.2rem"
           >
-            <div
-              style="
-                width: 56px;
-                height: 56px;
-                border-radius: 14px;
-                background: linear-gradient(135deg, var(--brand-lavender), #c4b5fd);
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                margin: 0 auto 20px;
-                color: white;
-              "
+            ↓ Download for Windows
+            <span class="btn-subtext">x64 Installer · .exe</span>
+          </a>
+          <p style="margin-top: 12px">
+            <a
+              id="dl-win-alt"
+              href="https://dl.bluearkive.com/BlueArkive-0.3.0-portable.exe"
+              style="font-size: 0.85rem; color: var(--text-muted); text-decoration: underline; cursor: pointer;"
             >
-              <svg
-                width="24"
-                height="24"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                stroke-width="2"
-              >
-                <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
-              </svg>
+              Download Portable version instead (no install)
+            </a>
+          </p>
+        </div>
+
+        <!-- ═══ Linux Download ═══ -->
+        <div id="dl-linux" style="display: none; margin-top: 40px">
+          <a
+            id="dl-linux-primary"
+            href="https://dl.bluearkive.com/BlueArkive-0.3.0-x86_64.AppImage"
+            class="btn btn-primary btn-lg"
+            style="padding: 20px 48px; font-size: 1.2rem"
+          >
+            ↓ Download for Linux
+            <span class="btn-subtext">AppImage · x64</span>
+          </a>
+          <p style="margin-top: 12px">
+            <a
+              id="dl-linux-deb"
+              href="https://dl.bluearkive.com/BlueArkive-0.3.0-amd64.deb"
+              style="font-size: 0.85rem; color: var(--text-muted); text-decoration: underline; cursor: pointer;"
+            >
+              .deb (Debian/Ubuntu)
+            </a>
+            <span style="color: var(--text-light); margin: 0 8px">·</span>
+            <a
+              id="dl-linux-rpm"
+              href="https://dl.bluearkive.com/BlueArkive-0.3.0-x86_64.rpm"
+              style="font-size: 0.85rem; color: var(--text-muted); text-decoration: underline; cursor: pointer;"
+            >
+              .rpm (Fedora/RHEL)
+            </a>
+          </p>
+        </div>
+
+        <!-- ═══ Mobile (iOS / Android) ═══ -->
+        <div id="dl-mobile" style="display: none; margin-top: 40px; max-width: 480px; margin-left: auto; margin-right: auto;">
+          <div style="background: var(--bg-surface); border: 1px solid var(--border-light); border-radius: 16px; padding: 36px 28px;">
+            <div style="width: 56px; height: 56px; border-radius: 14px; background: linear-gradient(135deg, var(--brand-lavender), #c4b5fd); display: flex; align-items: center; justify-content: center; margin: 0 auto 20px; color: white;">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="5" y="2" width="14" height="20" rx="2" ry="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg>
             </div>
-            <h3
-              style="
-                font-size: 1.2rem;
-                font-weight: 600;
-                margin-bottom: 8px;
-                color: var(--text-main);
-              "
-              id="other-os-title"
-            >
-              Windows version coming soon.
+            <h3 style="font-size: 1.2rem; font-weight: 600; margin-bottom: 8px; color: var(--text-main);">
+              BlueArkive is a desktop app.
             </h3>
-            <p
-              style="
-                font-size: 0.9rem;
-                color: var(--text-muted);
-                margin-bottom: 24px;
-                line-height: 1.5;
-              "
-            >
-              We're building BlueArkive for <span id="other-os-name">Windows</span>. Leave your
-              email and we'll notify you the moment it's ready.
-            </p>
-            <form
-              onsubmit="
-                event.preventDefault()
-                this.querySelector('button').textContent = '✓ You\'re on the list!'
-                this.querySelector('button').style.background = 'var(--brand-sage)'
-                this.querySelector('input').disabled = true
-              "
-              style="display: flex; gap: 8px; max-width: 360px; margin: 0 auto"
-            >
-              <input
-                type="email"
-                placeholder="you@email.com"
-                required
-                style="
-                  flex: 1;
-                  padding: 12px 16px;
-                  border-radius: 10px;
-                  border: 1px solid var(--border-light);
-                  background: var(--bg-page);
-                  color: var(--text-main);
-                  font-size: 0.9rem;
-                  outline: none;
-                "
-              />
-              <button
-                type="submit"
-                class="btn btn-primary"
-                style="padding: 12px 24px; white-space: nowrap; font-size: 0.9rem"
-              >
-                Notify Me
-              </button>
-            </form>
-            <p style="margin-top: 16px; font-size: 0.8rem; color: var(--text-light)">
-              Currently available for
-              <a
-                href="#"
-                onclick="
-                  document.getElementById('other-os-download').style.display = 'none'
-                  document.getElementById('mac-download').style.display = 'block'
-                  return false
-                "
-                style="color: var(--brand-lavender-dark); text-decoration: underline"
-                >macOS</a
-              >
-              · No spam, ever.
+            <p style="font-size: 0.9rem; color: var(--text-muted); margin-bottom: 16px; line-height: 1.5;">
+              It runs locally on your computer to capture system audio. Visit this page on your Mac, Windows, or Linux machine to download.
             </p>
           </div>
         </div>
 
-        <!-- VISUAL: How to install (inline, honest, works on ALL macOS) -->
-        <div style="max-width: 640px; margin: 48px auto 0">
-          <h3
-            style="font-size: 1.1rem; font-weight: 600; margin-bottom: 8px; color: var(--text-main)"
-          >
+        <!-- ═══ Other Platforms Quick Links ═══ -->
+        <div id="dl-other-platforms" style="margin-top: 16px; font-size: 0.85rem; color: var(--text-light);">
+          Also available for:
+          <a href="#" onclick="showPlatform('mac'); return false" id="dl-link-mac" style="color: var(--brand-lavender-dark); text-decoration: underline; margin: 0 4px">macOS</a>
+          <a href="#" onclick="showPlatform('win'); return false" id="dl-link-win" style="color: var(--brand-lavender-dark); text-decoration: underline; margin: 0 4px">Windows</a>
+          <a href="#" onclick="showPlatform('linux'); return false" id="dl-link-linux" style="color: var(--brand-lavender-dark); text-decoration: underline; margin: 0 4px">Linux</a>
+        </div>
+
+        <!-- ═══ Install Instructions (platform-aware) ═══ -->
+
+        <!-- macOS Install Steps -->
+        <div id="install-mac" style="max-width: 640px; margin: 48px auto 0">
+          <h3 style="font-size: 1.1rem; font-weight: 600; margin-bottom: 8px; color: var(--text-main)">
             After downloading — three easy steps:
           </h3>
           <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 24px">
-            Because BlueArkive is free and independent, Apple shows a security warning. This quick
-            unlock takes 30 seconds.
+            Because BlueArkive is free and independent, Apple shows a security warning. This quick unlock takes 30 seconds.
           </p>
-
-          <div
-            style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 14px; text-align: center"
-          >
-            <!-- Step 1 -->
-            <div
-              style="
-                background: var(--bg-surface);
-                border: 1px solid var(--border-light);
-                border-radius: 16px;
-                padding: 24px 16px;
-              "
-            >
-              <div
-                style="
-                  width: 44px;
-                  height: 44px;
-                  border-radius: 12px;
-                  background: linear-gradient(135deg, var(--brand-lavender), #c4b5fd);
-                  display: flex;
-                  align-items: center;
-                  justify-content: center;
-                  margin: 0 auto 14px;
-                  color: white;
-                  font-size: 1.1rem;
-                  font-weight: 700;
-                "
-              >
-                1
-              </div>
-              <h4
-                style="
-                  font-size: 0.9rem;
-                  font-weight: 600;
-                  margin-bottom: 6px;
-                  color: var(--text-main);
-                "
-              >
-                Drag to Applications
-              </h4>
-              <p style="font-size: 0.82rem; color: var(--text-muted); line-height: 1.5; margin: 0">
-                Open the <code>.dmg</code> file and drag BlueArkive into Applications.
-              </p>
+          <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 14px; text-align: center">
+            <div style="background: var(--bg-surface); border: 1px solid var(--border-light); border-radius: 16px; padding: 24px 16px;">
+              <div style="width: 44px; height: 44px; border-radius: 12px; background: linear-gradient(135deg, var(--brand-lavender), #c4b5fd); display: flex; align-items: center; justify-content: center; margin: 0 auto 14px; color: white; font-size: 1.1rem; font-weight: 700;">1</div>
+              <h4 style="font-size: 0.9rem; font-weight: 600; margin-bottom: 6px; color: var(--text-main);">Drag to Applications</h4>
+              <p style="font-size: 0.82rem; color: var(--text-muted); line-height: 1.5; margin: 0">Open the <code>.dmg</code> file and drag BlueArkive into Applications.</p>
             </div>
-
-            <!-- Step 2 -->
-            <div
-              style="
-                background: var(--bg-surface);
-                border: 1px solid var(--border-light);
-                border-radius: 16px;
-                padding: 24px 16px;
-              "
-            >
-              <div
-                style="
-                  width: 44px;
-                  height: 44px;
-                  border-radius: 12px;
-                  background: linear-gradient(135deg, #38bdf8, #7dd3fc);
-                  display: flex;
-                  align-items: center;
-                  justify-content: center;
-                  margin: 0 auto 14px;
-                  color: white;
-                  font-size: 1.1rem;
-                  font-weight: 700;
-                "
-              >
-                2
-              </div>
-              <h4
-                style="
-                  font-size: 0.9rem;
-                  font-weight: 600;
-                  margin-bottom: 6px;
-                  color: var(--text-main);
-                "
-              >
-                Open Terminal
-              </h4>
-              <p style="font-size: 0.82rem; color: var(--text-muted); line-height: 1.5; margin: 0">
-                Press
-                <kbd
-                  style="
-                    background: var(--bg-subtle);
-                    padding: 2px 6px;
-                    border-radius: 4px;
-                    font-size: 0.8rem;
-                  "
-                  >⌘ Space</kbd
-                >, type <strong>Terminal</strong>, press Enter.
-              </p>
+            <div style="background: var(--bg-surface); border: 1px solid var(--border-light); border-radius: 16px; padding: 24px 16px;">
+              <div style="width: 44px; height: 44px; border-radius: 12px; background: linear-gradient(135deg, #38bdf8, #7dd3fc); display: flex; align-items: center; justify-content: center; margin: 0 auto 14px; color: white; font-size: 1.1rem; font-weight: 700;">2</div>
+              <h4 style="font-size: 0.9rem; font-weight: 600; margin-bottom: 6px; color: var(--text-main);">Open Terminal</h4>
+              <p style="font-size: 0.82rem; color: var(--text-muted); line-height: 1.5; margin: 0">Press <kbd style="background: var(--bg-subtle); padding: 2px 6px; border-radius: 4px; font-size: 0.8rem;">⌘ Space</kbd>, type <strong>Terminal</strong>, press Enter.</p>
             </div>
-
-            <!-- Step 3 -->
-            <div
-              style="
-                background: var(--bg-surface);
-                border: 1px solid var(--border-light);
-                border-radius: 16px;
-                padding: 24px 16px;
-              "
-            >
-              <div
-                style="
-                  width: 44px;
-                  height: 44px;
-                  border-radius: 12px;
-                  background: linear-gradient(135deg, var(--brand-sage), #86efac);
-                  display: flex;
-                  align-items: center;
-                  justify-content: center;
-                  margin: 0 auto 14px;
-                  color: white;
-                  font-size: 1.1rem;
-                  font-weight: 700;
-                "
-              >
-                3
-              </div>
-              <h4
-                style="
-                  font-size: 0.9rem;
-                  font-weight: 600;
-                  margin-bottom: 6px;
-                  color: var(--text-main);
-                "
-              >
-                Paste & press Enter
-              </h4>
-              <p style="font-size: 0.82rem; color: var(--text-muted); line-height: 1.5; margin: 0">
-                Paste the command below and type your Mac password when asked.
-              </p>
+            <div style="background: var(--bg-surface); border: 1px solid var(--border-light); border-radius: 16px; padding: 24px 16px;">
+              <div style="width: 44px; height: 44px; border-radius: 12px; background: linear-gradient(135deg, var(--brand-sage), #86efac); display: flex; align-items: center; justify-content: center; margin: 0 auto 14px; color: white; font-size: 1.1rem; font-weight: 700;">3</div>
+              <h4 style="font-size: 0.9rem; font-weight: 600; margin-bottom: 6px; color: var(--text-main);">Paste & press Enter</h4>
+              <p style="font-size: 0.82rem; color: var(--text-muted); line-height: 1.5; margin: 0">Paste the command below and type your Mac password when asked.</p>
             </div>
           </div>
-
-          <!-- The actual command to copy -->
-          <div
-            style="
-              margin-top: 20px;
-              background: #1a1a2e;
-              border-radius: 12px;
-              overflow: hidden;
-              box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
-            "
-          >
-            <div
-              style="
-                background: rgba(0, 0, 0, 0.2);
-                padding: 8px 16px;
-                display: flex;
-                align-items: center;
-                border-bottom: 1px solid rgba(255, 255, 255, 0.05);
-              "
-            >
-              <div style="display: flex; gap: 6px">
-                <div
-                  style="width: 10px; height: 10px; border-radius: 50%; background: #ff5f56"
-                ></div>
-                <div
-                  style="width: 10px; height: 10px; border-radius: 50%; background: #ffbd2e"
-                ></div>
-                <div
-                  style="width: 10px; height: 10px; border-radius: 50%; background: #27c93f"
-                ></div>
-              </div>
-              <div
-                style="
-                  flex: 1;
-                  text-align: center;
-                  font-size: 0.7rem;
-                  color: rgba(255, 255, 255, 0.35);
-                  font-weight: 500;
-                "
-              >
-                Terminal
-              </div>
+          <div style="margin-top: 20px; background: #1a1a2e; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);">
+            <div style="background: rgba(0, 0, 0, 0.2); padding: 8px 16px; display: flex; align-items: center; border-bottom: 1px solid rgba(255, 255, 255, 0.05);">
+              <div style="display: flex; gap: 6px"><div style="width: 10px; height: 10px; border-radius: 50%; background: #ff5f56"></div><div style="width: 10px; height: 10px; border-radius: 50%; background: #ffbd2e"></div><div style="width: 10px; height: 10px; border-radius: 50%; background: #27c93f"></div></div>
+              <div style="flex: 1; text-align: center; font-size: 0.7rem; color: rgba(255, 255, 255, 0.35); font-weight: 500;">Terminal</div>
             </div>
-            <div
-              style="
-                padding: 14px 20px;
-                display: flex;
-                align-items: center;
-                gap: 12px;
-                font-family: 'SF Mono', Monaco, monospace;
-                font-size: 0.88rem;
-                color: #e2e8f0;
-              "
-            >
+            <div style="padding: 14px 20px; display: flex; align-items: center; gap: 12px; font-family: 'SF Mono', Monaco, monospace; font-size: 0.88rem; color: #e2e8f0;">
               <span style="color: var(--brand-sage); font-weight: 600">$</span>
-              <code id="xattr-cmd" style="flex: 1; overflow-x: auto; white-space: nowrap"
-                >sudo xattr -cr /Applications/BlueArkive.app</code
-              >
-              <button
-                onclick="
-                  navigator.clipboard.writeText(document.getElementById('xattr-cmd').textContent)
-                  this.textContent = '✓ Copied'
-                  setTimeout(() => (this.textContent = 'Copy'), 2000)
-                "
-                style="
-                  background: rgba(255, 255, 255, 0.1);
-                  border: none;
-                  color: #a78bfa;
-                  padding: 6px 16px;
-                  border-radius: 8px;
-                  cursor: pointer;
-                  font-size: 0.82rem;
-                  white-space: nowrap;
-                  transition: all 0.2s;
-                "
-              >
-                Copy
-              </button>
+              <code id="xattr-cmd" style="flex: 1; overflow-x: auto; white-space: nowrap">sudo xattr -cr /Applications/BlueArkive.app</code>
+              <button onclick="navigator.clipboard.writeText(document.getElementById('xattr-cmd').textContent); this.textContent = '✓ Copied'; setTimeout(() => (this.textContent = 'Copy'), 2000)" style="background: rgba(255, 255, 255, 0.1); border: none; color: #a78bfa; padding: 6px 16px; border-radius: 8px; cursor: pointer; font-size: 0.82rem; white-space: nowrap; transition: all 0.2s;">Copy</button>
             </div>
           </div>
-
-          <p
-            style="margin-top: 12px; font-size: 0.8rem; color: var(--text-light); line-height: 1.5"
-          >
-            <strong>That's it!</strong> Double-click BlueArkive from Applications — it opens
-            perfectly, forever.<br />
-            <span style="opacity: 0.7"
-              >This step is needed because we're independent — not part of Apple's $99/yr developer
-              program. It's actually proof that no one controls your app but you.</span
-            >
+          <p style="margin-top: 12px; font-size: 0.8rem; color: var(--text-light); line-height: 1.5">
+            <strong>That's it!</strong> Double-click BlueArkive from Applications — it opens perfectly, forever.
           </p>
         </div>
 
-        <!-- SECONDARY: Power User / curl option -->
-        <details style="max-width: 580px; margin: 40px auto 0; text-align: left">
-          <summary
-            style="
-              cursor: pointer;
-              font-size: 0.95rem;
-              font-weight: 500;
-              color: var(--text-muted);
-              list-style: none;
-              display: flex;
-              align-items: center;
-              justify-content: center;
-              gap: 8px;
-              padding: 12px;
-              border-radius: 10px;
-              transition: color 0.2s;
-            "
-          >
-            <svg
-              width="16"
-              height="16"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="2"
-              stroke-linecap="round"
-              stroke-linejoin="round"
-            >
-              <polyline points="4 17 10 11 4 5" />
-              <line x1="12" y1="19" x2="20" y2="19" />
-            </svg>
+        <!-- Windows Install Steps -->
+        <div id="install-win" style="display: none; max-width: 640px; margin: 48px auto 0">
+          <h3 style="font-size: 1.1rem; font-weight: 600; margin-bottom: 8px; color: var(--text-main)">
+            Installation is instant:
+          </h3>
+          <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 24px">
+            Run the installer and you're done. No terminal commands needed.
+          </p>
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 14px; text-align: center">
+            <div style="background: var(--bg-surface); border: 1px solid var(--border-light); border-radius: 16px; padding: 24px 16px;">
+              <div style="width: 44px; height: 44px; border-radius: 12px; background: linear-gradient(135deg, var(--brand-lavender), #c4b5fd); display: flex; align-items: center; justify-content: center; margin: 0 auto 14px; color: white; font-size: 1.1rem; font-weight: 700;">1</div>
+              <h4 style="font-size: 0.9rem; font-weight: 600; margin-bottom: 6px; color: var(--text-main);">Run the Installer</h4>
+              <p style="font-size: 0.82rem; color: var(--text-muted); line-height: 1.5; margin: 0">Double-click <code>BlueArkive-Setup.exe</code> and follow the prompts.</p>
+            </div>
+            <div style="background: var(--bg-surface); border: 1px solid var(--border-light); border-radius: 16px; padding: 24px 16px;">
+              <div style="width: 44px; height: 44px; border-radius: 12px; background: linear-gradient(135deg, var(--brand-sage), #86efac); display: flex; align-items: center; justify-content: center; margin: 0 auto 14px; color: white; font-size: 1.1rem; font-weight: 700;">2</div>
+              <h4 style="font-size: 0.9rem; font-weight: 600; margin-bottom: 6px; color: var(--text-main);">Launch & Go</h4>
+              <p style="font-size: 0.82rem; color: var(--text-muted); line-height: 1.5; margin: 0">BlueArkive starts automatically. Find it in your Start Menu or Desktop.</p>
+            </div>
+          </div>
+          <p style="margin-top: 20px; font-size: 0.8rem; color: var(--text-light); line-height: 1.5">
+            <strong>SmartScreen warning?</strong> Click "More info" → "Run anyway". This appears because we're independent — not part of Microsoft's code signing program.
+          </p>
+        </div>
+
+        <!-- Linux Install Steps -->
+        <div id="install-linux" style="display: none; max-width: 640px; margin: 48px auto 0">
+          <h3 style="font-size: 1.1rem; font-weight: 600; margin-bottom: 8px; color: var(--text-main)">
+            Quick start:
+          </h3>
+          <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 24px">
+            Download the AppImage and make it executable — done.
+          </p>
+          <div style="margin-top: 20px; background: #1a1a2e; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);">
+            <div style="background: rgba(0, 0, 0, 0.2); padding: 8px 16px; display: flex; align-items: center; border-bottom: 1px solid rgba(255, 255, 255, 0.05);">
+              <div style="display: flex; gap: 6px"><div style="width: 10px; height: 10px; border-radius: 50%; background: #ff5f56"></div><div style="width: 10px; height: 10px; border-radius: 50%; background: #ffbd2e"></div><div style="width: 10px; height: 10px; border-radius: 50%; background: #27c93f"></div></div>
+              <div style="flex: 1; text-align: center; font-size: 0.7rem; color: rgba(255, 255, 255, 0.35); font-weight: 500;">Terminal</div>
+            </div>
+            <div style="padding: 14px 20px; display: flex; align-items: center; gap: 12px; font-family: 'SF Mono', Monaco, monospace; font-size: 0.88rem; color: #e2e8f0;">
+              <span style="color: var(--brand-sage); font-weight: 600">$</span>
+              <code id="linux-cmd" style="flex: 1; overflow-x: auto; white-space: nowrap">chmod +x BlueArkive-*.AppImage && ./BlueArkive-*.AppImage</code>
+              <button onclick="navigator.clipboard.writeText(document.getElementById('linux-cmd').textContent); this.textContent = '✓ Copied'; setTimeout(() => (this.textContent = 'Copy'), 2000)" style="background: rgba(255, 255, 255, 0.1); border: none; color: #a78bfa; padding: 6px 16px; border-radius: 8px; cursor: pointer; font-size: 0.82rem; white-space: nowrap; transition: all 0.2s;">Copy</button>
+            </div>
+          </div>
+          <p style="margin-top: 12px; font-size: 0.8rem; color: var(--text-light); line-height: 1.5">
+            Or install the <code>.deb</code>/<code>.rpm</code> package for system integration.
+          </p>
+        </div>
+
+        <!-- SECONDARY: Power User / curl option (macOS only) -->
+        <details id="curl-details" style="max-width: 580px; margin: 40px auto 0; text-align: left">
+          <summary style="cursor: pointer; font-size: 0.95rem; font-weight: 500; color: var(--text-muted); list-style: none; display: flex; align-items: center; justify-content: center; gap: 8px; padding: 12px; border-radius: 10px; transition: color 0.2s;">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 17 10 11 4 5" /><line x1="12" y1="19" x2="20" y2="19" /></svg>
             Power user? Install via Terminal instead
           </summary>
           <div style="margin-top: 16px">
-            <p
-              style="
-                font-size: 0.9rem;
-                color: var(--text-muted);
-                margin-bottom: 16px;
-                text-align: center;
-              "
-            >
-              This single command auto-detects your chip, downloads, installs, bypasses Gatekeeper,
-              and launches — zero friction.
+            <p style="font-size: 0.9rem; color: var(--text-muted); margin-bottom: 16px; text-align: center;">
+              This single command auto-detects your chip, downloads, installs, bypasses Gatekeeper, and launches — zero friction.
             </p>
-            <div
-              style="
-                display: flex;
-                flex-direction: column;
-                background: #1a1a2e;
-                border-radius: 12px;
-                box-shadow: 0 4px 24px rgba(0, 0, 0, 0.2);
-                border: 1px solid rgba(255, 255, 255, 0.05);
-                font-family: 'SF Mono', Monaco, monospace;
-                font-size: 0.9rem;
-                color: #e2e8f0;
-                overflow: hidden;
-              "
-            >
-              <!-- Mac Window Header -->
-              <div
-                style="
-                  background: rgba(0, 0, 0, 0.2);
-                  padding: 12px 16px;
-                  display: flex;
-                  align-items: center;
-                  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
-                "
-              >
-                <div style="display: flex; gap: 8px">
-                  <div
-                    style="width: 12px; height: 12px; border-radius: 50%; background: #ff5f56"
-                  ></div>
-                  <div
-                    style="width: 12px; height: 12px; border-radius: 50%; background: #ffbd2e"
-                  ></div>
-                  <div
-                    style="width: 12px; height: 12px; border-radius: 50%; background: #27c93f"
-                  ></div>
-                </div>
-                <div
-                  style="
-                    flex: 1;
-                    text-align: center;
-                    font-family: var(--font-sans);
-                    font-size: 0.75rem;
-                    color: rgba(255, 255, 255, 0.4);
-                    font-weight: 500;
-                  "
-                >
-                  Terminal
-                </div>
+            <div style="display: flex; flex-direction: column; background: #1a1a2e; border-radius: 12px; box-shadow: 0 4px 24px rgba(0, 0, 0, 0.2); border: 1px solid rgba(255, 255, 255, 0.05); font-family: 'SF Mono', Monaco, monospace; font-size: 0.9rem; color: #e2e8f0; overflow: hidden;">
+              <div style="background: rgba(0, 0, 0, 0.2); padding: 12px 16px; display: flex; align-items: center; border-bottom: 1px solid rgba(255, 255, 255, 0.05);">
+                <div style="display: flex; gap: 8px"><div style="width: 12px; height: 12px; border-radius: 50%; background: #ff5f56"></div><div style="width: 12px; height: 12px; border-radius: 50%; background: #ffbd2e"></div><div style="width: 12px; height: 12px; border-radius: 50%; background: #27c93f"></div></div>
+                <div style="flex: 1; text-align: center; font-family: var(--font-sans); font-size: 0.75rem; color: rgba(255, 255, 255, 0.4); font-weight: 500;">Terminal</div>
               </div>
-              <!-- Terminal Body -->
               <div style="padding: 16px 20px; display: flex; align-items: center; gap: 12px">
                 <span style="color: var(--brand-sage); font-weight: 600">$</span>
-                <code id="curl-cmd" style="flex: 1; overflow-x: auto; white-space: nowrap"
-                  >curl -fsSL https://dl.bluearkive.com/install.sh | bash</code
-                >
-                <button
-                  onclick="
-                    navigator.clipboard.writeText(document.getElementById('curl-cmd').textContent)
-                    this.textContent = '✓ Copied'
-                    setTimeout(() => (this.textContent = 'Copy'), 2000)
-                  "
-                  style="
-                    background: rgba(255, 255, 255, 0.1);
-                    border: none;
-                    color: #a78bfa;
-                    padding: 6px 16px;
-                    border-radius: 8px;
-                    cursor: pointer;
-                    font-size: 0.85rem;
-                    white-space: nowrap;
-                    transition: background 0.2s;
-                  "
-                >
-                  Copy
-                </button>
+                <code id="curl-cmd" style="flex: 1; overflow-x: auto; white-space: nowrap">curl -fsSL https://dl.bluearkive.com/install.sh | bash</code>
+                <button onclick="navigator.clipboard.writeText(document.getElementById('curl-cmd').textContent); this.textContent = '✓ Copied'; setTimeout(() => (this.textContent = 'Copy'), 2000)" style="background: rgba(255, 255, 255, 0.1); border: none; color: #a78bfa; padding: 6px 16px; border-radius: 8px; cursor: pointer; font-size: 0.85rem; white-space: nowrap; transition: background 0.2s;">Copy</button>
               </div>
             </div>
-            <div
-              style="
-                display: flex;
-                align-items: center;
-                justify-content: space-between;
-                margin-top: 12px;
-                padding: 0 4px;
-              "
-            >
-              <span style="font-size: 0.8rem; color: var(--text-light)"
-                >Zero telemetry. Nothing sent anywhere.</span
-              >
-              <a
-                href="https://dl.bluearkive.com/install.sh"
-                target="_blank"
-                style="
-                  font-size: 0.8rem;
-                  color: var(--brand-lavender-dark);
-                  display: flex;
-                  align-items: center;
-                  gap: 4px;
-                  text-decoration: none;
-                "
-              >
-                <svg
-                  width="12"
-                  height="12"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  stroke-width="2"
-                >
-                  <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
-                  <polyline points="14 2 14 8 20 8" />
-                </svg>
+            <div style="display: flex; align-items: center; justify-content: space-between; margin-top: 12px; padding: 0 4px;">
+              <span style="font-size: 0.8rem; color: var(--text-light)">Zero telemetry. Nothing sent anywhere.</span>
+              <a href="https://dl.bluearkive.com/install.sh" target="_blank" style="font-size: 0.8rem; color: var(--brand-lavender-dark); display: flex; align-items: center; gap: 4px; text-decoration: none;">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><polyline points="14 2 14 8 20 8" /></svg>
                 View source
               </a>
             </div>
@@ -933,7 +611,43 @@
     </section>
 
     <script>
-      // Scroll Reveal Animations
+      // ═══ Platform Switcher ═══
+      function showPlatform(platform) {
+        // Hide all download sections
+        document.getElementById('dl-mac').style.display = 'none'
+        document.getElementById('dl-win').style.display = 'none'
+        document.getElementById('dl-linux').style.display = 'none'
+        document.getElementById('dl-mobile').style.display = 'none'
+
+        // Hide all install instructions
+        document.getElementById('install-mac').style.display = 'none'
+        document.getElementById('install-win').style.display = 'none'
+        document.getElementById('install-linux').style.display = 'none'
+
+        // Show/hide curl details (macOS only)
+        const curlDetails = document.getElementById('curl-details')
+        if (curlDetails) curlDetails.style.display = platform === 'mac' ? 'block' : 'none'
+
+        // Show selected platform
+        const dlSection = document.getElementById('dl-' + platform)
+        if (dlSection) dlSection.style.display = 'block'
+        
+        const installSection = document.getElementById('install-' + platform)
+        if (installSection) installSection.style.display = 'block'
+
+        // Update "Also available for" links — hide current platform
+        const links = { mac: 'dl-link-mac', win: 'dl-link-win', linux: 'dl-link-linux' }
+        Object.entries(links).forEach(([key, id]) => {
+          const el = document.getElementById(id)
+          if (el) el.style.display = key === platform ? 'none' : 'inline'
+        })
+
+        // Hide mobile's "Also available" entirely
+        const otherPlatforms = document.getElementById('dl-other-platforms')
+        if (otherPlatforms) otherPlatforms.style.display = platform === 'mobile' ? 'none' : 'block'
+      }
+
+      // ═══ Scroll Reveal Animations ═══
       document.addEventListener('DOMContentLoaded', () => {
         const reveals = document.querySelectorAll('.reveal')
         const observer = new IntersectionObserver(
@@ -949,69 +663,79 @@
         )
         reveals.forEach(el => observer.observe(el))
 
-        // Auto-detect latest version from download server
+        // ═══ Auto-detect latest version from download server ═══
         fetch('https://dl.bluearkive.com/latest-mac.yml')
           .then(r => r.text())
           .then(yml => {
             const match = yml.match(/^version:\s*(.+)/m)
             if (!match) return
             const ver = match[1].trim()
-            const primary = document.getElementById('dl-primary')
-            const alt = document.getElementById('dl-alt-link')
-            if (primary) primary.href = `https://dl.bluearkive.com/BlueArkive-${ver}-mac-arm64.dmg`
-            if (alt) alt.href = `https://dl.bluearkive.com/BlueArkive-${ver}-mac-x64.dmg`
+            // Mac
+            const macPrimary = document.getElementById('dl-mac-primary')
+            const macAlt = document.getElementById('dl-mac-alt')
+            if (macPrimary) macPrimary.href = `https://dl.bluearkive.com/BlueArkive-${ver}-mac-arm64.dmg`
+            if (macAlt) macAlt.href = `https://dl.bluearkive.com/BlueArkive-${ver}-mac-x64.dmg`
+            // Windows
+            const winPrimary = document.getElementById('dl-win-primary')
+            const winAlt = document.getElementById('dl-win-alt')
+            if (winPrimary) winPrimary.href = `https://dl.bluearkive.com/BlueArkive-Setup-${ver}.exe`
+            if (winAlt) winAlt.href = `https://dl.bluearkive.com/BlueArkive-${ver}-portable.exe`
+            // Linux
+            const linuxPrimary = document.getElementById('dl-linux-primary')
+            const linuxDeb = document.getElementById('dl-linux-deb')
+            const linuxRpm = document.getElementById('dl-linux-rpm')
+            if (linuxPrimary) linuxPrimary.href = `https://dl.bluearkive.com/BlueArkive-${ver}-x86_64.AppImage`
+            if (linuxDeb) linuxDeb.href = `https://dl.bluearkive.com/BlueArkive-${ver}-amd64.deb`
+            if (linuxRpm) linuxRpm.href = `https://dl.bluearkive.com/BlueArkive-${ver}-x86_64.rpm`
           })
           .catch(() => {}) // keep hardcoded fallback URLs
       })
 
-      // OS Detection to show "Coming Soon" for non-Mac users
+      // ═══ OS Auto-Detection ═══
       ;(function () {
         try {
-          // A rough but effective OS detection
           const userAgent = window.navigator.userAgent || window.navigator.vendor || window.opera
           const platform = window.navigator.platform
           const macosPlatforms = ['Macintosh', 'MacIntel', 'MacPPC', 'Mac68K']
           const windowsPlatforms = ['Win32', 'Win64', 'Windows', 'WinCE']
           const iosPlatforms = ['iPhone', 'iPad', 'iPod']
 
-          let os = null
+          let os = 'mac' // default
 
           if (
             macosPlatforms.indexOf(platform) !== -1 ||
-            (userAgent.includes('Mac') &&
-              !userAgent.includes('iPhone') &&
-              !userAgent.includes('iPad'))
+            (userAgent.includes('Mac') && !userAgent.includes('iPhone') && !userAgent.includes('iPad'))
           ) {
-            os = 'macOS'
+            os = 'mac'
           } else if (
             iosPlatforms.indexOf(platform) !== -1 ||
             userAgent.includes('iPhone') ||
             userAgent.includes('iPad')
           ) {
-            os = 'iOS'
+            os = 'mobile'
           } else if (windowsPlatforms.indexOf(platform) !== -1 || userAgent.includes('Windows')) {
-            os = 'Windows'
+            os = 'win'
           } else if (/Android/.test(userAgent)) {
-            os = 'Android'
-          } else if (!os && /Linux/.test(platform)) {
-            os = 'Linux'
+            os = 'mobile'
+          } else if (/Linux/.test(platform)) {
+            os = 'linux'
           }
 
-          if (os && os !== 'macOS') {
-            const macSection = document.getElementById('mac-download')
-            const otherSection = document.getElementById('other-os-download')
-            const osNameSpan = document.getElementById('other-os-name')
-            const osTitle = document.getElementById('other-os-title')
-
-            if (macSection && otherSection && osNameSpan && osTitle) {
-              macSection.style.display = 'none'
-              otherSection.style.display = 'block'
-              osNameSpan.textContent = os
-              osTitle.textContent = `${os} version coming soon.`
+          // Update hero CTA label
+          const heroLabel = document.getElementById('hero-os-label')
+          if (heroLabel) {
+            const labels = {
+              mac: 'macOS · Apple Silicon & Intel',
+              win: 'Windows · x64 Installer',
+              linux: 'Linux · AppImage',
+              mobile: 'macOS · Windows · Linux',
             }
+            heroLabel.textContent = labels[os] || labels.mac
           }
+
+          showPlatform(os)
         } catch (e) {
-          // If detection fails, default to Mac behavior (already visible)
+          // If detection fails, default to Mac (already visible)
         }
       })()
     </script>

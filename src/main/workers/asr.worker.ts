@@ -187,14 +187,15 @@ async function loadMoonshineBase(): Promise<void> {
     // Load preprocessor model
     workerLog.info('Loading preprocessor...')
     moonshinePreprocessor = await ort.InferenceSession.create(paths[1] || '', {
-      executionProviders: ['cpu'],
+      // OPT-1: Use DirectML GPU on Windows for faster ASR
+      executionProviders: process.platform === 'win32' ? ['dml', 'cpu'] : ['cpu'],
       graphOptimizationLevel: 'all',
     })
 
     // Load main model
     workerLog.info('Loading main model...')
     moonshineSession = await ort.InferenceSession.create(paths[0] || '', {
-      executionProviders: ['cpu'],
+      executionProviders: process.platform === 'win32' ? ['dml', 'cpu'] : ['cpu'],
       graphOptimizationLevel: 'all',
     })
 

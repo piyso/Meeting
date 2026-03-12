@@ -22,6 +22,7 @@ export default function KnowledgeGraphView() {
   const [selectedNode, setSelectedNode] = useState<GraphNode | null>(null)
 
   useEffect(() => {
+    if (isLocked) return // Free users don't need graph data
     async function fetchGraphData() {
       setIsLoading(true)
       try {
@@ -47,7 +48,7 @@ export default function KnowledgeGraphView() {
     }
 
     fetchGraphData()
-  }, [])
+  }, [isLocked, isOnline]) // Refetch when online status changes
 
   const handleNodeClick = (node: GraphNode) => {
     setSelectedNode(node)
@@ -56,6 +57,40 @@ export default function KnowledgeGraphView() {
   // Double click inside panel opens meeting detail view
   const openMeeting = (id: string) => {
     navigate('meeting-detail', id)
+  }
+
+  // ── Full-page lock for free/starter users ──
+  if (isLocked) {
+    return (
+      <div className="ui-view graph-view-container">
+        <header className="ui-header graph-header-shrink">
+          <IconButton
+            icon={<ChevronLeft size={18} />}
+            onClick={() => navigate('meeting-list')}
+            className="mr-2"
+            tooltip="Back to Meetings"
+          />
+          <div className="ui-header-title">
+            <h1>Knowledge Graph</h1>
+            <span className="ui-header-subtitle">
+              Visualize connections across meetings and topics
+            </span>
+          </div>
+        </header>
+        {/* graph-main-area: flex-grow:1; position:relative from CSS — ProTeaseOverlay fills via absolute inset-0 */}
+        <div className="graph-main-area">
+          <ProTeaseOverlay
+            title="Unlock the Knowledge Graph"
+            description={
+              currentTier === 'starter'
+                ? 'Interactive exploration is a Pro feature.'
+                : 'Upgrade to visualize connections across all your meetings.'
+            }
+            targetTier="pro"
+          />
+        </div>
+      </div>
+    )
   }
 
   return (
@@ -78,21 +113,8 @@ export default function KnowledgeGraphView() {
       </header>
 
       <div className="graph-main-area relative">
-        {isLocked && (
-          <ProTeaseOverlay
-            title="Unlock the Knowledge Graph"
-            description={
-              currentTier === 'starter'
-                ? 'Interactive exploration is a Pro feature.'
-                : 'Upgrade to visualize connections across all your meetings.'
-            }
-            targetTier="pro"
-          />
-        )}
         {/* Main Canvas Area */}
-        <div
-          className={`graph-canvas-container ${isLocked ? 'pointer-events-none opacity-40 blur-sm' : ''}`}
-        >
+        <div className="graph-canvas-container">
           {isLoading ? (
             <div className="flex flex-col items-center justify-center h-full text-[var(--color-text-tertiary)] gap-4 animate-fade-in">
               <RefreshCw size={28} className="animate-spin text-[var(--color-violet)] opacity-80" />

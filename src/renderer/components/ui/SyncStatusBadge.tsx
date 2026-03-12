@@ -49,10 +49,10 @@ export const SyncStatusBadge: React.FC = () => {
   if (!isOnline) {
     return (
       <div
-        className="flex items-center gap-1.5 px-2.5 py-1 rounded-full border border-[var(--color-border-subtle)] bg-[var(--color-bg-elevated)] text-[var(--color-text-tertiary)] text-[11px] font-medium select-none shadow-sm"
+        className="flex items-center gap-1.5 px-1 py-1 flex-shrink-0 text-[#8E8E93] text-[12px] font-medium select-none"
         title="Offline"
       >
-        <CloudOff size={13} className="opacity-70" />
+        <CloudOff size={14} className="opacity-70" strokeWidth={2} />
         <span>Offline</span>
       </div>
     )
@@ -61,10 +61,10 @@ export const SyncStatusBadge: React.FC = () => {
   if (error) {
     return (
       <div
-        className="flex items-center gap-1.5 px-2.5 py-1 flex-shrink-0 rounded-full border border-[var(--color-rose)]/30 bg-[var(--color-rose)]/10 text-[var(--color-rose)] text-[11px] font-medium select-none shadow-sm"
+        className="flex items-center gap-1.5 px-2 py-1 object-contain flex-shrink-0 rounded-[6px] bg-[#3A1D1D] text-[#FF453A] text-[12px] font-medium select-none shadow-sm"
         title={error}
       >
-        <AlertTriangle size={13} />
+        <AlertTriangle size={13} strokeWidth={2.5} />
         <span>Sync Error</span>
       </div>
     )
@@ -73,22 +73,22 @@ export const SyncStatusBadge: React.FC = () => {
   if (isSyncing || queuedEvents > 0) {
     return (
       <div
-        className="flex items-center gap-1.5 px-2.5 flex-shrink-0 py-1 rounded-full border border-[var(--color-violet)]/30 bg-[var(--color-violet)]/10 text-[var(--color-violet)] text-[11px] font-medium select-none shadow-sm shadow-[var(--color-violet)]/5"
+        className="flex items-center gap-1.5 px-2 flex-shrink-0 py-1 rounded-[6px] bg-[#1C1C1E] text-white text-[12px] font-medium select-none shadow-sm"
         title="Syncing via CRDT to cloud"
       >
-        <RefreshCw size={13} className="animate-spin opacity-80" />
-        <span>↑ {queuedEvents || (progress?.current ? progress.current : 1)} syncing</span>
+        <RefreshCw size={13} className="animate-spin text-[#0A84FF]" strokeWidth={2.5} />
+        <span>Syncing {queuedEvents || (progress?.current ? progress.current : 1)}...</span>
       </div>
     )
   }
 
   return (
     <div
-      className="flex flex-shrink-0 items-center gap-1.5 px-2.5 py-1 rounded-full border border-[var(--color-emerald)]/20 bg-[var(--color-emerald)]/5 text-[var(--color-emerald)] text-[11px] font-medium select-none shadow-sm"
+      className="flex flex-shrink-0 items-center gap-1.5 px-1 py-1 text-[#8E8E93] text-[12px] font-medium select-none transition-opacity duration-300 hover:opacity-100 opacity-70"
       title="All systems synchronized"
     >
-      <div className="w-1.5 h-1.5 rounded-full bg-[var(--color-emerald)] shadow-[0_0_8px_rgba(16,185,129,0.5)]"></div>
-      <span>Synced</span>
+      <div className="w-[5px] h-[5px] rounded-full bg-[#34C759]"></div>
+      <span>Synced to Cloud</span>
     </div>
   )
 }

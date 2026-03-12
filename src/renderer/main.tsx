@@ -3,14 +3,25 @@ import ReactDOM from 'react-dom/client'
 import App from './App'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import './index.css'
+import { installMockElectronAPI } from './mockElectronAPI'
+
+// ── Mock Data Toggle ──────────────────────────────────────────────
+// Set to true ONLY during local UI development to replace window.electronAPI
+// with mock data. MUST be false for production/staging builds.
+const USE_MOCK_DATA = true
+
+if (USE_MOCK_DATA) {
+  installMockElectronAPI()
+}
 
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
-      staleTime: 1000 * 60 * 5, // 5 minutes
+      staleTime: 30_000, // 30s default — individual hooks override as needed
+      gcTime: 5 * 60_000, // Keep cache 5min after last subscriber unmounts
       refetchOnWindowFocus: true,
-      retry: 2,
-      retryDelay: attemptIndex => Math.min(1000 * 2 ** attemptIndex, 15000),
+      retry: 1, // Reduced from 2 — local IPC rarely fails, retrying wastes time
+      retryDelay: attemptIndex => Math.min(500 * 2 ** attemptIndex, 5000),
     },
     mutations: {
       retry: 1,
@@ -31,5 +42,20 @@ ReactDOM.createRoot(rootElement).render(
   </React.StrictMode>
 )
 
-const splash = document.getElementById('splash')
-if (splash) splash.remove()
+// Defer splash removal until after React has painted — prevents white flash
+// requestIdleCallback runs when the browser is idle after the first paint
+const removeSplash = () => {
+  const splash = document.getElementById('splash')
+  if (splash) {
+    splash.style.transition = 'opacity 200ms ease-out'
+    splash.style.opacity = '0'
+    setTimeout(() => splash.remove(), 200)
+  }
+}
+if ('requestIdleCallback' in window) {
+  ;(window as unknown as { requestIdleCallback: (cb: () => void) => void }).requestIdleCallback(
+    removeSplash
+  )
+} else {
+  setTimeout(removeSplash, 100)
+}

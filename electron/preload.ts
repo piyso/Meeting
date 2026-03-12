@@ -155,6 +155,10 @@ const electronAPI: ElectronAPI = {
       ipcRenderer.on('audio:fallbackOccurred', subscription)
       return () => ipcRenderer.removeListener('audio:fallbackOccurred', subscription)
     },
+
+    // Pause/Resume capture
+    pauseCapture: () => ipcRenderer.invoke('audio:pauseCapture'),
+    resumeCapture: () => ipcRenderer.invoke('audio:resumeCapture'),
   },
 
   // ============================================================================
@@ -252,7 +256,7 @@ const electronAPI: ElectronAPI = {
   // ============================================================================
   digest: {
     generate: params => ipcRenderer.invoke('digest:generate', params),
-    getLatest: () => ipcRenderer.invoke('digest:getLatest'),
+    getLatest: (params?: { periodType?: string }) => ipcRenderer.invoke('digest:getLatest', params),
   },
 
   // ============================================================================
@@ -283,6 +287,7 @@ const electronAPI: ElectronAPI = {
   widget: {
     updateState: (state: {
       isRecording: boolean
+      isPaused?: boolean
       elapsedTime: string
       lastTranscriptLine: string
       audioMode?: 'system' | 'microphone' | 'none'
@@ -293,8 +298,23 @@ const electronAPI: ElectronAPI = {
       noteCount?: number
     }) => ipcRenderer.invoke('widget:updateState', state),
     triggerBookmark: () => ipcRenderer.invoke('widget:triggerBookmark'),
+    triggerPauseToggle: () => ipcRenderer.invoke('widget:triggerPauseToggle'),
     submitQuickNote: (note: string) => ipcRenderer.invoke('widget:submitQuickNote', note),
   },
+
+  // ============================================================================
+  // Window Controls (Windows Title Bar)
+  // ============================================================================
+  windowControls: {
+    minimize: () => ipcRenderer.invoke('window:minimize'),
+    maximize: () => ipcRenderer.invoke('window:maximize'),
+    close: () => ipcRenderer.invoke('window:close'),
+    isMaximized: () =>
+      ipcRenderer.invoke('window:isMaximized').then((r: { data: boolean }) => r.data),
+  },
+
+  // Issue 13: Desktop capturer sources for WASAPI system audio on Windows
+  desktopCapturerSources: () => ipcRenderer.invoke('desktop-capturer-sources'),
 
   // ============================================================================
   // Event Listeners (Streaming)
@@ -311,7 +331,10 @@ const electronAPI: ElectronAPI = {
     showIntelligenceWall: createEventListener('show-intelligence-wall'),
     bookmarkRequested: createEventListener('event:bookmarkRequested'),
     quickNoteRequested: createEventListener('event:quickNoteRequested'),
+    pauseRequested: createEventListener('event:pauseRequested'),
     deepLink: createEventListener<string>('deep-link'),
+    windowMaximized: createEventListener<void>('window:maximized'),
+    windowUnmaximized: createEventListener<void>('window:unmaximized'),
   },
 
   // ============================================================================
@@ -430,8 +453,14 @@ const electronAPI: ElectronAPI = {
   },
 }
 
-// Expose the API to the renderer process
-contextBridge.exposeInMainWorld('electronAPI', electronAPI)
+// Expose the API to the renderer process.
+// When USE_MOCK_DATA is set in the environment, skip contextBridge so the
+// renderer's mock layer can freely assign window.electronAPI.
+if (process.env.USE_MOCK_DATA === 'true') {
+  console.log('[Preload] USE_MOCK_DATA=true — skipping contextBridge (mock layer will provide API)')
+} else {
+  contextBridge.exposeInMainWorld('electronAPI', electronAPI)
+}
 
 // Type declaration for TypeScript
 declare global {

@@ -31,18 +31,22 @@ export function registerDigestHandlers(): void {
         }
 
         const transcriptText = transcripts.map(t => `${t.speaker}: ${t.text}`).join('\n')
-        const summary = await generateText(
-          `Summarize this meeting transcript concisely in exactly 3 bullet points.\n\nTRANSCRIPT:\n${transcriptText}\n\nSUMMARY:`,
-          300
-        )
-        const actions = await generateText(
-          `Extract action items from this meeting. Format: "- [ASSIGNEE]: Task description".\n\nTRANSCRIPT:\n${transcriptText}\n\nACTION ITEMS:`,
-          300
-        )
-        const decisions = await generateText(
-          `List only the final decisions made in this meeting. Format: "- Decision statement".\n\nTRANSCRIPT:\n${transcriptText}\n\nDECISIONS:`,
-          300
-        )
+
+        // Run all 3 AI calls in parallel for ~3× speedup
+        const [summary, actions, decisions] = await Promise.all([
+          generateText(
+            `Summarize this meeting transcript concisely in exactly 3 bullet points.\n\nTRANSCRIPT:\n${transcriptText}\n\nSUMMARY:`,
+            300
+          ),
+          generateText(
+            `Extract action items from this meeting. Format: "- [ASSIGNEE]: Task description".\n\nTRANSCRIPT:\n${transcriptText}\n\nACTION ITEMS:`,
+            300
+          ),
+          generateText(
+            `List only the final decisions made in this meeting. Format: "- Decision statement".\n\nTRANSCRIPT:\n${transcriptText}\n\nDECISIONS:`,
+            300
+          ),
+        ])
 
         return {
           success: true,
@@ -50,13 +54,17 @@ export function registerDigestHandlers(): void {
         }
       }
 
-      // ── Weekly Digest ──
+      // ── Period Digest (Daily / Weekly / Monthly) ──
       if (params.startDate && params.endDate) {
+        // Frontend sends ms timestamps; DB stores epoch seconds
+        const startSec = Math.floor(params.startDate / 1000)
+        const endSec = Math.floor(params.endDate / 1000)
+
         const meetings = db
           .prepare(
             'SELECT id, title, duration, start_time FROM meetings WHERE start_time >= ? AND start_time <= ?'
           )
-          .all(params.startDate, params.endDate) as Array<{
+          .all(startSec, endSec) as Array<{
           id: string
           title: string
           duration: number
@@ -73,47 +81,88 @@ export function registerDigestHandlers(): void {
              WHERE m.start_time >= ? AND m.start_time <= ?
                AND t.speaker_name IS NOT NULL AND t.speaker_name != ''`
           )
-          .all(params.startDate, params.endDate) as Array<{ speaker_name: string }>
+          .all(startSec, endSec) as Array<{ speaker_name: string }>
 
-        // Gather real entities from meetings
-        const entityRows = db
+        // Gather real entities from meetings — separate queries for people/topics
+        // to get proper counts and meeting titles for each
+        const personRows = db
           .prepare(
-            `SELECT e.type, e.text, COUNT(*) as cnt FROM entities e
+            `SELECT e.text AS name, COUNT(DISTINCT m.id) AS meetingCount,
+                    GROUP_CONCAT(DISTINCT m.title) AS meetingTitlesRaw
+             FROM entities e
              JOIN meetings m ON m.id = e.meeting_id
              WHERE m.start_time >= ? AND m.start_time <= ?
-             GROUP BY e.type, e.text ORDER BY cnt DESC LIMIT 10`
+               AND e.type = 'PERSON'
+             GROUP BY e.text ORDER BY meetingCount DESC LIMIT 15`
           )
-          .all(params.startDate, params.endDate) as Array<{
-          type: string
-          text: string
-          cnt: number
+          .all(startSec, endSec) as Array<{
+          name: string
+          meetingCount: number
+          meetingTitlesRaw: string | null
         }>
 
-        const topPeople = entityRows
-          .filter(e => e.type === 'PERSON')
-          .slice(0, 5)
-          .map(e => ({ name: e.text, meetingCount: e.cnt }))
+        const topPeople = personRows.map(e => ({
+          name: e.name,
+          meetingCount: e.meetingCount,
+          meetingTitles: e.meetingTitlesRaw ? e.meetingTitlesRaw.split(',').filter(Boolean) : [],
+        }))
 
-        const topTopics = entityRows
-          .filter(e => e.type !== 'PERSON')
-          .slice(0, 5)
-          .map(e => ({ topic: e.text, mentionCount: e.cnt }))
+        // Extract topic-like keywords from transcripts in the date range
+        // instead of using entity types (no TOPIC entity type exists)
+        const topicRows = db
+          .prepare(
+            `SELECT SUBSTR(t.text, 1, 80) AS topic, COUNT(*) AS mentionCount,
+                    GROUP_CONCAT(DISTINCT m.title) AS meetingTitlesRaw
+             FROM transcripts t
+             JOIN meetings m ON m.id = t.meeting_id
+             WHERE m.start_time >= ? AND m.start_time <= ?
+               AND LENGTH(t.text) > 20
+             GROUP BY LOWER(SUBSTR(t.text, 1, 80))
+             HAVING mentionCount > 1
+             ORDER BY mentionCount DESC LIMIT 15`
+          )
+          .all(startSec, endSec) as Array<{
+          topic: string
+          mentionCount: number
+          meetingTitlesRaw: string | null
+        }>
+
+        const topTopics = topicRows.map(e => ({
+          topic: e.topic,
+          mentionCount: e.mentionCount,
+          meetingTitles: e.meetingTitlesRaw ? e.meetingTitlesRaw.split(',').filter(Boolean) : [],
+        }))
 
         // ── Pro+: Cloud AI digest (key decisions, action items, contradictions) ──
         let keyDecisions: Array<{
           text: string
           meetingId: string
+          meetingTitle?: string
+          meetingDate?: number
+          sourceContext?: string
           timestamp: number
           confidence: number
         }> = []
         let aiActionItems: Array<{
           text: string
           meetingId: string
+          meetingTitle?: string
+          meetingDate?: number
+          sourceContext?: string
           assignee: string
           dueDate: number
           status: 'open' | 'completed' | 'overdue'
         }> = []
-        let contradictions: Array<{ from: string; to: string; topic: string }> = []
+        let contradictions: Array<{
+          id: string
+          type: 'contradicts' | 'supersedes'
+          meeting1: { id: string; title: string } | null
+          meeting2: { id: string; title: string } | null
+          statement1: string
+          statement2: string
+          confidence: number
+          detectedAt: number
+        }> = []
         let aiSummary = ''
 
         try {
@@ -123,11 +172,11 @@ export function registerDigestHandlers(): void {
 
           if (features.knowledgeGraphInteractive && meetings.length > 0) {
             // Pro tier — use cloud /ask for AI-generated digest content
-            const { getBackend } = await import('./graph.handlers')
+            const { getBackend } = await import('../../services/backend/BackendSingleton')
             const backend = getBackend()
-            const isHealthy = await backend.healthCheck()
+            const health = await backend.healthCheck()
 
-            if (isHealthy) {
+            if (health.status === 'healthy') {
               // Get AI-generated summary of the week's meetings
               try {
                 const meetingList = meetings
@@ -145,37 +194,66 @@ export function registerDigestHandlers(): void {
                 if (askResult?.answer) {
                   aiSummary = askResult.answer
 
-                  // Parse decisions from AI response
+                  // P2-5 FIX: More robust regex that handles variations in AI output formatting
                   const decisionMatches = askResult.answer.match(
-                    /DECISION:\s*(.+?)(?:\s*\|\s*MEETING:\s*(.+?))?$/gm
+                    /(?:DECISION|Key\s*Decision|Decision)\s*[:：]\s*(.+?)(?:\s*[|｜]\s*(?:MEETING|Meeting)\s*[:：]\s*(.+?))?$/gim
                   )
                   if (decisionMatches) {
-                    keyDecisions = decisionMatches.map(match => {
-                      const parts = match.replace('DECISION:', '').split('|')
-                      return {
-                        text: (parts[0] || '').trim(),
-                        meetingId: meetings[0]?.id || '',
-                        timestamp: Date.now(),
-                        confidence: 0.85,
-                      }
-                    })
+                    keyDecisions = await Promise.all(
+                      decisionMatches.map(async match => {
+                        const parts = match.replace('DECISION:', '').split('|')
+                        const decisionText = (parts[0] || '').trim()
+                        const meetingRef = (parts[1] || '').replace('MEETING:', '').trim()
+                        const matchedId =
+                          findMeetingByTitle(meetingRef, meetings) || meetings[0]?.id || ''
+                        const matchedMeeting = meetings.find(m => m.id === matchedId)
+                        return {
+                          text: decisionText,
+                          meetingId: matchedId,
+                          meetingTitle: matchedMeeting?.title || meetingRef || 'Meeting',
+                          meetingDate: matchedMeeting
+                            ? matchedMeeting.start_time * 1000
+                            : undefined,
+                          sourceContext: matchedMeeting
+                            ? getTranscriptExcerpt(db, matchedId, decisionText)
+                            : undefined,
+                          timestamp: Date.now(),
+                          confidence: 0.85,
+                        }
+                      })
+                    )
                   }
 
-                  // Parse action items from AI response
+                  // P2-5 FIX: More robust regex that handles variations in AI output formatting
                   const actionMatches = askResult.answer.match(
-                    /ACTION:\s*(.+?)(?:\s*\|\s*ASSIGNEE:\s*(.+?))?(?:\s*\|\s*STATUS:\s*(.+?))?$/gm
+                    /(?:ACTION|Action\s*Item|Action)\s*[:：]\s*(.+?)(?:\s*[|｜]\s*(?:ASSIGNEE|Assigned\s*to|Assignee)\s*[:：]\s*(.+?))?(?:\s*[|｜]\s*(?:STATUS|Status)\s*[:：]\s*(.+?))?$/gim
                   )
                   if (actionMatches) {
-                    aiActionItems = actionMatches.map(match => {
-                      const parts = match.replace('ACTION:', '').split('|')
-                      return {
-                        text: (parts[0] || '').trim(),
-                        meetingId: meetings[0]?.id || '',
-                        assignee: (parts[1] || '').replace('ASSIGNEE:', '').trim() || 'Unassigned',
-                        dueDate: Date.now() + 7 * 86400000, // 1 week default
-                        status: 'open' as const,
-                      }
-                    })
+                    aiActionItems = await Promise.all(
+                      actionMatches.map(async (match: string, idx: number) => {
+                        const parts = match.replace('ACTION:', '').split('|')
+                        const rawStatus = (parts[2] || '')
+                          .replace('STATUS:', '')
+                          .trim()
+                          .toLowerCase()
+                        const assignedMeeting = meetings[idx % meetings.length] || meetings[0]
+                        return {
+                          text: (parts[0] || '').trim(),
+                          meetingId: assignedMeeting?.id || '',
+                          meetingTitle: assignedMeeting?.title || 'Meeting',
+                          meetingDate: assignedMeeting
+                            ? assignedMeeting.start_time * 1000
+                            : undefined,
+                          assignee:
+                            (parts[1] || '').replace('ASSIGNEE:', '').trim() || 'Unassigned',
+                          dueDate: Date.now() + 7 * 86400000,
+                          sourceContext: assignedMeeting
+                            ? getTranscriptExcerpt(db, assignedMeeting.id, (parts[0] || '').trim())
+                            : undefined,
+                          status: parseActionStatus(rawStatus),
+                        }
+                      })
+                    )
                   }
                 }
               } catch (err) {
@@ -193,11 +271,33 @@ export function registerDigestHandlers(): void {
                     target: string
                     type: string
                     metadata?: Record<string, unknown>
-                  }) => ({
-                    from: (e.metadata?.source_label as string) || e.source || 'Unknown',
-                    to: (e.metadata?.target_label as string) || e.target || 'Unknown',
-                    topic: (e.metadata?.label as string) || 'Decision changed',
-                  })
+                  }) => {
+                    // Try to resolve meeting references from graph metadata
+                    const srcMeetingId = e.metadata?.source_meeting_id as string | undefined
+                    const tgtMeetingId = e.metadata?.target_meeting_id as string | undefined
+                    const srcMeeting = srcMeetingId
+                      ? meetings.find(m => m.id === srcMeetingId)
+                      : undefined
+                    const tgtMeeting = tgtMeetingId
+                      ? meetings.find(m => m.id === tgtMeetingId)
+                      : undefined
+                    return {
+                      id: `c-${e.source}-${e.target}`,
+                      type: 'contradicts' as const,
+                      meeting1: srcMeeting
+                        ? { id: srcMeeting.id, title: srcMeeting.title ?? 'Untitled' }
+                        : null,
+                      meeting2: tgtMeeting
+                        ? { id: tgtMeeting.id, title: tgtMeeting.title ?? 'Untitled' }
+                        : null,
+                      statement1:
+                        (e.metadata?.source_label as string) || e.source || 'Unknown statement',
+                      statement2:
+                        (e.metadata?.target_label as string) || e.target || 'Unknown statement',
+                      confidence: (e.metadata?.confidence as number) || 0.75,
+                      detectedAt: Date.now(),
+                    }
+                  }
                 )
               } catch (err) {
                 log.debug('Contradiction fetch failed', err)
@@ -233,7 +333,11 @@ export function registerDigestHandlers(): void {
             topPeople:
               topPeople.length > 0
                 ? topPeople
-                : speakerRows.slice(0, 3).map(s => ({ name: s.speaker_name, meetingCount: 1 })),
+                : speakerRows.slice(0, 5).map(s => ({
+                    name: s.speaker_name,
+                    meetingCount: 1,
+                    meetingTitles: [] as string[],
+                  })),
             topTopics,
           },
         }
@@ -246,15 +350,40 @@ export function registerDigestHandlers(): void {
           ).run(
             digestId,
             params.userId || 'local',
-            'weekly',
-            params.startDate,
-            params.endDate,
+            params.periodType || 'weekly',
+            startSec,
+            endSec,
             JSON.stringify(weeklyDigest),
             JSON.stringify({ keyDecisions, contradictions }),
             meetings.length,
             Math.floor(Date.now() / 1000)
           )
           log.info(`Digest ${digestId} persisted to DB`)
+
+          // ── Persist action items to action_items table ──
+          if (aiActionItems.length > 0) {
+            const insertAction = db.prepare(
+              `INSERT OR IGNORE INTO action_items (id, meeting_id, text, assignee, deadline, status, created_at)
+               VALUES (?, ?, ?, ?, ?, ?, ?)`
+            )
+            const now = Math.floor(Date.now() / 1000)
+            // Use a transaction for atomicity — prevents partial writes on crash
+            const insertAll = db.transaction(() => {
+              for (const item of aiActionItems) {
+                insertAction.run(
+                  uuidv4(),
+                  item.meetingId || null,
+                  item.text,
+                  item.assignee || null,
+                  item.dueDate ? Math.floor(item.dueDate / 1000) : null,
+                  item.status,
+                  now
+                )
+              }
+            })
+            insertAll()
+            log.info(`${aiActionItems.length} action items persisted to action_items table`)
+          }
         } catch (err) {
           log.debug('Digest persistence failed (table may not exist in older DBs)', err)
         }
@@ -311,7 +440,7 @@ export function registerDigestHandlers(): void {
         return { success: true, data: null }
       }
 
-      // Parse JSON fields
+      // Parse JSON fields and validate shape
       let parsedDigest
       try {
         parsedDigest = JSON.parse(row.summary)
@@ -319,10 +448,52 @@ export function registerDigestHandlers(): void {
         parsedDigest = { id: row.id, meetingCount: row.meeting_count }
       }
 
-      return { success: true, data: parsedDigest }
+      // Defensive shape validation — protect renderer from malformed/legacy data
+      const safeDigest = {
+        id: parsedDigest.id || row.id,
+        startDate: parsedDigest.startDate || 0,
+        endDate: parsedDigest.endDate || 0,
+        generatedAt:
+          parsedDigest.generatedAt || (row.created_at ? row.created_at * 1000 : Date.now()),
+        summary: {
+          totalMeetings: parsedDigest.summary?.totalMeetings ?? row.meeting_count ?? 0,
+          totalHours: parsedDigest.summary?.totalHours ?? 0,
+          uniqueParticipants: parsedDigest.summary?.uniqueParticipants ?? 0,
+          aiSummary: parsedDigest.summary?.aiSummary ?? undefined,
+        },
+        keyDecisions: Array.isArray(parsedDigest.keyDecisions) ? parsedDigest.keyDecisions : [],
+        actionItems: {
+          open: parsedDigest.actionItems?.open ?? 0,
+          completed: parsedDigest.actionItems?.completed ?? 0,
+          overdue: parsedDigest.actionItems?.overdue ?? 0,
+          items: Array.isArray(parsedDigest.actionItems?.items)
+            ? parsedDigest.actionItems.items
+            : [],
+        },
+        contradictions: Array.isArray(parsedDigest.contradictions)
+          ? parsedDigest.contradictions
+          : [],
+        entityAggregation: {
+          topPeople: Array.isArray(parsedDigest.entityAggregation?.topPeople)
+            ? parsedDigest.entityAggregation.topPeople
+            : [],
+          topTopics: Array.isArray(parsedDigest.entityAggregation?.topTopics)
+            ? parsedDigest.entityAggregation.topTopics
+            : [],
+        },
+      }
+
+      return { success: true, data: safeDigest }
     } catch (err) {
-      log.debug('getLatest failed', err)
-      return { success: true, data: null }
+      log.warn('getLatest failed', err)
+      return {
+        success: false,
+        error: {
+          code: 'DIGEST_FETCH_FAILED',
+          message: err instanceof Error ? err.message : 'Failed to fetch latest digest',
+          timestamp: Date.now(),
+        },
+      }
     }
   })
 }
@@ -344,4 +515,75 @@ async function generateText(prompt: string, maxTokens: number = 300): Promise<st
     log.debug('AI generation failed', err)
     return '⚠️ AI unavailable — engine may still be loading'
   }
+}
+
+/**
+ * Get a transcript excerpt relevant to a decision or action item.
+ * Searches the transcript for the meeting looking for keywords from the item text.
+ * Returns undefined if no relevant excerpt is found.
+ */
+function getTranscriptExcerpt(
+  db: ReturnType<typeof import('../../database').getDatabase>,
+  meetingId: string,
+  itemText: string
+): string | undefined {
+  try {
+    // Extract first 3 significant words (>3 chars) as search keywords
+    const keywords = itemText
+      .split(/\s+/)
+      .filter(w => w.length > 3)
+      .slice(0, 3)
+
+    if (keywords.length === 0) return undefined
+
+    // Try to find a transcript line containing at least one keyword
+    for (const kw of keywords) {
+      // Sanitize LIKE pattern — escape special SQL characters
+      const safeKw = kw.replace(/[%_\\]/g, '\\$&')
+      const row = db
+        .prepare(
+          `SELECT text, speaker_name FROM transcripts
+           WHERE meeting_id = ? AND text LIKE ? ESCAPE '\\' LIMIT 1`
+        )
+        .get(meetingId, `%${safeKw}%`) as { text: string; speaker_name: string } | undefined
+      if (row) {
+        const speaker = row.speaker_name || 'Speaker'
+        return `"${row.text}" — ${speaker}`
+      }
+    }
+    return undefined
+  } catch {
+    return undefined
+  }
+}
+
+/**
+ * Parse action item status from AI response text.
+ * Handles variations like "done", "completed", "overdue", "past due", etc.
+ */
+function parseActionStatus(raw: string): 'open' | 'completed' | 'overdue' {
+  const s = raw.toLowerCase().trim()
+  if (s === 'completed' || s === 'done' || s === 'finished' || s === 'closed') return 'completed'
+  if (s === 'overdue' || s === 'past due' || s === 'late' || s === 'missed') return 'overdue'
+  return 'open'
+}
+
+/**
+ * Try to match a meeting title reference from AI output to an actual meeting.
+ * Uses case-insensitive substring matching.
+ */
+function findMeetingByTitle(
+  titleRef: string,
+  meetings: Array<{ id: string; title: string }>
+): string | undefined {
+  if (!titleRef) return undefined
+  const ref = titleRef.toLowerCase().trim()
+  // Exact match first
+  const exact = meetings.find(m => m.title?.toLowerCase() === ref)
+  if (exact) return exact.id
+  // Substring match
+  const partial = meetings.find(
+    m => m.title && (m.title.toLowerCase().includes(ref) || ref.includes(m.title.toLowerCase()))
+  )
+  return partial?.id
 }

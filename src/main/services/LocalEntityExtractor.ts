@@ -18,11 +18,11 @@ export interface ExtractedEntity {
 export class LocalEntityExtractor {
   // Regex patterns for real-time extraction (Blueprint §2.9)
   private patterns: Record<string, RegExp> = {
-    PERSON: /\b(?:Mr|Mrs|Ms|Dr|Prof)\.?\s+[A-Z][a-z]+(?:\s+[A-Z][a-z]+)?\b/g,
+    PERSON: /\b(?:(?:Mr|Mrs|Ms|Dr|Prof)\.?\s+)?[A-Z][a-z]{1,20}\s+[A-Z][a-z]{1,20}\b/g,
     DATE: /\b(?:\d{1,2}\/\d{1,2}\/\d{2,4}|\w+ \d{1,2}(?:st|nd|rd|th)?(?:,? \d{4})?)\b/g,
     AMOUNT: /\$[\d,]+(?:\.\d{2})?[KMB]?\b/g,
     EMAIL: /\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b/g,
-    ACTION_ITEM: /\b(?:TODO|ACTION|TASK|need to|should|must|will)\b.*?[.!?\n]/gi,
+    ACTION_ITEM: /\b(?:TODO|ACTION|TASK|need to|should|must|will)\b[^\n]*?[.!?\n]/gi,
   }
 
   /**

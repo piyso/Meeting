@@ -8,7 +8,8 @@ import { installMockElectronAPI } from './mockElectronAPI'
 // ── Mock Data Toggle ──────────────────────────────────────────────
 // Set to true ONLY during local UI development to replace window.electronAPI
 // with mock data. MUST be false for production/staging builds.
-const USE_MOCK_DATA = true
+// The preload script's USE_MOCK_DATA flag must match this value.
+const USE_MOCK_DATA = false
 
 if (USE_MOCK_DATA) {
   installMockElectronAPI()

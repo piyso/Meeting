@@ -314,7 +314,16 @@ document.addEventListener('DOMContentLoaded', () => {
         pricingCta.innerText = data.ctaText
         pricingCta.href = data.ctaHref
 
-        pricingFeatures.innerHTML = data.features.map(f => `<li>${f}</li>`).join('')
+        pricingFeatures.innerHTML = data.features
+          .map(f => {
+            const safe = f
+              .replace(/&/g, '&amp;')
+              .replace(/</g, '&lt;')
+              .replace(/>/g, '&gt;')
+              .replace(/"/g, '&quot;')
+            return `<li>${safe}</li>`
+          })
+          .join('')
 
         pricingTierName.style.opacity = '1'
         pricingPeriod.style.opacity = '1'

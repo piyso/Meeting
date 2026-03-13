@@ -230,236 +230,282 @@ const createWidgetWindow = () => {
 }
 
 // This method will be called when Electron has finished initialization
-app.whenReady().then(async () => {
-  // Initialize crash reporting first (catches errors during init)
-  CrashReporter.init()
+app
+  .whenReady()
+  .then(async () => {
+    // Initialize crash reporting first (catches errors during init)
+    CrashReporter.init()
 
-  // Initialize file logging
-  Logger.initFileLogging()
+    // Initialize file logging
+    Logger.initFileLogging()
 
-  log.info('Application starting', {
-    version: app.getVersion(),
-    platform: process.platform,
-    arch: process.arch,
-    electron: process.versions.electron,
-    node: process.versions.node,
-  })
+    log.info('Application starting', {
+      version: app.getVersion(),
+      platform: process.platform,
+      arch: process.arch,
+      electron: process.versions.electron,
+      node: process.versions.node,
+    })
 
-  // Migrate data from old app name (piyapi-notes → bluearkive)
-  // MUST run before database initialization to copy old DB if it exists
-  await migrateIfNeeded()
-  CrashReporter.addBreadcrumb('lifecycle', 'Migration check complete')
+    // Migrate data from old app name (piyapi-notes → bluearkive)
+    // MUST run before database initialization to copy old DB if it exists
+    await migrateIfNeeded()
+    CrashReporter.addBreadcrumb('lifecycle', 'Migration check complete')
 
-  // ─── Native module health check ────────────────────────────
-  // Verify critical .node binaries can be loaded BEFORE creating windows.
-  // This catches wrong-architecture builds immediately with a clear error.
-  let nativeModuleError: string | null = null
-  try {
-    require('better-sqlite3')
-    log.info('Native module check: better-sqlite3 ✅')
-  } catch (err: unknown) {
-    const errMsg = err instanceof Error ? err.message : String(err)
-    nativeModuleError = `better-sqlite3 failed to load: ${errMsg}`
-    log.error(`CRITICAL: ${nativeModuleError}`)
-    log.error('This usually means the native binary was compiled for the wrong architecture.')
-    log.error(`Expected arch: ${process.arch}, platform: ${process.platform}`)
-  }
+    // ─── Native module health check ────────────────────────────
+    // Verify critical .node binaries can be loaded BEFORE creating windows.
+    // This catches wrong-architecture builds immediately with a clear error.
+    const nativeModuleErrors: string[] = []
 
-  if (nativeModuleError) {
-    dialog.showErrorBox(
-      'BlueArkive Cannot Start',
-      `A critical component failed to load:\n\n${nativeModuleError}\n\n` +
-        `Your system: ${process.platform} ${process.arch}\n\n` +
-        'This usually means the app was built for the wrong CPU architecture. ' +
-        'Please download the correct version for your Mac (Apple Silicon vs Intel).\n\n' +
-        'If this persists, please contact support.'
-    )
-    app.quit()
-    return
-  }
+    // Check better-sqlite3 (CRITICAL — app won't start without it)
+    try {
+      require('better-sqlite3')
+      log.info('Native module check: better-sqlite3 ✅')
+    } catch (err: unknown) {
+      const errMsg = err instanceof Error ? err.message : String(err)
+      nativeModuleErrors.push(`better-sqlite3: ${errMsg}`)
+      log.error(`CRITICAL: better-sqlite3 failed to load: ${errMsg}`)
+    }
 
-  // Initialize services
-  log.info('Initializing services...')
-  let dbInitFailed = false
-  try {
-    getDatabaseService() // Initialize database (delegates to connection.ts)
-    CrashReporter.addBreadcrumb('lifecycle', 'Database initialized')
-  } catch (dbErr) {
-    dbInitFailed = true
-    log.error('CRITICAL: Database initialization failed — app will start without DB:', dbErr)
-    CrashReporter.addBreadcrumb('lifecycle', `Database init FAILED: ${dbErr}`)
-  }
+    // Check keytar (HIGH — auth won't work without it)
+    try {
+      require('keytar')
+      log.info('Native module check: keytar ✅')
+    } catch (err: unknown) {
+      const errMsg = err instanceof Error ? err.message : String(err)
+      nativeModuleErrors.push(`keytar: ${errMsg}`)
+      log.warn(`Native module keytar failed to load (auth will be limited): ${errMsg}`)
+    }
 
-  // Setup IPC handlers (must be after DB init)
-  setupIPC()
-  CrashReporter.addBreadcrumb('lifecycle', 'IPC handlers registered')
-  log.info('IPC handlers registered')
-
-  // OPT-8: Parallelize window creation + model download service init
-  // Database + IPC must be sequential, but windows can be created concurrently
-  createWindow()
-  createWidgetWindow()
-
-  // Wire model download progress to the renderer window (async, non-blocking)
-  if (mainWindow) {
-    getModelDownloadService().setMainWindow(mainWindow)
-
-    // Show error dialog if database failed to initialize
-    if (dbInitFailed) {
-      const { dialog } = require('electron')
-      dialog.showErrorBox(
-        'Database Error',
-        'BlueArkive could not initialize its database. Some features may not work.\n\n' +
-          'Try restarting the app. If the problem persists, check the logs at:\n' +
-          '~/Library/Logs/BlueArkive/bluearkive.log'
+    // Check onnxruntime-node (MODERATE — VAD/embeddings won't work)
+    try {
+      require('onnxruntime-node')
+      log.info('Native module check: onnxruntime-node ✅')
+    } catch (err: unknown) {
+      const errMsg = err instanceof Error ? err.message : String(err)
+      nativeModuleErrors.push(`onnxruntime-node: ${errMsg}`)
+      log.warn(
+        `Native module onnxruntime-node failed to load (VAD/embeddings unavailable): ${errMsg}`
       )
     }
-  }
 
-  // Register Global OS Hotkey for instant recording
-  // Issue 17: Check registration success — Ctrl+Shift+Space conflicts with CJK IME on Windows
-  const shortcutHandler = () => {
-    log.info('Global shortcut triggered')
+    // If the CRITICAL module (better-sqlite3) failed, show error and quit
+    if (nativeModuleErrors.some(e => e.startsWith('better-sqlite3:'))) {
+      log.error('STARTUP BLOCKED: Critical native modules failed to load')
+      log.error(`Expected arch: ${process.arch}, platform: ${process.platform}`)
+      log.error(`Failed modules:\n  - ${nativeModuleErrors.join('\n  - ')}`)
+
+      dialog.showErrorBox(
+        'BlueArkive Cannot Start',
+        `Critical components failed to load:\n\n` +
+          nativeModuleErrors.map(e => `• ${e}`).join('\n') +
+          `\n\nYour system: ${process.platform} ${process.arch}\n\n` +
+          'This usually means the app was built for the wrong CPU architecture. ' +
+          'Please download the correct version for your Mac:\n' +
+          '• Apple Silicon (M1/M2/M3/M4) → arm64 version\n' +
+          '• Intel Mac → x64 version\n\n' +
+          `Logs: ~/Library/Logs/BlueArkive/bluearkive.log`
+      )
+      app.quit()
+      return
+    }
+
+    // Log non-critical failures but continue
+    if (nativeModuleErrors.length > 0) {
+      log.warn('Some non-critical native modules failed:', nativeModuleErrors)
+    }
+
+    // Initialize services
+    log.info('Initializing services...')
+    let dbInitFailed = false
+    try {
+      getDatabaseService() // Initialize database (delegates to connection.ts)
+      CrashReporter.addBreadcrumb('lifecycle', 'Database initialized')
+    } catch (dbErr) {
+      dbInitFailed = true
+      log.error('CRITICAL: Database initialization failed — app will start without DB:', dbErr)
+      CrashReporter.addBreadcrumb('lifecycle', `Database init FAILED: ${dbErr}`)
+    }
+
+    // Setup IPC handlers (must be after DB init)
+    setupIPC()
+    CrashReporter.addBreadcrumb('lifecycle', 'IPC handlers registered')
+    log.info('IPC handlers registered')
+
+    // OPT-8: Parallelize window creation + model download service init
+    // Database + IPC must be sequential, but windows can be created concurrently
+    createWindow()
+    createWidgetWindow()
+
+    // Wire model download progress to the renderer window (async, non-blocking)
     if (mainWindow) {
-      if (mainWindow.isMinimized()) mainWindow.restore()
-      mainWindow.show()
-      mainWindow.focus()
-      mainWindow.webContents.send('global-shortcut:start-recording')
-    }
-  }
-  const registered = globalShortcut.register('CommandOrControl+Shift+Space', shortcutHandler)
-  if (!registered) {
-    log.warn('Primary shortcut Ctrl+Shift+Space failed (IME conflict?), trying fallback...')
-    const fallback = globalShortcut.register('CommandOrControl+Shift+F9', shortcutHandler)
-    if (fallback) {
-      log.info('Fallback shortcut Ctrl+Shift+F9 registered')
-    } else {
-      log.error('Both primary and fallback global shortcuts failed to register')
-    }
-  }
+      getModelDownloadService().setMainWindow(mainWindow)
 
-  // On macOS, re-create window when dock icon is clicked and no windows are open
-  app.on('activate', () => {
-    if (BrowserWindow.getAllWindows().length === 0) {
-      createWindow()
-      createWidgetWindow()
-      log.info('Re-created windows from dock activation')
+      // Show error dialog if database failed to initialize
+      if (dbInitFailed) {
+        const { dialog } = require('electron')
+        dialog.showErrorBox(
+          'Database Error',
+          'BlueArkive could not initialize its database. Some features may not work.\n\n' +
+            'Try restarting the app. If the problem persists, check the logs at:\n' +
+            '~/Library/Logs/BlueArkive/bluearkive.log'
+        )
+      }
     }
-  })
 
-  // Register deep-link protocol (bluearkive://)
-  // Issue 28: Fix dev mode on Windows — pass process.execPath + project path
-  if (!app.isDefaultProtocolClient('bluearkive')) {
-    if (app.isPackaged) {
-      app.setAsDefaultProtocolClient('bluearkive')
-    } else if (process.platform === 'win32') {
-      app.setAsDefaultProtocolClient('bluearkive', process.execPath, [
-        path.resolve(process.argv[1] || '.'),
-      ])
-    } else {
-      app.setAsDefaultProtocolClient('bluearkive')
+    // Register Global OS Hotkey for instant recording
+    // Issue 17: Check registration success — Ctrl+Shift+Space conflicts with CJK IME on Windows
+    const shortcutHandler = () => {
+      log.info('Global shortcut triggered')
+      if (mainWindow) {
+        if (mainWindow.isMinimized()) mainWindow.restore()
+        mainWindow.show()
+        mainWindow.focus()
+        mainWindow.webContents.send('global-shortcut:start-recording')
+      }
     }
-  }
-
-  // macOS: handle deep links via open-url event
-  app.on('open-url', async (_event, url) => {
-    if (mainWindow) {
-      // Route auth callbacks to AuthService (Issue 27 fix)
-      if (url.includes('/auth/callback')) {
-        try {
-          const { getAuthService } = await import('../src/main/services/AuthService')
-          const result = await getAuthService().handleOAuthCallback(url)
-          mainWindow.webContents.send('auth:oauthSuccess', result)
-        } catch (err) {
-          mainWindow.webContents.send('auth:oauthError', { error: String(err) })
-        }
+    const registered = globalShortcut.register('CommandOrControl+Shift+Space', shortcutHandler)
+    if (!registered) {
+      log.warn('Primary shortcut Ctrl+Shift+Space failed (IME conflict?), trying fallback...')
+      const fallback = globalShortcut.register('CommandOrControl+Shift+F9', shortcutHandler)
+      if (fallback) {
+        log.info('Fallback shortcut Ctrl+Shift+F9 registered')
       } else {
-        mainWindow.webContents.send('deep-link', url)
+        log.error('Both primary and fallback global shortcuts failed to register')
+      }
+    }
+
+    // On macOS, re-create window when dock icon is clicked and no windows are open
+    app.on('activate', () => {
+      if (BrowserWindow.getAllWindows().length === 0) {
+        createWindow()
+        createWidgetWindow()
+        log.info('Re-created windows from dock activation')
+      }
+    })
+
+    // Register deep-link protocol (bluearkive://)
+    // Issue 28: Fix dev mode on Windows — pass process.execPath + project path
+    if (!app.isDefaultProtocolClient('bluearkive')) {
+      if (app.isPackaged) {
+        app.setAsDefaultProtocolClient('bluearkive')
+      } else if (process.platform === 'win32') {
+        app.setAsDefaultProtocolClient('bluearkive', process.execPath, [
+          path.resolve(process.argv[1] || '.'),
+        ])
+      } else {
+        app.setAsDefaultProtocolClient('bluearkive')
+      }
+    }
+
+    // macOS: handle deep links via open-url event
+    app.on('open-url', async (_event, url) => {
+      if (mainWindow) {
+        // Route auth callbacks to AuthService (Issue 27 fix)
+        if (url.includes('/auth/callback')) {
+          try {
+            const { getAuthService } = await import('../src/main/services/AuthService')
+            const result = await getAuthService().handleOAuthCallback(url)
+            mainWindow.webContents.send('auth:oauthSuccess', result)
+          } catch (err) {
+            mainWindow.webContents.send('auth:oauthError', { error: String(err) })
+          }
+        } else {
+          mainWindow.webContents.send('deep-link', url)
+        }
+      }
+    })
+
+    // Check for updates (10s after launch — non-blocking)
+    // Wrapped in try/catch to prevent unhandled rejections from crashing the app
+    if (autoUpdater) {
+      setTimeout(async () => {
+        try {
+          log.info('Auto-update check initiated')
+          await autoUpdater?.checkForUpdatesAndNotify()
+        } catch (err: unknown) {
+          const errMsg = err instanceof Error ? err.message : String(err)
+          log.warn('Auto-update check failed (no releases published?):', errMsg)
+        }
+      }, 10_000)
+    }
+
+    // OPT-21: Content Security Policy — blocks inline scripts from AI-generated content
+    // Critical security fix: sandbox:false + no CSP = RCE vector via innerHTML injection
+    // Dev mode: Vite's @vitejs/plugin-react injects an inline preamble script for
+    // Fast Refresh / HMR. Without 'unsafe-inline', CSP blocks it and the app crashes.
+    // Production: built bundle has zero inline scripts, so strict 'self' is safe.
+    const isDev = !app.isPackaged
+    const scriptSrc = isDev ? "script-src 'self' 'unsafe-inline'" : "script-src 'self'"
+
+    session.defaultSession.webRequest.onHeadersReceived(
+      (
+        details: { responseHeaders?: Record<string, string[]> },
+        callback: (response: { responseHeaders?: Record<string, string[]> }) => void
+      ) => {
+        callback({
+          responseHeaders: {
+            ...details.responseHeaders,
+            'Content-Security-Policy': [
+              "default-src 'self'; " +
+                `${scriptSrc}; ` +
+                "connect-src 'self' https://*.supabase.co wss://*.deepgram.com https://api.deepgram.com https://api.piyapi.cloud https://dl.bluearkive.com; " +
+                "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; " +
+                "img-src 'self' data: blob:; " +
+                "font-src 'self' https://fonts.gstatic.com; " +
+                "media-src 'self' mediastream: blob:;",
+            ],
+          },
+        })
+      }
+    )
+
+    // OPT-13: GPU crash recovery — reload renderer instead of blank screen
+    if (mainWindow) {
+      mainWindow.webContents.on('render-process-gone', (_event, details) => {
+        log.error(`Renderer process gone: ${details.reason} (exit code: ${details.exitCode})`)
+        if (details.reason === 'crashed' || details.reason === 'oom') {
+          log.info('Attempting renderer reload after crash...')
+          setTimeout(() => {
+            if (mainWindow && !mainWindow.isDestroyed()) {
+              mainWindow.reload()
+            }
+          }, 1000)
+        }
+      })
+
+      app.on('child-process-gone', (_event, details) => {
+        log.error(`Child process gone: ${details.type} — ${details.reason}`)
+        if (details.type === 'GPU' && mainWindow && !mainWindow.isDestroyed()) {
+          log.warn('GPU process crashed — UI may need reload')
+        }
+      })
+    }
+
+    // Issue 26: Auto-launch at login on Windows (production only)
+    // Only set on first launch — subsequent launches respect user's choice
+    // Users can disable via Windows Settings → Startup Apps
+    if (process.platform === 'win32' && app.isPackaged) {
+      const loginSettings = app.getLoginItemSettings()
+      if (!loginSettings.wasOpenedAtLogin && loginSettings.openAtLogin === false) {
+        // First launch (or user hasn't been registered yet) — register once
+        app.setLoginItemSettings({
+          openAtLogin: true,
+          openAsHidden: true,
+        })
+        log.info('Windows auto-launch registered (first time)')
       }
     }
   })
-
-  // Check for updates (10s after launch — non-blocking)
-  // Wrapped in try/catch to prevent unhandled rejections from crashing the app
-  if (autoUpdater) {
-    setTimeout(async () => {
-      try {
-        log.info('Auto-update check initiated')
-        await autoUpdater?.checkForUpdatesAndNotify()
-      } catch (err: unknown) {
-        const errMsg = err instanceof Error ? err.message : String(err)
-        log.warn('Auto-update check failed (no releases published?):', errMsg)
-      }
-    }, 10_000)
-  }
-
-  // OPT-21: Content Security Policy — blocks inline scripts from AI-generated content
-  // Critical security fix: sandbox:false + no CSP = RCE vector via innerHTML injection
-  // Dev mode: Vite's @vitejs/plugin-react injects an inline preamble script for
-  // Fast Refresh / HMR. Without 'unsafe-inline', CSP blocks it and the app crashes.
-  // Production: built bundle has zero inline scripts, so strict 'self' is safe.
-  const isDev = !app.isPackaged
-  const scriptSrc = isDev ? "script-src 'self' 'unsafe-inline'" : "script-src 'self'"
-
-  session.defaultSession.webRequest.onHeadersReceived(
-    (
-      details: { responseHeaders?: Record<string, string[]> },
-      callback: (response: { responseHeaders?: Record<string, string[]> }) => void
-    ) => {
-      callback({
-        responseHeaders: {
-          ...details.responseHeaders,
-          'Content-Security-Policy': [
-            "default-src 'self'; " +
-              `${scriptSrc}; ` +
-              "connect-src 'self' https://*.supabase.co wss://*.deepgram.com https://api.deepgram.com https://api.piyapi.cloud https://dl.bluearkive.com; " +
-              "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; " +
-              "img-src 'self' data: blob:; " +
-              "font-src 'self' https://fonts.gstatic.com; " +
-              "media-src 'self' mediastream: blob:;",
-          ],
-        },
-      })
-    }
-  )
-
-  // OPT-13: GPU crash recovery — reload renderer instead of blank screen
-  if (mainWindow) {
-    mainWindow.webContents.on('render-process-gone', (_event, details) => {
-      log.error(`Renderer process gone: ${details.reason} (exit code: ${details.exitCode})`)
-      if (details.reason === 'crashed' || details.reason === 'oom') {
-        log.info('Attempting renderer reload after crash...')
-        setTimeout(() => {
-          if (mainWindow && !mainWindow.isDestroyed()) {
-            mainWindow.reload()
-          }
-        }, 1000)
-      }
-    })
-
-    app.on('child-process-gone', (_event, details) => {
-      log.error(`Child process gone: ${details.type} — ${details.reason}`)
-      if (details.type === 'GPU' && mainWindow && !mainWindow.isDestroyed()) {
-        log.warn('GPU process crashed — UI may need reload')
-      }
-    })
-  }
-
-  // Issue 26: Auto-launch at login on Windows (production only)
-  // Only set on first launch — subsequent launches respect user's choice
-  // Users can disable via Windows Settings → Startup Apps
-  if (process.platform === 'win32' && app.isPackaged) {
-    const loginSettings = app.getLoginItemSettings()
-    if (!loginSettings.wasOpenedAtLogin && loginSettings.openAtLogin === false) {
-      // First launch (or user hasn't been registered yet) — register once
-      app.setLoginItemSettings({
-        openAtLogin: true,
-        openAsHidden: true,
-      })
-      log.info('Windows auto-launch registered (first time)')
-    }
-  }
-})
+  .catch(err => {
+    log.error('FATAL: Startup failed:', err)
+    dialog.showErrorBox(
+      'BlueArkive Failed to Start',
+      `An unexpected error occurred during startup:\n\n${err instanceof Error ? err.message : String(err)}\n\n` +
+        'Please check the logs at:\n~/Library/Logs/BlueArkive/bluearkive.log'
+    )
+    app.quit()
+  })
 
 // Quit when all windows are closed, except on macOS
 app.on('window-all-closed', () => {

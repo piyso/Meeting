@@ -12,6 +12,7 @@ import { getDatabaseService } from './DatabaseService'
 import { KeyStorageService as _KeyStorageService } from './KeyStorageService'
 import { config } from '../config/environment'
 import { Logger } from './Logger'
+import { keytarSafe } from './keytarSafe'
 const log = Logger.create('CloudTranscription')
 
 interface TranscriptSegment {
@@ -78,8 +79,10 @@ export class CloudTranscriptionService extends EventEmitter {
 
     // Load API key from OS keychain (secure storage)
     try {
-      const keytar = await import('keytar')
-      this.apiKey = await keytar.default.getPassword('bluearkive', DEEPGRAM_KEYCHAIN_ACCOUNT)
+      const keytar = await keytarSafe()
+      this.apiKey = keytar
+        ? await keytar.getPassword('bluearkive', DEEPGRAM_KEYCHAIN_ACCOUNT)
+        : null
     } catch (err) {
       log.warn('[Cloud Transcription] Failed to read API key from keychain', err)
       this.apiKey = null
@@ -120,8 +123,10 @@ export class CloudTranscriptionService extends EventEmitter {
 
     // Store API key in OS keychain (secure), not in SQLite
     try {
-      const keytar = await import('keytar')
-      await keytar.default.setPassword('bluearkive', DEEPGRAM_KEYCHAIN_ACCOUNT, apiKey)
+      const keytar = await keytarSafe()
+      if (keytar) {
+        await keytar.setPassword('bluearkive', DEEPGRAM_KEYCHAIN_ACCOUNT, apiKey)
+      }
     } catch (err) {
       log.error('[Cloud Transcription] Failed to store API key in keychain', err)
     }

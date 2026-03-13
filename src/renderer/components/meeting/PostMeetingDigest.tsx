@@ -3,6 +3,7 @@ import { motion, AnimatePresence, Variants } from 'framer-motion'
 import { Badge } from '../ui/Badge'
 import { Button } from '../ui/Button'
 import { Download, Copy, Share, TrendingUp, Loader2 } from 'lucide-react'
+import { useAppStore } from '../../store/appStore'
 
 import { rendererLog } from '../../utils/logger'
 const log = rendererLog.create('PostDigest')
@@ -28,6 +29,7 @@ export const PostMeetingDigest: React.FC<PostMeetingDigestProps> = ({
 }) => {
   const [activeTab, setActiveTab] = useState<'summary' | 'actions' | 'pinned'>('summary')
   const [exportingType, setExportingType] = useState<'markdown' | 'pdf' | 'json' | null>(null)
+  const addToast = useAppStore(s => s.addToast)
   const mins = Math.round(duration / 60) || null
 
   const handleExport = async (format: 'markdown' | 'pdf' | 'json') => {
@@ -39,13 +41,30 @@ export const PostMeetingDigest: React.FC<PostMeetingDigestProps> = ({
         includeAudio: false,
       })
       if (res.success && res.data) {
-        // The export response contains `content` and `filename`, not `filePath`
         log.info('Exported', format, '→', res.data.filename, `(${res.data.content.length} chars)`)
+        addToast({
+          type: 'success',
+          title: 'Export complete',
+          message: `Saved as ${res.data.filename || format.toUpperCase()}`,
+          duration: 4000,
+        })
       } else {
         log.error('Export failed:', res.error)
+        addToast({
+          type: 'error',
+          title: 'Export failed',
+          message: res.error?.message || 'Unknown error',
+          duration: 5000,
+        })
       }
     } catch (err) {
       log.error('Export error:', err)
+      addToast({
+        type: 'error',
+        title: 'Export failed',
+        message: err instanceof Error ? err.message : 'Unexpected error',
+        duration: 5000,
+      })
     } finally {
       setExportingType(null)
     }

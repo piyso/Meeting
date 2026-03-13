@@ -48,48 +48,17 @@ class CrashReporterService {
     try {
       // Sentry SDK would be initialized here when installed:
       // const Sentry = require('@sentry/electron')
-      // Sentry.init({
-      //   dsn: config.SENTRY_DSN,
-      //   release: `bluearkive@${app.getVersion()}`,
-      //   environment: config.IS_DEV ? 'development' : 'production',
-      //   tracesSampleRate: 0.1,
-      //   beforeSend(event) {
-      //     // Strip PII
-      //     if (event.user) {
-      //       delete event.user.email
-      //       delete event.user.ip_address
-      //     }
-      //     return event
-      //   },
-      // })
+      // Sentry.init(...)
 
-      // For now, set up native Node.js crash handlers
-      this.setupNativeHandlers()
+      // NOTE: uncaughtException + unhandledRejection handlers are registered
+      // in electron/main.ts (lines 14-27). Do NOT duplicate them here.
+      // CrashReporter only provides captureException/captureMessage API.
 
       this.initialized = true
       log.info('Initialized successfully')
     } catch (error) {
       log.error('Failed to initialize:', error)
     }
-  }
-
-  /**
-   * Set up native Node.js error handlers as baseline
-   */
-  private setupNativeHandlers(): void {
-    process.on('uncaughtException', error => {
-      log.error('Uncaught exception:', error)
-      this.captureException(error)
-    })
-
-    process.on('unhandledRejection', reason => {
-      log.error('Unhandled rejection:', reason)
-      if (reason instanceof Error) {
-        this.captureException(reason)
-      } else {
-        this.captureMessage(`Unhandled rejection: ${String(reason)}`)
-      }
-    })
   }
 
   /**

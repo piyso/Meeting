@@ -398,7 +398,11 @@ function buildMockDigest(
           {
             name: 'Sarah Chen',
             meetingCount: 16,
-            meetingTitles: ['Design Systems Deep Dive', 'Product Standup', 'Sprint 23 Retrospective'],
+            meetingTitles: [
+              'Design Systems Deep Dive',
+              'Product Standup',
+              'Sprint 23 Retrospective',
+            ],
           },
           {
             name: 'Alex Rivera',
@@ -443,12 +447,20 @@ function buildMockDigest(
           {
             topic: 'API v2 Migration',
             mentionCount: 67,
-            meetingTitles: ['Product Standup', 'API Architecture Review', 'Sprint 23 Retrospective'],
+            meetingTitles: [
+              'Product Standup',
+              'API Architecture Review',
+              'Sprint 23 Retrospective',
+            ],
           },
           {
             topic: 'Design Systems',
             mentionCount: 48,
-            meetingTitles: ['Design Systems Deep Dive', 'Sprint 23 Retrospective', 'Product Standup'],
+            meetingTitles: [
+              'Design Systems Deep Dive',
+              'Sprint 23 Retrospective',
+              'Product Standup',
+            ],
           },
           {
             topic: 'CI/CD Pipeline',
@@ -1307,7 +1319,6 @@ export function installMockElectronAPI() {
   // to prevent race conditions with useSystemState, useSyncEngine hooks.
   useAppStore.setState({
     currentTier: 'pro',
-    isAuthenticated: true,
     isOnline: true,
     syncStatus: 'idle',
     quotaData: {

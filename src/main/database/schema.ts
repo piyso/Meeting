@@ -142,11 +142,8 @@ CREATE TABLE IF NOT EXISTS audit_logs (
   timestamp TEXT NOT NULL
 );
 
--- Schema version tracking (for migrations)
-CREATE TABLE IF NOT EXISTS schema_version (
-  version INTEGER PRIMARY KEY,
-  applied_at INTEGER DEFAULT (strftime('%s', 'now'))
-);
+-- NOTE: schema_version table is created by connection.ts initializeSchema()
+-- which handles version tracking logic. Not duplicated here.
 
 -- Action items extracted from meetings
 CREATE TABLE IF NOT EXISTS action_items (

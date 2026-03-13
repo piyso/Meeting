@@ -48,7 +48,7 @@ export default function KnowledgeGraphView() {
     }
 
     fetchGraphData()
-  }, [isLocked, isOnline]) // Refetch when online status changes
+  }, [isLocked]) // P8 fix: removed isOnline — graph data doesn't change with connectivity, prevents refetch spam on WiFi toggle
 
   const handleNodeClick = (node: GraphNode) => {
     setSelectedNode(node)

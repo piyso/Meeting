@@ -117,13 +117,14 @@ export function registerBillingHandlers(): void {
   ipcMain.handle(IPC_CHANNELS.billing.openCheckout, async (_, params: { targetTier?: string }) => {
     try {
       const { KeyStorageService } = await import('../../services/KeyStorageService')
+      const { getAuthService } = await import('../../services/AuthService')
       const { shell } = await import('electron')
-      const keytar = await import('keytar')
 
       // C5: token intentionally NOT fetched — never pass JWT as URL query param
 
       const userId = await KeyStorageService.getCurrentUserId()
-      const email = (await keytar.default.getPassword('bluearkive', 'user-email')) || ''
+      const currentUser = await getAuthService().getCurrentUser()
+      const email = currentUser?.email || ''
       const tier = userId ? (await KeyStorageService.getPlanTier(userId)) || 'free' : 'free'
 
       const isDevMode = !!process.env.VITE_DEV_SERVER_URL

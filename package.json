@@ -140,6 +140,7 @@
       "!**/node_modules/node-llama-cpp/bins/**",
       "!**/node_modules/node-llama-cpp/dist/cli/**",
       "!**/node_modules/onnxruntime-node/bin/napi-v6/linux/**",
+      "!**/node_modules/onnxruntime-node/bin/napi-v6/win32/**",
       "!**/node_modules/three/**",
       "!**/node_modules/@react-three/**",
       "!**/node_modules/lucide-react/**",
@@ -292,6 +293,9 @@
     "portable": {
       "artifactName": "${productName}-Portable-${version}.${ext}"
     },
+    "appImage": {
+      "artifactName": "${productName}-${version}-${arch}.${ext}"
+    },
     "linux": {
       "target": [
         {
@@ -335,10 +339,9 @@
         }
       ]
     },
-    "appImage": {
-      "artifactName": "${productName}-${version}.${ext}"
-    },
+
     "deb": {
+      "artifactName": "${productName}-${version}-${arch}.${ext}",
       "depends": [
         "libgtk-3-0",
         "libnotify4",
@@ -353,6 +356,7 @@
       "afterInstall": "build/linux-after-install.sh"
     },
     "rpm": {
+      "artifactName": "${productName}-${version}-${arch}.${ext}",
       "depends": [
         "gtk3",
         "libnotify",
@@ -380,6 +384,7 @@
     "asarUnpack": [
       "**/*.node",
       "**/node-llama-cpp/**",
+      "**/onnxruntime-node/**",
       "resources/models/**/*"
     ]
   },

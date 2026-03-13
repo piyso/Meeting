@@ -249,8 +249,9 @@ export default function AskMeetingsView() {
 
         // searchResult.data may be { results: [...], query } (object) or SemanticSearchResult[] (array)
         const rawData = searchResult.data as unknown
-        const searchResults: SemanticSearchResult[] =
-          Array.isArray(rawData) ? rawData : ((rawData as { results?: SemanticSearchResult[] })?.results || [])
+        const searchResults: SemanticSearchResult[] = Array.isArray(rawData)
+          ? rawData
+          : (rawData as { results?: SemanticSearchResult[] })?.results || []
 
         if (searchResult.success && searchResults.length > 0) {
           sources = searchResults.map((r: SemanticSearchResult) => ({
@@ -438,7 +439,9 @@ export default function AskMeetingsView() {
               >
                 {msg.role === 'assistant' && (
                   <div className="absolute -top-3 left-4" style={{ transform: 'translateY(-50%)' }}>
-                    <AISourceBadge source="edge" />
+                    <AISourceBadge
+                      source={((msg as { source?: string }).source as 'edge' | 'cloud') || 'edge'}
+                    />
                   </div>
                 )}
                 {msg.isStreaming && !msg.content ? (

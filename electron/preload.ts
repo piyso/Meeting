@@ -457,7 +457,7 @@ const electronAPI: ElectronAPI = {
 // When USE_MOCK_DATA is set in the environment, skip contextBridge so the
 // renderer's mock layer can freely assign window.electronAPI.
 if (process.env.USE_MOCK_DATA === 'true') {
-  console.log('[Preload] USE_MOCK_DATA=true — skipping contextBridge (mock layer will provide API)')
+  // Mock mode is dev-only — no contextBridge needed (mock layer provides API)
 } else {
   contextBridge.exposeInMainWorld('electronAPI', electronAPI)
 }

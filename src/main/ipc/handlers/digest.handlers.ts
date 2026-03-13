@@ -111,13 +111,23 @@ export function registerDigestHandlers(): void {
         // instead of using entity types (no TOPIC entity type exists)
         const topicRows = db
           .prepare(
-            `SELECT SUBSTR(t.text, 1, 80) AS topic, COUNT(*) AS mentionCount,
-                    GROUP_CONCAT(DISTINCT m.title) AS meetingTitlesRaw
+            `SELECT
+                CASE
+                  WHEN INSTR(t.text, '.') > 0 AND INSTR(t.text, '.') <= 120
+                    THEN TRIM(SUBSTR(t.text, 1, INSTR(t.text, '.')))
+                  WHEN INSTR(t.text, '?') > 0 AND INSTR(t.text, '?') <= 120
+                    THEN TRIM(SUBSTR(t.text, 1, INSTR(t.text, '?')))
+                  WHEN INSTR(t.text, '!') > 0 AND INSTR(t.text, '!') <= 120
+                    THEN TRIM(SUBSTR(t.text, 1, INSTR(t.text, '!')))
+                  ELSE TRIM(SUBSTR(t.text, 1, 80))
+                END AS topic,
+                COUNT(*) AS mentionCount,
+                GROUP_CONCAT(DISTINCT m.title) AS meetingTitlesRaw
              FROM transcripts t
              JOIN meetings m ON m.id = t.meeting_id
              WHERE m.start_time >= ? AND m.start_time <= ?
                AND LENGTH(t.text) > 20
-             GROUP BY LOWER(SUBSTR(t.text, 1, 80))
+             GROUP BY LOWER(topic)
              HAVING mentionCount > 1
              ORDER BY mentionCount DESC LIMIT 15`
           )

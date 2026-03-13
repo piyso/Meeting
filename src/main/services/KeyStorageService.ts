@@ -36,18 +36,48 @@ const memoryFallback = {
 
 let _keytar: typeof memoryFallback | null = null
 
+/** Timeout for keytar initial load (ms). macOS Keychain dialog can block. */
+const KEYTAR_LOAD_TIMEOUT_MS = 5_000
+
 async function getKeytar(): Promise<typeof memoryFallback> {
   if (_keytar) return _keytar
   try {
-    const mod = await import('keytar')
-    _keytar = mod.default || mod
+    const mod = await new Promise<typeof import('keytar')>((resolve, reject) => {
+      let settled = false
+
+      const timer = setTimeout(() => {
+        if (!settled) {
+          settled = true
+          reject(new Error('Keytar load timed out'))
+        }
+      }, KEYTAR_LOAD_TIMEOUT_MS)
+
+      import('keytar')
+        .then(m => {
+          if (!settled) {
+            settled = true
+            clearTimeout(timer)
+            resolve(m)
+          }
+        })
+        .catch(e => {
+          if (!settled) {
+            settled = true
+            clearTimeout(timer)
+            reject(e)
+          }
+        })
+    })
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    _keytar = (mod as any).default || mod
     return _keytar as typeof memoryFallback
-  } catch {
-    // keytar native module not available — use in-memory fallback
+  } catch (err) {
+    // keytar native module not available or timed out — use in-memory fallback
     const isProduction = process.env.NODE_ENV === 'production' || !process.env.VITE_DEV_SERVER_URL
     if (isProduction) {
+      const reason = err instanceof Error ? err.message : String(err)
       log.error(
-        'WARNING: keytar unavailable — falling back to INSECURE in-memory storage. ' +
+        `WARNING: keytar unavailable (${reason}) — falling back to INSECURE in-memory storage. ` +
           'Encryption keys will be lost on restart and are vulnerable to memory dumps.'
       )
     }

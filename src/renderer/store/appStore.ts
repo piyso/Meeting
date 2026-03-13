@@ -26,7 +26,6 @@ interface AppState {
     | 'ask-meetings'
     | 'pricing'
   selectedMeetingId: string | null
-  isAuthenticated: boolean
 
   // ── Recording ──
   recordingState: 'idle' | 'starting' | 'recording' | 'paused' | 'stopping' | 'processing'
@@ -94,7 +93,6 @@ export const useAppStore = create<AppState>()(set => ({
   // Navigation
   activeView: 'meeting-list',
   selectedMeetingId: null,
-  isAuthenticated: false,
 
   // Recording
   recordingState: 'idle',

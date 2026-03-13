@@ -22,6 +22,7 @@ export const WidgetApp: React.FC = () => {
   const [liveCoachTip, setLiveCoachTip] = useState<string | null>(null)
   const [entityCount, setEntityCount] = useState(0)
   const [noteCount, setNoteCount] = useState(0)
+  const [activeMeetingId, setActiveMeetingId] = useState<string | null>(null)
 
   useEffect(() => {
     const unsubscribe = window.electronAPI.on.widgetStateUpdated(state => {
@@ -34,6 +35,10 @@ export const WidgetApp: React.FC = () => {
       setLiveCoachTip(state.liveCoachTip || null)
       setEntityCount(state.entityCount || 0)
       setNoteCount(state.noteCount || 0)
+      // I21 fix: Track real meetingId from main process state
+      if ((state as { meetingId?: string }).meetingId) {
+        setActiveMeetingId((state as { meetingId?: string }).meetingId ?? null)
+      }
     })
 
     return () => {
@@ -46,10 +51,10 @@ export const WidgetApp: React.FC = () => {
   }
 
   const handleStop = () => {
-    // TODO: When widget:triggerStop IPC channel is added, use it here
-    // to route through main process and find the activeMeetingId.
-    // For now, 'current' is handled by the main process stopCapture handler.
-    window.electronAPI.audio.stopCapture({ meetingId: 'current' })
+    // I21 fix: Use the activeMeetingId from the state pushed by main process
+    // rather than hardcoded 'current'. The main process pushes meetingId
+    // via widgetStateUpdated, so we track it in local state.
+    window.electronAPI.audio.stopCapture({ meetingId: activeMeetingId || 'current' })
   }
 
   const handleBookmark = () => {

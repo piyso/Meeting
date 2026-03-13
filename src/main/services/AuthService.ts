@@ -25,6 +25,8 @@ const USER_ID_KEY = 'user-id'
 const USER_EMAIL_KEY = 'user-email'
 const USER_TIER_KEY = 'user-tier'
 
+import { keytarSafe } from './keytarSafe'
+
 interface AuthTokens {
   accessToken: string
   refreshToken: string
@@ -194,12 +196,14 @@ export class AuthService {
     }
 
     try {
-      const keytar = await import('keytar')
-      await keytar.default.deletePassword(TOKEN_SERVICE, ACCESS_TOKEN_KEY)
-      await keytar.default.deletePassword(TOKEN_SERVICE, REFRESH_TOKEN_KEY)
-      await keytar.default.deletePassword(TOKEN_SERVICE, USER_ID_KEY)
-      await keytar.default.deletePassword(TOKEN_SERVICE, USER_EMAIL_KEY)
-      await keytar.default.deletePassword(TOKEN_SERVICE, USER_TIER_KEY)
+      const keytar = await keytarSafe()
+      if (keytar) {
+        await keytar.deletePassword(TOKEN_SERVICE, ACCESS_TOKEN_KEY)
+        await keytar.deletePassword(TOKEN_SERVICE, REFRESH_TOKEN_KEY)
+        await keytar.deletePassword(TOKEN_SERVICE, USER_ID_KEY)
+        await keytar.deletePassword(TOKEN_SERVICE, USER_EMAIL_KEY)
+        await keytar.deletePassword(TOKEN_SERVICE, USER_TIER_KEY)
+      }
     } catch (err) {
       log.warn('Failed to clear keytar tokens', err)
     }
@@ -278,8 +282,9 @@ export class AuthService {
    */
   async refreshToken(): Promise<AuthTokens | null> {
     try {
-      const keytar = await import('keytar')
-      const refreshToken = await keytar.default.getPassword(TOKEN_SERVICE, REFRESH_TOKEN_KEY)
+      const keytar = await keytarSafe()
+      if (!keytar) return null
+      const refreshToken = await keytar.getPassword(TOKEN_SERVICE, REFRESH_TOKEN_KEY)
 
       if (!refreshToken) {
         log.debug('No refresh token available')
@@ -301,9 +306,9 @@ export class AuthService {
         expiresIn: data.session.expires_in || 3600,
       }
 
-      await keytar.default.setPassword(TOKEN_SERVICE, ACCESS_TOKEN_KEY, tokens.accessToken)
+      await keytar.setPassword(TOKEN_SERVICE, ACCESS_TOKEN_KEY, tokens.accessToken)
       if (tokens.refreshToken !== refreshToken) {
-        await keytar.default.setPassword(TOKEN_SERVICE, REFRESH_TOKEN_KEY, tokens.refreshToken)
+        await keytar.setPassword(TOKEN_SERVICE, REFRESH_TOKEN_KEY, tokens.refreshToken)
       }
 
       // R1: Update BackendSingleton with fresh token so PiyAPI calls use it
@@ -332,8 +337,9 @@ export class AuthService {
    */
   async getAccessToken(): Promise<string | null> {
     try {
-      const keytar = await import('keytar')
-      const token = await keytar.default.getPassword(TOKEN_SERVICE, ACCESS_TOKEN_KEY)
+      const keytar = await keytarSafe()
+      if (!keytar) return null
+      const token = await keytar.getPassword(TOKEN_SERVICE, ACCESS_TOKEN_KEY)
       if (!token) return null
 
       // Decode JWT and check expiry
@@ -372,13 +378,11 @@ export class AuthService {
    */
   async getCurrentUser(): Promise<UserInfo | null> {
     try {
-      const keytar = await import('keytar')
-      const id = await keytar.default.getPassword(TOKEN_SERVICE, USER_ID_KEY)
-      const email = await keytar.default.getPassword(TOKEN_SERVICE, USER_EMAIL_KEY)
-      const tier = (await keytar.default.getPassword(
-        TOKEN_SERVICE,
-        USER_TIER_KEY
-      )) as UserInfo['tier']
+      const keytar = await keytarSafe()
+      if (!keytar) return null
+      const id = await keytar.getPassword(TOKEN_SERVICE, USER_ID_KEY)
+      const email = await keytar.getPassword(TOKEN_SERVICE, USER_EMAIL_KEY)
+      const tier = (await keytar.getPassword(TOKEN_SERVICE, USER_TIER_KEY)) as UserInfo['tier']
 
       if (!id || !email) return null
       return { id, email, tier: tier || 'free' }
@@ -484,12 +488,14 @@ export class AuthService {
 
   private async storeTokens(result: AuthResult): Promise<void> {
     try {
-      const keytar = await import('keytar')
-      await keytar.default.setPassword(TOKEN_SERVICE, ACCESS_TOKEN_KEY, result.tokens.accessToken)
-      await keytar.default.setPassword(TOKEN_SERVICE, REFRESH_TOKEN_KEY, result.tokens.refreshToken)
-      await keytar.default.setPassword(TOKEN_SERVICE, USER_ID_KEY, result.user.id)
-      await keytar.default.setPassword(TOKEN_SERVICE, USER_EMAIL_KEY, result.user.email)
-      await keytar.default.setPassword(TOKEN_SERVICE, USER_TIER_KEY, result.user.tier)
+      const keytar = await keytarSafe()
+      if (keytar) {
+        await keytar.setPassword(TOKEN_SERVICE, ACCESS_TOKEN_KEY, result.tokens.accessToken)
+        await keytar.setPassword(TOKEN_SERVICE, REFRESH_TOKEN_KEY, result.tokens.refreshToken)
+        await keytar.setPassword(TOKEN_SERVICE, USER_ID_KEY, result.user.id)
+        await keytar.setPassword(TOKEN_SERVICE, USER_EMAIL_KEY, result.user.email)
+        await keytar.setPassword(TOKEN_SERVICE, USER_TIER_KEY, result.user.tier)
+      }
     } catch (err) {
       log.error('Failed to store tokens in keytar', err)
     }
@@ -519,9 +525,11 @@ export class AuthService {
       const billingStatus = profile.billing_status || 'active'
 
       // Update local keytar with latest tier from server
-      const keytar = await import('keytar')
-      await keytar.default.setPassword(TOKEN_SERVICE, USER_TIER_KEY, tier)
-      await keytar.default.setPassword(TOKEN_SERVICE, 'billing_status', billingStatus)
+      const keytar = await keytarSafe()
+      if (keytar) {
+        await keytar.setPassword(TOKEN_SERVICE, USER_TIER_KEY, tier)
+        await keytar.setPassword(TOKEN_SERVICE, 'billing_status', billingStatus)
+      }
 
       if (billingStatus === 'past_due') {
         log.warn('Billing issue: payment past due', { tier, billingStatus })
@@ -584,8 +592,10 @@ export class AuthService {
     if (!currentUser) throw new Error('Not authenticated')
 
     // Update local keytar with the new tier
-    const keytar = await import('keytar')
-    await keytar.default.setPassword(TOKEN_SERVICE, USER_TIER_KEY, tier)
+    const keytar = await keytarSafe()
+    if (keytar) {
+      await keytar.setPassword(TOKEN_SERVICE, USER_TIER_KEY, tier)
+    }
 
     log.info('License activated', { tier, key: trimmed.slice(0, 12) + '...' })
     return { ...currentUser, tier }

@@ -34,6 +34,7 @@ import { registerAuditHandlers } from './handlers/audit.handlers'
 import { registerExportHandlers } from './handlers/export.handlers'
 import { registerBillingHandlers } from './handlers/billing.handler'
 import { registerHighlightHandlers } from './handlers/highlight.handlers'
+import { registerShellHandlers } from './handlers/shell.handlers'
 
 /**
  * Register all IPC handlers
@@ -43,7 +44,7 @@ import { registerHighlightHandlers } from './handlers/highlight.handlers'
 export function setupIPC(): void {
   log.info('Setting up IPC handlers...')
 
-  // Register all 22 handler modules
+  // Register all 23 handler modules
   registerMeetingHandlers()
   registerAudioHandlers()
   registerModelHandlers()
@@ -66,8 +67,9 @@ export function setupIPC(): void {
   registerExportHandlers()
   registerBillingHandlers()
   registerHighlightHandlers()
+  registerShellHandlers()
 
-  log.info('All 22 IPC handler groups registered successfully')
+  log.info('All 23 IPC handler groups registered successfully')
 }
 
 /**

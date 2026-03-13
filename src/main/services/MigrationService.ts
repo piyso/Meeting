@@ -20,6 +20,9 @@
 import { app } from 'electron'
 import path from 'path'
 import fs from 'fs'
+import { Logger } from './Logger'
+
+const log = Logger.create('Migration')
 
 /** Old app identifiers (pre-rebrand) */
 const OLD_APP_NAME = 'piyapi-notes'
@@ -60,13 +63,13 @@ export async function migrateIfNeeded(): Promise<void> {
     return
   }
 
-  console.log(`[Migration] Detected old app data at: ${oldUserData}`)
-  console.log(`[Migration] Migrating to: ${newUserData}`)
+  log.info(`Detected old app data at: ${oldUserData}`)
+  log.info(`Migrating to: ${newUserData}`)
 
   try {
     migrateDatabase(oldUserData, newUserData)
   } catch (error) {
-    console.error('[Migration] Database migration failed (non-fatal):', error)
+    log.error('Database migration failed (non-fatal):', error)
   }
 
   try {
@@ -87,12 +90,12 @@ export async function migrateIfNeeded(): Promise<void> {
       ),
     ])
   } catch (error) {
-    console.error('[Migration] Keytar migration failed (non-fatal):', error)
+    log.error('Keytar migration failed (non-fatal):', error)
   }
 
   // Mark migration as complete
   writeMarker(markerPath)
-  console.log('[Migration] Migration complete.')
+  log.info('Migration complete.')
 }
 
 /**
@@ -109,7 +112,7 @@ function migrateDatabase(oldUserData: string, newUserData: string): void {
 
   // Guard: old DB must exist
   if (!fs.existsSync(oldDbPath)) {
-    console.log('[Migration] No old database found — skipping DB migration.')
+    log.info('No old database found — skipping DB migration.')
     return
   }
 
@@ -118,7 +121,7 @@ function migrateDatabase(oldUserData: string, newUserData: string): void {
     const newSize = fs.statSync(newDbPath).size
     if (newSize > 4096) {
       // More than an empty SQLite header
-      console.log('[Migration] New database already has data — skipping DB migration.')
+      log.info('New database already has data — skipping DB migration.')
       return
     }
   }
@@ -129,7 +132,7 @@ function migrateDatabase(oldUserData: string, newUserData: string): void {
   }
 
   // Copy the main database file
-  console.log(`[Migration] Copying database: ${oldDbPath} → ${newDbPath}`)
+  log.info(`Copying database: ${oldDbPath} → ${newDbPath}`)
   fs.copyFileSync(oldDbPath, newDbPath)
 
   // Copy WAL and SHM companion files if they exist
@@ -138,7 +141,7 @@ function migrateDatabase(oldUserData: string, newUserData: string): void {
     const oldCompanion = oldDbPath + suffix
     if (fs.existsSync(oldCompanion)) {
       fs.copyFileSync(oldCompanion, newDbPath + suffix)
-      console.log(`[Migration] Copied companion: ${OLD_DB_FILENAME}${suffix}`)
+      log.info(`Copied companion: ${OLD_DB_FILENAME}${suffix}`)
     }
   }
 
@@ -147,10 +150,10 @@ function migrateDatabase(oldUserData: string, newUserData: string): void {
   const newModelsDir = path.join(newUserData, 'models')
   if (fs.existsSync(oldModelsDir) && !fs.existsSync(newModelsDir)) {
     copyDirectoryRecursive(oldModelsDir, newModelsDir)
-    console.log('[Migration] Copied models directory.')
+    log.info('Copied models directory.')
   }
 
-  console.log('[Migration] Database migration complete.')
+  log.info('Database migration complete.')
 }
 
 /**
@@ -167,10 +170,35 @@ async function migrateKeytarCredentials(): Promise<void> {
   }
 
   try {
-    const mod = await import('keytar')
-    keytar = mod.default || mod
+    const TIMEOUT_MS = 5_000
+    const mod = await new Promise<typeof import('keytar')>((resolve, reject) => {
+      let settled = false
+      const timer = setTimeout(() => {
+        if (!settled) {
+          settled = true
+          reject(new Error('Keytar load timed out'))
+        }
+      }, TIMEOUT_MS)
+      import('keytar')
+        .then(m => {
+          if (!settled) {
+            settled = true
+            clearTimeout(timer)
+            resolve(m)
+          }
+        })
+        .catch(e => {
+          if (!settled) {
+            settled = true
+            clearTimeout(timer)
+            reject(e)
+          }
+        })
+    })
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    keytar = (mod as any).default || mod
   } catch {
-    console.log('[Migration] Keytar not available — skipping credential migration.')
+    log.info('Keytar not available — skipping credential migration.')
     return
   }
 
@@ -178,25 +206,25 @@ async function migrateKeytarCredentials(): Promise<void> {
   const oldCredentials = await keytar.findCredentials(OLD_KEYTAR_SERVICE)
 
   if (oldCredentials.length === 0) {
-    console.log('[Migration] No old keytar credentials found — skipping.')
+    log.info('No old keytar credentials found — skipping.')
     return
   }
 
-  console.log(`[Migration] Found ${oldCredentials.length} credential(s) to migrate.`)
+  log.info(`Found ${oldCredentials.length} credential(s) to migrate.`)
 
   for (const cred of oldCredentials) {
     // Check if the credential already exists under the new service
     const existing = await keytar.getPassword(NEW_KEYTAR_SERVICE, cred.account)
     if (existing) {
-      console.log(`[Migration] Credential "${cred.account}" already exists — skipping.`)
+      log.info(`Credential "${cred.account}" already exists — skipping.`)
       continue
     }
 
     await keytar.setPassword(NEW_KEYTAR_SERVICE, cred.account, cred.password)
-    console.log(`[Migration] Migrated credential: "${cred.account}"`)
+    log.info(`Migrated credential: "${cred.account}"`)
   }
 
-  console.log('[Migration] Keytar migration complete.')
+  log.info('Keytar migration complete.')
 }
 
 /**

@@ -462,37 +462,7 @@ export function registerAudioHandlers(): void {
     }
   })
 
-  // General shell operations
-  ipcMain.handle('shell:openExternal', async (_event, url: string): Promise<IPCResponse<void>> => {
-    try {
-      const { shell } = await import('electron')
-
-      // Validate URL to prevent security issues — HTTPS only
-      if (!url.startsWith('https://')) {
-        throw new Error('Invalid URL: Only HTTPS URLs are allowed')
-      }
-
-      await shell.openExternal(url)
-
-      log.info('Opened external URL:', url)
-
-      return {
-        success: true,
-        data: undefined,
-      }
-    } catch (error) {
-      log.error('Failed to open external URL:', error)
-      return {
-        success: false,
-        error: {
-          code: 'OPEN_EXTERNAL_FAILED',
-          message: error instanceof Error ? error.message : 'Unknown error',
-          details: error instanceof Error ? error.stack : undefined,
-          timestamp: Date.now(),
-        },
-      }
-    }
-  })
+  // I8: shell:openExternal moved to shell.handlers.ts
 
   // Start system audio test — stub until AudioPipelineService implements test methods
   ipcMain.handle(

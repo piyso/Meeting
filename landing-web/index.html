@@ -727,7 +727,7 @@
             <p style="margin-top: 12px">
               <a
                 id="dl-win-alt"
-                href="https://dl.bluearkive.com/BlueArkive-0.3.0-portable.exe"
+                href="https://dl.bluearkive.com/BlueArkive-Portable-0.3.0.exe"
                 style="
                   font-size: 0.85rem;
                   color: var(--text-muted);
@@ -1653,33 +1653,51 @@
           )
           reveals.forEach(el => observer.observe(el))
 
-          // ═══ Auto-detect latest version from download server ═══
-          fetch('https://dl.bluearkive.com/latest-mac.yml')
-            .then(r => r.text())
+          // ═══ Auto-detect latest version from download server (per-platform) ═══
+          const DL = 'https://dl.bluearkive.com'
+          function parseVersion(yml) {
+            const m = yml.match(/^version:\s*(.+)/m)
+            return m ? m[1].trim() : null
+          }
+
+          // Mac version detection
+          fetch(`${DL}/latest-mac.yml`)
+            .then(r => { if (!r.ok) throw r; return r.text() })
             .then(yml => {
-              const match = yml.match(/^version:\s*(.+)/m)
-              if (!match) return
-              const ver = match[1].trim()
-              // Mac
+              const ver = parseVersion(yml)
+              if (!ver) return
               const macPrimary = document.getElementById('dl-mac-primary')
               const macAlt = document.getElementById('dl-mac-alt')
-              if (macPrimary)
-                macPrimary.href = `https://dl.bluearkive.com/BlueArkive-${ver}-mac-arm64.dmg`
-              if (macAlt) macAlt.href = `https://dl.bluearkive.com/BlueArkive-${ver}-mac-x64.dmg`
-              // Windows
+              if (macPrimary) macPrimary.href = `${DL}/BlueArkive-${ver}-mac-arm64.dmg`
+              if (macAlt) macAlt.href = `${DL}/BlueArkive-${ver}-mac-x64.dmg`
+            })
+            .catch(() => {}) // keep hardcoded fallback URLs
+
+          // Windows version detection (separate from Mac)
+          fetch(`${DL}/latest.yml`)
+            .then(r => { if (!r.ok) throw r; return r.text() })
+            .then(yml => {
+              const ver = parseVersion(yml)
+              if (!ver) return
               const winPrimary = document.getElementById('dl-win-primary')
               const winAlt = document.getElementById('dl-win-alt')
-              if (winPrimary)
-                winPrimary.href = `https://dl.bluearkive.com/BlueArkive-Setup-${ver}.exe`
-              if (winAlt) winAlt.href = `https://dl.bluearkive.com/BlueArkive-${ver}-portable.exe`
-              // Linux
+              if (winPrimary) winPrimary.href = `${DL}/BlueArkive-Setup-${ver}.exe`
+              if (winAlt) winAlt.href = `${DL}/BlueArkive-Portable-${ver}.exe`
+            })
+            .catch(() => {}) // keep hardcoded fallback URLs
+
+          // Linux version detection (separate from Mac)
+          fetch(`${DL}/latest-linux.yml`)
+            .then(r => { if (!r.ok) throw r; return r.text() })
+            .then(yml => {
+              const ver = parseVersion(yml)
+              if (!ver) return
               const linuxPrimary = document.getElementById('dl-linux-primary')
               const linuxDeb = document.getElementById('dl-linux-deb')
               const linuxRpm = document.getElementById('dl-linux-rpm')
-              if (linuxPrimary)
-                linuxPrimary.href = `https://dl.bluearkive.com/BlueArkive-${ver}-x86_64.AppImage`
-              if (linuxDeb) linuxDeb.href = `https://dl.bluearkive.com/BlueArkive-${ver}-amd64.deb`
-              if (linuxRpm) linuxRpm.href = `https://dl.bluearkive.com/BlueArkive-${ver}-x86_64.rpm`
+              if (linuxPrimary) linuxPrimary.href = `${DL}/BlueArkive-${ver}-x86_64.AppImage`
+              if (linuxDeb) linuxDeb.href = `${DL}/BlueArkive-${ver}-amd64.deb`
+              if (linuxRpm) linuxRpm.href = `${DL}/BlueArkive-${ver}-x86_64.rpm`
             })
             .catch(() => {}) // keep hardcoded fallback URLs
         })

@@ -249,7 +249,9 @@ export default function WeeklyDigestView() {
     if (period === 'daily') {
       start.setHours(0, 0, 0, 0)
     } else if (period === 'weekly') {
-      start.setDate(start.getDate() - start.getDay())
+      // P10 fix: Use Monday as week start (ISO 8601) instead of Sunday
+      // (getDay()+6)%7 gives 0 for Monday, 6 for Sunday
+      start.setDate(start.getDate() - ((start.getDay() + 6) % 7))
       start.setHours(0, 0, 0, 0)
     } else {
       start.setDate(1)

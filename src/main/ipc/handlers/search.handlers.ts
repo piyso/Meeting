@@ -257,11 +257,16 @@ export function registerSearchHandlers(): void {
         log.warn('Cloud search failed, using local results only:', cloudErr)
       }
 
-      // Merge and deduplicate (local results preferred, cloud results supplement)
-      const seenMeetingIds = new Set(localResults.map(r => r.meeting.id))
+      // I9 fix: Dedup by meetingId+snippet instead of just meetingId
+      // to preserve multiple relevant snippets from the same meeting
+      const seenKeys = new Set(
+        localResults.map(r => `${r.meeting.id}:${r.snippet?.slice(0, 80) ?? ''}`)
+      )
       const mergedResults = [
         ...localResults,
-        ...cloudResults.filter(r => !seenMeetingIds.has(r.meeting.id)),
+        ...cloudResults.filter(
+          r => !seenKeys.has(`${r.meeting.id}:${r.snippet?.slice(0, 80) ?? ''}`)
+        ),
       ]
         .sort((a, b) => b.relevance - a.relevance)
         .slice(0, params.limit || 10)

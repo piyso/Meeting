@@ -121,6 +121,8 @@
       "!src/**",
       "!electron/**",
       "!resources/**",
+      "!**/*.gguf",
+      "!**/*.bin",
       "!build/**",
       "!**/*.map",
       "!**/*.ts",
@@ -384,8 +386,7 @@
     "asarUnpack": [
       "**/*.node",
       "**/node-llama-cpp/**",
-      "**/onnxruntime-node/**",
-      "resources/models/**/*"
+      "**/onnxruntime-node/**"
     ]
   },
   "repository": {

@@ -1,0 +1,206 @@
+name: Build & Deploy
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      skip_deploy:
+        description: 'Skip upload to dl.bluearkive.com'
+        type: boolean
+        default: false
+
+env:
+  NODE_VERSION: '20'
+
+jobs:
+  # ─────────────────────────────────────────────
+  # Build macOS (arm64 + x64)
+  # ─────────────────────────────────────────────
+  build-mac:
+    runs-on: macos-14  # Apple Silicon runner
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Remove large model files (prevent 3.5GB ASAR)
+        run: |
+          mkdir -p /tmp/models-backup
+          for f in resources/models/*.gguf resources/models/ggml-*.bin; do
+            [ -f "$f" ] && mv "$f" /tmp/models-backup/ && echo "Moved: $(basename $f)"
+          done
+          echo "✅ Large model files moved out"
+
+      - name: Build Mac (arm64 + x64)
+        run: npm run build:mac
+        env:
+          CSC_LINK: ${{ secrets.MAC_CERTIFICATE }}
+          CSC_KEY_PASSWORD: ${{ secrets.MAC_CERTIFICATE_PASSWORD }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+
+      - name: Verify DMG sizes (must be < 500MB)
+        run: |
+          for f in release/*.dmg; do
+            size=$(stat -f %z "$f")
+            sizeMB=$((size / 1024 / 1024))
+            echo "$f: ${sizeMB}MB"
+            if [ $sizeMB -gt 500 ]; then
+              echo "❌ FATAL: $f is ${sizeMB}MB (> 500MB limit). Model files leaked into ASAR!"
+              exit 1
+            fi
+          done
+          echo "✅ All DMGs within size limit"
+
+      - name: Generate latest-mac.yml
+        run: |
+          # electron-builder generates this automatically, but verify it exists
+          if [ ! -f release/latest-mac.yml ]; then
+            echo "❌ latest-mac.yml not generated!"
+            exit 1
+          fi
+          cat release/latest-mac.yml
+
+      - name: Upload Mac artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: mac-builds
+          path: |
+            release/*.dmg
+            release/*.zip
+            release/*.blockmap
+            release/latest-mac.yml
+          retention-days: 30
+
+  # ─────────────────────────────────────────────
+  # Build Windows (x64)
+  # ─────────────────────────────────────────────
+  build-windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Remove large model files
+        shell: bash
+        run: |
+          mkdir -p /tmp/models-backup
+          for f in resources/models/*.gguf resources/models/ggml-*.bin; do
+            [ -f "$f" ] && mv "$f" /tmp/models-backup/ && echo "Moved: $(basename $f)"
+          done
+
+      - name: Build Windows
+        run: npm run build:win
+        env:
+          CSC_LINK: ${{ secrets.WIN_CERTIFICATE }}
+          CSC_KEY_PASSWORD: ${{ secrets.WIN_CERTIFICATE_PASSWORD }}
+
+      - name: Upload Windows artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: win-builds
+          path: |
+            release/*.exe
+            release/*.blockmap
+            release/latest.yml
+          retention-days: 30
+
+  # ─────────────────────────────────────────────
+  # Build Linux (x64)
+  # ─────────────────────────────────────────────
+  build-linux:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Remove large model files
+        run: |
+          mkdir -p /tmp/models-backup
+          for f in resources/models/*.gguf resources/models/ggml-*.bin; do
+            [ -f "$f" ] && mv "$f" /tmp/models-backup/ && echo "Moved: $(basename $f)"
+          done
+
+      - name: Build Linux
+        run: npm run build:linux
+
+      - name: Upload Linux artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: linux-builds
+          path: |
+            release/*.AppImage
+            release/*.deb
+            release/*.rpm
+            release/*.blockmap
+            release/latest-linux.yml
+          retention-days: 30
+
+  # ─────────────────────────────────────────────
+  # Deploy all artifacts to dl.bluearkive.com
+  # ─────────────────────────────────────────────
+  deploy:
+    needs: [build-mac, build-windows, build-linux]
+    runs-on: ubuntu-latest
+    if: ${{ !inputs.skip_deploy }}
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: List all artifacts
+        run: find artifacts -type f | sort
+
+      - name: Deploy to Coolify (dl.bluearkive.com)
+        env:
+          COOLIFY_HOST: ${{ secrets.COOLIFY_HOST }}
+          COOLIFY_USER: ${{ secrets.COOLIFY_USER }}
+          COOLIFY_KEY: ${{ secrets.COOLIFY_SSH_KEY }}
+          DEPLOY_PATH: ${{ secrets.COOLIFY_DEPLOY_PATH }}
+        run: |
+          # Setup SSH
+          mkdir -p ~/.ssh
+          echo "$COOLIFY_KEY" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh-keyscan -H "$COOLIFY_HOST" >> ~/.ssh/known_hosts 2>/dev/null
+
+          # Upload all artifacts
+          for dir in artifacts/*/; do
+            echo "Uploading from $dir..."
+            rsync -avz --progress \
+              -e "ssh -i ~/.ssh/deploy_key" \
+              "$dir" \
+              "$COOLIFY_USER@$COOLIFY_HOST:$DEPLOY_PATH/"
+          done
+
+          echo "✅ All artifacts deployed to dl.bluearkive.com"
+
+      - name: Verify deployment
+        run: |
+          echo "Checking dl.bluearkive.com..."
+          curl -sf https://dl.bluearkive.com/latest-mac.yml | head -1
+          echo "✅ latest-mac.yml accessible"

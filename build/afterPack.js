@@ -17,6 +17,31 @@ const { execSync } = require('child_process')
 const path = require('path')
 const fs = require('fs')
 
+// ═══ SAFETY GUARD: Fail fast if large model files are in the project ═══
+// These files bypass electron-builder's files exclusion and bloat the
+// ASAR from 39MB to 3.5GB. They must be moved out before building.
+const modelsDir = path.join(__dirname, '..', 'resources', 'models')
+if (fs.existsSync(modelsDir)) {
+  const dangerousFiles = fs.readdirSync(modelsDir).filter(f =>
+    f.endsWith('.gguf') || (f.startsWith('ggml-') && f.endsWith('.bin'))
+  )
+  if (dangerousFiles.length > 0) {
+    const totalMB = dangerousFiles.reduce((sum, f) => {
+      return sum + fs.statSync(path.join(modelsDir, f)).size / 1024 / 1024
+    }, 0)
+    console.error('\n' + '═'.repeat(60))
+    console.error('❌ BUILD ABORTED — Large model files detected!')
+    console.error('═'.repeat(60))
+    console.error(`\nFound ${dangerousFiles.length} files (${Math.round(totalMB)}MB) in resources/models/:`)
+    dangerousFiles.forEach(f => console.error(`  • ${f}`))
+    console.error('\nThese will be packed into the ASAR and create a 3.5GB+ DMG.')
+    console.error('Use the safe build script instead:')
+    console.error('  ./build/build-safe.sh mac')
+    console.error('═'.repeat(60) + '\n')
+    process.exit(1)
+  }
+}
+
 /**
  * Modules to rebuild per platform.
  * - better-sqlite3: CRITICAL — app won't start without it

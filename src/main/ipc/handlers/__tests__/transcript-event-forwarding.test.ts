@@ -18,6 +18,7 @@ const mockMainWindow = {
   webContents: mockWebContents,
   isDestroyed: vi.fn(() => false),
   getSize: vi.fn(() => [1200, 800]),
+  getBounds: vi.fn(() => ({ x: 0, y: 0, width: 1200, height: 800 })),
 }
 
 vi.mock('electron', () => ({

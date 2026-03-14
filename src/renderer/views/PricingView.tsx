@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from 'react'
+import React, { useEffect, useState } from 'react'
 import { motion } from 'framer-motion'
 import { Check, X, ArrowLeft, Shield, Zap, Key } from 'lucide-react'
 import { Button } from '../components/ui/Button'
@@ -40,26 +40,10 @@ export const PricingView: React.FC = () => {
 
   const [config, setConfig] = useState<BillingConfig | null>(null)
 
-  const fetchTier = useCallback(async () => {
-    try {
-      const res = (await window.electronAPI?.auth?.getCurrentUser?.()) as {
-        data?: { tier?: string }
-        tier?: string
-      } | null
-      if (res) {
-        const userData = res.data !== undefined ? res.data : res
-        if (userData && userData.tier) {
-          setGlobalTier(userData.tier)
-        }
-      }
-    } catch (err) {
-      console.error('Failed to fetch user tier:', err)
-    }
-  }, [setGlobalTier])
+  // Tier is managed globally by useSystemState — no need to fetch here.
+  // currentTier is already read from the store at L34.
 
   useEffect(() => {
-    fetchTier()
-
     // Fetch system memory hint to provide context
     const fetchSysInfo = async () => {
       try {
@@ -81,12 +65,12 @@ export const PricingView: React.FC = () => {
         if (res?.success && res.data) {
           setConfig(res.data)
         }
-      } catch (err) {
+      } catch (_err) {
         // ignore
       }
     }
     fetchConfig()
-  }, [fetchTier])
+  }, [])
 
   const getPriceNum = (tierId: string, fallback: string) => {
     const tier = config?.tiers?.find(t => t.id === tierId)
@@ -96,15 +80,6 @@ export const PricingView: React.FC = () => {
     const priceStr = tier?.price
     return priceStr ? priceStr.replace('$', '') : fallback
   }
-
-  // Auto-refresh tier when user comes back from the browser (after payment)
-  useEffect(() => {
-    const handleFocus = () => {
-      fetchTier()
-    }
-    window.addEventListener('focus', handleFocus)
-    return () => window.removeEventListener('focus', handleFocus)
-  }, [fetchTier])
 
   const handleUpgradeClick = (tier: string) => {
     openUpgrade(tier)

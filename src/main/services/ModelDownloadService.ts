@@ -85,8 +85,19 @@ export class ModelDownloadService {
    */
   private copyBundledModels(): void {
     const bundledDir = path.join(process.resourcesPath, 'models')
-    if (!fs.existsSync(bundledDir)) return
+    if (!fs.existsSync(bundledDir)) {
+      log.warn(
+        `Bundled models directory not found at ${bundledDir}. ` +
+          'VAD (silero_vad.onnx) and local embeddings (MiniLM) will be unavailable until models are downloaded. ' +
+          'Check extraResources config in package.json.'
+      )
+      return
+    }
     const files = fs.readdirSync(bundledDir)
+    if (files.length === 0) {
+      log.warn(`Bundled models directory is empty: ${bundledDir}`)
+      return
+    }
     for (const file of files) {
       const src = path.join(bundledDir, file)
       const dest = path.join(this.modelsDir, file)
@@ -95,6 +106,7 @@ export class ModelDownloadService {
         log.info(`Copied bundled model: ${file}`)
       }
     }
+    log.info(`Bundled model copy complete. ${files.length} model files checked.`)
   }
 
   /**

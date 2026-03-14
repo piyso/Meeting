@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useMemo } from 'react'
 import { SplitPane } from '../components/ui/SplitPane'
 import '../views/views.css'
 import { TranscriptPanel } from '../components/meeting/TranscriptPanel'
@@ -8,14 +8,14 @@ import { useAppStore } from '../store/appStore'
 import { useTranscriptStream } from '../hooks/queries/useTranscriptStream'
 import { useDigest } from '../hooks/useDigest'
 import { useQuery } from '@tanstack/react-query'
-import { useMemo } from 'react'
 
 import { EntitySidebar } from '../components/meeting/EntitySidebar'
 import { Tooltip } from '../components/ui/Tooltip'
 import { SilentPrompter } from '../components/meeting/SilentPrompter'
 import { useSilentPrompter } from '../hooks/useSilentPrompter'
-import { Tag } from 'lucide-react'
+import { Tag, ChevronLeft } from 'lucide-react'
 import { RecordingToolbar } from '../components/meeting/RecordingToolbar'
+import { IconButton } from '../components/ui/IconButton'
 
 export default function MeetingDetailView() {
   const recordingState = useAppStore(s => s.recordingState)
@@ -132,6 +132,12 @@ export default function MeetingDetailView() {
     <div className="ui-view-meeting-detail animate-fade-in">
       {/* Header: Title */}
       <div className="flex items-center px-6 pt-3 pb-3 border-b border-white/[0.04]">
+        <IconButton
+          icon={<ChevronLeft size={18} />}
+          onClick={() => useAppStore.getState().navigate('meeting-list')}
+          tooltip="Back to Meetings"
+          className="mr-2 flex-shrink-0"
+        />
         <input
           className="bg-transparent border-none text-[18px] font-semibold text-[var(--color-text-primary)] outline-none w-full placeholder-[var(--color-text-tertiary)] tracking-tight focus-visible:ring-2 focus-visible:ring-[var(--color-violet)] focus-visible:ring-offset-4 focus-visible:ring-offset-black rounded-sm transition-shadow"
           value={editableTitle}
@@ -148,7 +154,13 @@ export default function MeetingDetailView() {
                     meetingId: selectedMeetingId,
                     updates: { title: newTitle },
                   })
-                  .catch(() => {}) // Silent — title save is non-critical
+                  .catch(() => {
+                    useAppStore.getState().addToast({
+                      type: 'error',
+                      title: 'Failed to save title',
+                      duration: 3000,
+                    })
+                  })
               }
             }, 500)
           }}
@@ -198,7 +210,7 @@ export default function MeetingDetailView() {
               defaultRatio={0.55}
               minTopHeight={200}
               top={<TranscriptPanel segments={segments} isRecording={isRecording} />}
-              bottom={<NoteEditor meetingId={selectedMeetingId} />}
+              bottom={<NoteEditor key={selectedMeetingId} meetingId={selectedMeetingId} />}
             />
           </div>
         </div>

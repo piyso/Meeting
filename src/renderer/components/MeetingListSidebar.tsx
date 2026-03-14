@@ -1,6 +1,10 @@
 import React, { useState, useMemo } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import './MeetingListSidebar.css'
+import { rendererLog } from '../utils/logger'
+import { useAppStore } from '../store/appStore'
+
+const log = rendererLog.create('MeetingListSidebar')
 
 interface MeetingListSidebarProps {
   activeMeetingId?: string
@@ -65,7 +69,12 @@ export const MeetingListSidebar: React.FC<MeetingListSidebarProps> = ({
       })
       queryClient.invalidateQueries({ queryKey: ['meetings'] })
     } catch (err) {
-      console.error('Failed to rename meeting', err)
+      log.error('Failed to rename meeting', err)
+      useAppStore.getState().addToast({
+        type: 'error',
+        title: 'Failed to rename meeting',
+        duration: 3000,
+      })
     } finally {
       setEditingId(null)
     }

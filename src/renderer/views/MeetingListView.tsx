@@ -80,10 +80,22 @@ export default function MeetingListView() {
         navigate('meeting-detail', res.data.meeting.id)
       } else {
         log.error('Failed to start meeting:', res.error)
+        useAppStore.getState().addToast({
+          type: 'error',
+          title: 'Failed to start meeting',
+          message: res.error?.message || 'Unknown error',
+          duration: 5000,
+        })
         setRecordingState('idle')
       }
     } catch (err) {
       log.error('Meeting start exception:', err)
+      useAppStore.getState().addToast({
+        type: 'error',
+        title: 'Failed to start meeting',
+        message: 'An unexpected error occurred',
+        duration: 5000,
+      })
       setRecordingState('idle')
     }
   }, [navigate, setRecordingState, queryClient])
@@ -107,14 +119,27 @@ export default function MeetingListView() {
       })
       if (res.success && res.data) {
         useAppStore.getState().setActiveMeetingId(res.data.meeting.id)
+        useAppStore.getState().setRecordingStartTime(Date.now())
         queryClient.invalidateQueries({ queryKey: ['meetings'] })
         navigate('meeting-detail', res.data.meeting.id)
       } else {
         log.error('Failed to start meeting:', res.error)
+        useAppStore.getState().addToast({
+          type: 'error',
+          title: 'Failed to start meeting',
+          message: res.error?.message || 'Unknown error',
+          duration: 5000,
+        })
         setRecordingState('idle')
       }
     } catch (err) {
       log.error('Meeting start exception:', err)
+      useAppStore.getState().addToast({
+        type: 'error',
+        title: 'Failed to start meeting',
+        message: 'An unexpected error occurred',
+        duration: 5000,
+      })
       setRecordingState('idle')
     }
   }
@@ -151,7 +176,15 @@ export default function MeetingListView() {
     { divider: true },
     {
       label: 'Delete',
-      onClick: () => deleteMeeting.mutate(id),
+      onClick: () => {
+        if (
+          window.confirm(
+            'Delete this meeting? All transcripts, notes, and entities will be permanently removed.'
+          )
+        ) {
+          deleteMeeting.mutate(id)
+        }
+      },
       danger: true,
     },
   ]

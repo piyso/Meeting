@@ -40,11 +40,6 @@ export const MeetingCard: React.FC<MeetingCardProps> = ({
     }
   }, [isRenaming, title])
 
-  const handleMouseEnter = () => {
-    // Phase 2: Prefetch meeting details for instant local load
-    window.dispatchEvent(new CustomEvent('prefetch-meeting', { detail: { id } }))
-  }
-
   const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
     const rect = e.currentTarget.getBoundingClientRect()
     const x = e.clientX - rect.left
@@ -80,7 +75,6 @@ export const MeetingCard: React.FC<MeetingCardProps> = ({
       style={{ animationDelay: `${Math.min(index * 40, 480)}ms` }}
       onClick={() => onClick(id)}
       onContextMenu={e => onContextMenu(e, id)}
-      onMouseEnter={handleMouseEnter}
       onMouseMove={handleMouseMove}
       role="button"
       tabIndex={0}

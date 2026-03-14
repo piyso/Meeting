@@ -47,6 +47,7 @@ export function useSystemState() {
 
     // Periodic quota refresh so exhaustion is detected mid-session
     const quotaInterval = setInterval(async () => {
+      if (document.visibilityState === 'hidden') return
       try {
         const quotaRes = await window.electronAPI?.quota?.check()
         if (quotaRes?.success && quotaRes.data) {
@@ -83,6 +84,7 @@ export function useSystemState() {
     const COOLDOWN_MS = 10_000 // Don't spam: max once per 10s
 
     const onFocus = async () => {
+      if (!document.hasFocus()) return // Ignore programmatic focus events
       const now = Date.now()
       if (now - lastCheck < COOLDOWN_MS) return
       lastCheck = now

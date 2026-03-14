@@ -620,6 +620,43 @@ export class AuditLogger {
       lastLogDate,
     }
   }
+
+  /**
+   * Purge audit logs older than the retention period.
+   * Keeps the most recent `minKeep` logs regardless of age.
+   *
+   * J1: Without this, the audit_logs table grows unbounded — every CRUD,
+   * login, and device event generates a row. After months of use this
+   * can reach hundreds of thousands of rows, bloating the database.
+   *
+   * @param retentionDays - Keep logs from the last N days (default: 90)
+   * @param minKeep - Always keep at least this many logs (default: 10000)
+   * @returns Number of rows purged
+   */
+  public async purgeOldLogs(retentionDays: number = 90, minKeep: number = 10000): Promise<number> {
+    const db = getDatabaseService().getDb()
+
+    // Don't purge if we have fewer rows than the minimum
+    const totalResult = db.prepare('SELECT COUNT(*) as count FROM audit_logs').get() as {
+      count: number
+    }
+    if (totalResult.count <= minKeep) return 0
+
+    const cutoffDate = new Date()
+    cutoffDate.setDate(cutoffDate.getDate() - retentionDays)
+    const cutoffISO = cutoffDate.toISOString()
+
+    // Delete logs older than cutoff, but never go below minKeep total rows
+    const result = db
+      .prepare(
+        `DELETE FROM audit_logs WHERE timestamp < ? AND id NOT IN (
+        SELECT id FROM audit_logs ORDER BY timestamp DESC LIMIT ?
+      )`
+      )
+      .run(cutoffISO, minKeep)
+
+    return result.changes
+  }
 }
 
 // Singleton instance

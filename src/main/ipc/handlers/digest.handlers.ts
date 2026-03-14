@@ -30,7 +30,13 @@ export function registerDigestHandlers(): void {
           }
         }
 
-        const transcriptText = transcripts.map(t => `${t.speaker}: ${t.text}`).join('\n')
+        let transcriptText = transcripts.map(t => `${t.speaker}: ${t.text}`).join('\n')
+        // OPT: Truncate to 8000 chars to prevent overflowing local LLM context window.
+        // A 1-hour meeting can produce 50K+ chars — most local models have 4K-8K context.
+        if (transcriptText.length > 8000) {
+          transcriptText =
+            transcriptText.slice(0, 8000) + '\n\n[...transcript truncated for context limit]'
+        }
 
         // Run all 3 AI calls in parallel for ~3× speedup
         const [summary, actions, decisions] = await Promise.all([

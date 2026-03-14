@@ -11,7 +11,9 @@ export const RecordingTimer: React.FC<RecordingTimerProps> = ({ startTime, isRec
   useEffect(() => {
     if (!isRecording || !startTime) return
 
-    let animationId: number
+    // OPT: Use setInterval at 1Hz instead of rAF@60FPS.
+    // The timer only changes once per second — 60 FPS was causing
+    // 59 unnecessary React re-renders per second.
     const update = () => {
       const ms = Date.now() - startTime
       const totalSeconds = Math.floor(ms / 1000)
@@ -22,11 +24,11 @@ export const RecordingTimer: React.FC<RecordingTimerProps> = ({ startTime, isRec
       setElapsed(
         `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`
       )
-      animationId = requestAnimationFrame(update)
     }
 
-    animationId = requestAnimationFrame(update)
-    return () => cancelAnimationFrame(animationId)
+    update() // Immediate first tick
+    const intervalId = setInterval(update, 1000)
+    return () => clearInterval(intervalId)
   }, [startTime, isRecording])
 
   return (

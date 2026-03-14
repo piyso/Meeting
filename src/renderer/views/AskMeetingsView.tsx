@@ -34,9 +34,67 @@ interface ChatMessage {
 function MarkdownText({ content }: { content: string }) {
   if (!content) return null
 
-  const blocks = []
+  const blocks: React.ReactNode[] = []
   let inCodeBlock = false
   let codeContent = ''
+  let listItems: React.ReactNode[] = []
+  let listType: 'ul' | 'ol' | null = null
+
+  const flushList = (key: string) => {
+    if (listItems.length > 0) {
+      if (listType === 'ol') {
+        blocks.push(
+          <ol key={key} className="ask-msg-list">
+            {listItems}
+          </ol>
+        )
+      } else {
+        blocks.push(
+          <ul key={key} className="ask-msg-list">
+            {listItems}
+          </ul>
+        )
+      }
+      listItems = []
+      listType = null
+    }
+  }
+
+  const formatInline = (text: string): React.ReactNode[] => {
+    // Handle bold, italic, inline code, and links
+    return text
+      .split(/((?:\*\*.*?\*\*)|(?:\*[^*]+?\*)|(?:`[^`]+?`)|(?:\[.*?\]\(.*?\)))/g)
+      .map((part, idx) => {
+        if (part.startsWith('**') && part.endsWith('**')) {
+          return <strong key={idx}>{part.slice(2, -2)}</strong>
+        }
+        if (part.startsWith('*') && part.endsWith('*') && !part.startsWith('**')) {
+          return <em key={idx}>{part.slice(1, -1)}</em>
+        }
+        if (part.startsWith('`') && part.endsWith('`')) {
+          return (
+            <code key={idx} className="ask-msg-inline-code">
+              {part.slice(1, -1)}
+            </code>
+          )
+        }
+        const linkMatch = part.match(/^\[(.+?)\]\((.+?)\)$/)
+        if (linkMatch) {
+          return (
+            <a
+              key={idx}
+              href={linkMatch[2]}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="ask-msg-link"
+            >
+              {linkMatch[1]}
+            </a>
+          )
+        }
+        return part
+      })
+  }
 
   const lines = content.split('\n')
   for (let i = 0; i < lines.length; i++) {
@@ -44,6 +102,7 @@ function MarkdownText({ content }: { content: string }) {
     if (line === undefined) continue
 
     if (line.startsWith('```')) {
+      flushList(`list-pre-code-${i}`)
       if (inCodeBlock) {
         blocks.push(
           <pre key={i} className="code-block">
@@ -63,26 +122,55 @@ function MarkdownText({ content }: { content: string }) {
       continue
     }
 
-    if (line.trim().startsWith('>')) {
-      blocks.push(<blockquote key={i}>{line.replace(/^>\s?/, '')}</blockquote>)
+    // Headings
+    const headingMatch = line.match(/^(#{1,4})\s+(.+)/)
+    if (headingMatch) {
+      flushList(`list-pre-h-${i}`)
+      const level = (headingMatch[1] ?? '#').length
+      const Tag = `h${level}` as keyof JSX.IntrinsicElements
+      blocks.push(
+        <Tag key={i} className="ask-msg-heading">
+          {formatInline(headingMatch[2] ?? '')}
+        </Tag>
+      )
       continue
     }
 
-    // Basic bold handling
-    const formattedLine = line.split(/(\*\*.*?\*\*)/g).map((part, idx) => {
-      if (part.startsWith('**') && part.endsWith('**')) {
-        return <strong key={idx}>{part.slice(2, -2)}</strong>
-      }
-      return part
-    })
+    // Blockquotes
+    if (line.trim().startsWith('>')) {
+      flushList(`list-pre-bq-${i}`)
+      blocks.push(<blockquote key={i}>{formatInline(line.replace(/^>\s?/, ''))}</blockquote>)
+      continue
+    }
 
-    // Add min-height to preserve empty lines
+    // Unordered list
+    const ulMatch = line.match(/^[-*]\s+(.+)/)
+    if (ulMatch) {
+      if (listType !== 'ul') flushList(`list-switch-${i}`)
+      listType = 'ul'
+      listItems.push(<li key={i}>{formatInline(ulMatch[1] ?? '')}</li>)
+      continue
+    }
+
+    // Ordered list
+    const olMatch = line.match(/^\d+\.\s+(.+)/)
+    if (olMatch) {
+      if (listType !== 'ol') flushList(`list-switch-${i}`)
+      listType = 'ol'
+      listItems.push(<li key={i}>{formatInline(olMatch[1] ?? '')}</li>)
+      continue
+    }
+
+    // Regular text — flush any pending list
+    flushList(`list-pre-text-${i}`)
     blocks.push(
       <div key={i} style={{ minHeight: line.trim() === '' ? '1.5em' : 'auto' }}>
-        {formattedLine}
+        {formatInline(line)}
       </div>
     )
   }
+
+  flushList('list-final')
 
   if (inCodeBlock) {
     blocks.push(

@@ -40,6 +40,14 @@ try {
   updater.on('error', (err: Error) => {
     log.warn('Auto-updater error (likely network/offline):', err.message)
   })
+
+  // O1: Re-check for updates every 4 hours instead of only once at startup.
+  // If the initial check fails (offline, DNS error), users would never get updates.
+  const FOUR_HOURS_MS = 4 * 60 * 60 * 1000
+  const updateCheckInterval = setInterval(() => {
+    updater.checkForUpdatesAndNotify().catch(() => {})
+  }, FOUR_HOURS_MS)
+  updateCheckInterval.unref() // Don't prevent app from quitting
 } catch {
   // Not installed or in development, skip
 }
@@ -267,15 +275,11 @@ app
       log.error(`CRITICAL: better-sqlite3 failed to load: ${errMsg}`)
     }
 
-    // Check keytar (HIGH — auth won't work without it)
-    try {
-      require('keytar')
-      log.info('Native module check: keytar ✅')
-    } catch (err: unknown) {
-      const errMsg = err instanceof Error ? err.message : String(err)
-      nativeModuleErrors.push(`keytar: ${errMsg}`)
-      log.warn(`Native module keytar failed to load (auth will be limited): ${errMsg}`)
-    }
+    // keytar: checked asynchronously via keytarSafe() on first use (5s timeout).
+    // Synchronous require('keytar') was removed because it triggers the macOS
+    // Keychain access dialog BEFORE window creation — blocking the main thread
+    // and making the app appear frozen (no window visible yet).
+    log.info('Native module check: keytar (async, checked on first use via keytarSafe)')
 
     // Check onnxruntime-node (MODERATE — VAD/embeddings won't work)
     try {
@@ -325,6 +329,48 @@ app
       dbInitFailed = true
       log.error('CRITICAL: Database initialization failed — app will start without DB:', dbErr)
       CrashReporter.addBreadcrumb('lifecycle', `Database init FAILED: ${dbErr}`)
+    }
+
+    // I2+I3: Schedule database maintenance (these functions existed but were never called)
+    if (!dbInitFailed) {
+      // walHealthCheck: check WAL file size every 10 minutes — emergency checkpoint if > 500MB
+      const {
+        walHealthCheck,
+        optimizeDatabase,
+        getDatabasePath,
+      } = require('../src/main/database/connection')
+      const dbPath = getDatabasePath()
+      const walHealthInterval = setInterval(
+        () => {
+          walHealthCheck(dbPath).catch((err: Error) => log.warn('WAL health check error:', err))
+        },
+        10 * 60 * 1000
+      ) // 10 minutes
+      walHealthInterval.unref() // Don't prevent app from quitting
+
+      // optimizeDatabase: run ANALYZE + conditional VACUUM 60s after startup
+      // Delayed so it doesn't block first paint or slow down DB initialization
+      const optimizeTimer = setTimeout(() => {
+        try {
+          optimizeDatabase()
+          log.info('Startup database optimization complete')
+        } catch (err) {
+          log.warn('Database optimization error:', err)
+        }
+        // J1: Purge audit logs older than 90 days (keeps min 10,000 rows)
+        try {
+          const { getAuditLogger } = require('../src/main/services/AuditLogger')
+          getAuditLogger()
+            .purgeOldLogs(90, 10000)
+            .then((purged: number) => {
+              if (purged > 0) log.info(`Purged ${purged} audit logs older than 90 days`)
+            })
+            .catch((err: Error) => log.warn('Audit log purge error:', err))
+        } catch {
+          // AuditLogger not available
+        }
+      }, 60_000) // 60 seconds after startup
+      optimizeTimer.unref()
     }
 
     // Setup IPC handlers (must be after DB init)
@@ -450,9 +496,9 @@ app
               "default-src 'self'; " +
                 `${scriptSrc}; ` +
                 "connect-src 'self' https://*.supabase.co wss://*.deepgram.com https://api.deepgram.com https://api.piyapi.cloud https://dl.bluearkive.com; " +
-                "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; " +
+                "style-src 'self' 'unsafe-inline'; " +
                 "img-src 'self' data: blob:; " +
-                "font-src 'self' https://fonts.gstatic.com; " +
+                "font-src 'self'; " +
                 "media-src 'self' mediastream: blob:;",
             ],
           },

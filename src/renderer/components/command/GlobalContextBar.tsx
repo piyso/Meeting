@@ -79,7 +79,9 @@ export const GlobalContextBar: React.FC<GlobalContextBarProps> = ({ open, onClos
                   className="flex items-center gap-1 bg-[var(--color-bg-glass)] border border-[var(--color-border-subtle)] px-2 py-1 rounded text-[11px] text-[var(--color-text-tertiary)] hover:bg-[var(--color-bg-panel)] transition-colors cursor-pointer"
                 >
                   <FileText size={10} /> {r.meeting.title || 'Untitled'}
-                  <span className="opacity-50 ml-1">{(Math.min(r.relevance, 1) * 100).toFixed(0)}%</span>
+                  <span className="opacity-50 ml-1">
+                    {(Math.min(r.relevance, 1) * 100).toFixed(0)}%
+                  </span>
                 </button>
               ))}
             </div>

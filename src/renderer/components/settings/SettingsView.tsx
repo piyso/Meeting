@@ -183,7 +183,7 @@ export const SettingsView: React.FC = () => {
     // Load meeting counts for Data Locality Report
     const loadMeetingCounts = async () => {
       try {
-        const res = await window.electronAPI?.meeting?.list({ limit: 999 })
+        const res = await window.electronAPI?.meeting?.list({ limit: 100 })
         if (res?.success && res.data) {
           const meetings = (res.data as { items: Array<{ synced_at?: number }> }).items || []
           setLocalMeetingCount(meetings.length)
@@ -198,10 +198,16 @@ export const SettingsView: React.FC = () => {
     loadMeetingCounts()
   }, [])
 
+  // Use a ref for settings to avoid recreating the callback on every setting change
+  const settingsRef = React.useRef(settings)
+  React.useEffect(() => {
+    settingsRef.current = settings
+  }, [settings])
+
   // Persist a setting change to DB with rollback on failure
   const updateSetting = useCallback(
     async (key: string, value: unknown) => {
-      const previousValue = (settings as unknown as Record<string, unknown>)[key]
+      const previousValue = (settingsRef.current as unknown as Record<string, unknown>)[key]
       setSettings(prev => ({ ...prev, [key]: value }))
       try {
         await window.electronAPI?.settings?.update({ key, value } as {
@@ -214,19 +220,22 @@ export const SettingsView: React.FC = () => {
         log.error(`[Settings] Failed to save "${key}":`, err)
       }
     },
-    [settings]
+    [] // No deps — uses ref for settings
   )
 
   const handleLogout = async () => {
     try {
       await window.electronAPI?.auth?.logout()
       setUserInfo(null)
+      useAppStore.getState().navigate('onboarding')
     } catch (err) {
       log.error('Logout failed:', err)
     }
   }
 
+  const [isExporting, setIsExporting] = React.useState(false)
   const handleExportData = async () => {
+    setIsExporting(true)
     try {
       const res = await window.electronAPI?.meeting?.list({ limit: 999 })
       if (res?.success && res.data) {
@@ -238,9 +247,15 @@ export const SettingsView: React.FC = () => {
         a.download = `bluearkive-export-${new Date().toISOString().split('T')[0]}.json`
         a.click()
         URL.revokeObjectURL(url)
+        useAppStore
+          .getState()
+          .addToast({ type: 'success', title: 'Data exported successfully', duration: 3000 })
       }
     } catch (err) {
       log.error('Data export failed:', err)
+      useAppStore.getState().addToast({ type: 'error', title: 'Export failed', duration: 3000 })
+    } finally {
+      setIsExporting(false)
     }
   }
 
@@ -653,8 +668,14 @@ export const SettingsView: React.FC = () => {
                   <span className="text-[var(--text-sm)] text-[var(--color-text-secondary)]">
                     Export data (GDPR)
                   </span>
-                  <Button variant="secondary" size="sm" onClick={handleExportData}>
-                    <Download size={14} className="mr-1" /> Export
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    onClick={handleExportData}
+                    disabled={isExporting}
+                  >
+                    <Download size={14} className="mr-1" />{' '}
+                    {isExporting ? 'Exporting...' : 'Export'}
                   </Button>
                 </div>
                 <div className="flex items-center justify-between h-[40px]">

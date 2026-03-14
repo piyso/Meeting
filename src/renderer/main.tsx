@@ -20,7 +20,7 @@ const queryClient = new QueryClient({
     queries: {
       staleTime: 30_000, // 30s default — individual hooks override as needed
       gcTime: 5 * 60_000, // Keep cache 5min after last subscriber unmounts
-      refetchOnWindowFocus: true,
+      refetchOnWindowFocus: false, // OPT: was true — every alt-tab fired 5-8 IPC queries
       retry: 1, // Reduced from 2 — local IPC rarely fails, retrying wastes time
       retryDelay: attemptIndex => Math.min(500 * 2 ** attemptIndex, 5000),
     },
@@ -60,3 +60,9 @@ if ('requestIdleCallback' in window) {
 } else {
   setTimeout(removeSplash, 100)
 }
+
+// Safety net: remove splash after 15s regardless — if React crashes during
+// mount, requestIdleCallback never fires and the user sees the pulsing logo forever.
+// Also listen for uncaught errors to remove splash immediately on crash.
+setTimeout(removeSplash, 15_000)
+window.addEventListener('error', removeSplash, { once: true })

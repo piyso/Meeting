@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useMemo } from 'react'
 import { useQuery } from '@tanstack/react-query'
+import { useAppStore } from '../../store/appStore'
 import type { TranscriptChunk } from '../../../types/ipc'
 
 /**
@@ -10,6 +11,8 @@ import type { TranscriptChunk } from '../../../types/ipc'
 export function useTranscriptStream(meetingId: string | null) {
   const chunksRef = useRef(new Map<string, TranscriptChunk>())
   const [renderTick, setRenderTick] = useState(0)
+  const recordingState = useAppStore(s => s.recordingState)
+  const isActivelyRecording = recordingState === 'recording' || recordingState === 'paused'
 
   const {
     data: historicalTranscripts = [],
@@ -28,12 +31,12 @@ export function useTranscriptStream(meetingId: string | null) {
     enabled: !!meetingId,
   })
 
-  // Throttled render tick — React only re-renders at ~3 FPS, not 10-30 FPS
+  // Throttled render tick — only run during active recording, not when viewing completed meetings
   useEffect(() => {
-    if (!meetingId) return
-    const interval = setInterval(() => setRenderTick(t => t + 1), 300)
+    if (!meetingId || !isActivelyRecording) return
+    const interval = setInterval(() => setRenderTick(t => t + 1), 1000)
     return () => clearInterval(interval)
-  }, [meetingId])
+  }, [meetingId, isActivelyRecording])
 
   useEffect(() => {
     if (!meetingId) return

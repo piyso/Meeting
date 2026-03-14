@@ -143,8 +143,8 @@ export class AudioPipelineService extends EventEmitter {
     try {
       const { getBackgroundEmbeddingQueue } = await import('./BackgroundEmbeddingQueue')
       getBackgroundEmbeddingQueue().start()
-    } catch {
-      // Embedding queue is optional
+    } catch (err) {
+      log.debug('Background embedding queue unavailable (optional):', err)
     }
 
     // Reset VAD state to clear stale LSTM context from any previous session.
@@ -264,7 +264,8 @@ export class AudioPipelineService extends EventEmitter {
       )
       try {
         this.writeStream = fs.createWriteStream(this.tempFilePath, { flags: 'w' })
-      } catch {
+      } catch (err) {
+        log.warn('Failed to create writeStream for audio recording — audio data may be lost:', err)
         this.writeStream = null
       }
     }
@@ -432,8 +433,8 @@ export class AudioPipelineService extends EventEmitter {
       const queue = getBackgroundEmbeddingQueue()
       await queue.flush()
       queue.stop()
-    } catch {
-      // Embedding queue is optional
+    } catch (err) {
+      log.debug('Background embedding queue shutdown (optional):', err)
     }
 
     const duration = (Date.now() - this.meetingStartTime) / 1000

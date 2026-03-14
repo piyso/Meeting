@@ -391,6 +391,8 @@ const electronAPI: ElectronAPI = {
     generateRecoveryKey: () => ipcRenderer.invoke('auth:generateRecoveryKey'),
     onSessionExpired: createEventListener('session:expired'),
     onSessionExpiring: createEventListener('session:expiring'),
+    onOAuthSuccess: createEventListener('auth:oauthSuccess'),
+    onOAuthError: createEventListener('auth:oauthError'),
     recordActivity: () => ipcRenderer.invoke('auth:recordActivity'),
     refreshProfile: () => ipcRenderer.invoke('auth:refreshProfile'),
     activateLicense: (params: { key: string }) =>

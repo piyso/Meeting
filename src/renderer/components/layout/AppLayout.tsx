@@ -143,11 +143,23 @@ export const AppLayout: React.FC = () => {
         const res = await window.electronAPI.meeting.start({})
         if (res.success && res.data) {
           useAppStore.getState().setActiveMeetingId(res.data.meeting.id)
+          useAppStore.getState().setRecordingStartTime(Date.now())
           navigate('meeting-detail', res.data.meeting.id)
         } else {
+          useAppStore.getState().addToast({
+            type: 'error',
+            title: 'Failed to start meeting',
+            duration: 5000,
+          })
           setRecordingState('idle')
         }
       } catch (err) {
+        useAppStore.getState().addToast({
+          type: 'error',
+          title: 'Failed to start meeting',
+          message: 'An unexpected error occurred',
+          duration: 5000,
+        })
         setRecordingState('idle')
       }
     }
@@ -171,7 +183,12 @@ export const AppLayout: React.FC = () => {
             await window.electronAPI?.meeting?.stop?.({ meetingId: state.activeMeetingId })
           }
         } catch {
-          /* ignore — best-effort cleanup */
+          useAppStore.getState().addToast({
+            type: 'error',
+            title: 'Stop recording failed',
+            message: 'Recording may need manual cleanup',
+            duration: 5000,
+          })
         }
         useAppStore.getState().setActiveMeetingId(null)
         setTimeout(() => setRecordingState('idle'), 2000)
@@ -225,6 +242,8 @@ export const AppLayout: React.FC = () => {
       if (now - lastReport > THROTTLE_MS) {
         lastReport = now
         window.electronAPI?.auth?.recordActivity?.().catch(() => {})
+        // Clear session-expiring banner since user is active
+        setSessionExpiringMs(null)
       }
     }
 
@@ -325,7 +344,12 @@ export const AppLayout: React.FC = () => {
   }, [navigate])
 
   const meetingId = activeView === 'meeting-detail' ? selectedMeetingId : null
-  const { startCapture, stopCapture: _stopCapture, pauseCapture, resumeCapture } = useAudioSession(meetingId)
+  const {
+    startCapture,
+    stopCapture: _stopCapture,
+    pauseCapture,
+    resumeCapture,
+  } = useAudioSession(meetingId)
 
   // React to store state to trigger actual backend capture
   React.useEffect(() => {
@@ -355,10 +379,19 @@ export const AppLayout: React.FC = () => {
       state.setRecordingPausedAt(null)
     }
     setRecordingState('processing')
-    if (state.activeMeetingId) {
-      // meeting.stop() saves end_time/duration AND stops audio internally
-      // No separate stopCapture() needed — avoids double-stop race condition (C3)
-      await window.electronAPI?.meeting?.stop?.({ meetingId: state.activeMeetingId })
+    try {
+      if (state.activeMeetingId) {
+        // meeting.stop() saves end_time/duration AND stops audio internally
+        // No separate stopCapture() needed — avoids double-stop race condition (C3)
+        await window.electronAPI?.meeting?.stop?.({ meetingId: state.activeMeetingId })
+      }
+    } catch {
+      useAppStore.getState().addToast({
+        type: 'error',
+        title: 'Stop recording failed',
+        message: 'Recording may need manual cleanup',
+        duration: 5000,
+      })
     }
     useAppStore.getState().setActiveMeetingId(null)
     setTimeout(() => setRecordingState('idle'), 2000)
@@ -435,21 +468,25 @@ export const AppLayout: React.FC = () => {
         <div className="ui-app-drag-region drag-region" />
       )}
 
-      <ZenRail
-        activeView={activeView}
-        onNavigate={v => navigate(v)}
-        focusMode={focusMode}
-        userTier={userTier}
-        onUpgrade={() => navigate('pricing')}
-      />
+      <ErrorBoundary viewName="ZenRail">
+        <ZenRail
+          activeView={activeView}
+          onNavigate={v => navigate(v)}
+          focusMode={focusMode}
+          userTier={userTier}
+          onUpgrade={() => navigate('pricing')}
+        />
+      </ErrorBoundary>
 
-      <DynamicIsland
-        recordingState={recordingState}
-        syncStatus={syncStatus}
-        onBack={activeView === 'meeting-detail' ? () => navigate('meeting-list') : undefined}
-        onStopRecording={handleStopRecording}
-        onPauseRecording={handlePauseRecording}
-      />
+      <ErrorBoundary viewName="DynamicIsland">
+        <DynamicIsland
+          recordingState={recordingState}
+          syncStatus={syncStatus}
+          onBack={activeView === 'meeting-detail' ? () => navigate('meeting-list') : undefined}
+          onStopRecording={handleStopRecording}
+          onPauseRecording={handlePauseRecording}
+        />
+      </ErrorBoundary>
 
       <OfflineBanner isOnline={isOnline} />
 

@@ -217,4 +217,29 @@ exports.default = async function afterPack(context) {
   }
 
   console.log('[afterPack] ✅ Native module rebuild complete')
+
+  // ═══ AD-HOC CODE SIGNING (macOS only) ═══
+  // Without this, Gatekeeper blocks the app with:
+  //   "code has no resources but signature indicates they must be present"
+  // The --deep flag signs all nested frameworks, helpers, and native .node binaries.
+  // The --force flag replaces any existing linker-only adhoc signatures.
+  if (platform === 'darwin') {
+    const appPath = path.join(context.appOutDir, `${context.packager.appInfo.productFilename}.app`)
+    console.log(`[afterPack] 🔏 Ad-hoc signing: ${appPath}`)
+    try {
+      execSync(
+        `codesign --deep --force --sign - "${appPath}"`,
+        { stdio: 'pipe', timeout: 120000 }
+      )
+      // Verify the signature
+      const verifyResult = execSync(
+        `codesign --verify --deep --strict "${appPath}" 2>&1`,
+        { stdio: 'pipe', timeout: 30000 }
+      ).toString().trim()
+      console.log(`[afterPack] ✅ Code signing verified${verifyResult ? ': ' + verifyResult : ''}`)
+    } catch (signErr) {
+      console.error(`[afterPack] ⚠️ Ad-hoc signing failed: ${signErr.message}`)
+      console.error('[afterPack] ↳ App may be blocked by Gatekeeper. Users will need: xattr -cr /Applications/BlueArkive.app')
+    }
+  }
 }

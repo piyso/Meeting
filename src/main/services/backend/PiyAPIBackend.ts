@@ -588,7 +588,8 @@ export class PiyAPIBackend implements IBackendProvider {
       if (!response.ok) return [] // Graceful fallback
       const data = await response.json()
       return this.normalizeSearchResults(data.results || data)
-    } catch {
+    } catch (err) {
+      log.debug('fuzzySearch failed (non-critical):', err)
       return []
     }
   }
@@ -612,7 +613,8 @@ export class PiyAPIBackend implements IBackendProvider {
         }),
       })
       return response.ok
-    } catch {
+    } catch (err) {
+      log.debug('feedbackPositive failed:', err)
       return false
     }
   }
@@ -632,7 +634,8 @@ export class PiyAPIBackend implements IBackendProvider {
         }),
       })
       return response.ok
-    } catch {
+    } catch (err) {
+      log.debug('feedbackNegative failed:', err)
       return false
     }
   }
@@ -661,7 +664,8 @@ export class PiyAPIBackend implements IBackendProvider {
 
       if (!response.ok) return null
       return await response.json()
-    } catch {
+    } catch (err) {
+      log.debug('kgIngest failed:', err)
       return null
     }
   }
@@ -693,7 +697,8 @@ export class PiyAPIBackend implements IBackendProvider {
 
       if (!response.ok) return null
       return await response.json()
-    } catch {
+    } catch (err) {
+      log.debug('deduplicate failed:', err)
       return null
     }
   }
@@ -718,7 +723,8 @@ export class PiyAPIBackend implements IBackendProvider {
 
       if (!response.ok) return null
       return await response.json()
-    } catch {
+    } catch (err) {
+      log.debug('checkPhi failed:', err)
       return null
     }
   }
@@ -741,7 +747,8 @@ export class PiyAPIBackend implements IBackendProvider {
 
       if (!response.ok) return null
       return await response.json()
-    } catch {
+    } catch (err) {
+      log.debug('exportAll failed:', err)
       return null
     }
   }
@@ -815,11 +822,12 @@ export class PiyAPIBackend implements IBackendProvider {
             start_offset: (e.start_offset as number) ?? undefined,
             end_offset: (e.end_offset as number) ?? undefined,
           }))
-      } catch {
-        // KG entities endpoint failed — still return empty
+      } catch (err) {
+        log.debug('KG entities fetch failed:', err)
         return []
       }
-    } catch {
+    } catch (err) {
+      log.debug('extractEntities failed:', err)
       return []
     }
   }
@@ -905,7 +913,8 @@ export class PiyAPIBackend implements IBackendProvider {
       if (!response.ok) return []
       const data = await response.json()
       return data.results || data
-    } catch {
+    } catch (err) {
+      log.debug('searchGraph failed:', err)
       return []
     }
   }
@@ -932,7 +941,8 @@ export class PiyAPIBackend implements IBackendProvider {
 
       if (!response.ok) return { totalNodes: 0, totalEdges: 0, clusters: 0 }
       return await response.json()
-    } catch {
+    } catch (err) {
+      log.debug('getGraphStats failed:', err)
       return { totalNodes: 0, totalEdges: 0, clusters: 0 }
     }
   }
@@ -996,7 +1006,8 @@ export class PiyAPIBackend implements IBackendProvider {
       })
       if (!response.ok) return null
       return await response.json()
-    } catch {
+    } catch (err) {
+      log.debug('createContextSession failed:', err)
       return null
     }
   }
@@ -1026,7 +1037,8 @@ export class PiyAPIBackend implements IBackendProvider {
       )
       if (!response.ok) return null
       return await response.json()
-    } catch {
+    } catch (err) {
+      log.debug('retrieveContext failed:', err)
       return null
     }
   }

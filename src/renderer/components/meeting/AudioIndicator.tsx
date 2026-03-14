@@ -69,6 +69,16 @@ export const AudioIndicator: React.FC<AudioIndicatorProps> = ({ audioLevel, isRe
     }
   }, [audioLevel, isRecording])
 
+  // A2: Stop/resume the rAF loop when recording state changes.
+  // Separate from update effect to avoid redundant messages on every audioLevel tick.
+  useEffect(() => {
+    if (workerPool.worker) {
+      workerPool.worker.postMessage({
+        type: isRecording ? 'resume' : 'stop',
+      })
+    }
+  }, [isRecording])
+
   return (
     <canvas
       ref={canvasRef}

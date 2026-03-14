@@ -1212,6 +1212,8 @@ function createMockElectronAPI() {
         }),
       onSessionExpired: noop,
       onSessionExpiring: noop,
+      onOAuthSuccess: noop,
+      onOAuthError: noop,
       recordActivity: async () => delayedVoid(),
       refreshProfile: async () => delayed(MOCK_USER),
       activateLicense: async () => {

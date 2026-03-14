@@ -22,7 +22,14 @@ export const TranscriptPanel: React.FC<TranscriptPanelProps> = ({
   const rowVirtualizer = useVirtualizer({
     count: segments.length,
     getScrollElement: () => parentRef.current,
-    estimateSize: () => 64, // Estimate height
+    // Dynamic estimate based on content length — reduces scroll jumping vs fixed 64px
+    estimateSize: index => {
+      const seg = segments[index]
+      const textLen = seg?.text?.length ?? 0
+      if (textLen < 80) return 48
+      if (textLen < 200) return 72
+      return 96
+    },
     overscan: 10,
   })
 

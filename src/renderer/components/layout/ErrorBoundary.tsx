@@ -1,6 +1,9 @@
 import React, { Component, ErrorInfo } from 'react'
 import { AlertTriangle, RefreshCw } from 'lucide-react'
 import { Button } from '../ui/Button'
+import { rendererLog } from '../../utils/logger'
+
+const log = rendererLog.create('ErrorBoundary')
 
 interface Props {
   children: React.ReactNode
@@ -27,13 +30,13 @@ export class ErrorBoundary extends Component<Props, State> {
   }
 
   public componentDidCatch(error: Error, errorInfo: ErrorInfo) {
-    console.error(
+    log.error(
       `ErrorBoundary caught in ${this.props.viewName || 'unknown view'}:`,
       error.message,
       'Stack:',
       error.stack
     )
-    console.error('Component stack:', errorInfo.componentStack)
+    log.error('Component stack:', errorInfo.componentStack)
     try {
       // Report to main process crash handler/logger
       window.electronAPI?.ipcRenderer?.send('error', {

@@ -29,7 +29,10 @@ export function useSilentPrompter(
     if (!meetingId || currentTranscripts.length === 0) return
 
     // Get last 5 minutes of transcript
-    const now = currentTranscripts[currentTranscripts.length - 1]?.startTime ?? currentTranscripts[currentTranscripts.length - 1]?.start_time ?? 0
+    const now =
+      currentTranscripts[currentTranscripts.length - 1]?.startTime ??
+      currentTranscripts[currentTranscripts.length - 1]?.start_time ??
+      0
     const fiveMinAgo = now - 300
     const recentText = currentTranscripts
       .filter(t => (t.startTime ?? t.start_time ?? 0) >= fiveMinAgo)
@@ -78,6 +81,7 @@ export function useSilentPrompter(
 
       return () => {
         if (intervalRef.current) clearInterval(intervalRef.current)
+        if (dismissTimerRef.current) clearTimeout(dismissTimerRef.current)
       }
     } else {
       if (intervalRef.current) clearInterval(intervalRef.current)

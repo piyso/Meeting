@@ -21,8 +21,8 @@ export function useSyncEngine() {
   // Poll sync status — stable deps, no re-fire loop
   useEffect(() => {
     const interval = setInterval(async () => {
-      if (!isOnlineRef.current) {
-        return // Offline — skip entirely, don't call setSyncStatus
+      if (!isOnlineRef.current || document.visibilityState === 'hidden') {
+        return // Offline or backgrounded — skip entirely
       }
 
       try {

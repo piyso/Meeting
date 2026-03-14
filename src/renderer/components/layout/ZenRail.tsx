@@ -31,7 +31,7 @@ export const ZenRail: React.FC<ZenRailProps> = ({
   const toggleCommandPalette = useAppStore(s => s.toggleCommandPalette)
 
   return (
-    <nav className={`ui-zen-rail ${focusMode ? 'focus-mode' : ''}`}>
+    <nav className={`ui-zen-rail ${focusMode ? 'focus-mode' : ''}`} aria-label="Main navigation">
       <div className="ui-zen-rail-item">
         <IconButton
           icon={<FileText size={18} />}

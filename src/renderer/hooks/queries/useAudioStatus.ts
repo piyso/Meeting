@@ -15,7 +15,7 @@ export function useAudioStatus(meetingId: string | null) {
   // Throttled volume reporting — update React state at 5 FPS max, not 30 FPS
   useEffect(() => {
     if (!isRecording) return
-    const interval = setInterval(() => setVolumeTick(t => t + 1), 200)
+    const interval = setInterval(() => setVolumeTick(t => t + 1), 500) // OPT: was 200ms — 2 FPS is enough for volume bars
     return () => clearInterval(interval)
   }, [isRecording])
 

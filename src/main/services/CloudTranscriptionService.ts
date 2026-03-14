@@ -50,6 +50,10 @@ export class CloudTranscriptionService extends EventEmitter {
   private enabled: boolean = false
   private ws: WebSocket | null = null
   private configLoaded: boolean = false
+  // Reconnect state for exponential backoff
+  private _stopRequested: boolean = false
+  private _reconnectAttempts: number = 0
+  private _reconnectTimer: ReturnType<typeof setTimeout> | null = null
   private usageStats: UsageStats = {
     totalSeconds: 0,
     monthlyLimit: 36000, // 10 hours for free tier
@@ -247,6 +251,10 @@ export class CloudTranscriptionService extends EventEmitter {
     const ws = this.ws
     if (!ws) return
 
+    // Reset reconnect state for new session
+    this._stopRequested = false
+    this._reconnectAttempts = 0
+
     ws.addEventListener('open', () => {
       log.info('[Cloud Transcription] Streaming connection opened')
       this.emit('connected')
@@ -269,9 +277,33 @@ export class CloudTranscriptionService extends EventEmitter {
       this.emit('error', event)
     })
 
-    ws.addEventListener('close', () => {
-      log.info('[Cloud Transcription] Streaming connection closed')
+    ws.addEventListener('close', (event: CloseEvent) => {
+      log.info(`[Cloud Transcription] Connection closed (code: ${event.code})`)
+      this.ws = null
       this.emit('disconnected')
+
+      // Auto-reconnect with exponential backoff — but only for abnormal closures
+      // Normal close (1000) or explicit stop won't reconnect
+      if (event.code !== 1000 && !this._stopRequested) {
+        this._reconnectAttempts = (this._reconnectAttempts || 0) + 1
+        const maxAttempts = 5
+        if (this._reconnectAttempts <= maxAttempts) {
+          const delay = Math.min(1000 * Math.pow(2, this._reconnectAttempts - 1), 30000)
+          log.info(
+            `[Cloud Transcription] Reconnecting in ${delay}ms (attempt ${this._reconnectAttempts}/${maxAttempts})`
+          )
+          this._reconnectTimer = setTimeout(() => {
+            this.startStreaming(_config).catch(err => {
+              log.error('[Cloud Transcription] Reconnect failed:', err)
+            })
+          }, delay)
+        } else {
+          log.warn(
+            `[Cloud Transcription] Max reconnect attempts (${maxAttempts}) reached — giving up`
+          )
+          this.emit('error', new Error('Max reconnect attempts reached'))
+        }
+      }
     })
   }
 
@@ -292,8 +324,15 @@ export class CloudTranscriptionService extends EventEmitter {
    * Stop streaming transcription
    */
   stopStreaming(): void {
+    // Prevent reconnect after explicit stop
+    this._stopRequested = true
+    this._reconnectAttempts = 0
+    if (this._reconnectTimer) {
+      clearTimeout(this._reconnectTimer)
+      this._reconnectTimer = null
+    }
     if (this.ws) {
-      this.ws.close()
+      this.ws.close(1000) // Normal closure code — won't trigger reconnect
       this.ws = null
     }
   }

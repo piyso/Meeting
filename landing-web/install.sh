@@ -13,7 +13,9 @@ INSTALL_DIR="/Applications"
 # Auto-detect latest version from server
 VERSION=$(curl -sf "${BASE_URL}/latest-mac.yml" 2>/dev/null | head -1 | sed 's/version: *//')
 if [ -z "$VERSION" ]; then
-    VERSION="0.3.0"  # fallback
+    echo -e "${YELLOW}Error: Could not detect latest version from server.${NC}"
+    echo -e "Please download manually from: ${BLUE}https://bluearkive.com${NC}"
+    exit 1
 fi
 
 # Colors

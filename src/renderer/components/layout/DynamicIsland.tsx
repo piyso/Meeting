@@ -5,7 +5,9 @@ import { IconButton } from '../ui/IconButton'
 import { AudioIndicator } from '../meeting/AudioIndicator'
 import { SyncStatusBadge } from '../ui/SyncStatusBadge'
 import { useAppStore } from '../../store/appStore'
+import { useShallow } from 'zustand/react/shallow'
 import { useAudioStatus } from '../../hooks/queries/useAudioStatus'
+import { useRecordingTimer } from '../../hooks/useRecordingTimer'
 import type { ElectronAPI } from '../../../types/ipc'
 
 declare global {
@@ -20,14 +22,6 @@ interface DynamicIslandProps {
   onBack?: () => void
   onStopRecording?: () => void
   onPauseRecording?: () => void
-}
-
-function formatElapsed(ms: number): string {
-  const totalSec = Math.floor(ms / 1000)
-  const h = Math.floor(totalSec / 3600)
-  const m = Math.floor((totalSec % 3600) / 60)
-  const s = totalSec % 60
-  return `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`
 }
 
 const PROCESSING_STEPS = [
@@ -49,19 +43,29 @@ export const DynamicIsland: React.FC<DynamicIslandProps> = ({
   const { currentVolume: audioLevel } = useAudioStatus(activeMeetingId)
 
   const isRecording = recordingState === 'recording'
-  const recordingStartTime = useAppStore(s => s.recordingStartTime)
-  const lastTranscriptLine = useAppStore(s => s.lastTranscriptLine)
-  const activeView = useAppStore(s => s.activeView)
-  const audioMode = useAppStore(s => s.audioMode)
-  const liveCoachTip = useAppStore(s => s.liveCoachTip)
-  const currentTier = useAppStore(s => s.currentTier)
-  const quotaData = useAppStore(s => s.quotaData)
-  const entityCount = useAppStore(s => s.entityCount)
-  const noteCount = useAppStore(s => s.noteCount)
+  const {
+    lastTranscriptLine,
+    activeView,
+    audioMode,
+    liveCoachTip,
+    currentTier,
+    quotaData,
+    entityCount,
+    noteCount,
+  } = useAppStore(
+    useShallow(s => ({
+      lastTranscriptLine: s.lastTranscriptLine,
+      activeView: s.activeView,
+      audioMode: s.audioMode,
+      liveCoachTip: s.liveCoachTip,
+      currentTier: s.currentTier,
+      quotaData: s.quotaData,
+      entityCount: s.entityCount,
+      noteCount: s.noteCount,
+    }))
+  )
 
-  const [elapsedStr, setElapsedStr] = useState('00:00:00')
-  const recordingPausedAt = useAppStore(s => s.recordingPausedAt)
-  const recordingTotalPausedMs = useAppStore(s => s.recordingTotalPausedMs)
+  const { elapsedStr } = useRecordingTimer()
 
   // ── Hover Expansion (debounced to prevent rapid flips) ──
   const [isHovered, setIsHovered] = useState(false)
@@ -129,25 +133,7 @@ export const DynamicIsland: React.FC<DynamicIslandProps> = ({
     }
   }, [recordingState])
 
-  useEffect(() => {
-    if ((recordingState === 'recording' || recordingState === 'paused') && recordingStartTime) {
-      if (recordingState === 'paused' && recordingPausedAt) {
-        setElapsedStr(
-          formatElapsed(recordingPausedAt - recordingStartTime - recordingTotalPausedMs)
-        )
-        return
-      }
-
-      const tick = () =>
-        setElapsedStr(formatElapsed(Date.now() - recordingStartTime - recordingTotalPausedMs))
-      tick() // immediate first tick
-      const id = setInterval(tick, 1000)
-      return () => clearInterval(id)
-    } else {
-      setElapsedStr('00:00:00')
-      return undefined
-    }
-  }, [recordingState, recordingStartTime, recordingPausedAt, recordingTotalPausedMs])
+  // Timer now handled by useRecordingTimer hook
 
   // ── Throttled Widget IPC ── (max 1 call per second for same-state, immediate for state changes)
   const lastWidgetUpdate = useRef(0)

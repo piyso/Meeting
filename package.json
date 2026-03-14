@@ -1,6 +1,6 @@
 {
   "name": "bluearkive",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "description": "Local-first meeting transcription application with AI-powered note expansion",
   "main": "dist-electron/main.js",
   "author": "BlueArkive",
@@ -47,8 +47,6 @@
     "@tiptap/extension-placeholder": "^3.20.0",
     "@tiptap/react": "^3.20.0",
     "@tiptap/starter-kit": "^3.20.0",
-    "@types/d3": "^7.4.3",
-    "@types/three": "^0.183.1",
     "better-sqlite3": "^12.6.2",
     "d3": "^7.9.0",
     "electron-updater": "^6.8.3",
@@ -121,8 +119,8 @@
       "!src/**",
       "!electron/**",
       "!resources/**",
-      "!**/*.gguf",
-      "!**/*.bin",
+      "!resources/models/*.gguf",
+      "!resources/models/*.bin",
       "!build/**",
       "!**/*.map",
       "!**/*.ts",
@@ -204,10 +202,8 @@
         }
       ],
       "icon": "build/icon.icns",
-      "hardenedRuntime": true,
+      "hardenedRuntime": false,
       "gatekeeperAssess": false,
-      "entitlements": "build/entitlements.mac.plist",
-      "entitlementsInherit": "build/entitlements.mac.plist",
       "type": "distribution",
       "minimumSystemVersion": "11.0",
       "darkModeSupport": true,
@@ -341,7 +337,6 @@
         }
       ]
     },
-
     "deb": {
       "artifactName": "${productName}-${version}-${arch}.${ext}",
       "depends": [

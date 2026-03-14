@@ -20,7 +20,6 @@
   border: 1px solid transparent;
   outline: none;
   white-space: nowrap;
-  will-change: transform, box-shadow;
 }
 .ui-btn:active:not(:disabled) {
   transform: scale(0.95) translateY(1px);
@@ -406,7 +405,6 @@
   padding: var(--space-12) var(--space-16);
   cursor: pointer;
   animation: toast-slide-up 400ms var(--ease-spring) forwards;
-  will-change: transform, opacity;
 
   /* Tahoe Popover Glass */
   background: rgba(18, 18, 20, 0.85);
@@ -665,7 +663,6 @@
     background 150ms var(--ease-fluid),
     color 150ms var(--ease-fluid);
   outline: none;
-  will-change: transform;
 }
 .ui-icon-btn:hover:not(:disabled) {
   background: var(--color-bg-glass-hover);

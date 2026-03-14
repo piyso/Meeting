@@ -19,7 +19,7 @@ class Logo3DErrorBoundary extends Component<{ children: ReactNode }, { hasError:
     return { hasError: true }
   }
   componentDidCatch(error: Error, _info: ErrorInfo) {
-    console.warn('[Logo3D] Rendering failed, using CSS fallback:', error.message)
+    rendererLog.create('Logo3D').warn('Rendering failed, using CSS fallback:', error.message)
   }
   render() {
     if (this.state.hasError) {
@@ -99,6 +99,24 @@ export const OnboardingFlow: React.FC = () => {
       }
     }
     checkOnboardingCompleted()
+  }, [])
+
+  // Listen for Google OAuth callback from main process deeplink handler
+  useEffect(() => {
+    const unsubSuccess = window.electronAPI?.auth?.onOAuthSuccess?.(data => {
+      log.info('Google OAuth callback received', { email: data?.user?.email })
+      setAuthError(null)
+      setIsNewUser(false) // Google users are treated as returning users
+      setStep('setup')
+    })
+    const unsubError = window.electronAPI?.auth?.onOAuthError?.(data => {
+      log.warn('Google OAuth callback error:', data?.error)
+      setAuthError(data?.error || 'Google sign-in failed')
+    })
+    return () => {
+      unsubSuccess?.()
+      unsubError?.()
+    }
   }, [])
 
   // Auto-trigger hardware detection + model download when entering 'setup' step
@@ -205,9 +223,8 @@ export const OnboardingFlow: React.FC = () => {
           errMsg.includes('fetch') ||
           errMsg.includes('ECONNREFUSED') ||
           errMsg.includes('network') ||
-          errMsg.includes('validation') ||
-          errMsg.includes('invalid') ||
-          errMsg.includes('supabaseUrl')
+          errMsg.includes('supabaseUrl') ||
+          errMsg.includes('supabase_not_configured')
         ) {
           // Backend not configured — skip auth and proceed (offline-first mode)
           log.warn('Auth backend unavailable, proceeding in offline mode')

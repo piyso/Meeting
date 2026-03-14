@@ -112,7 +112,9 @@ export const useAppStore = create<AppState>()(set => ({
   syncStatus: 'idle',
   lastSyncTimestamp: (() => {
     const stored = localStorage.getItem('bluearkive:lastSyncTimestamp')
-    return stored ? parseInt(stored, 10) : null
+    if (!stored) return null
+    const parsed = parseInt(stored, 10)
+    return Number.isNaN(parsed) ? null : parsed // NaN guard — corrupt localStorage value
   })(),
 
   // UI State

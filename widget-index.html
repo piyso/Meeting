@@ -3,11 +3,9 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <!-- Content Security Policy to ensure Electron security -->
-    <meta
-      http-equiv="Content-Security-Policy"
-      content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; connect-src 'self' https://*.supabase.co https://api.piyapi.cloud;"
-    />
+    <!-- CSP is enforced at runtime via session.webRequest.onHeadersReceived in main.ts.
+         Do NOT add a CSP meta tag here — browsers intersect both CSPs (most restrictive wins),
+         which would block WebSockets, API calls, and fonts needed by the widget. -->
     <title>BlueArkive - Widget</title>
     <style>
       /* Ensure the Electron window's HTML/Body is completely transparent so only the React widget shows */

@@ -360,7 +360,8 @@ export class AuthService {
       }
 
       return token
-    } catch {
+    } catch (err) {
+      log.warn('getAccessToken: keytar access failed — user appears logged out:', err)
       return null
     }
   }
@@ -386,7 +387,8 @@ export class AuthService {
 
       if (!id || !email) return null
       return { id, email, tier: tier || 'free' }
-    } catch {
+    } catch (err) {
+      log.warn('getCurrentUser: keytar access failed:', err)
       return null
     }
   }

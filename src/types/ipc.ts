@@ -1085,6 +1085,13 @@ export interface ElectronAPI {
     onSessionExpiring?: (
       callback: (data: { remainingMs: number; timeoutMs: number }) => void
     ) => () => void
+    onOAuthSuccess?: (
+      callback: (data: {
+        tokens: { accessToken: string; refreshToken: string; expiresIn: number }
+        user: { id: string; email: string; tier: string }
+      }) => void
+    ) => () => void
+    onOAuthError?: (callback: (data: { error: string }) => void) => () => void
     recordActivity: () => Promise<IPCResponse<void>>
     refreshProfile: () => Promise<IPCResponse<{ id: string; email: string; tier: string } | null>>
     activateLicense: (params: {

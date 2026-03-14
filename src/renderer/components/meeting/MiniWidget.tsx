@@ -72,7 +72,6 @@ export const MiniWidget: React.FC<MiniWidgetProps> = ({
 
   return (
     <motion.div
-      layout
       transition={springSpec}
       className="relative w-full max-w-[300px] rounded-[var(--radius-xl)] surface-glass-premium px-4 py-3 flex flex-col justify-center widget-draggable overflow-hidden shadow-[0_12px_40px_rgba(0,0,0,0.4)]"
       onClick={e => {

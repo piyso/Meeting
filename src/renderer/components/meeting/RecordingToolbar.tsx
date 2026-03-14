@@ -1,23 +1,13 @@
-import React, { useState, useEffect, useCallback } from 'react'
+import React, { useCallback } from 'react'
 import { Square, Pause, Play, Mic, Monitor, Circle, BookmarkPlus } from 'lucide-react'
 import { useAppStore } from '../../store/appStore'
+import { useRecordingTimer } from '../../hooks/useRecordingTimer'
 
 interface RecordingToolbarProps {
   onStop: () => void
   onPause?: () => void
   onResume?: () => void
   onBookmark?: () => void
-}
-
-function formatElapsed(ms: number): string {
-  const totalSec = Math.floor(ms / 1000)
-  const h = Math.floor(totalSec / 3600)
-  const m = Math.floor((totalSec % 3600) / 60)
-  const s = totalSec % 60
-  if (h > 0) {
-    return `${h}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`
-  }
-  return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`
 }
 
 export const RecordingToolbar: React.FC<RecordingToolbarProps> = ({
@@ -27,30 +17,10 @@ export const RecordingToolbar: React.FC<RecordingToolbarProps> = ({
   onBookmark,
 }) => {
   const recordingState = useAppStore(s => s.recordingState)
-  const recordingStartTime = useAppStore(s => s.recordingStartTime)
-  const recordingPausedAt = useAppStore(s => s.recordingPausedAt)
-  const recordingTotalPausedMs = useAppStore(s => s.recordingTotalPausedMs)
   const audioMode = useAppStore(s => s.audioMode)
+  const { elapsedStr } = useRecordingTimer()
 
-  const [elapsed, setElapsed] = useState(0)
   const isPaused = recordingState === 'paused'
-
-  // Live timer
-  useEffect(() => {
-    if ((recordingState !== 'recording' && recordingState !== 'paused') || !recordingStartTime)
-      return
-    if (isPaused && recordingPausedAt) {
-      // Freeze timer entirely
-      setElapsed(recordingPausedAt - recordingStartTime - recordingTotalPausedMs)
-      return
-    }
-
-    const interval = setInterval(() => {
-      setElapsed(Date.now() - recordingStartTime - recordingTotalPausedMs)
-    }, 1000)
-
-    return () => clearInterval(interval)
-  }, [recordingState, recordingStartTime, isPaused, recordingPausedAt, recordingTotalPausedMs])
 
   const handlePauseToggle = useCallback(() => {
     if (isPaused) {
@@ -79,9 +49,7 @@ export const RecordingToolbar: React.FC<RecordingToolbarProps> = ({
         <span className="recording-toolbar-status">
           {isConnecting ? 'Connecting…' : isPaused ? 'Paused' : 'Recording'}
         </span>
-        <span className="recording-toolbar-timer">
-          {isConnecting ? '--:--' : formatElapsed(elapsed)}
-        </span>
+        <span className="recording-toolbar-timer">{isConnecting ? '--:--' : elapsedStr}</span>
         {showMode && (
           <span className="recording-toolbar-mode">
             {audioMode === 'system' ? (

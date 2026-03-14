@@ -21,6 +21,13 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({ meetingId }) => {
   const [isAIExpanding, setIsAIExpanding] = useState(false)
   const saveTimeoutRef = React.useRef<NodeJS.Timeout | null>(null)
 
+  // Cleanup debounced save on unmount to prevent stale mutations
+  React.useEffect(() => {
+    return () => {
+      if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current)
+    }
+  }, [])
+
   useEffect(() => {
     // Generate isolated Y doc per meeting ID
     const ydoc = new Y.Doc()

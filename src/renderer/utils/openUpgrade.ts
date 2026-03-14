@@ -1,3 +1,7 @@
+import { rendererLog } from './logger'
+
+const log = rendererLog.create('openUpgrade')
+
 /**
  * Centralized upgrade helper — builds a billing URL with user context
  * and opens it in the default browser.
@@ -17,7 +21,7 @@ export async function openUpgrade(targetTier?: string): Promise<void> {
   try {
     await window.electronAPI?.billing?.openCheckout?.({ targetTier })
   } catch (error) {
-    console.error('Failed to open upgrade:', error)
+    log.error('Failed to open upgrade:', error)
     // Fallback if IPC fails
     const isDevMode = !!window.location.hostname.includes('localhost')
     const fallback = isDevMode ? DEV_BILLING_URL : PROD_BILLING_URL

@@ -39,6 +39,13 @@ export const CommandPalette: React.FC = () => {
   const deferredQuery = useDeferredValue(query)
   const [selectedIndex, setSelectedIndex] = useState(0)
 
+  // Debounce search queries by 300ms to prevent IPC spam from rapid typing
+  const [debouncedSearch, setDebouncedSearch] = useState('')
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedSearch(deferredQuery), 300)
+    return () => clearTimeout(timer)
+  }, [deferredQuery])
+
   // Actions
   const baseActions: CommandItem[] = React.useMemo(
     () => [
@@ -162,13 +169,13 @@ export const CommandPalette: React.FC = () => {
     [toggleCommandPalette, toggleFocusMode, navigate]
   )
 
-  const searchParams = React.useMemo(() => ({ query: deferredQuery }), [deferredQuery])
+  const searchParams = React.useMemo(() => ({ query: debouncedSearch }), [debouncedSearch])
   const { data: searchResults } = useSearch(searchParams)
   const { data: semanticResults } = useSemanticSearch(searchParams)
   const { data: recentMeetings } = useMeetings({ limit: 4 })
 
   // Map Results
-  const isSearching = deferredQuery.trim().length > 1
+  const isSearching = debouncedSearch.trim().length > 1
 
   const meetingItems: CommandItem[] = React.useMemo(
     () =>

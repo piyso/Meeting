@@ -33,6 +33,13 @@ release
 .env.local
 .env.*.local
 
+# Private keys & certificates (safety — never tracked)
+*.pem
+*.key
+*.cert
+*.p12
+*.pfx
+
 # OS files
 Thumbs.db
 

@@ -443,8 +443,22 @@ export const OnboardingFlow: React.FC = () => {
                   onClick={async () => {
                     try {
                       setAuthError(null)
-                      await window.electronAPI?.auth?.googleAuth?.()
-                      setAuthError('Google sign-in opened in browser — complete the flow there')
+                      const res = await window.electronAPI?.auth?.googleAuth?.()
+                      if (res && !res.success) {
+                        const msg = res.error?.message || 'Google sign-in failed'
+                        if (
+                          msg.includes('provider is not enabled') ||
+                          msg.includes('Unsupported provider')
+                        ) {
+                          setAuthError(
+                            'Google sign-in is not available yet. Please use email/password to sign in.'
+                          )
+                        } else {
+                          setAuthError(msg)
+                        }
+                      } else {
+                        setAuthError('Google sign-in opened in browser — complete the flow there')
+                      }
                     } catch (err: unknown) {
                       setAuthError(err instanceof Error ? err.message : 'Google sign-in failed')
                     }

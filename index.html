@@ -25,11 +25,6 @@
       #splash .logo {
         width: 80px;
         height: 80px;
-        border-radius: 50%;
-        background: radial-gradient(circle, #22d3ee 0%, #3b82f6 60%, transparent 70%);
-        box-shadow:
-          0 0 40px rgba(34, 211, 238, 0.4),
-          0 0 80px rgba(59, 130, 246, 0.2);
         animation: pulse 2s ease-in-out infinite;
       }
 
@@ -64,7 +59,131 @@
   </head>
   <body>
     <div id="splash">
-      <div class="logo"></div>
+      <div class="logo">
+        <svg width="80" height="80" viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg">
+          <defs>
+            <linearGradient id="sp-bg" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" stop-color="#0C1120" />
+              <stop offset="100%" stop-color="#040608" />
+            </linearGradient>
+            <linearGradient
+              id="sp-atl"
+              x1="292"
+              y1="512"
+              x2="512"
+              y2="292"
+              gradientUnits="userSpaceOnUse"
+            >
+              <stop offset="0%" stop-color="#00F0FF" />
+              <stop offset="100%" stop-color="#0055FF" />
+            </linearGradient>
+            <linearGradient
+              id="sp-abr"
+              x1="732"
+              y1="512"
+              x2="512"
+              y2="732"
+              gradientUnits="userSpaceOnUse"
+            >
+              <stop offset="0%" stop-color="#00F0FF" />
+              <stop offset="100%" stop-color="#0055FF" />
+            </linearGradient>
+            <radialGradient id="sp-core" cx="40%" cy="38%" r="62%">
+              <stop offset="0%" stop-color="#FFF" />
+              <stop offset="20%" stop-color="#A5F3FC" />
+              <stop offset="55%" stop-color="#0EA5E9" />
+              <stop offset="100%" stop-color="#0369A1" />
+            </radialGradient>
+            <filter id="sp-g" x="-30%" y="-30%" width="160%" height="160%">
+              <feGaussianBlur stdDeviation="14" result="b1" />
+              <feGaussianBlur stdDeviation="6" result="b2" />
+              <feMerge>
+                <feMergeNode in="b1" />
+                <feMergeNode in="b2" />
+                <feMergeNode in="SourceGraphic" />
+              </feMerge>
+            </filter>
+            <filter id="sp-cf" x="-50%" y="-50%" width="200%" height="200%">
+              <feDropShadow
+                dx="0"
+                dy="12"
+                stdDeviation="20"
+                flood-color="#000"
+                flood-opacity="0.7"
+              />
+              <feDropShadow
+                dx="0"
+                dy="0"
+                stdDeviation="28"
+                flood-color="#00D4FF"
+                flood-opacity="0.25"
+              />
+            </filter>
+          </defs>
+          <rect width="1024" height="1024" rx="230" fill="url(#sp-bg)" />
+          <rect
+            x="2"
+            y="2"
+            width="1020"
+            height="1020"
+            rx="228"
+            fill="none"
+            stroke="rgba(255,255,255,0.08)"
+            stroke-width="3"
+          />
+          <circle
+            cx="512"
+            cy="512"
+            r="300"
+            fill="none"
+            stroke="rgba(255,255,255,0.06)"
+            stroke-width="1.5"
+            stroke-dasharray="4 16"
+          />
+          <circle
+            cx="512"
+            cy="512"
+            r="220"
+            fill="none"
+            stroke="rgba(56,189,248,0.15)"
+            stroke-width="4"
+          />
+          <path
+            d="M 292 512 A 220 220 0 0 1 512 292"
+            fill="none"
+            stroke="url(#sp-atl)"
+            stroke-width="12"
+            stroke-linecap="round"
+            filter="url(#sp-g)"
+          />
+          <path
+            d="M 732 512 A 220 220 0 0 1 512 732"
+            fill="none"
+            stroke="url(#sp-abr)"
+            stroke-width="12"
+            stroke-linecap="round"
+            filter="url(#sp-g)"
+          />
+          <circle
+            cx="512"
+            cy="512"
+            r="140"
+            fill="none"
+            stroke="rgba(255,255,255,0.04)"
+            stroke-width="1.5"
+          />
+          <circle cx="512" cy="512" r="80" fill="url(#sp-core)" filter="url(#sp-cf)" />
+          <ellipse
+            cx="488"
+            cy="480"
+            rx="24"
+            ry="12"
+            transform="rotate(-30 488 480)"
+            fill="#FFF"
+            opacity="0.35"
+          />
+        </svg>
+      </div>
     </div>
     <div id="root"></div>
     <script type="module" src="/src/renderer/main.tsx"></script>

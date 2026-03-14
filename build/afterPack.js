@@ -203,6 +203,46 @@ exports.default = async function afterPack(context) {
             }
           }
         }
+
+        // ─── CRITICAL: Copy rebuilt binary to packaged output ─────────
+        // electron-builder copies node_modules BEFORE afterPack runs.
+        // When building multi-arch (arm64 + x64), the second build copies
+        // the FIRST build's binary from node_modules. Without this copy,
+        // the second architecture's DMG ships with the wrong binary.
+        const appName = context.packager.appInfo.productFilename
+        let outputModuleBuild
+        if (platform === 'darwin') {
+          outputModuleBuild = path.join(
+            context.appOutDir,
+            `${appName}.app`,
+            'Contents', 'Resources', 'app.asar.unpacked',
+            'node_modules', mod, 'build', 'Release'
+          )
+        } else {
+          // Windows and Linux: resources/ is at the root of appOutDir
+          outputModuleBuild = path.join(
+            context.appOutDir, 'resources', 'app.asar.unpacked',
+            'node_modules', mod, 'build', 'Release'
+          )
+        }
+
+        if (fs.existsSync(outputModuleBuild)) {
+          for (const nodeFile of nodeFiles) {
+            const src = path.join(buildRelease, nodeFile)
+            const dst = path.join(outputModuleBuild, nodeFile)
+            fs.copyFileSync(src, dst)
+            console.log(`[afterPack] 📦 Copied rebuilt ${mod}/${nodeFile} → output dir (${platform}/${arch})`)
+
+            // Verify the OUTPUT copy is correct too
+            const outputArchOk = verifyBinaryArch(dst, arch)
+            if (!outputArchOk) {
+              throw new Error(`CRITICAL: Output binary ${dst} has wrong architecture after copy!`)
+            }
+          }
+        } else {
+          console.warn(`[afterPack] ⚠️ Output module dir not found: ${outputModuleBuild}`)
+          console.warn(`[afterPack] ↳ appOutDir: ${context.appOutDir}`)
+        }
       }
     } catch (err) {
       console.error(`[afterPack] ⚠️ Failed to rebuild ${mod}:`, err.message)
@@ -227,6 +267,14 @@ exports.default = async function afterPack(context) {
     const appPath = path.join(context.appOutDir, `${context.packager.appInfo.productFilename}.app`)
     console.log(`[afterPack] 🔏 Ad-hoc signing: ${appPath}`)
     try {
+      // Clean resource forks and macOS detritus that block codesign
+      try {
+        execSync(`xattr -cr "${appPath}"`, { stdio: 'pipe', timeout: 30000 })
+        execSync(`find "${appPath}" -name '._*' -delete`, { stdio: 'pipe', timeout: 30000 })
+        execSync(`find "${appPath}" -name '.DS_Store' -delete`, { stdio: 'pipe', timeout: 30000 })
+        console.log('[afterPack] 🧹 Cleaned resource forks and detritus')
+      } catch { /* best-effort clean */ }
+
       execSync(
         `codesign --deep --force --sign - "${appPath}"`,
         { stdio: 'pipe', timeout: 120000 }

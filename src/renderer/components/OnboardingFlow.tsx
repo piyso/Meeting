@@ -444,7 +444,9 @@ export const OnboardingFlow: React.FC = () => {
                     try {
                       setAuthError(null)
                       const res = await window.electronAPI?.auth?.googleAuth?.()
-                      if (res && !res.success) {
+                      if (!res) {
+                        setAuthError('Google sign-in is not available in this environment')
+                      } else if (!res.success) {
                         const msg = res.error?.message || 'Google sign-in failed'
                         if (
                           msg.includes('provider is not enabled') ||

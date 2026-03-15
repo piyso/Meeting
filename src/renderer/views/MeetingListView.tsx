@@ -54,7 +54,7 @@ export default function MeetingListView() {
   const deleteMeeting = useMutation({
     mutationFn: async (id: string) => {
       const res = await window.electronAPI?.meeting?.delete({ meetingId: id })
-      if (!res.success) throw new Error(res.error?.message)
+      if (!res?.success) throw new Error(res.error?.message)
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['meetings'] })
@@ -70,7 +70,7 @@ export default function MeetingListView() {
     setRecordingState('starting')
     try {
       const res = await window.electronAPI?.meeting?.start({})
-      if (res.success && res.data) {
+      if (res?.success && res.data) {
         log.info('Meeting created:', res.data.meeting.id)
         useAppStore.getState().setActiveMeetingId(res.data.meeting.id)
         // P12 fix: Set recording start time immediately so DynamicIsland timer
@@ -117,7 +117,7 @@ export default function MeetingListView() {
       const res = await window.electronAPI?.meeting?.start({
         title: typeof title === 'string' ? title : undefined,
       })
-      if (res.success && res.data) {
+      if (res?.success && res.data) {
         useAppStore.getState().setActiveMeetingId(res.data.meeting.id)
         useAppStore.getState().setRecordingStartTime(Date.now())
         queryClient.invalidateQueries({ queryKey: ['meetings'] })

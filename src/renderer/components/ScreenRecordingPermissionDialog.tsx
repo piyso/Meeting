@@ -31,7 +31,7 @@ export const ScreenRecordingPermissionDialog: React.FC<ScreenRecordingPermission
   const handleOpenSettings = async () => {
     try {
       const result = await window.electronAPI?.audio?.openScreenRecordingSettings()
-      if (result.success) {
+      if (result?.success) {
         log.info('Opened macOS System Settings for Screen Recording')
       } else {
         log.error('Failed to open System Settings:', result.error)

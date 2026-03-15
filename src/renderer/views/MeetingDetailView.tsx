@@ -90,7 +90,7 @@ export default function MeetingDetailView() {
     queryFn: async () => {
       if (!selectedMeetingId) return null
       const res = await window.electronAPI?.meeting?.get({ meetingId: selectedMeetingId })
-      return res.success ? res.data : null
+      return res?.success ? res.data : null
     },
     enabled: !!selectedMeetingId,
   })

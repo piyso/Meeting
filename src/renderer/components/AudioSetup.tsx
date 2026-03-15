@@ -29,7 +29,7 @@ export const AudioSetup: React.FC = () => {
     setIsLoading(true)
     try {
       const result = await window.electronAPI?.audio?.preFlightTest()
-      if (result.success && result.data) {
+      if (result?.success && result.data) {
         setTestResult(result.data)
 
         // Show dialog if system audio is not available

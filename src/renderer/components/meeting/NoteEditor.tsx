@@ -63,7 +63,7 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({ meetingId }) => {
           timestamp: Math.floor(Date.now() / 1000),
           text: e ? e.innerHTML : '', // Tiptap content or fallback
         })
-        if (res.success && res.data) {
+        if (res?.success && res.data) {
           const expansionHtml = `
             <div class="ai-expansion mt-4 pl-4 border-l-2 border-[var(--color-violet)] bg-[var(--color-violet)]/10 p-3 rounded-r-lg">
               <strong class="text-[var(--color-violet)] flex items-center gap-2 mb-1">

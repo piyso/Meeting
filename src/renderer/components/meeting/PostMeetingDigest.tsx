@@ -40,7 +40,7 @@ export const PostMeetingDigest: React.FC<PostMeetingDigestProps> = ({
         format,
         includeAudio: false,
       })
-      if (res.success && res.data) {
+      if (res?.success && res.data) {
         log.info('Exported', format, '→', res.data.filename, `(${res.data.content.length} chars)`)
         addToast({
           type: 'success',

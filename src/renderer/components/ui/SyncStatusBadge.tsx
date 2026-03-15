@@ -14,7 +14,7 @@ export const SyncStatusBadge: React.FC = () => {
     window.electronAPI?.sync
       ?.getStatus()
       ?.then(res => {
-        if (mounted && res.success && res.data) {
+        if (mounted && res?.success && res.data) {
           setIsOnline(res.data.isOnline)
           setIsSyncing(res.data.isSyncing)
           setQueuedEvents(res.data.queuedEvents)

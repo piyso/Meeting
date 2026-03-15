@@ -79,7 +79,7 @@ export const AudioTestUI: React.FC<AudioTestUIProps> = ({
       // Run pre-flight test
       const result = await window.electronAPI?.audio?.preFlightTest()
 
-      if (result.success && result.data) {
+      if (result?.success && result.data) {
         setTestResult(result.data)
         setTestPhase('complete')
 
@@ -298,7 +298,7 @@ export const AudioTestUI: React.FC<AudioTestUIProps> = ({
                 onClick={async () => {
                   try {
                     const result = await window.electronAPI?.audio?.exportDiagnostics()
-                    if (result.success && result.data) {
+                    if (result?.success && result.data) {
                       alert(`Diagnostics exported to:\n${result.data}`)
                     } else {
                       alert('Failed to export diagnostics')
@@ -404,7 +404,7 @@ export const AudioTestUI: React.FC<AudioTestUIProps> = ({
             <SystemAudioTest
               onTestComplete={result => {
                 log.info('System audio test complete:', result)
-                if (result.success) {
+                if (result?.success) {
                   // Update test result to show system audio is working
                   if (testResult) {
                     setTestResult({
@@ -441,7 +441,7 @@ export const AudioTestUI: React.FC<AudioTestUIProps> = ({
             <MicrophoneTest
               onTestComplete={result => {
                 log.info('Microphone test complete:', result)
-                if (result.success) {
+                if (result?.success) {
                   // Update test result to show microphone is working
                   if (testResult) {
                     setTestResult({

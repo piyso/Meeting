@@ -23,7 +23,7 @@ export function useAudioSession(meetingId: string | null) {
   const checkPermissionStatus = useCallback(async () => {
     try {
       const result = await window.electronAPI?.audio?.getScreenRecordingPermission()
-      if (result.success && result.data) {
+      if (result?.success && result.data) {
         setPermissionStatus(result.data.status as PermissionStatus)
         if (result.data.guidance) {
           setGuidance(result.data.guidance)
@@ -60,7 +60,7 @@ export function useAudioSession(meetingId: string | null) {
           fallbackToMicrophone: mode === 'microphone',
         })
 
-        if (!result.success) {
+        if (!result?.success) {
           setIsCapturing(false)
           throw new Error(result.error?.message || 'Failed to start capture')
         }
@@ -80,7 +80,7 @@ export function useAudioSession(meetingId: string | null) {
     if (!meetingId) return
     try {
       const result = await window.electronAPI?.audio?.stopCapture({ meetingId })
-      if (result.success) {
+      if (result?.success) {
         setIsCapturing(false)
         setRecordingStartTime(null)
       }

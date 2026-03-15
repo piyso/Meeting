@@ -87,7 +87,7 @@ export const AudioCaptureWithPermissions: React.FC<AudioCaptureWithPermissionsPr
         fallbackToMicrophone: mode === 'microphone',
       })
 
-      if (result.success) {
+      if (result?.success) {
         onCaptureStarted()
       } else {
         throw new Error(result.error?.message || 'Failed to start capture')
@@ -127,7 +127,7 @@ export const AudioCaptureWithPermissions: React.FC<AudioCaptureWithPermissionsPr
     try {
       const result = await window.electronAPI?.audio?.stopCapture({ meetingId })
 
-      if (result.success) {
+      if (result?.success) {
         setIsCapturing(false)
       }
     } catch (error) {

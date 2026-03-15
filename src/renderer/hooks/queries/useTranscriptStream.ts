@@ -23,7 +23,7 @@ export function useTranscriptStream(meetingId: string | null) {
     queryFn: async () => {
       if (!meetingId) return []
       const response = await window.electronAPI?.transcript?.get({ meetingId })
-      if (!response.success) {
+      if (!response?.success) {
         throw new Error(response.error?.message || 'Failed to fetch transcripts')
       }
       return response.data ?? []

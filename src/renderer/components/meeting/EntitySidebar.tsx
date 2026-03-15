@@ -36,7 +36,7 @@ export const EntitySidebar: React.FC<EntitySidebarProps> = ({ meetingId, onClose
       setIsLoading(true)
       try {
         const res = await window.electronAPI?.entity?.get({ meetingId })
-        if (res.success && res.data) {
+        if (res?.success && res.data) {
           setEntities(res.data)
         } else {
           setError(res.error?.message || 'Failed to load entities')

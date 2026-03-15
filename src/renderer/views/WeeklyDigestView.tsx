@@ -304,7 +304,7 @@ export default function WeeklyDigestView() {
     async function checkAIStatus() {
       try {
         const res = await window.electronAPI?.intelligence?.getEngineStatus()
-        if (res.success && res.data) {
+        if (res?.success && res.data) {
           const modelsLoaded = res.data.models.some(m => m.isLoaded)
           setAiReady(modelsLoaded)
           if (!modelsLoaded) {
@@ -334,7 +334,7 @@ export default function WeeklyDigestView() {
     setIsLoading(true)
     try {
       const res = await window.electronAPI?.digest?.getLatest({ periodType: activePeriod })
-      if (res.success && res.data) {
+      if (res?.success && res.data) {
         setDigest(res.data)
       }
       // Don't auto-generate — just show empty state with Generate button
@@ -357,7 +357,7 @@ export default function WeeklyDigestView() {
         periodType: activePeriod,
       })
 
-      if (res.success && res.data) {
+      if (res?.success && res.data) {
         setDigest(res.data)
         // Reset expand states for fresh data — keep action items expanded
         setExpandedSections(new Set(['actions']))

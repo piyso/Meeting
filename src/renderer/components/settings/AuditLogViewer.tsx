@@ -33,7 +33,7 @@ export const AuditLogViewer: React.FC = () => {
         limit: PAGE_SIZE,
         offset: currentOffset,
       })
-      if (res.success && res.data) {
+      if (res?.success && res.data) {
         if (append) {
           setLogs(prev => [...prev, ...(res.data?.items ?? [])])
         } else {
@@ -65,7 +65,7 @@ export const AuditLogViewer: React.FC = () => {
     try {
       setExporting(true)
       const res = await window.electronAPI?.audit?.export()
-      if (res.success && res.data) {
+      if (res?.success && res.data) {
         const fileContent = res.data.content
         const fileName = res.data.filename
         const blob = new Blob([fileContent], { type: 'text/csv;charset=utf-8;' })

@@ -80,7 +80,7 @@ export function useIPCCall<T>(
       try {
         const result = await callerRef.current(...args)
 
-        if (result.success) {
+        if (result?.success) {
           const responseData = (result.data ?? null) as T | null
           setData(responseData)
           setLoading(false)

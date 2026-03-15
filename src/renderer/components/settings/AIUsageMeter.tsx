@@ -17,7 +17,7 @@ export const AIUsageMeter: React.FC = () => {
   const fetchQuota = async () => {
     try {
       setLoading(true)
-      const res = await window.electronAPI.quota.check()
+      const res = await window.electronAPI?.quota?.check()
       if (res.success && res.data) {
         setQuota(res.data)
       }

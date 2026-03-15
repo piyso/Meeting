@@ -5,13 +5,189 @@
  * Supports exporting logs, clearing logs, and getting log statistics.
  */
 
-import { ipcMain, shell } from 'electron'
+import { ipcMain, shell, systemPreferences, app } from 'electron'
 import { getDiagnosticLogger } from '../../services/DiagnosticLogger'
+import { getDatabaseService } from '../../services/DatabaseService'
 import { Logger } from '../../services/Logger'
+import os from 'os'
+import fs from 'fs'
 
 const log = Logger.create('DiagnosticHandlers')
 
+interface HealthResult {
+  system: string
+  status: 'ok' | 'warn' | 'error'
+  message: string
+  fix?: string
+}
+
 export function registerDiagnosticHandlers(): void {
+  // ══════════════════════════════════════════════════════════════
+  // health:check — Test all critical systems and return results
+  // ══════════════════════════════════════════════════════════════
+  ipcMain.handle('health:check', async () => {
+    const results: HealthResult[] = []
+
+    // 1. Database
+    try {
+      const db = getDatabaseService()
+      db.getDb().prepare('SELECT 1').get()
+      results.push({ system: 'Database', status: 'ok', message: 'Connected and responsive' })
+    } catch (err) {
+      results.push({
+        system: 'Database',
+        status: 'error',
+        message: (err as Error).message || 'Cannot connect',
+        fix: 'Restart the application',
+      })
+    }
+
+    // 2. Authentication
+    try {
+      const { getAuthService } = await import('../../services/AuthService')
+      const auth = getAuthService()
+      const isAuthed = await auth.isAuthenticated()
+      if (isAuthed) {
+        results.push({ system: 'Authentication', status: 'ok', message: 'Signed in' })
+      } else {
+        results.push({
+          system: 'Authentication',
+          status: 'warn',
+          message: 'Not signed in',
+          fix: 'Sign in to enable cloud sync',
+        })
+      }
+    } catch {
+      results.push({
+        system: 'Authentication',
+        status: 'warn',
+        message: 'Could not check auth status',
+      })
+    }
+
+    // 3. Microphone
+    if (process.platform === 'darwin') {
+      const micStatus = systemPreferences.getMediaAccessStatus('microphone')
+      if (micStatus === 'granted') {
+        results.push({ system: 'Microphone', status: 'ok', message: 'Permitted' })
+      } else if (micStatus === 'denied') {
+        results.push({
+          system: 'Microphone',
+          status: 'error',
+          message: 'Access denied',
+          fix: 'Open System Settings → Privacy → Microphone',
+        })
+      } else {
+        results.push({
+          system: 'Microphone',
+          status: 'warn',
+          message: 'Not yet requested',
+          fix: 'Start a recording to request permission',
+        })
+      }
+    } else {
+      results.push({ system: 'Microphone', status: 'ok', message: 'Check via OS settings' })
+    }
+
+    // 4. Screen Recording (macOS only)
+    if (process.platform === 'darwin') {
+      const screenStatus = systemPreferences.getMediaAccessStatus('screen')
+      if (screenStatus === 'granted') {
+        results.push({ system: 'Screen Recording', status: 'ok', message: 'Permitted' })
+      } else {
+        results.push({
+          system: 'Screen Recording',
+          status: 'warn',
+          message: 'Not permitted — system audio capture unavailable',
+          fix: 'Open System Settings → Privacy → Screen Recording',
+        })
+      }
+    }
+
+    // 5. Network
+    try {
+      const controller = new AbortController()
+      const timeout = setTimeout(() => controller.abort(), 5000)
+      const resp = await fetch('https://jjmgacvxualukdjgpsix.supabase.co/rest/v1/', {
+        method: 'HEAD',
+        signal: controller.signal,
+      })
+      clearTimeout(timeout)
+      if (resp.ok || resp.status === 401) {
+        results.push({ system: 'Network', status: 'ok', message: 'Connected to cloud' })
+      } else {
+        results.push({
+          system: 'Network',
+          status: 'warn',
+          message: `Cloud returned ${resp.status}`,
+        })
+      }
+    } catch {
+      results.push({
+        system: 'Network',
+        status: 'error',
+        message: 'Cannot reach cloud servers',
+        fix: 'Check your internet connection',
+      })
+    }
+
+    // 6. Disk Space
+    try {
+      const dataPath = app.getPath('userData')
+      const stats = fs.statfsSync(dataPath)
+      const freeGB = (stats.bfree * stats.bsize) / 1024 ** 3
+      if (freeGB > 5) {
+        results.push({
+          system: 'Disk Space',
+          status: 'ok',
+          message: `${freeGB.toFixed(1)} GB free`,
+        })
+      } else if (freeGB > 1) {
+        results.push({
+          system: 'Disk Space',
+          status: 'warn',
+          message: `${freeGB.toFixed(1)} GB free — running low`,
+          fix: 'Free up disk space',
+        })
+      } else {
+        results.push({
+          system: 'Disk Space',
+          status: 'error',
+          message: `${freeGB.toFixed(1)} GB free — critically low`,
+          fix: 'Free up disk space immediately',
+        })
+      }
+    } catch {
+      results.push({ system: 'Disk Space', status: 'ok', message: 'Could not check' })
+    }
+
+    // 7. Native Modules
+    try {
+      require('better-sqlite3')
+      results.push({ system: 'Native Modules', status: 'ok', message: 'All loaded correctly' })
+    } catch (err) {
+      results.push({
+        system: 'Native Modules',
+        status: 'error',
+        message: (err as Error).message,
+        fix: 'Reinstall the application',
+      })
+    }
+
+    // System info for the report
+    const systemInfo = {
+      platform: `${process.platform} ${process.arch}`,
+      osVersion: os.release(),
+      appVersion: app.getVersion(),
+      electron: process.versions.electron,
+      nodeVersion: process.versions.node,
+      memory: `${Math.round(os.totalmem() / 1024 ** 3)} GB`,
+      uptime: `${Math.round(process.uptime())}s`,
+    }
+
+    return { success: true, data: { results, systemInfo } }
+  })
+
   // diagnostic:export — Export all diagnostic logs as an archive
   ipcMain.handle('diagnostic:export', async () => {
     try {
@@ -111,7 +287,6 @@ export function registerDiagnosticHandlers(): void {
   // diagnostic:rebuildFts — Rebuild FTS5 search indexes
   ipcMain.handle('diagnostic:rebuildFts', async () => {
     try {
-      const { getDatabaseService } = await import('../../services/DatabaseService')
       const result = getDatabaseService().rebuildFtsIndexes()
       log.info('FTS rebuild result:', result)
       return { success: true, data: result }

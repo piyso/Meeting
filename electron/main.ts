@@ -13,6 +13,9 @@ import { CrashReporter } from '../src/main/services/CrashReporter'
 import { migrateIfNeeded } from '../src/main/services/MigrationService'
 import { getModelDownloadService } from '../src/main/services/ModelDownloadService'
 import { getAuditLogger } from '../src/main/services/AuditLogger'
+import { getAuthService } from '../src/main/services/AuthService'
+import { getAudioPipelineService } from '../src/main/services/AudioPipelineService'
+import { getASRService } from '../src/main/services/ASRService'
 
 const log = Logger.create('Main')
 
@@ -98,7 +101,6 @@ app.on('second-instance', async (_event, argv) => {
     // Route auth callbacks to AuthService (Issue 27 fix)
     if (deepLink.includes('/auth/callback')) {
       try {
-        const { getAuthService } = await import('../src/main/services/AuthService')
         const result = await getAuthService().handleOAuthCallback(deepLink)
         mainWindow.webContents.send('auth:oauthSuccess', result)
       } catch (err) {
@@ -450,7 +452,6 @@ app
         // Route auth callbacks to AuthService (Issue 27 fix)
         if (url.includes('/auth/callback')) {
           try {
-            const { getAuthService } = await import('../src/main/services/AuthService')
             const result = await getAuthService().handleOAuthCallback(url)
             mainWindow.webContents.send('auth:oauthSuccess', result)
           } catch (err) {
@@ -572,7 +573,6 @@ app.on('before-quit', async () => {
   try {
     // Stop audio capture and flush any buffered audio
     try {
-      const { getAudioPipelineService } = await import('../src/main/services/AudioPipelineService')
       const pipeline = getAudioPipelineService()
       if (pipeline.getStatus().isCapturing) {
         log.info('Flushing audio pipeline before quit...')
@@ -584,7 +584,6 @@ app.on('before-quit', async () => {
 
     // Terminate ASR worker thread
     try {
-      const { getASRService } = await import('../src/main/services/ASRService')
       await getASRService().terminate()
     } catch {
       // ASRService may not be initialized

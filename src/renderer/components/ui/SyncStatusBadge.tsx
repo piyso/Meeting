@@ -11,16 +11,21 @@ export const SyncStatusBadge: React.FC = () => {
 
   useEffect(() => {
     let mounted = true
-    window.electronAPI.sync.getStatus().then(res => {
-      if (mounted && res.success && res.data) {
-        setIsOnline(res.data.isOnline)
-        setIsSyncing(res.data.isSyncing)
-        setQueuedEvents(res.data.queuedEvents)
-        setError(res.data.lastSyncError)
-      }
-    })
+    window.electronAPI?.sync
+      ?.getStatus()
+      ?.then(res => {
+        if (mounted && res.success && res.data) {
+          setIsOnline(res.data.isOnline)
+          setIsSyncing(res.data.isSyncing)
+          setQueuedEvents(res.data.queuedEvents)
+          setError(res.data.lastSyncError)
+        }
+      })
+      .catch(() => {
+        /* offline or unavailable */
+      })
 
-    const unsub = window.electronAPI.on.syncEvent(
+    const unsub = window.electronAPI?.on?.syncEvent?.(
       (event: { type: string; progress?: SyncProgress; error?: { message: string } }) => {
         // update state based on event
         if (event.type === 'started') {

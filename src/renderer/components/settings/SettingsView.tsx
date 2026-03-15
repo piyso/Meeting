@@ -23,6 +23,7 @@ import { useAppStore } from '../../store/appStore'
 import { DeviceManagement } from './DeviceManagement'
 import { AIUsageMeter } from './AIUsageMeter'
 import { AuditLogViewer } from './AuditLogViewer'
+import { HealthDashboard } from './HealthDashboard'
 import { RecoveryKeySettings } from '../RecoveryKeySettings'
 import { UpgradePrompt } from './UpgradePrompt'
 import { openUpgrade } from '../../utils/openUpgrade'
@@ -565,22 +566,9 @@ export const SettingsView: React.FC = () => {
     },
     {
       id: 'diagnostics',
-      title: 'Diagnostics Export',
-      icon: <Download size={20} className="text-[var(--color-text-secondary)]" />,
-      content: (
-        <div className="flex items-center justify-between h-[40px]">
-          <span className="text-[var(--text-sm)] text-[var(--color-text-secondary)]">
-            Export secure system diagnostics
-          </span>
-          <Button
-            variant="secondary"
-            size="sm"
-            onClick={() => window.electronAPI?.diagnostic?.export()}
-          >
-            Export ZIP
-          </Button>
-        </div>
-      ),
+      title: 'System Health',
+      icon: <Activity size={20} className="text-[var(--color-sky)]" />,
+      content: <HealthDashboard />,
     },
     {
       id: 'account',

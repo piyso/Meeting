@@ -29,7 +29,7 @@ export const AuditLogViewer: React.FC = () => {
       } else {
         setLoading(true)
       }
-      const res = await window.electronAPI.audit.query({
+      const res = await window.electronAPI?.audit?.query({
         limit: PAGE_SIZE,
         offset: currentOffset,
       })
@@ -64,7 +64,7 @@ export const AuditLogViewer: React.FC = () => {
   const handleExport = async () => {
     try {
       setExporting(true)
-      const res = await window.electronAPI.audit.export()
+      const res = await window.electronAPI?.audit?.export()
       if (res.success && res.data) {
         const fileContent = res.data.content
         const fileName = res.data.filename

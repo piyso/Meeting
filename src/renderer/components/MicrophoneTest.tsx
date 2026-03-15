@@ -53,7 +53,7 @@ export const MicrophoneTest: React.FC<MicrophoneTestProps> = ({ onTestComplete }
 
     try {
       // Start microphone test session on backend
-      const result = await window.electronAPI.audio.startMicrophoneTest()
+      const result = await window.electronAPI?.audio?.startMicrophoneTest()
 
       if (!result.success || !result.data) {
         throw new Error(result.error?.message || 'Failed to start microphone test')
@@ -180,7 +180,7 @@ export const MicrophoneTest: React.FC<MicrophoneTestProps> = ({ onTestComplete }
 
     // Stop backend test session
     try {
-      const result = await window.electronAPI.audio.stopMicrophoneTest()
+      const result = await window.electronAPI?.audio?.stopMicrophoneTest()
 
       if (result.success && result.data) {
         log.info('Microphone test stopped:', result.data)

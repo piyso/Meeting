@@ -25,8 +25,8 @@ export const DeviceManagement: React.FC = () => {
     try {
       setLoading(true)
       const [listRes, currentRes] = await Promise.all([
-        window.electronAPI.device.list(),
-        window.electronAPI.device.getCurrent(),
+        window.electronAPI?.device?.list(),
+        window.electronAPI?.device?.getCurrent(),
       ])
       if (listRes.success && listRes.data) {
         setDevices(listRes.data as Device[])
@@ -46,7 +46,7 @@ export const DeviceManagement: React.FC = () => {
   const deactivateDevice = async (deviceId: string) => {
     if (deviceId === currentDeviceId) return // Safety guard
     try {
-      const res = await window.electronAPI.device.deactivate({ deviceId, userId: 'current-user' })
+      const res = await window.electronAPI?.device?.deactivate({ deviceId, userId: 'current-user' })
       if (res.success) {
         setDevices(prev => prev.map(d => (d.device_id === deviceId ? { ...d, is_active: 0 } : d)))
       } else {

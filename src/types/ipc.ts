@@ -1148,6 +1148,17 @@ export interface ElectronAPI {
     openFolder: () => Promise<IPCResponse<void>>
     getSystemInfo: () => Promise<IPCResponse<Record<string, string | number>>>
     rebuildFts: () => Promise<IPCResponse<{ transcripts: boolean; notes: boolean }>>
+    healthCheck: () => Promise<
+      IPCResponse<{
+        results: Array<{
+          system: string
+          status: 'ok' | 'warn' | 'error'
+          message: string
+          fix?: string
+        }>
+        systemInfo: Record<string, string>
+      }>
+    >
   }
 
   // Billing

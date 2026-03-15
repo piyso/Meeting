@@ -426,6 +426,7 @@ const electronAPI: ElectronAPI = {
     openFolder: () => ipcRenderer.invoke('diagnostic:openFolder'),
     getSystemInfo: () => ipcRenderer.invoke('diagnostic:getSystemInfo'),
     rebuildFts: () => ipcRenderer.invoke('diagnostic:rebuildFts'),
+    healthCheck: () => ipcRenderer.invoke('health:check'),
   },
 
   // ============================================================================

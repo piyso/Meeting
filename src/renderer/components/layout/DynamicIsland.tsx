@@ -148,7 +148,7 @@ export const DynamicIsland: React.FC<DynamicIslandProps> = ({
     lastBroadcastState.current = recordingState
 
     if (recordingState !== 'idle') {
-      window.electronAPI.widget.updateState({
+      window.electronAPI?.widget?.updateState({
         isRecording,
         isPaused: recordingState === 'paused',
         elapsedTime: elapsedStr,
@@ -165,7 +165,7 @@ export const DynamicIsland: React.FC<DynamicIslandProps> = ({
         noteCount,
       })
     } else {
-      window.electronAPI.widget.updateState({
+      window.electronAPI?.widget?.updateState({
         isRecording: false,
         isPaused: false,
         elapsedTime: '00:00:00',

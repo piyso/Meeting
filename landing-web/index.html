@@ -114,7 +114,7 @@
           <div class="hero-content reveal">
             <div class="badge-pill">
               <span class="pulse-status-dot"></span>
-              v0.3.3 CORE ONLINE
+              <span id="version-badge">v0.3.3 CORE ONLINE</span>
             </div>
             <h1 style="color: var(--text-main); background: none; -webkit-text-fill-color: initial">
               Your meetings.<br />Perfectly remembered.
@@ -1669,6 +1669,10 @@
             .then(yml => {
               const ver = parseVersion(yml)
               if (!ver) return
+              // Update version badge
+              const badge = document.getElementById('version-badge')
+              if (badge) badge.textContent = `v${ver} CORE ONLINE`
+              // Update Mac download links
               const macPrimary = document.getElementById('dl-mac-primary')
               const macAlt = document.getElementById('dl-mac-alt')
               if (macPrimary) macPrimary.href = `${DL}/BlueArkive-${ver}-mac-arm64.dmg`

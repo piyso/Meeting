@@ -982,3 +982,559 @@ async function dispatchWebhook(webhook, event) {
 - [ ] Testing + polish
 
 ### Total: ~90-125 hours across 4 sprints (8 weeks)
+
+---
+
+## 12. Deep Dive: IPC Channel Registry
+
+`ipcChannels.ts` (277 lines) is the single source of truth. Currently has **17 channel groups** with **67 individual channels**.
+
+### Currently Registered Groups
+
+```
+meeting (7)  note (6)  transcript (3)  entity (3)  search (2)
+sync (6)  audio (17)  intelligence (7)  model (8)  settings (4)
+auth (11)  graph (6)  digest (2)  power (1)  device (5)
+diagnostic (5)  quota (1)  billing (3)  audit (2)  export (2)
+highlight (3)  piyapi (6)  widget (4)  shell (1)
+events (11 push channels)
+```
+
+### Channels To Add
+
+```typescript
+// ── Action Items ──
+actionItem: {
+  list: 'actionItem:list',              // Get all action items for a meeting
+  create: 'actionItem:create',          // Create from manual input or AI extraction
+  update: 'actionItem:update',          // Toggle status, edit text, change assignee
+  delete: 'actionItem:delete',          // Remove action item
+  extract: 'actionItem:extract',        // Trigger post-meeting LLM extraction
+  extractRealTime: 'actionItem:extractRealTime', // Subscribe to real-time regex hits
+  getOverdue: 'actionItem:getOverdue',  // Dashboard: all overdue items
+  stats: 'actionItem:stats',           // Counts: open/completed/overdue
+},
+
+// ── Sentiment ──
+sentiment: {
+  analyze: 'sentiment:analyze',         // Trigger full analysis for a meeting
+  getByMeeting: 'sentiment:getByMeeting', // Timeline data for a specific meeting
+  getMood: 'sentiment:getMood',         // Single meeting mood badge
+  getTimeline: 'sentiment:getTimeline', // D3 chart data points
+},
+
+// ── Calendar ──
+calendar: {
+  sync: 'calendar:sync',               // Trigger Google Calendar sync
+  list: 'calendar:list',               // Get events for a date range
+  link: 'calendar:link',               // Manually link event → meeting
+  autoLink: 'calendar:autoLink',       // Auto-link when meeting starts
+  getPreContext: 'calendar:getPreContext', // Pre-meeting AI context (Pro+)
+},
+
+// ── Webhooks ──
+webhook: {
+  list: 'webhook:list',                // Get all webhooks
+  create: 'webhook:create',            // Register a new webhook URL
+  update: 'webhook:update',            // Edit URL, events, or status
+  delete: 'webhook:delete',            // Remove webhook
+  test: 'webhook:test',                // Send test payload
+  getDeliveries: 'webhook:getDeliveries', // Delivery log
+},
+
+// ── Push Events (webContents.send) ──
+events: {
+  // ...existing 11 channels...
+  actionItemDetected: 'event:actionItemDetected',   // Real-time regex hit
+  sentimentUpdate: 'event:sentimentUpdate',         // Live sentiment score
+  webhookDelivery: 'event:webhookDelivery',         // Delivery status
+  calendarEventSoon: 'event:calendarEventSoon',     // 5-min pre-meeting alert
+},
+```
+
+---
+
+## 13. Deep Dive: Database Schema Gaps — Exact SQL
+
+### What EXISTS (schema.ts L148-196)
+
+```sql
+-- action_items: ✅ EXISTS (L148-160) — but missing FTS5
+CREATE TABLE IF NOT EXISTS action_items (
+  id TEXT PRIMARY KEY,
+  meeting_id TEXT NOT NULL,
+  text TEXT NOT NULL,
+  assignee TEXT,
+  deadline INTEGER,
+  priority TEXT DEFAULT 'normal',
+  status TEXT DEFAULT 'open',
+  created_at INTEGER DEFAULT (strftime('%s', 'now')),
+  completed_at INTEGER,
+  FOREIGN KEY (meeting_id) REFERENCES meetings(id) ON DELETE CASCADE
+);
+-- Indexes exist: idx_action_items_meeting, idx_action_items_status, idx_action_items_assignee
+```
+
+### What Is MISSING — New Tables
+
+```sql
+-- ❌ MISSING: sentiment_scores table
+CREATE TABLE IF NOT EXISTS sentiment_scores (
+  id TEXT PRIMARY KEY,
+  meeting_id TEXT NOT NULL,
+  transcript_id TEXT,
+  speaker_name TEXT,
+  segment_index INTEGER NOT NULL,
+  timestamp_sec REAL NOT NULL,
+  score REAL NOT NULL,                -- -1.0 to +1.0
+  label TEXT NOT NULL,                -- 'positive' | 'neutral' | 'negative'
+  confidence REAL DEFAULT 0.4,
+  method TEXT DEFAULT 'heuristic',    -- 'heuristic' | 'llm' | 'cloud'
+  created_at INTEGER DEFAULT (strftime('%s', 'now')),
+  FOREIGN KEY (meeting_id) REFERENCES meetings(id) ON DELETE CASCADE
+);
+CREATE INDEX IF NOT EXISTS idx_sentiment_meeting_ts ON sentiment_scores(meeting_id, timestamp_sec);
+CREATE INDEX IF NOT EXISTS idx_sentiment_speaker ON sentiment_scores(meeting_id, speaker_name);
+CREATE INDEX IF NOT EXISTS idx_sentiment_score ON sentiment_scores(score);
+
+-- ❌ MISSING: calendar_events table
+CREATE TABLE IF NOT EXISTS calendar_events (
+  id TEXT PRIMARY KEY,
+  provider TEXT NOT NULL DEFAULT 'apple', -- 'google' | 'apple' | 'outlook'
+  external_id TEXT NOT NULL,
+  title TEXT NOT NULL,
+  description TEXT,
+  start_time INTEGER NOT NULL,            -- Epoch seconds
+  end_time INTEGER NOT NULL,
+  location TEXT,
+  attendees TEXT,                          -- JSON: [{name, email}]
+  meeting_url TEXT,                        -- Zoom/Meet link
+  meeting_id TEXT,                         -- Linked BlueArkive meeting
+  is_all_day BOOLEAN DEFAULT 0,
+  recurrence TEXT,                         -- iCal RRULE
+  synced_at INTEGER DEFAULT (strftime('%s', 'now')),
+  FOREIGN KEY (meeting_id) REFERENCES meetings(id) ON DELETE SET NULL
+);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_cal_ext ON calendar_events(provider, external_id);
+CREATE INDEX IF NOT EXISTS idx_cal_time ON calendar_events(start_time);
+CREATE INDEX IF NOT EXISTS idx_cal_meeting ON calendar_events(meeting_id);
+
+-- ❌ MISSING: webhooks table
+CREATE TABLE IF NOT EXISTS webhooks (
+  id TEXT PRIMARY KEY,
+  url TEXT NOT NULL,
+  secret TEXT NOT NULL,                   -- HMAC signing key
+  events TEXT NOT NULL,                   -- JSON array: ['meeting.completed', 'action_item.created']
+  is_active BOOLEAN DEFAULT 1,
+  description TEXT,
+  created_at INTEGER DEFAULT (strftime('%s', 'now')),
+  updated_at INTEGER DEFAULT (strftime('%s', 'now'))
+);
+CREATE INDEX IF NOT EXISTS idx_webhooks_active ON webhooks(is_active);
+
+-- ❌ MISSING: webhook_deliveries table
+CREATE TABLE IF NOT EXISTS webhook_deliveries (
+  id TEXT PRIMARY KEY,
+  webhook_id TEXT NOT NULL,
+  event_type TEXT NOT NULL,
+  payload TEXT NOT NULL,
+  response_status INTEGER,
+  response_body TEXT,
+  attempts INTEGER DEFAULT 1,
+  status TEXT DEFAULT 'pending',          -- 'pending' | 'success' | 'failed' | 'dead'
+  delivered_at INTEGER,
+  created_at INTEGER DEFAULT (strftime('%s', 'now')),
+  FOREIGN KEY (webhook_id) REFERENCES webhooks(id) ON DELETE CASCADE
+);
+CREATE INDEX IF NOT EXISTS idx_deliveries_webhook ON webhook_deliveries(webhook_id);
+CREATE INDEX IF NOT EXISTS idx_deliveries_status ON webhook_deliveries(status);
+CREATE INDEX IF NOT EXISTS idx_deliveries_created ON webhook_deliveries(created_at DESC);
+```
+
+### Missing FTS5 Tables
+
+```sql
+-- ❌ MISSING: action_items FTS (for local search like "budget action items")
+CREATE VIRTUAL TABLE IF NOT EXISTS action_items_fts USING fts5(
+  text,
+  content=action_items,
+  content_rowid=rowid
+);
+
+-- FTS triggers for action_items:
+CREATE TRIGGER IF NOT EXISTS action_items_fts_insert AFTER INSERT ON action_items BEGIN
+  INSERT INTO action_items_fts(rowid, text) VALUES (new.rowid, new.text);
+END;
+CREATE TRIGGER IF NOT EXISTS action_items_fts_delete AFTER DELETE ON action_items BEGIN
+  INSERT INTO action_items_fts(action_items_fts, rowid, text)
+  VALUES ('delete', old.rowid, old.text);
+END;
+CREATE TRIGGER IF NOT EXISTS action_items_fts_update AFTER UPDATE ON action_items
+  WHEN old.text IS NOT new.text
+BEGIN
+  INSERT INTO action_items_fts(action_items_fts, rowid, text)
+  VALUES ('delete', old.rowid, old.text);
+  INSERT INTO action_items_fts(rowid, text) VALUES (new.rowid, new.text);
+END;
+```
+
+### Files To Extend
+
+| File                 | Change                                                                                                                 | Lines                  |
+| :------------------- | :--------------------------------------------------------------------------------------------------------------------- | :--------------------- |
+| `schema.ts`          | Add `sentiment_scores`, `calendar_events`, `webhooks`, `webhook_deliveries` tables + indexes + FTS                     | L197 (append)          |
+| `migrations.ts`      | Add migration v4 for new tables (SCHEMA_VERSION 3→4)                                                                   | New migration function |
+| `search.ts`          | Add `searchActionItems()` function                                                                                     | After L213             |
+| `search.ts`          | Extend `rebuildSearchIndexes()` / `optimizeSearchIndexes()` to rebuild `action_items_fts`                              | L316, L337             |
+| `export.handlers.ts` | Add `sentiment_scores`, `calendar_events`, `webhooks` to export data (L62-81)                                          | L62                    |
+| `export.handlers.ts` | Add `sentiment_scores`, `calendar_events`, `webhooks`, `webhook_deliveries` to `deleteAllData` tables array (L174-188) | L178                   |
+
+---
+
+## 14. Deep Dive: Search Architecture — 3-Tier Cascade
+
+`search.handlers.ts` (287 lines) reveals the EXACT search cascade that action items and sentiment should plug into:
+
+### How Search Works Today
+
+```
+User types query
+      ↓
+search:query → FTS5 local search (searchAll from database/search.ts)
+      ↓ (immediate, all tiers)
+search:semantic → Dual path:
+      ↓
+┌─────────────────────────────────────────────────────────┐
+│ ALWAYS: Local semantic search                           │
+│   1. Load transcripts with embedding_blob from SQLite   │
+│   2. LocalEmbeddingService.search(query, docs, limit)   │
+│   3. Score by cosine similarity                        │
+│   4. Return as source: 'local'                         │
+└─────────────────────────────────────────────────────────┘
+      ↓ (if cloud available)
+┌─────────────────────────────────────────────────────────┐
+│ CLOUD: Tiered search upgrade                           │
+│   Pro+   → hybridSearch()  → source: 'cloud-hybrid'   │
+│   Starter → semanticSearch() → source: 'cloud-semantic'│
+│   Free    → fuzzySearch()    → source: 'cloud-fuzzy'   │
+└─────────────────────────────────────────────────────────┘
+      ↓
+Merge + Deduplicate (by meetingId+snippet80)
+      ↓
+Sort by relevance DESC → slice(0, limit)
+      ↓
+Auto-fire feedbackPositive(memoryIds) on cloud results
+```
+
+### Encrypted Memory Handling (CRITICAL)
+
+Cloud search results may contain encrypted memories. The search handler at L156-165 checks:
+
+```typescript
+const isEncrypted = hit.memory?.metadata?.encrypted === true
+const snippet = isEncrypted
+  ? String(hit.memory?.metadata?.meeting_title || 'Cloud result') // Never show ciphertext
+  : (hit.memory?.content || '').substring(0, 200)
+```
+
+**ALL new feature handlers that display PiyAPI search results MUST replicate this check.**
+
+### PiyAPI Memory ID Tracking
+
+Search results carry `_piyApiMemoryId` (L170, L199, L228) for adaptive learning feedback. After cloud results are returned, L244-253 automatically:
+
+```typescript
+const memoryIds = cloudResults.map(r => r._piyApiMemoryId).filter(id => !!id)
+backend.feedbackPositive(memoryIds).catch(() => {
+  /* non-critical */
+})
+```
+
+**Action items and sentiment should replicate this feedbackPositive pattern** when displaying PiyAPI-sourced results.
+
+---
+
+## 15. Deep Dive: Canonical Dual-Path Code Patterns
+
+After reading ALL handlers, these are the 4 proven patterns already in the codebase:
+
+### Pattern A — Local + Cloud Merge (entity.handlers.ts L8-100)
+
+**Use for**: Action item extraction, sentiment analysis
+
+```
+1. ALWAYS run local extraction (LocalEntityExtractor.extract)
+2. IF knowledgeGraphInteractive:
+   a. health check
+   b. backend.extractEntities()
+   c. backend.kgIngest() (non-blocking, fire-and-forget)
+3. Merge: cloud entities preferred (seenTexts dedup)
+```
+
+### Pattern B — Cloud-First, Local Fallback (note.handlers.ts L116-266)
+
+**Use for**: Pre-meeting context injection, smart auto-link
+
+```
+1. Check CloudAccessManager.getFeatureAccess()
+2. IF cloudAI + contextSessions + quota not exhausted:
+   a. health check
+   b. backend.createContextSession() with token_budget
+   c. backend.retrieveContext() for enriched context
+   d. backend.ask() with enriched prompt
+   e. Record quota usage AFTER confirmed success
+3. ELSE: ModelManager.generate() with local prompt
+```
+
+### Pattern C — Cloud-Only with Graceful Degradation (graph.handlers.ts)
+
+**Use for**: Graph search, traversal, contradictions, stats
+
+```
+1. Check feature flag (knowledgeGraph/knowledgeGraphInteractive)
+2. IF blocked: return { blocked: true, reason: 'requires X plan' }
+3. health check
+4. IF unhealthy: return empty result (no error)
+5. Call PiyAPI method
+6. IF method fails: use fallback (e.g. getGraph instead of traverseGraph)
+```
+
+### Pattern D — 3-Tier Cascade (search.handlers.ts L37-285)
+
+**Use for**: Cross-meeting action item search, sentiment search
+
+```
+1. ALWAYS run local FTS5/embedding search
+2. Check tier → select cloud method:
+   - Pro+: hybridSearch
+   - Starter: semanticSearch
+   - Free: fuzzySearch (still useful!)
+3. Handle encrypted memories (metadata.encrypted === true)
+4. Merge local + cloud, dedup by key
+5. Auto-fire feedbackPositive on cloud results
+```
+
+### Pattern E — Teaser for Upsell (graph.handlers.ts L309-355)
+
+**Use for**: Free tier sentiment/calendar teasers
+
+```
+1. Check feature flag for basic access (not full access)
+2. Return count/preview only (not full data)
+3. Return { requiresPro: true, preview: 'X decisions changed' }
+4. UI shows count + 🔓 Pro badge
+```
+
+---
+
+## 16. Deep Dive: PHI/GDPR Integration Points
+
+### PHIDetectionService — What's Available
+
+`PHIDetectionService.ts` (407 lines) provides:
+
+| Method                       | Purpose                                                        | Used Today       |
+| :--------------------------- | :------------------------------------------------------------- | :--------------- |
+| `detectPHI(text)`            | Returns `{hasPHI, riskLevel, detectedIdentifiers, maskedText}` | SyncManager L420 |
+| `maskPHI(text, identifiers)` | Replace PHI with `***` masks                                   | SyncManager      |
+| `checkBeforeSync(text)`      | Warning string or null if safe                                 | Not widely used  |
+| `getDescription(result)`     | Human-readable summary                                         | UI display       |
+
+Detects **15 PHI types** including international:
+
+- US: SSN, Phone, Email, MRN, Credit Card, Address, Account Number, URL, IP, Date
+- India: Aadhaar (12-digit, starts 2-9)
+- Japan: My Number (12-digit), JP Phone (0xx-xxxx)
+- Korea: Resident Registration Number (6-7 format)
+- International: Phone (+country code format)
+
+### Where PHI Must Be Applied for New Features
+
+| Feature          | PHI Point                 | Must Do                                                                       |
+| :--------------- | :------------------------ | :---------------------------------------------------------------------------- |
+| **Action Items** | Before SyncManager queue  | `PHIDetectionService.detectPHI(actionItem.text)` — mask assignee names, dates |
+| **Sentiment**    | Before KG ingest          | `PHIDetectionService.maskPHI()` on sentiment context text                     |
+| **Calendar**     | Before cloud sync         | `PHIDetectionService.detectPHI(event.attendees)` — email addresses are PHI    |
+| **Webhooks**     | **BEFORE EVERY dispatch** | `PHIDetectionService.detectPHI(JSON.stringify(payload))` — MOST CRITICAL      |
+
+### GDPR Export — Files to Update
+
+`export.handlers.ts` `export:userData` (L13-139) currently exports:
+
+```
+meetings, transcripts, notes, entities, actionItems, digests
+```
+
+Must add:
+
+```diff
++ const sentimentScores = db.prepare('SELECT * FROM sentiment_scores ORDER BY meeting_id').all()
++ const calendarEvents = db.prepare('SELECT * FROM calendar_events ORDER BY start_time').all()
++ const webhooks = db.prepare('SELECT * FROM webhooks ORDER BY created_at').all()
+```
+
+`export:deleteAllData` tables array (L174-188) must include:
+
+```diff
+  const tables = [
+    'transcripts', 'notes', 'entities', 'action_items', 'digests',
+    'audio_highlights', 'sync_queue', 'query_usage', 'meeting_templates',
+-   'devices', 'audit_logs', 'encryption_keys', 'settings', 'meetings',
++   'devices', 'audit_logs', 'encryption_keys', 'settings',
++   'sentiment_scores', 'calendar_events', 'webhook_deliveries', 'webhooks',
++   'meetings',
+  ]
+```
+
+FTS cleanup (L200-206) must add:
+
+```diff
+  for (const fts of [
+    'transcripts_fts', 'notes_fts', 'entities_fts',
++   'action_items_fts',
+  ]) {
+```
+
+---
+
+## 17. Deep Dive: MeetingCard UI Extension
+
+### Current MeetingCard Interface (MeetingCard.tsx L5-18)
+
+```typescript
+interface MeetingCardProps {
+  id: string
+  title: string
+  date: Date
+  duration: number // seconds
+  participantCount: number
+  hasTranscript: boolean
+  hasNotes: boolean
+  onClick: (id: string) => void
+  onContextMenu: (e: React.MouseEvent, id: string) => void
+  index: number
+  isRenaming?: boolean
+  onRenameSubmit?: (newTitle: string) => void
+}
+```
+
+### Required Extensions
+
+```diff
+ interface MeetingCardProps {
+   // ...existing props...
++  moodScore?: number | null       // -1.0 to +1.0, null if not analyzed
++  moodLabel?: string | null       // 'positive' | 'neutral' | 'negative'
++  actionItemCount?: number        // Open action item count
++  hasCalendarEvent?: boolean      // Linked to calendar event
++  calendarEventTitle?: string     // Event title for display
+ }
+```
+
+### Metadata Row Extension (L119-141)
+
+```diff
+ <div className="ui-meeting-card-meta">
+   <span><Clock size={12} strokeWidth={2} />{durationDisplay}</span>
+   <span><Users size={12} strokeWidth={2} />{participantCount}</span>
++  {moodScore != null && (
++    <span className={`ui-meeting-card-meta-badge mood-${moodLabel}`}>
++      {moodScore > 0.2 ? '😊' : moodScore < -0.2 ? '😟' : '😐'}
++      {moodLabel}
++    </span>
++  )}
++  {actionItemCount != null && actionItemCount > 0 && (
++    <span className="ui-meeting-card-meta-badge">
++      ☑ {actionItemCount}
++    </span>
++  )}
++  {hasCalendarEvent && (
++    <span className="ui-meeting-card-meta-badge">
++      📅 {calendarEventTitle || 'Scheduled'}
++    </span>
++  )}
+   {hasTranscript && (<span className="ui-meeting-card-meta-badge">...</span>)}
+   {hasNotes && (<span className="ui-meeting-card-meta-badge">...</span>)}
+ </div>
+```
+
+### MeetingListView Data Flow
+
+`MeetingListView.tsx` L27-29 gets meetings from `useMeetings()` hook. The `MeetingItem` interface at L192-201 must extend:
+
+```diff
+ interface MeetingItem {
+   id: string
+   title?: string | null
+   created_at: number
+   start_time: number
+   duration?: number | null
+   has_transcript?: boolean | null
+   has_notes?: boolean | null
+   participant_count?: number | null
++  mood_score?: number | null
++  mood_label?: string | null
++  action_item_count?: number | null
++  calendar_event_title?: string | null
+ }
+```
+
+The backend `meeting:list` query (meeting.handlers.ts L82) must JOIN sentiment and action items:
+
+```sql
+SELECT m.*,
+  (SELECT AVG(score) FROM sentiment_scores WHERE meeting_id = m.id) as mood_score,
+  CASE
+    WHEN AVG(score) > 0.2 THEN 'positive'
+    WHEN AVG(score) < -0.2 THEN 'negative'
+    ELSE 'neutral'
+  END as mood_label,
+  (SELECT COUNT(*) FROM action_items WHERE meeting_id = m.id AND status = 'open') as action_item_count,
+  ce.title as calendar_event_title
+FROM meetings m
+LEFT JOIN calendar_events ce ON ce.meeting_id = m.id
+GROUP BY m.id
+ORDER BY m.start_time DESC
+```
+
+---
+
+## 18. Deep Dive: Bugs, Blockers, and Risks
+
+### Known Blockers
+
+| #   | Blocker                                                               | Feature      | Severity     | Resolution                                                      |
+| :-- | :-------------------------------------------------------------------- | :----------- | :----------- | :-------------------------------------------------------------- |
+| B1  | Google OAuth `calendar.readonly` scope requires 2-6 week verification | Calendar     | **CRITICAL** | Apply Day 1, parallel with Sprint 1                             |
+| B2  | PiyAPI `checkPhi` endpoint returns 404 (REST)                         | Webhooks     | MEDIUM       | Use local `PHIDetectionService` only; MCP endpoint works        |
+| B3  | PiyAPI `deleteAllData` bulk endpoint returns 404                      | GDPR         | LOW          | Iterative deletion works (already implemented in PiyAPIBackend) |
+| B4  | No CRUD module for `action_items` despite table existing (L148)       | Action Items | HIGH         | Must create `crud/action-items.ts`                              |
+| B5  | `action_items` table has no FTS5 virtual table                        | Action Items | MEDIUM       | Must add FTS + triggers in schema.ts                            |
+| B6  | `LocalEntityExtractor` ACTION_ITEM regex is English-only              | Action Items | MEDIUM       | Needs i18n: Spanish, French, German, Japanese, Hindi patterns   |
+
+### Existing Bugs Discovered
+
+| #   | Bug                                                                           | File                    | Line     | Fix                       |
+| :-- | :---------------------------------------------------------------------------- | :---------------------- | :------- | :------------------------ |
+| D1  | `MeetingCard` has no sentiment/action items metadata props                    | `MeetingCard.tsx`       | L5-18    | Extend interface          |
+| D2  | `meeting:list` doesn't JOIN sentiment or action items                         | `meeting.handlers.ts`   | L82      | Add subquery JOINs        |
+| D3  | `searchAll()` only searches transcripts + notes, not entities or action items | `search.ts`             | L198-213 | Add `searchActionItems()` |
+| D4  | SyncManager `ALLOWED_TABLES` doesn't include any new tables                   | `SyncManager.ts`        | L41      | Extend array              |
+| D5  | `rebuildSearchIndexes()` doesn't include `action_items_fts`                   | `search.ts`             | L316     | Add rebuild call          |
+| D6  | GDPR `deleteAllData` doesn't delete new tables                                | `export.handlers.ts`    | L174     | Extend tables array       |
+| D7  | GDPR `export:userData` doesn't export new tables                              | `export.handlers.ts`    | L62      | Add queries               |
+| D8  | `CloudAccessManager.FeatureAccess` has no fields for new features             | `CloudAccessManager.ts` | L41      | Extend interface          |
+| D9  | `TierMappingService` has no limits for new features                           | `TierMappingService.ts` | L15      | Extend tier config        |
+| D10 | No feature flags in `environment.ts` for new features                         | `environment.ts`        | L84      | Add 4 new flags           |
+
+### Architecture Risks
+
+| #   | Risk                                                                                  | Impact      | Mitigation                                                                       |
+| :-- | :------------------------------------------------------------------------------------ | :---------- | :------------------------------------------------------------------------------- |
+| R1  | Local LLM context window (4096 tokens) limits sentiment batch size to ~10-15 segments | Quality     | Batch processing with rolling window                                             |
+| R2  | Apple ICS file polling (60s) causes stale calendar data                               | UX          | Show "last synced" timestamp, manual refresh button                              |
+| R3  | Webhook local dispatch depends on app being open                                      | Reliability | Pro+ Edge Function relay + dead letter queue                                     |
+| R4  | Sentiment heuristic (0.4 confidence) is too crude for real UX value                   | Quality     | Always run LLM pass as upgrade; show confidence indicator                        |
+| R5  | Free tier fuzzySearch still calls PiyAPI (line 214 search.handlers.ts)                | Cost        | Check if user has valid token before calling; was intentional but may cause 401s |
+| R6  | KG ingestion is fire-and-forget (entity.handlers.ts L79) with `.catch(() => {})`      | Data        | Acceptable: non-critical enrichment, but should log failures                     |
+| R7  | No rate limiting on webhook dispatches                                                | Abuse       | Add per-tier limits (100/day Starter, unlimited Pro+)                            |

@@ -88,9 +88,15 @@ export const HealthDashboard: React.FC = () => {
       '',
       `Checked: ${lastChecked?.toISOString() || 'N/A'}`,
     ]
-    navigator.clipboard.writeText(lines.join('\n'))
-    setCopied(true)
-    setTimeout(() => setCopied(false), 2000)
+    navigator.clipboard
+      .writeText(lines.join('\n'))
+      .then(() => {
+        setCopied(true)
+        setTimeout(() => setCopied(false), 2000)
+      })
+      .catch(() => {
+        /* clipboard unavailable */
+      })
   }
 
   const emailReport = () => {

@@ -8,6 +8,7 @@
 import { ipcMain, shell, systemPreferences, app } from 'electron'
 import { getDiagnosticLogger } from '../../services/DiagnosticLogger'
 import { getDatabaseService } from '../../services/DatabaseService'
+import { getAuthService } from '../../services/AuthService'
 import { Logger } from '../../services/Logger'
 import os from 'os'
 import fs from 'fs'
@@ -44,7 +45,6 @@ export function registerDiagnosticHandlers(): void {
 
     // 2. Authentication
     try {
-      const { getAuthService } = await import('../../services/AuthService')
       const auth = getAuthService()
       const isAuthed = await auth.isAuthenticated()
       if (isAuthed) {

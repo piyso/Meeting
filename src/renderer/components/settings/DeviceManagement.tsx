@@ -28,12 +28,12 @@ export const DeviceManagement: React.FC = () => {
         window.electronAPI?.device?.list(),
         window.electronAPI?.device?.getCurrent(),
       ])
-      if (listRes.success && listRes.data) {
+      if (listRes?.success && listRes.data) {
         setDevices(listRes.data as Device[])
-      } else {
+      } else if (listRes) {
         setError(listRes.error?.message || 'Failed to load devices')
       }
-      if (currentRes.success && currentRes.data) {
+      if (currentRes?.success && currentRes.data) {
         setCurrentDeviceId(currentRes.data.deviceId || null)
       }
     } catch (err) {
@@ -47,9 +47,9 @@ export const DeviceManagement: React.FC = () => {
     if (deviceId === currentDeviceId) return // Safety guard
     try {
       const res = await window.electronAPI?.device?.deactivate({ deviceId, userId: 'current-user' })
-      if (res.success) {
+      if (res?.success) {
         setDevices(prev => prev.map(d => (d.device_id === deviceId ? { ...d, is_active: 0 } : d)))
-      } else {
+      } else if (res) {
         setError(res.error?.message || 'Failed to deactivate device')
       }
     } catch (err) {

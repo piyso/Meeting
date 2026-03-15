@@ -1,14 +1,17 @@
-# Build and Release BlueArkive
-# Triggers on version tags (v0.1.0, v1.0.0, etc.)
-# Builds for macOS (arm64 + x64), Windows (x64), and Linux (x64)
-# Auto-publishes DMG/EXE/AppImage to a draft GitHub Release
+# ⚠️ DEPRECATED — Use build-release.yml instead
+# This workflow is kept for reference but no longer auto-triggers.
+# build-release.yml handles: build (all 3 platforms) + deploy + GitHub Release
+#
+# To run manually: go to Actions → "Build & Release (Legacy)" → Run workflow
 
-name: Build & Release
+name: Build & Release (Legacy)
 
 on:
-  push:
-    tags:
-      - 'v*'
+  workflow_dispatch:
+    inputs:
+      confirm:
+        description: 'Type CONFIRM to run this legacy workflow'
+        required: true
 
 concurrency:
   group: release-${{ github.ref }}

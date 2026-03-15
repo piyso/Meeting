@@ -19,7 +19,7 @@ jobs:
   # Build macOS (arm64 + x64)
   # ─────────────────────────────────────────────
   build-mac:
-    runs-on: macos-14  # Apple Silicon runner
+    runs-on: macos-14 # Apple Silicon runner
     steps:
       - uses: actions/checkout@v4
 
@@ -204,3 +204,36 @@ jobs:
           echo "Checking dl.bluearkive.com..."
           curl -sf https://dl.bluearkive.com/latest-mac.yml | head -1
           echo "✅ latest-mac.yml accessible"
+
+  # ─────────────────────────────────────────────
+  # Create GitHub Release (draft)
+  # ─────────────────────────────────────────────
+  github-release:
+    needs: [build-mac, build-windows, build-linux]
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/v')
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: List all release files
+        run: find artifacts -type f -exec ls -lh {} \;
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          draft: true
+          generate_release_notes: true
+          name: BlueArkive ${{ github.ref_name }}
+          files: |
+            artifacts/mac-builds/*
+            artifacts/win-builds/*
+            artifacts/linux-builds/*
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

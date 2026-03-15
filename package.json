@@ -270,7 +270,7 @@
           "ext": "pnotes",
           "name": "BlueArkive Meeting",
           "description": "BlueArkive Meeting File",
-          "icon": "build/file-icon.ico",
+          "icon": "build/icon.ico",
           "role": "Editor"
         }
       ]

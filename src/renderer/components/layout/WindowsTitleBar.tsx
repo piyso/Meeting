@@ -11,29 +11,32 @@ export function WindowsTitleBar() {
 
   // Check initial maximized state
   useEffect(() => {
-    window.electronAPI.windowControls.isMaximized().then(setIsMaximized)
+    window.electronAPI?.windowControls
+      ?.isMaximized()
+      ?.then(setIsMaximized)
+      .catch(() => {})
   }, [])
 
   // Listen for maximize/unmaximize events from main process
   useEffect(() => {
-    const unsubMaximize = window.electronAPI.on.windowMaximized(() => setIsMaximized(true))
-    const unsubUnmaximize = window.electronAPI.on.windowUnmaximized(() => setIsMaximized(false))
+    const unsubMaximize = window.electronAPI?.on?.windowMaximized(() => setIsMaximized(true))
+    const unsubUnmaximize = window.electronAPI?.on?.windowUnmaximized(() => setIsMaximized(false))
     return () => {
-      unsubMaximize()
-      unsubUnmaximize()
+      unsubMaximize?.()
+      unsubUnmaximize?.()
     }
   }, [])
 
   const handleMinimize = useCallback(() => {
-    window.electronAPI.windowControls.minimize()
+    window.electronAPI?.windowControls?.minimize()
   }, [])
 
   const handleMaximize = useCallback(() => {
-    window.electronAPI.windowControls.maximize()
+    window.electronAPI?.windowControls?.maximize()
   }, [])
 
   const handleClose = useCallback(() => {
-    window.electronAPI.windowControls.close()
+    window.electronAPI?.windowControls?.close()
   }, [])
 
   return (

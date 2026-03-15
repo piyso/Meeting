@@ -5,6 +5,7 @@ import { ZenRail } from './ZenRail'
 import { DynamicIsland } from './DynamicIsland'
 import { ErrorBoundary } from './ErrorBoundary'
 import { OfflineBanner } from './OfflineBanner'
+import { StatusBanner } from './StatusBanner'
 import { ToastContainer } from '../ui/Toast'
 import { CommandPalette } from '../command/CommandPalette'
 import { GlobalContextBar } from '../command/GlobalContextBar'
@@ -489,6 +490,7 @@ export const AppLayout: React.FC = () => {
       </ErrorBoundary>
 
       <OfflineBanner isOnline={isOnline} />
+      <StatusBanner />
 
       {/* Session Expiring Warning Banner */}
       {sessionExpiringMs !== null && (

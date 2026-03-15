@@ -1,5 +1,5 @@
 import React, { Component, ErrorInfo } from 'react'
-import { AlertTriangle, RefreshCw } from 'lucide-react'
+import { AlertTriangle, RefreshCw, Copy, Mail } from 'lucide-react'
 import { Button } from '../ui/Button'
 import { rendererLog } from '../../utils/logger'
 
@@ -17,15 +17,17 @@ interface Props {
 interface State {
   hasError: boolean
   error: Error | null
+  copied: boolean
 }
 
 export class ErrorBoundary extends Component<Props, State> {
   public state: State = {
     hasError: false,
     error: null,
+    copied: false,
   }
 
-  public static getDerivedStateFromError(error: Error): State {
+  public static getDerivedStateFromError(error: Error): Partial<State> {
     return { hasError: true, error }
   }
 
@@ -54,8 +56,44 @@ export class ErrorBoundary extends Component<Props, State> {
     if (this.props.isGlobal) {
       window.location.reload()
     } else {
-      this.setState({ hasError: false, error: null })
+      this.setState({ hasError: false, error: null, copied: false })
     }
+  }
+
+  private handleCopyReport = () => {
+    const error = this.state.error
+    const report = [
+      '═══ BlueArkive Error Report ═══',
+      '',
+      `View: ${this.props.viewName || 'Unknown'}`,
+      `Error: ${error?.message || 'Unknown error'}`,
+      '',
+      '─── Stack Trace ───',
+      error?.stack || 'No stack trace available',
+      '',
+      '─── Environment ───',
+      `Platform: ${navigator.platform}`,
+      `UserAgent: ${navigator.userAgent}`,
+      `URL: ${window.location.href}`,
+      `Timestamp: ${new Date().toISOString()}`,
+    ].join('\n')
+
+    navigator.clipboard
+      .writeText(report)
+      .then(() => {
+        this.setState({ copied: true })
+        setTimeout(() => this.setState({ copied: false }), 2000)
+      })
+      .catch(() => {})
+  }
+
+  private handleEmailSupport = () => {
+    const error = this.state.error
+    const subject = `BlueArkive Error: ${error?.message?.slice(0, 60) || 'Application Error'}`
+    const body = `Error: ${error?.message || 'Unknown'}\n\nPlatform: ${navigator.platform}\nTimestamp: ${new Date().toISOString()}`
+    window.electronAPI?.shell?.openExternal(
+      `mailto:support@bluearkive.com?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`
+    )
   }
 
   public render() {
@@ -76,21 +114,43 @@ export class ErrorBoundary extends Component<Props, State> {
                 reload the application to recover.
               </p>
 
-              <div className="bg-black/30 rounded-lg p-4 mb-8 w-full overflow-x-auto text-left border border-white/5">
+              <div className="bg-black/30 rounded-lg p-4 mb-6 w-full overflow-x-auto text-left border border-white/5">
                 <pre className="text-[11px] text-[var(--color-rose)] font-mono whitespace-pre-wrap break-words">
                   {this.state.error?.message || 'Unknown error occurred in React tree'}
                 </pre>
               </div>
 
-              <Button
-                variant="primary"
-                size="lg"
-                onClick={this.handleRetry}
-                className="w-full justify-center"
-              >
-                <RefreshCw size={16} className="mr-2" />
-                Reload Application
-              </Button>
+              <div className="flex flex-col gap-2 w-full">
+                <Button
+                  variant="primary"
+                  size="lg"
+                  onClick={this.handleRetry}
+                  className="w-full justify-center"
+                >
+                  <RefreshCw size={16} className="mr-2" />
+                  Reload Application
+                </Button>
+                <div className="flex gap-2 w-full">
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    onClick={this.handleCopyReport}
+                    className="flex-1 justify-center"
+                  >
+                    <Copy size={14} className="mr-1.5" />
+                    {this.state.copied ? 'Copied!' : 'Copy Report'}
+                  </Button>
+                  <Button
+                    variant="secondary"
+                    size="sm"
+                    onClick={this.handleEmailSupport}
+                    className="flex-1 justify-center"
+                  >
+                    <Mail size={14} className="mr-1.5" />
+                    Email Support
+                  </Button>
+                </div>
+              </div>
             </div>
           </div>
         )
@@ -109,9 +169,15 @@ export class ErrorBoundary extends Component<Props, State> {
           {this.state.error && (
             <p className="ui-error-boundary-message">{this.state.error.message}</p>
           )}
-          <Button variant="secondary" size="sm" onClick={this.handleRetry}>
-            Retry View
-          </Button>
+          <div className="flex gap-2 mt-2">
+            <Button variant="secondary" size="sm" onClick={this.handleRetry}>
+              Retry View
+            </Button>
+            <Button variant="ghost" size="sm" onClick={this.handleCopyReport}>
+              <Copy size={12} className="mr-1" />
+              {this.state.copied ? 'Copied!' : 'Copy Report'}
+            </Button>
+          </div>
         </div>
       )
     }

@@ -237,7 +237,6 @@ export const CommandPalette: React.FC = () => {
       ]
     }
     return [...baseActions, ...meetingItems]
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isSearching, deferredQuery, meetingItems, baseActions])
 
   useEffect(() => {

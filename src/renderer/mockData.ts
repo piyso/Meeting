@@ -1,8 +1,12 @@
+/* eslint-disable @typescript-eslint/no-non-null-assertion */
 /**
  * Mock Data — Comprehensive pseudo data for every entity in PiyNotes.
  *
  * This file provides rich, realistic data that matches the exact types
  * defined in src/types/database.ts and src/types/ipc.ts.
+ *
+ * Non-null assertions (!) are safe here — all arrays are constructed above
+ * and index access is always within bounds.
  */
 
 import type { Meeting, Transcript, Note, Entity } from '../types/database'

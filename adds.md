@@ -1538,3 +1538,393 @@ ORDER BY m.start_time DESC
 | R5  | Free tier fuzzySearch still calls PiyAPI (line 214 search.handlers.ts)                | Cost        | Check if user has valid token before calling; was intentional but may cause 401s |
 | R6  | KG ingestion is fire-and-forget (entity.handlers.ts L79) with `.catch(() => {})`      | Data        | Acceptable: non-critical enrichment, but should log failures                     |
 | R7  | No rate limiting on webhook dispatches                                                | Abuse       | Add per-tier limits (100/day Starter, unlimited Pro+)                            |
+
+---
+
+## 19. Deep Dive: PiyAPIBackend — Complete 39-Method API Surface
+
+`PiyAPIBackend.ts` (1090 lines) is the monolithic cloud integration layer. Every cloud call flows through here.
+
+### Method Catalog
+
+| #   | Method                              | Lines      | Cloud Endpoint                            | Used By                   | Feature Branch Relevance                          |
+| :-- | :---------------------------------- | :--------- | :---------------------------------------- | :------------------------ | :------------------------------------------------ |
+| 1   | `login(email, password)`            | L98-135    | `POST /auth/login`                        | Direct mode only          | —                                                 |
+| 2   | `refreshToken(refreshToken)`        | L141-173   | `POST /auth/refresh`                      | Direct mode only          | —                                                 |
+| 3   | `logout()`                          | L179-209   | `POST /auth/logout`                       | AuthService               | —                                                 |
+| 4   | `createMemory(memory)`              | L211-233   | `POST /memories`                          | SyncManager               | **Action Items, Sentiment**                       |
+| 5   | `batchCreateMemories(memories)`     | L235-268   | `POST /memories/batch`                    | SyncManager batch         | **Action Items batch sync**                       |
+| 6   | `updateMemory(id, updates)`         | L270-292   | `PATCH /memories/:id`                     | SyncManager               | **Action Item status toggle**                     |
+| 7   | `deleteMemory(id)`                  | L294-311   | `DELETE /memories/:id`                    | SyncManager, GDPR         | —                                                 |
+| 8   | `getMemories(ns, limit, offset)`    | L313-343   | `GET /memories`                           | GDPR export               | —                                                 |
+| 9   | `semanticSearch(query, ns, limit)`  | L345-376   | `POST /memories/search`                   | search.handlers (Starter) | **Cross-meeting action item search**              |
+| 10  | `hybridSearch(query, ns, limit)`    | L378-409   | `POST /memories/hybrid-search`            | search.handlers (Pro+)    | **Cross-meeting action item search**              |
+| 11  | `ask(query, namespace)`             | L411-438   | `POST /ask`                               | note.handlers, digest     | **AI sentiment analysis, Smart calendar context** |
+| 12  | `getGraph(ns, maxHops)`             | L440-465   | `GET /graph`                              | graph.handlers            | **Action item KG nodes**                          |
+| 13  | `traverseGraph(memoryId, maxHops)`  | L467-493   | `POST /graph/traverse`                    | graph.handlers            | **Contradiction detection**                       |
+| 14  | `healthCheck()`                     | L495-559   | `GET /health`                             | All handlers              | All features                                      |
+| 15  | `fuzzySearch(query, ns, limit)`     | L565-595   | `POST /memories/fuzzy-search`             | search.handlers (Free)    | **Action item search (free tier)**                |
+| 16  | `feedbackPositive(memoryIds)`       | L597-620   | `POST /feedback/positive`                 | search.handlers auto      | **All cloud search results**                      |
+| 17  | `feedbackNegative(memoryIds)`       | L622-641   | `POST /feedback/negative`                 | Manual                    | Adaptive learning                                 |
+| 18  | `kgIngest(content, memoryId)`       | L643-671   | `POST /kg/ingest`                         | entity.handlers           | **Action Items, Sentiment KG**                    |
+| 19  | `deduplicate(ns, dryRun)`           | L673-704   | `POST /memories/deduplicate`              | piyapi.handlers           | Maintenance                                       |
+| 20  | `checkPhi(text)`                    | L706-730   | `POST /compliance/phi` ⚠️ 404             | stub                      | **Webhooks PHI (use local instead)**              |
+| 21  | `exportAll(type)`                   | L732-754   | `GET /export`                             | export.handlers           | GDPR                                              |
+| 22  | `extractEntities(text, ns)`         | L756-833   | `POST /kg/ingest` + `GET /kg/entities`    | entity.handlers           | **Action Items cloud extraction**                 |
+| 23  | `deleteAllData()`                   | L835-891   | `DELETE /data/delete-all` ⚠️ 404 fallback | export.handlers           | GDPR                                              |
+| 24  | `searchGraph(query, ns, limit)`     | L893-920   | `POST /graph/search`                      | graph.handlers            | **Action item graph search**                      |
+| 25  | `getGraphStats(ns)`                 | L922-948   | `GET /graph/stats`                        | graph.handlers            | Dashboard stats                                   |
+| 26  | `ensureAuthenticated()`             | L950-967   | — (local check)                           | All methods               | Internal                                          |
+| 27  | `setAccessToken(token, userId)`     | L969-978   | — (local)                                 | AuthService               | Internal                                          |
+| 28  | `getAccessToken()`                  | L980-985   | — (local)                                 | SyncManager               | Internal                                          |
+| 29  | `createContextSession(params)`      | L987-1013  | `POST /context/sessions`                  | note.handlers             | **Pre-meeting AI context**                        |
+| 30  | `retrieveContext(sessionId, query)` | L1015-1044 | `GET /context/retrieve`                   | note.handlers             | **Calendar context injection**                    |
+| 31  | `normalizeSearchResults(results)`   | L1050-1063 | — (local)                                 | Internal                  | All search                                        |
+| 32  | `normalizeSimilarity(value)`        | L1065-1075 | — (local)                                 | Internal                  | All search                                        |
+| 33  | `stripInternalFields(obj)`          | L1077-1088 | — (local)                                 | Internal                  | All results                                       |
+
+### Key Architecture Insights
+
+1. **Proxy Mode** (L60-69): Supabase Edge Function at `/piyapi-proxy/*` routes all API calls. **Calendar OAuth tokens must NOT go through PiyAPI — they need a separate Google Calendar Edge Function.**
+
+2. **Health Cache** (L54-58): 30-second TTL means rapid-fire handler calls don't DDoS PiyAPI. New feature handlers should call `healthCheck()` before every API request — the cache ensures it's free.
+
+3. **Similarity Normalization** (L1069-1075): PiyAPI returns similarity as `int`, `string`, or `float`. `normalizeSimilarity()` handles all 3. **All new feature search results MUST go through this normalizer.**
+
+4. **Internal Fields Stripping** (L1077-1088): 10 PiyAPI DB fields are stripped. **New feature memory objects will also need this stripping.**
+
+5. **Entity Extraction 2-Step** (L756-833): `extractEntities()` is NOT a single call — it calls `kgIngest()` first, then fetches `/kg/entities` to get the actual entity list. **Action item cloud extraction should use this same 2-step pattern.**
+
+---
+
+## 20. Deep Dive: IBackendProvider Contract & Extension Points
+
+`IBackendProvider.ts` (230 lines) defines the interface that `PiyAPIBackend` implements.
+
+### GraphNode Type Union (CRITICAL for Action Items)
+
+```typescript
+export interface GraphNode {
+  id: string
+  label: string
+  type: 'meeting' | 'person' | 'topic' | 'decision' | 'action_item' | 'memory' | string
+  metadata?: Record<string, unknown>
+}
+```
+
+**`'action_item'` is ALREADY a valid GraphNode type!** This means KG action item nodes will render in the graph naturally without any graph component changes.
+
+### Methods NOT in IBackendProvider (PiyAPI-specific extras)
+
+These methods exist on `PiyAPIBackend` but NOT in the interface — they're PiyAPI-specific power features:
+
+```
+fuzzySearch, feedbackPositive, feedbackNegative, kgIngest, deduplicate,
+checkPhi, exportAll, extractEntities, deleteAllData, searchGraph,
+getGraphStats, createContextSession, retrieveContext
+```
+
+**If we ever add a self-hosted backend**, these would need stubbed implementations.
+
+---
+
+## 21. Deep Dive: Real-Time Event Architecture
+
+### Current Event Flow (Transcript → Renderer)
+
+```
+AudioPipelineService.processAudioChunk(Float32Array)
+    ↓ (VAD → Whisper ASR)
+TranscriptService.saveTranscript({meetingId, segment})
+    ↓ emits 'transcript' event
+transcript.handlers.ts → setupTranscriptEventForwarding()
+    ↓ finds mainWindow via BrowserWindow.getAllWindows()
+mainWindow.webContents.send('event:transcriptChunk', chunk)
+    ↓ in renderer
+useTranscriptStream hook → processes TranscriptChunk
+```
+
+### Where to Intercept for New Features
+
+| Feature                         | Hook Point                                            | Event                         | Approach                                                                       |
+| :------------------------------ | :---------------------------------------------------- | :---------------------------- | :----------------------------------------------------------------------------- |
+| **Action Items (Real-time)**    | `TranscriptService.saveTranscript()` L70 (after emit) | `event:actionItemDetected`    | Run `LocalEntityExtractor.extractActionItems(text)` → if match, emit new event |
+| **Sentiment (Real-time)**       | `TranscriptService.saveTranscript()` L70 (after emit) | `event:sentimentUpdate`       | Run heuristic on text → emit score                                             |
+| **Action Items (Post-meeting)** | `AudioPipelineService.stopCapture()`                  | `actionItem:extract` IPC call | Full LLM extraction on accumulated transcript                                  |
+| **Calendar Auto-Link**          | Meeting `start` event                                 | `calendar:autoLink`           | Match by time ±15min                                                           |
+
+### Real-Time Push Pattern (Copy from L164-207)
+
+```typescript
+// New: setupActionItemEventForwarding in action-item.handlers.ts
+transcriptService.on('transcript', data => {
+  const matches = LocalEntityExtractor.extractActionItems(data.text)
+  if (matches.length > 0) {
+    const mainWindow = BrowserWindow.getAllWindows().find(
+      w => !w.isDestroyed() && w.getBounds().width > 400
+    )
+    if (mainWindow) {
+      mainWindow.webContents.send('event:actionItemDetected', {
+        meetingId: data.meetingId,
+        items: matches,
+        timestamp: data.startTime,
+      })
+    }
+  }
+})
+```
+
+---
+
+## 22. Deep Dive: CRUD Module & Store Gaps
+
+### CRUD Modules (database/crud/)
+
+| Module                      | Status                                | Exports                                                            | Needs                                                                         |
+| :-------------------------- | :------------------------------------ | :----------------------------------------------------------------- | :---------------------------------------------------------------------------- |
+| `meetings.ts`               | ✅ Complete                           | create, get, list, update, delete                                  | —                                                                             |
+| `transcripts.ts`            | ✅ Complete                           | create, createBatch, get, getByMeeting, getByTimeRange, getContext | —                                                                             |
+| `notes.ts`                  | ✅ Complete                           | create, get, update, delete, getByMeeting                          | —                                                                             |
+| `entities.ts`               | ✅ Complete                           | create, getByMeeting, getByType                                    | —                                                                             |
+| `sync-queue.ts`             | ✅ Complete                           | add, get, delete events                                            | —                                                                             |
+| `encryption-keys.ts`        | ✅ Complete                           | create, get, has                                                   | —                                                                             |
+| `highlights.ts`             | ⚠️ Exists but NOT exported from index | create, list, delete                                               | Add to `index.ts` exports                                                     |
+| **`action-items.ts`**       | ❌ **MISSING**                        | —                                                                  | Must create: create, list, update, delete, getByMeeting, getOverdue, getStats |
+| **`sentiment-scores.ts`**   | ❌ **MISSING**                        | —                                                                  | Must create: create, getByMeeting, getMood, getTimeline                       |
+| **`calendar-events.ts`**    | ❌ **MISSING**                        | —                                                                  | Must create: create, upsert, list, link, autoLink, getByTimeRange             |
+| **`webhooks.ts`**           | ❌ **MISSING**                        | —                                                                  | Must create: create, list, update, delete, getActive                          |
+| **`webhook-deliveries.ts`** | ❌ **MISSING**                        | —                                                                  | Must create: create, list, updateStatus                                       |
+
+### AppStore (Zustand) Gaps
+
+`appStore.ts` has 8 `activeView` values:
+
+```typescript
+activeView:
+  | 'meeting-list'
+  | 'meeting-detail'
+  | 'settings'
+  | 'onboarding'
+  | 'knowledge-graph'
+  | 'weekly-digest'
+  | 'ask-meetings'
+  | 'pricing'
+```
+
+**Must add:**
+
+```diff
++ | 'action-items'     // Action Items dashboard view
++ | 'sentiment'        // Sentiment analysis view (potentially integrated into meeting-detail)
++ | 'calendar'         // Calendar integration view
+```
+
+**Must add recording-time state:**
+
+```diff
++ actionItemsDetected: number    // Real-time count during recording
++ currentMoodScore: number | null // Live sentiment during recording
+```
+
+---
+
+## 23. Deep Dive: AskMeetings RAG Pipeline
+
+`AskMeetingsView.tsx` (616 lines) implements a complete RAG (Retrieval-Augmented Generation) pipeline:
+
+### RAG Flow
+
+```
+User query ("What action items were assigned to me?")
+    ↓
+Step 1: search:semantic → top 5 transcript results
+    ↓ builds contextText from results
+Step 2: intelligence:askMeetings({question, context})
+    ↓ main process: local LLM or cloud AI
+    ↓ streaming via intelligence:streamToken event
+Step 3: Display answer with source citations (clickable → navigate to meeting)
+```
+
+### Key Design Decisions
+
+1. **Pro+ locked** (L406): `currentTier === 'free' || currentTier === 'starter'` shows `ProTeaseOverlay`
+2. **Token streaming** (L272-292): Listens to `intelligence:streamToken` event, updates last message's content in real-time
+3. **History persistence** (L238-248): localStorage with 50-message cap, per-user keyed by email
+4. **Pre-baked queries** (L498-518): 3 starter questions including "Summarize action items assigned to me"
+5. **Markdown rendering** (L34-184): Custom `MarkdownText` component handles bold, italic, code blocks, lists, headings, links, blockquotes
+
+### Integration with Action Items
+
+The pre-baked query "Summarize action items assigned to me" already exists but **searches transcripts** for context, not the `action_items` table. After implementing the Action Items CRUD:
+
+```diff
+// Step 1b: Also search action items table
++ const actionItemResults = await window.electronAPI?.actionItem?.list({})
++ const aiContext = actionItemResults?.data
++   ?.map((ai, i) => `[Action ${i+1}]: ${ai.text} (assigned: ${ai.assignee || 'unassigned'}, status: ${ai.status})`)
++   .join('\n') || ''
++ contextText += '\n\n' + aiContext
+```
+
+---
+
+## 24. Deep Dive: Complete File Audit Registry
+
+### Files Read in This Analysis (50+ files, 15,000+ lines)
+
+#### IPC Handlers (12 files)
+
+| File                       | Lines | Key Findings                                                                            |
+| :------------------------- | :---- | :-------------------------------------------------------------------------------------- |
+| `audio.handlers.ts`        | 824   | 21 IPC channels, `powerSaveBlocker`, process priority elevation, audio chunk forwarding |
+| `transcript.handlers.ts`   | 208   | `setupTranscriptEventForwarding()` — template for real-time push events                 |
+| `meeting.handlers.ts`      | 451   | CRUD + export (JSON/Markdown), WAL checkpoint management                                |
+| `graph.handlers.ts`        | 357   | 6 graph channels, `contradictionPreview` teaser pattern                                 |
+| `search.handlers.ts`       | 287   | 3-tier search cascade, encrypted memory handling, auto-feedbackPositive                 |
+| `entity.handlers.ts`       | 152   | Canonical dual-path: local extract → cloud extractEntities+kgIngest → merge             |
+| `note.handlers.ts`         | 364   | Cloud-first local fallback template, QueryQuotaManager, batchExpand                     |
+| `digest.handlers.ts`       | 606   | AI digest generation, regex parsing for decisions/action items                          |
+| `intelligence.handlers.ts` | 393   | Hardware tier detection, LLM streaming, meeting suggestions                             |
+| `export.handlers.ts`       | 235   | GDPR export/delete, already exports action_items                                        |
+| `sync.handlers.ts`         | 202   | Login/logout/trigger sync                                                               |
+| `piyapi.handlers.ts`       | —     | Cloud power features (feedback, fuzzy, dedup, pin, clusters, context)                   |
+
+#### Services (14 files)
+
+| File                           | Lines | Key Findings                                                                       |
+| :----------------------------- | :---- | :--------------------------------------------------------------------------------- |
+| `AudioPipelineService.ts`      | 756   | VAD → ASR → DB pipeline, `processAccumulatedChunk()` hook, `stopCapture()` trigger |
+| `TranscriptService.ts`         | 234   | EventEmitter pattern, async embedding gen, `getContext()`                          |
+| `BackgroundEmbeddingQueue.ts`  | 186   | 5-batch/10s, max 500, Float32Array BLOB persistence                                |
+| `LocalEmbeddingService.ts`     | 446   | ONNX all-MiniLM-L6-v2, 384d, WordPiece tokenizer, DirectML GPU on Windows          |
+| `LocalEntityExtractor.ts`      | 107   | ACTION_ITEM regex (English-only), 0.65 confidence                                  |
+| `PHIDetectionService.ts`       | 407   | 15 PHI types including international, `detectPHI()`, `maskPHI()`                   |
+| `CloudAccessManager.ts`        | 215   | `getCloudAccessStatus()`, `getFeatureAccess()` — dual-path gate                    |
+| `TierMappingService.ts`        | 255   | 5-tier pricing, per-feature limits                                                 |
+| `SyncManager.ts`               | 755   | Event-sourced queue, batch up to 50, PHI pre-check, ALLOWED_TABLES whitelist       |
+| `QueryQuotaManager.ts`         | 132   | Starter: 50 queries/month, query_usage table                                       |
+| `EncryptionService.ts`         | 280   | AES-256-GCM + PBKDF2 100K, key cache 5min                                          |
+| `AuthService.ts`               | 733   | Supabase auth, Google OAuth, `bluearkive://auth/callback` deep link                |
+| `CloudTranscriptionService.ts` | 439   | Deepgram API, usage tracking, WebSocket streaming                                  |
+| `ModelManager.ts`              | —     | LLM lifecycle management                                                           |
+
+#### Backend (3 files)
+
+| File                  | Lines | Key Findings                                                                 |
+| :-------------------- | :---- | :--------------------------------------------------------------------------- |
+| `PiyAPIBackend.ts`    | 1090  | 39 methods, proxy mode vs direct, health cache 30s, similarity normalization |
+| `IBackendProvider.ts` | 230   | Interface contract, GraphNode supports 'action_item' type                    |
+| `BackendSingleton.ts` | —     | Singleton accessor for PiyAPIBackend                                         |
+
+#### Database (5 files)
+
+| File                 | Lines | Key Findings                                                                         |
+| :------------------- | :---- | :----------------------------------------------------------------------------------- |
+| `schema.ts`          | 349   | action_items exists (L148-160), missing: sentiment_scores, calendar_events, webhooks |
+| `search.ts`          | 341   | 3 FTS tables, `searchAll()`, `rebuildSearchIndexes()`                                |
+| `connection.ts`      | —     | SQLite connection management                                                         |
+| `crud/index.ts`      | 24    | Exports 6 modules, missing: action-items, highlights, settings                       |
+| `crud/sync-queue.ts` | 133   | Sync queue CRUD operations                                                           |
+
+#### Renderer Views (6 files)
+
+| File                     | Lines | Key Findings                                                     |
+| :----------------------- | :---- | :--------------------------------------------------------------- |
+| `MeetingListView.tsx`    | 518   | Virtualized grid, MeetingCard has no sentiment/action item props |
+| `MeetingDetailView.tsx`  | 332   | Transcript + notes tabs, no action items section                 |
+| `MeetingCard.tsx`        | 145   | Props lack moodScore, actionItemCount, hasCalendarEvent          |
+| `WeeklyDigestView.tsx`   | 1039  | Period selector, AI generation, ProTeaseOverlay for free tier    |
+| `AskMeetingsView.tsx`    | 616   | Full RAG pipeline with token streaming, Pro+ locked              |
+| `KnowledgeGraphView.tsx` | 189   | GraphCanvas, ProTeaseOverlay, parallel fetch                     |
+
+#### State & Types (3 files)
+
+| File             | Lines | Key Findings                                                                         |
+| :--------------- | :---- | :----------------------------------------------------------------------------------- |
+| `appStore.ts`    | 194   | 8 activeView types, missing: action-items, sentiment, calendar                       |
+| `ipcChannels.ts` | 277   | 17 groups, 67 channels — must add actionItem, sentiment, calendar, webhook           |
+| `database.ts`    | 219   | Type definitions for Meeting, Transcript, Note — must add ActionItem, SentimentScore |
+
+#### Config (1 file)
+
+| File             | Lines | Key Findings                                                                       |
+| :--------------- | :---- | :--------------------------------------------------------------------------------- |
+| `environment.ts` | 168   | Feature flags: knowledge_graph, weekly_digest, phi_detection — missing 4 new flags |
+
+---
+
+## 25. Master Integration Checklist
+
+Every file and change needed for all 4 features, in dependency order:
+
+### Phase 0: Infrastructure (Must do first)
+
+```
+[ ] schema.ts — Add 3 new tables + 1 FTS5 table + triggers
+[ ] migrations.ts — Add v4 migration
+[ ] database.ts — Add ActionItem, SentimentScore, CalendarEvent, Webhook types
+[ ] crud/action-items.ts — NEW: Full CRUD module
+[ ] crud/sentiment-scores.ts — NEW: Full CRUD module
+[ ] crud/calendar-events.ts — NEW: Full CRUD module
+[ ] crud/webhooks.ts — NEW: Full CRUD module
+[ ] crud/webhook-deliveries.ts — NEW: Full CRUD module
+[ ] crud/index.ts — Add new exports + highlights export
+[ ] ipcChannels.ts — Add 4 new channel groups + 4 push events
+[ ] environment.ts — Add 4 feature flags
+[ ] TierMappingService.ts — Add limits for new features
+[ ] CloudAccessManager.ts — Extend FeatureAccess interface
+[ ] SyncManager.ts — Add new tables to ALLOWED_TABLES
+[ ] search.ts — Add searchActionItems(), extend rebuild/optimize
+[ ] export.handlers.ts — Extend userData export + deleteAllData
+[ ] appStore.ts — Add new activeView types + recording state
+```
+
+### Phase 1: Action Items
+
+```
+[ ] action-item.handlers.ts — NEW: 8 IPC handlers
+[ ] ActionItemService.ts — NEW: Extraction logic (regex + LLM + cloud)
+[ ] TranscriptService.ts — Add event hook for real-time detection
+[ ] MeetingDetailView.tsx — Add Action Items tab
+[ ] MeetingCard.tsx — Add actionItemCount prop
+[ ] meeting.handlers.ts — Extend list query with COUNT JOIN
+[ ] ActionItemsView.tsx — NEW: Cross-meeting dashboard
+[ ] useActionItems.ts — NEW: Hook
+```
+
+### Phase 2: Sentiment Analysis
+
+```
+[ ] sentiment.handlers.ts — NEW: 4 IPC handlers
+[ ] SentimentAnalysisService.ts — NEW: Heuristic + LLM + cloud
+[ ] TranscriptService.ts — Add sentiment hook
+[ ] MeetingCard.tsx — Add moodScore/moodLabel props
+[ ] MeetingDetailView.tsx — Add sentiment timeline tab
+[ ] SentimentTimeline.tsx — NEW: D3 chart component
+[ ] useSentiment.ts — NEW: Hook
+```
+
+### Phase 3: Calendar Integration
+
+```
+[ ] calendar.handlers.ts — NEW: 5 IPC handlers
+[ ] AppleCalendarService.ts — NEW: ICS file reader
+[ ] GoogleCalendarService.ts — NEW: OAuth + REST API
+[ ] CalendarView.tsx — NEW: Day/week/month grid
+[ ] MeetingCard.tsx — Add hasCalendarEvent prop
+[ ] useCalendar.ts — NEW: Hook
+[ ] Google OAuth verification — CRITICAL BLOCKER (2-6 weeks)
+```
+
+### Phase 4: Webhooks/Zapier
+
+```
+[ ] webhook.handlers.ts — NEW: 6 IPC handlers
+[ ] WebhookDispatchService.ts — NEW: HMAC signing + dispatch
+[ ] PHIDetectionService.ts — Wire into webhook dispatch
+[ ] WebhookSettingsView.tsx — NEW: Webhook management UI
+[ ] useWebhooks.ts — NEW: Hook
+[ ] supabase/functions/webhook-relay — NEW: Edge Function (Pro+)
+```
+
+### Total New Files: ~25 | Modified Files: ~17 | Total: ~42 files

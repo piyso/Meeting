@@ -1112,7 +1112,7 @@ function createMockElectronAPI() {
     desktopCapturerSources: async () => [],
 
     // ── Event Listeners ───────────────────────────────────────────────
-    /* eslint-disable @typescript-eslint/no-explicit-any */
+
     _listeners: listeners,
 
     on: {
@@ -1159,7 +1159,6 @@ function createMockElectronAPI() {
       windowMaximized: noop,
       windowUnmaximized: noop,
     },
-    /* eslint-enable @typescript-eslint/no-explicit-any */
 
     // ── IPC Renderer ──────────────────────────────────────────────────
     ipcRenderer: {

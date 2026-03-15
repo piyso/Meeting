@@ -2,11 +2,17 @@ import { app, BrowserWindow, dialog, globalShortcut, screen, session } from 'ele
 import path from 'path'
 import { setupIPC, cleanupIPC } from '../src/main/ipc/setup'
 import { getDatabaseService } from '../src/main/services/DatabaseService'
-import { closeDatabase } from '../src/main/database/connection'
+import {
+  closeDatabase,
+  walHealthCheck,
+  optimizeDatabase,
+  getDatabasePath,
+} from '../src/main/database/connection'
 import { Logger } from '../src/main/services/Logger'
 import { CrashReporter } from '../src/main/services/CrashReporter'
 import { migrateIfNeeded } from '../src/main/services/MigrationService'
 import { getModelDownloadService } from '../src/main/services/ModelDownloadService'
+import { getAuditLogger } from '../src/main/services/AuditLogger'
 
 const log = Logger.create('Main')
 
@@ -334,11 +340,6 @@ app
     // I2+I3: Schedule database maintenance (these functions existed but were never called)
     if (!dbInitFailed) {
       // walHealthCheck: check WAL file size every 10 minutes — emergency checkpoint if > 500MB
-      const {
-        walHealthCheck,
-        optimizeDatabase,
-        getDatabasePath,
-      } = require('../src/main/database/connection')
       const dbPath = getDatabasePath()
       const walHealthInterval = setInterval(
         () => {
@@ -359,7 +360,6 @@ app
         }
         // J1: Purge audit logs older than 90 days (keeps min 10,000 rows)
         try {
-          const { getAuditLogger } = require('../src/main/services/AuditLogger')
           getAuditLogger()
             .purgeOldLogs(90, 10000)
             .then((purged: number) => {

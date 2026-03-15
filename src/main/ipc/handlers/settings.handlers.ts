@@ -1,5 +1,6 @@
 import { ipcMain } from 'electron'
 import { getDatabase } from '../../database/connection'
+import { getASRService } from '../../services/ASRService'
 
 export function registerSettingsHandlers(): void {
   // settings:getAll — Get all settings as key-value map
@@ -82,6 +83,16 @@ export function registerSettingsHandlers(): void {
         JSON.stringify(params.value),
         now
       )
+
+      // Propagate language changes to ASR service (reaches worker thread)
+      if (params.key === 'transcription_language' && typeof params.value === 'string') {
+        try {
+          getASRService().setLanguage(params.value)
+        } catch {
+          // ASR service may not be initialized yet — language will be picked up on next init
+        }
+      }
+
       return { success: true, data: undefined }
     } catch (error) {
       return {

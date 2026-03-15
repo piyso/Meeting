@@ -202,7 +202,9 @@
         }
       ],
       "icon": "build/icon.icns",
-      "hardenedRuntime": false,
+      "hardenedRuntime": true,
+      "entitlements": "build/entitlements.mac.plist",
+      "entitlementsInherit": "build/entitlements.mac.plist",
       "gatekeeperAssess": false,
       "type": "distribution",
       "minimumSystemVersion": "11.0",

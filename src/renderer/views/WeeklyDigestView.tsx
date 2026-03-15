@@ -211,7 +211,9 @@ const TopTopicItem = ({
 export default function WeeklyDigestView() {
   const navigate = useAppStore(s => s.navigate)
   const currentTier = useAppStore(s => s.currentTier)
-  const isAiLocked = currentTier === 'free' || currentTier === 'starter'
+  // Only free tier is fully locked — Starter has weeklyDigest: true in TierMappingService
+  // Digest uses local Qwen LLM, not cloud AI, so no cloud gate needed
+  const isAiLocked = currentTier === 'free'
   const [digest, setDigest] = useState<WeeklyDigest | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [isGenerating, setIsGenerating] = useState(false)
@@ -402,12 +404,8 @@ export default function WeeklyDigestView() {
         <div style={{ flex: 1, position: 'relative' }}>
           <ProTeaseOverlay
             title="Unlock Weekly Digest"
-            description={
-              currentTier === 'starter'
-                ? 'AI-powered weekly summaries are a Pro feature.'
-                : 'Upgrade to get weekly summaries, action items, and analytics.'
-            }
-            targetTier="pro"
+            description="Upgrade to Starter to get weekly summaries, action items, and analytics."
+            targetTier="starter"
           />
         </div>
       </div>

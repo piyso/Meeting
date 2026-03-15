@@ -30,13 +30,38 @@ export const ZenRail: React.FC<ZenRailProps> = ({
   const showUpgrade = userTier && (userTier === 'free' || userTier === 'starter')
   const toggleCommandPalette = useAppStore(s => s.toggleCommandPalette)
 
+  // Determine which views are locked based on tier
+  const isViewLocked = (view: string): boolean => {
+    if (!userTier || userTier === 'pro' || userTier === 'team' || userTier === 'enterprise')
+      return false
+    if (userTier === 'free') {
+      // Free: KG is read-only (allowed), Digest and Ask are locked
+      return view === 'weekly-digest' || view === 'ask-meetings'
+    }
+    if (userTier === 'starter') {
+      // Starter: has Digest now, but Ask is still locked (needs hybrid search)
+      return view === 'ask-meetings'
+    }
+    return false
+  }
+
+  // Handle navigation with tier check
+  const handleNavigate = (view: ZenRailProps['activeView']) => {
+    if (isViewLocked(view)) {
+      // Show upgrade prompt instead of navigating
+      onUpgrade?.()
+      return
+    }
+    onNavigate(view)
+  }
+
   return (
     <nav className={`ui-zen-rail ${focusMode ? 'focus-mode' : ''}`} aria-label="Main navigation">
       <div className="ui-zen-rail-item">
         <IconButton
           icon={<FileText size={18} />}
           active={activeView === 'meeting-list'}
-          onClick={() => onNavigate('meeting-list')}
+          onClick={() => handleNavigate('meeting-list')}
           tooltip="Meetings"
         />
       </div>
@@ -46,14 +71,9 @@ export const ZenRail: React.FC<ZenRailProps> = ({
           <IconButton
             icon={<Brain size={18} />}
             active={activeView === 'knowledge-graph'}
-            onClick={() => onNavigate('knowledge-graph')}
+            onClick={() => handleNavigate('knowledge-graph')}
             tooltip="Knowledge Graph"
           />
-          {showUpgrade && (
-            <div className="absolute -top-1 -right-1 bg-[var(--color-bg-base)] rounded-full p-[2px] shadow-sm z-10">
-              <Lock size={10} className="text-[var(--color-amber)]" />
-            </div>
-          )}
         </div>
       </div>
 
@@ -62,10 +82,10 @@ export const ZenRail: React.FC<ZenRailProps> = ({
           <IconButton
             icon={<CalendarDays size={18} />}
             active={activeView === 'weekly-digest'}
-            onClick={() => onNavigate('weekly-digest')}
+            onClick={() => handleNavigate('weekly-digest')}
             tooltip="Weekly Digest"
           />
-          {showUpgrade && (
+          {isViewLocked('weekly-digest') && (
             <div className="absolute -top-1 -right-1 bg-[var(--color-bg-base)] rounded-full p-[2px] shadow-sm z-10">
               <Lock size={10} className="text-[var(--color-amber)]" />
             </div>
@@ -78,10 +98,10 @@ export const ZenRail: React.FC<ZenRailProps> = ({
           <IconButton
             icon={<MessageSquare size={18} />}
             active={activeView === 'ask-meetings'}
-            onClick={() => onNavigate('ask-meetings')}
+            onClick={() => handleNavigate('ask-meetings')}
             tooltip="Ask Meetings"
           />
-          {showUpgrade && (
+          {isViewLocked('ask-meetings') && (
             <div className="absolute -top-1 -right-1 bg-[var(--color-bg-base)] rounded-full p-[2px] shadow-sm z-10">
               <Lock size={10} className="text-[var(--color-amber)]" />
             </div>
@@ -125,7 +145,7 @@ export const ZenRail: React.FC<ZenRailProps> = ({
         <IconButton
           icon={<Settings size={18} />}
           active={activeView === 'settings'}
-          onClick={() => onNavigate('settings')}
+          onClick={() => handleNavigate('settings')}
           tooltip="Settings"
         />
       </div>

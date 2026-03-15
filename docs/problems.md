@@ -103,7 +103,7 @@
 
 ### C7. install.sh Version Fallback Hardcoded ⭐ LOW
 
-- `install.sh:16` → `VERSION="0.3.0"` — never auto-updated
+- `install.sh:16` → `VERSION="0.3.3"` — never auto-updated
 
 ---
 

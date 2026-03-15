@@ -223,10 +223,10 @@ describe('CloudAccessManager', () => {
         cloudSync: true,
         multiDevice: true,
         deviceLimit: 2,
-        transcriptSizeLimit: 10000,
+        transcriptSizeLimit: 15000,
         monthlyAIQueries: 50,
-        speakerDiarization: false,
-        weeklyDigest: false,
+        speakerDiarization: true,
+        weeklyDigest: true,
         teamCollaboration: false,
         auditLogs: false,
       })
@@ -246,7 +246,7 @@ describe('CloudAccessManager', () => {
         cloudSync: true,
         multiDevice: true,
         deviceLimit: Infinity,
-        transcriptSizeLimit: 25000,
+        transcriptSizeLimit: 50000,
         monthlyAIQueries: Infinity,
         speakerDiarization: true,
         weeklyDigest: true,
@@ -269,7 +269,7 @@ describe('CloudAccessManager', () => {
         cloudSync: true,
         multiDevice: true,
         deviceLimit: Infinity,
-        transcriptSizeLimit: 50000,
+        transcriptSizeLimit: 100000,
         monthlyAIQueries: Infinity,
         speakerDiarization: true,
         weeklyDigest: true,
@@ -312,7 +312,7 @@ describe('CloudAccessManager', () => {
       expect(features.cloudSync).toBe(false)
       // But local features still available
       expect(features.deviceLimit).toBe(Infinity)
-      expect(features.transcriptSizeLimit).toBe(25000)
+      expect(features.transcriptSizeLimit).toBe(50000)
     })
   })
 
@@ -500,7 +500,7 @@ describe('CloudAccessManager', () => {
 
       features = await manager.getFeatureAccess()
       expect(features.deviceLimit).toBe(Infinity)
-      expect(features.transcriptSizeLimit).toBe(25000)
+      expect(features.transcriptSizeLimit).toBe(50000)
     })
   })
 })

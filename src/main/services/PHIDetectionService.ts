@@ -61,6 +61,12 @@ export enum PHIType {
   IP_ADDRESS = 'ip_address',
   URL = 'url',
   CREDIT_CARD = 'credit_card',
+  // International identifiers
+  AADHAAR = 'aadhaar',
+  JP_MY_NUMBER = 'jp_my_number',
+  KR_RRN = 'kr_rrn',
+  INTL_PHONE = 'intl_phone',
+  JP_PHONE = 'jp_phone',
 }
 
 /**
@@ -99,6 +105,22 @@ export class PHIDetectionService {
 
     // Account numbers: Account #123456, Acct: 123456
     ACCOUNT_NUMBER: /\b(Account|Acct|A\/C)\s*[#:]?\s*\d{5,12}\b/gi,
+
+    // International PHI patterns
+    // India: Aadhaar number (exactly 12 digits, grouped 4-4-4, cannot start with 0 or 1)
+    AADHAAR: /\b[2-9]\d{3}[\s-]?\d{4}[\s-]?\d{4}\b/g,
+
+    // Japan: My Number (exactly 12 digits, first digit 1-9, usually no grouping)
+    JP_MY_NUMBER: /\b[1-9]\d{11}\b/g,
+
+    // Korea: Resident Registration Number (6 digits - 7 digits)
+    KR_RRN: /\b\d{6}[\s-]\d{7}\b/g,
+
+    // International phone: +91, +81, +82, +44, +49, etc.
+    INTL_PHONE: /\b\+\d{1,3}[\s-]?\(?\d{1,4}\)?[\s-]?\d{2,4}[\s-]?\d{2,4}[\s-]?\d{0,4}\b/g,
+
+    // Japan phone: 090-1234-5678, 03-1234-5678
+    JP_PHONE: /\b0\d{1,4}[\s-]\d{2,4}[\s-]\d{3,4}\b/g,
   }
 
   /**
@@ -129,7 +151,16 @@ export class PHIDetectionService {
 
     // Deduplicate overlapping matches: prefer more specific types
     // Priority: account_number > ssn, credit_card > ssn, mrn > ssn, phone > ssn
-    const specificTypes = ['account_number', 'credit_card', 'mrn', 'phone']
+    const specificTypes = [
+      'account_number',
+      'credit_card',
+      'mrn',
+      'phone',
+      'aadhaar',
+      'jp_my_number',
+      'intl_phone',
+      'jp_phone',
+    ]
     const genericTypes = ['ssn']
     const detectedIdentifiers = allMatches.filter(match => {
       if (genericTypes.includes(match.type)) {
@@ -196,6 +227,21 @@ export class PHIDetectionService {
       case 'ACCOUNT_NUMBER':
         // High confidence if explicitly labeled
         return value.toLowerCase().includes('account') ? 0.85 : 0.6
+      case 'AADHAAR':
+        // High confidence: starts with 2-9, specific format
+        return value.includes('-') || value.includes(' ') ? 0.85 : 0.7
+      case 'JP_MY_NUMBER':
+        // Medium confidence: 12 digits could be other IDs
+        return 0.65
+      case 'KR_RRN':
+        // High confidence: 6-7 format is unique to Korean RRN
+        return 0.9
+      case 'INTL_PHONE':
+        // High confidence: starts with + country code
+        return 0.85
+      case 'JP_PHONE':
+        // Medium-high confidence: 0xx-xxxx format is specific
+        return 0.8
       default:
         return 0.5
     }

@@ -483,7 +483,7 @@ document.addEventListener('DOMContentLoaded', () => {
       const payloadObj = {
         role: accumulatedRole,
         timestamp: Date.now(),
-        source: 'landing_page_v0.3.0',
+        source: 'landing_page_v0.3.3',
       }
       const rawPayload = JSON.stringify(payloadObj)
       const encodedPayload = btoa(rawPayload)

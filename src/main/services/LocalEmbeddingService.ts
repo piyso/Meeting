@@ -302,7 +302,7 @@ export class LocalEmbeddingService {
     // Tokenize text using WordPiece
     const words = text
       .toLowerCase()
-      .replace(/[^\w\s]/g, ' ')
+      .replace(/[^\p{L}\p{N}\s]/gu, ' ')
       .split(/\s+/)
       .filter(w => w.length > 0)
 

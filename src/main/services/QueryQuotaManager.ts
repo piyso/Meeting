@@ -1,10 +1,10 @@
 /**
- * QueryQuotaManager — Tracks AI query usage for Starter tier (50/month)
+ * QueryQuotaManager — Tracks AI query usage per tier
  *
- * Blueprint §5.1 (L3019, L3068-3085):
+ * Limits:
  * - Starter plan: 50 AI queries per month
  * - Pro/Team/Enterprise: Unlimited
- * - Free: No cloud AI access
+ * - Free: No cloud AI access (blocked by CloudAccessManager)
  * - When exhausted, fall back to local Qwen silently
  */
 
@@ -26,7 +26,7 @@ export class QueryQuotaManager {
    * Returns quota status and whether the query is allowed.
    */
   async checkQuota(tier: 'free' | 'starter' | 'pro' | 'team' | 'enterprise'): Promise<QuotaStatus> {
-    // Free tier: no cloud AI access at all
+    // Free tier: no cloud AI access (blocked upstream by CloudAccessManager)
     if (tier === 'free') {
       return {
         used: 0,

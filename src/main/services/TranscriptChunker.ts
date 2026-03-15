@@ -9,9 +9,9 @@
  *
  * Plan Limits:
  * - Free: 5K chars (4.5K with 10% safety buffer)
- * - Starter: 10K chars (9K with 10% safety buffer)
- * - Pro: 25K chars (22.5K with 10% safety buffer)
- * - Team: 50K chars (45K with 10% safety buffer)
+ * - Starter: 15K chars (13.5K with 10% safety buffer)
+ * - Pro: 50K chars (45K with 10% safety buffer)
+ * - Team: 100K chars (90K with 10% safety buffer)
  * - Enterprise: 100K chars (90K with 10% safety buffer)
  *
  * Integration:
@@ -43,12 +43,12 @@ export interface ChunkingResult {
 }
 
 export class TranscriptChunker {
-  // Plan limits (characters)
+  // Plan limits (characters) — must match TierMappingService.transcriptSize
   private readonly PLAN_LIMITS: Record<PlanTier, number> = {
     free: 5000,
-    starter: 10000,
-    pro: 25000,
-    team: 50000,
+    starter: 15000,
+    pro: 50000,
+    team: 100000,
     enterprise: 100000,
   }
 

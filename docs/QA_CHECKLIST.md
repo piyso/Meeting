@@ -1,4 +1,4 @@
-# BlueArkive QA Checklist — v0.3.1
+# BlueArkive QA Checklist — v0.3.3
 
 > **How to use:** Walk through each section. Mark ✅ if it works, ❌ if broken, ⚠️ if partially works.
 > After testing, share this file with me and I'll fix everything marked ❌ or ⚠️.
@@ -89,5 +89,5 @@
 
 - macOS version:
 - Chip: Apple Silicon (M1/M2/M3) / Intel
-- BlueArkive version: 0.3.1
+- BlueArkive version: 0.3.3
 - Date tested:

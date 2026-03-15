@@ -10,7 +10,9 @@ import { ProTeaseOverlay } from '../components/ui/ProTeaseOverlay'
 
 export default function KnowledgeGraphView() {
   const currentTier = useAppStore(s => s.currentTier)
-  const isLocked = currentTier === 'free' || currentTier === 'starter'
+  // KG access is handled by backend getFeatureAccess() — don't hardcode lock here
+  // Free: read-only local KG, Starter: read-only cloud KG, Pro+: interactive
+  const isLocked = false // Let backend tier gates handle it
   const navigate = useAppStore(s => s.navigate)
   const isOnline = useAppStore(s => s.isOnline)
 

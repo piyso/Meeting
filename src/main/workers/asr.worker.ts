@@ -54,6 +54,7 @@ let currentModel: ModelType | null = null
 let modelLoaded: boolean = false
 let hardwareTier: HardwareTier | null = null
 let resolvedModelsDir: string = ''
+let currentLanguage: string = 'en' // Language for transcription
 
 // Model instances (will be loaded dynamically)
 let whisperSession: ort.InferenceSession | null = null
@@ -114,12 +115,28 @@ function verifyModelFiles(modelType: ModelType): boolean {
 /**
  * Initialize ASR model
  */
-async function initializeModel(data?: { modelsDir?: string }): Promise<void> {
+async function initializeModel(data?: { modelsDir?: string; language?: string }): Promise<void> {
   try {
+    // Set language for transcription (can be called without modelsDir for language-only updates)
+    if (data?.language) {
+      currentLanguage = data.language
+      workerLog.info(`Language set to: ${currentLanguage}`)
+    }
+
+    // If only language was sent and model is already loaded, skip model reload
+    if (!data?.modelsDir && modelLoaded) {
+      workerLog.info('Language-only update, model already loaded — skipping reload')
+      sendResponse({
+        type: 'ready',
+        data: { model: currentModel, tier: hardwareTier, language: currentLanguage },
+      })
+      return
+    }
+
     // Set models directory from parent thread or fall back to cwd
     if (data?.modelsDir) {
       resolvedModelsDir = data.modelsDir
-    } else {
+    } else if (!resolvedModelsDir) {
       resolvedModelsDir = path.join(process.cwd(), 'resources', 'models')
     }
 
@@ -304,19 +321,25 @@ async function preprocessAudio(audioBuffer: Float32Array): Promise<Float32Array>
  * Decode tokens to text (simplified)
  */
 function decodeTokens(tokens: Float32Array): string {
-  // Simple ASCII-range token to character conversion
-  // For production Moonshine, this maps ONNX output indices to vocabulary tokens
+  // Unicode-aware token decoding — handles ALL scripts (CJK, Arabic, Hindi, etc.)
+  // Previously: only decoded ASCII (tokenId < 128), silently dropping all other characters
   const decoded: string[] = []
   for (let i = 0; i < tokens.length; i++) {
     const tokenId = Math.round(tokens[i] ?? 0)
-    if (tokenId > 0 && tokenId < 128) {
-      decoded.push(String.fromCharCode(tokenId))
-    } else if (tokenId === 0) {
+    if (tokenId === 0) {
       // End of sequence
       break
     }
+    // Accept full Unicode range (Basic Multilingual Plane + supplementary planes)
+    if (tokenId > 0 && tokenId <= 0x10ffff) {
+      try {
+        decoded.push(String.fromCodePoint(tokenId))
+      } catch {
+        // Invalid code point, skip
+      }
+    }
   }
-  return decoded.join('') || 'Transcribed text from Moonshine Base model'
+  return decoded.join('').trim() || 'Transcribed text from Moonshine Base model'
 }
 
 /**

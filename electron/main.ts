@@ -16,6 +16,7 @@ import { getAuditLogger } from '../src/main/services/AuditLogger'
 import { getAuthService } from '../src/main/services/AuthService'
 import { getAudioPipelineService } from '../src/main/services/AudioPipelineService'
 import { getASRService } from '../src/main/services/ASRService'
+import { getModelManager } from '../src/main/services/ModelManager'
 
 const log = Logger.create('Main')
 
@@ -212,7 +213,9 @@ const createWidgetWindow = () => {
     ...(process.platform === 'win32' ? { backgroundMaterial: 'acrylic' as const } : {}), // OPT-12: Win11 acrylic blur
     alwaysOnTop: true,
     hasShadow: false, // We render the drop shadow in CSS for better border-radius control
-    ...(process.platform === 'darwin' ? { type: 'panel' as const } : {}), // macOS: floating utility panel
+    ...(process.platform === 'darwin'
+      ? { type: 'panel' as const, vibrancy: 'under-window' as const }
+      : {}), // macOS: floating utility panel + vibrancy (~40% GPU reduction)
     resizable: false,
     show: false, // Hidden until told to show
     webPreferences: {
@@ -223,6 +226,11 @@ const createWidgetWindow = () => {
     },
     title: 'BlueArkive Widget',
   })
+
+  // Make widget visible on all macOS Spaces and over fullscreen apps
+  if (process.platform === 'darwin') {
+    widgetWindow.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true })
+  }
 
   // Load the separate WidgetApp HTML entry point
   if (process.env.VITE_DEV_SERVER_URL) {
@@ -566,6 +574,20 @@ app.on('will-quit', () => {
   globalShortcut.unregisterAll()
 })
 
+// Handle .pnotes file open (macOS Finder / double-click)
+app.on('open-file', (event, filePath) => {
+  event.preventDefault()
+  log.info(`open-file event: ${filePath}`)
+  if (filePath.endsWith('.pnotes')) {
+    // If app is ready and main window exists, send to renderer
+    const win = BrowserWindow.getAllWindows().find(w => !w.isDestroyed())
+    if (win) {
+      win.webContents.send('file:open', filePath)
+      win.focus()
+    }
+  }
+})
+
 // Handle app quit
 app.on('before-quit', async () => {
   log.info('Application quitting — starting cleanup...')
@@ -587,6 +609,13 @@ app.on('before-quit', async () => {
       await getASRService().terminate()
     } catch {
       // ASRService may not be initialized
+    }
+
+    // #37: Unload ONNX models + dispose GPU sessions to free VRAM
+    try {
+      await getModelManager().forceUnload()
+    } catch {
+      // ModelManager may not be initialized
     }
 
     // Cleanup IPC handlers

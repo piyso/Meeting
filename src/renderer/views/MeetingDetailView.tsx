@@ -17,6 +17,15 @@ import { Tag, ChevronLeft } from 'lucide-react'
 import { RecordingToolbar } from '../components/meeting/RecordingToolbar'
 import { IconButton } from '../components/ui/IconButton'
 
+// #17: Tier-based transcript size limits (chars) — matches TierMappingService
+const TIER_TRANSCRIPT_LIMITS: Record<string, number> = {
+  free: 5000,
+  starter: 15000,
+  pro: 50000,
+  team: 100000,
+  enterprise: Infinity,
+}
+
 export default function MeetingDetailView() {
   const recordingState = useAppStore(s => s.recordingState)
   const selectedMeetingId = useAppStore(s => s.selectedMeetingId)
@@ -24,7 +33,8 @@ export default function MeetingDetailView() {
   const isPostMeeting =
     recordingState === 'processing' || (recordingState === 'idle' && !!selectedMeetingId)
   const currentTier = useAppStore(s => s.currentTier)
-  const isAiLocked = currentTier === 'free' || currentTier === 'starter'
+  // Only free tier is locked — Starter has cloudAI + weeklyDigest, digest uses local Qwen fallback
+  const isAiLocked = currentTier === 'free'
   const { digest, isGenerating, error: digestError } = useDigest(selectedMeetingId, isAiLocked)
 
   const [showEntities, setShowEntities] = useState(false)
@@ -120,6 +130,24 @@ export default function MeetingDetailView() {
     })
   }, [transcripts, isRecording])
 
+  // #17: Real-time transcript limit indicator
+  const transcriptLimit = TIER_TRANSCRIPT_LIMITS[currentTier] ?? 5000
+  const totalTranscriptChars = useMemo(
+    () =>
+      transcripts.reduce(
+        (sum, t) => sum + String((t as unknown as Record<string, unknown>).text || '').length,
+        0
+      ),
+    [transcripts]
+  )
+  const limitPercent = Math.min((totalTranscriptChars / transcriptLimit) * 100, 100)
+  const limitColor =
+    limitPercent >= 90
+      ? 'var(--color-red, #ef4444)'
+      : limitPercent >= 80
+        ? 'var(--color-amber, #f59e0b)'
+        : 'var(--color-violet, #8b5cf6)'
+
   if (!selectedMeetingId) {
     return <div className="ui-view-meeting-detail-empty">No Meeting ID selected</div>
   }
@@ -181,6 +209,24 @@ export default function MeetingDetailView() {
           <Tag size={16} />
         </button>
       </div>
+
+      {/* #17: Transcript Limit Indicator — shows during recording (hidden for Infinity/Enterprise) */}
+      {isRecording && transcriptLimit !== Infinity && (
+        <div className="px-6 py-1.5 border-b border-white/[0.04] flex items-center gap-3">
+          <div
+            className="flex-1 h-1 rounded-full overflow-hidden"
+            style={{ background: 'rgba(255,255,255,0.06)' }}
+          >
+            <div
+              className="h-full rounded-full transition-all duration-500"
+              style={{ width: `${limitPercent}%`, background: limitColor }}
+            />
+          </div>
+          <span className="text-[11px] font-medium tabular-nums" style={{ color: limitColor }}>
+            {(totalTranscriptChars / 1000).toFixed(1)}k / {transcriptLimit / 1000}k chars
+          </span>
+        </div>
+      )}
 
       <RecordingToolbar
         onStop={() => window.dispatchEvent(new CustomEvent('toggle-recording'))}

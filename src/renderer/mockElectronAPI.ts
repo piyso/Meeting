@@ -921,7 +921,7 @@ function createMockElectronAPI() {
         delayed({
           isInstalled: true,
           isRunning: true,
-          version: '0.3.0',
+          version: '0.3.3',
           models: ['qwen2.5:3b'],
           downloadUrl: undefined,
         }),
@@ -1293,6 +1293,44 @@ function createMockElectronAPI() {
             l => `${l.timestamp},${l.operation},${l.table},${l.recordId || ''},${l.ipAddress || ''}`
           ).join('\n')
         return ok({ content: csv, filename: 'audit-log-export.csv' })
+      },
+    },
+
+    // ── PiyAPI Power Features ────────────────────────────────────────
+    piyapi: {
+      feedback: async (_params: { memoryIds: string[]; type: 'positive' | 'negative' }) => {
+        await new Promise(r => setTimeout(r, MOCK_DELAY_MS))
+        return ok({ acknowledged: true })
+      },
+      fuzzySearch: async (params: { query: string; namespace?: string; limit?: number }) => {
+        await new Promise(r => setTimeout(r, MOCK_DELAY_MS))
+        return ok([
+          { id: 'mem-1', content: `Mock fuzzy result for "${params.query}"`, score: 0.85 },
+          { id: 'mem-2', content: `Another match for "${params.query}"`, score: 0.72 },
+        ])
+      },
+      deduplicate: async () => delayed({ duplicates: 3, merged: 0 }),
+      pinMemory: async (params: { memoryId: string; unpin?: boolean }) =>
+        delayed({ memoryId: params.memoryId, pinned: !params.unpin }),
+      getClusters: async () => delayed({ totalNodes: 42, totalEdges: 78, clusters: 5 }),
+      getContext: async (params: { query: string }) => {
+        await new Promise(r => setTimeout(r, MOCK_DELAY_MS * 2))
+        return ok({
+          context: `Mock context for query: "${params.query}". This includes relevant meeting transcripts and notes.`,
+          tokens_used: 256,
+          segments: [
+            {
+              content: 'Mock transcript segment 1',
+              timestamp: Date.now() - 3600000,
+              meeting_id: 'meet-001',
+            },
+            {
+              content: 'Mock transcript segment 2',
+              timestamp: Date.now() - 7200000,
+              meeting_id: 'meet-002',
+            },
+          ],
+        })
       },
     },
   }

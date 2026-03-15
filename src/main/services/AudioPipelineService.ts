@@ -93,6 +93,9 @@ export class AudioPipelineService extends EventEmitter {
   private isProcessingChunk = false
   private pendingChunkProcess = false
   private isPaused = false
+  // #6: Track consecutive local ASR failures for cloud fallback
+  private consecutiveAsrFailures = 0
+  private static readonly MAX_LOCAL_FAILURES = 3
 
   /**
    * Start capturing audio for a meeting.
@@ -279,6 +282,9 @@ export class AudioPipelineService extends EventEmitter {
         return
       }
 
+      // Reset failure counter on success
+      this.consecutiveAsrFailures = 0
+
       // Save each segment to database + emit IPC event
       const transcriptService = getTranscriptService()
       for (const segment of result.segments) {
@@ -315,11 +321,53 @@ export class AudioPipelineService extends EventEmitter {
         `Processed chunk ${chunkStart.toFixed(1)}s-${chunkEnd.toFixed(1)}s: ${result.segments.length} segments (total: ${this.segmentCounter})`
       )
     } catch (error) {
-      log.error('Transcription failed:', error)
-      this.emit('error', {
-        meetingId: this.currentMeetingId,
-        error: (error as Error).message,
-      })
+      this.consecutiveAsrFailures++
+      log.error(
+        `Transcription failed (${this.consecutiveAsrFailures}/${AudioPipelineService.MAX_LOCAL_FAILURES}):`,
+        error
+      )
+
+      // #6: Cloud transcription fallback after MAX_LOCAL_FAILURES consecutive failures
+      let cloudFallbackSucceeded = false
+      if (this.consecutiveAsrFailures >= AudioPipelineService.MAX_LOCAL_FAILURES) {
+        log.warn('Local ASR failed repeatedly — attempting cloud transcription fallback')
+        try {
+          const { getCloudTranscriptionService } = await import('./CloudTranscriptionService')
+          const cloudService = getCloudTranscriptionService()
+          if (cloudService.isEnabled() && !cloudService.isLimitReached()) {
+            const cloudResult = await cloudService.transcribe(mergedAudio)
+            if (cloudResult && cloudResult.length > 0) {
+              this.consecutiveAsrFailures = 0 // Reset on successful cloud transcription
+              cloudFallbackSucceeded = true
+              const transcriptService = getTranscriptService()
+              for (const segment of cloudResult) {
+                this.segmentCounter++
+                transcriptService.saveTranscript({
+                  meetingId: this.currentMeetingId || '',
+                  segment: {
+                    text: segment.text.trim(),
+                    start: chunkStart + segment.start,
+                    end: chunkStart + segment.end,
+                    confidence: segment.confidence,
+                    words: segment.words,
+                  },
+                })
+              }
+              log.info(`Cloud fallback succeeded: ${cloudResult.length} segments`)
+            }
+          }
+        } catch (cloudErr) {
+          log.warn('Cloud transcription fallback also failed:', cloudErr)
+        }
+      }
+
+      // Only emit error to UI if cloud fallback didn't save the situation
+      if (!cloudFallbackSucceeded) {
+        this.emit('error', {
+          meetingId: this.currentMeetingId,
+          error: (error as Error).message,
+        })
+      }
     } finally {
       // Return buffer to pool after ASR finishes
       this.bufferPool.release(oldBuffer)
@@ -441,6 +489,7 @@ export class AudioPipelineService extends EventEmitter {
     const segments = this.segmentCounter
 
     this.isCapturing = false
+    this.consecutiveAsrFailures = 0 // Reset for next recording session
     this.emit('status', {
       meetingId: this.currentMeetingId,
       status: 'stopped',
@@ -678,6 +727,7 @@ export class AudioPipelineService extends EventEmitter {
     this.writeOffset = 0
     this.currentMeetingId = null
     this.segmentCounter = 0
+    this.consecutiveAsrFailures = 0
     this.deviceSwitchHistory = []
     this.currentDevice = 'System Audio'
   }

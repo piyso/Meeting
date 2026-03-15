@@ -12,7 +12,7 @@
  *   initServiceContainer(appConfig)
  *
  *   // Anywhere that needs services:
- *   const { logger, config } = getServices()
+ *   const { logger, database, asr } = getServices()
  */
 
 import { Logger } from './Logger'
@@ -25,6 +25,7 @@ interface AppConfig {
   logLevel: 'debug' | 'info' | 'warn' | 'error'
 }
 
+// #36: Expanded ServiceContainer with lazy getters for all core singletons
 interface ServiceContainer {
   /** App configuration */
   config: AppConfig
@@ -34,6 +35,21 @@ interface ServiceContainer {
 
   /** True once the container has been initialized */
   initialized: boolean
+
+  /** Lazy getter for DatabaseService */
+  get database(): ReturnType<typeof import('./DatabaseService').getDatabaseService>
+
+  /** Lazy getter for ASRService */
+  get asr(): ReturnType<typeof import('./ASRService').getASRService>
+
+  /** Lazy getter for ModelManager */
+  get modelManager(): ReturnType<typeof import('./ModelManager').getModelManager>
+
+  /** Lazy getter for AudioPipelineService */
+  get audioPipeline(): ReturnType<typeof import('./AudioPipelineService').getAudioPipelineService>
+
+  /** Lazy getter for CloudAccessManager */
+  get cloudAccess(): ReturnType<typeof import('./CloudAccessManager').getCloudAccessManager>
 }
 
 // ── Singleton container ──
@@ -61,10 +77,37 @@ export function initServiceContainer(config: AppConfig): ServiceContainer {
     isProduction: config.isProduction,
   })
 
+  // #36: Use lazy getters to avoid circular imports and
+  // defer singleton construction until first access
   container = {
     config,
     logger: Logger,
     initialized: true,
+
+    get database() {
+      const { getDatabaseService } = require('./DatabaseService')
+      return getDatabaseService()
+    },
+
+    get asr() {
+      const { getASRService } = require('./ASRService')
+      return getASRService()
+    },
+
+    get modelManager() {
+      const { getModelManager } = require('./ModelManager')
+      return getModelManager()
+    },
+
+    get audioPipeline() {
+      const { getAudioPipelineService } = require('./AudioPipelineService')
+      return getAudioPipelineService()
+    },
+
+    get cloudAccess() {
+      const { getCloudAccessManager } = require('./CloudAccessManager')
+      return getCloudAccessManager()
+    },
   }
 
   log.info('Service container initialized successfully')

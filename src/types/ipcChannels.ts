@@ -223,6 +223,16 @@ export const IPC_CHANNELS = {
     delete: 'highlight:delete',
   },
 
+  // ── PiyAPI Power Features ──
+  piyapi: {
+    feedback: 'piyapi:feedback',
+    fuzzySearch: 'piyapi:fuzzySearch',
+    deduplicate: 'piyapi:deduplicate',
+    pinMemory: 'piyapi:pinMemory',
+    getClusters: 'piyapi:getClusters',
+    getContext: 'piyapi:getContext',
+  },
+
   // ── Streaming Events (webContents.send channels, not ipcMain.handle) ──
   events: {
     transcriptChunk: 'event:transcriptChunk',

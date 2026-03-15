@@ -32,6 +32,7 @@ import {
 } from '../database/crud/sync-queue'
 import type { OperationType, CreateSyncQueueInput } from '../../types/database'
 import { getDatabase } from '../database/connection'
+import { PHIDetectionService } from './PHIDetectionService'
 
 /**
  * Allowed table names for sync operations (SQL injection protection)
@@ -262,6 +263,23 @@ export class SyncManager {
           // Task 30.11: Check content size and chunk if necessary
           const chunkedPayloads = this.chunkContentIfNeeded(payload)
 
+          // Read PHI settings once per sync batch (avoid repeated DB queries per chunk)
+          let phiEnabled = false
+          let maskBeforeSync = false
+          try {
+            const dbForPhi = getDatabase()
+            const phiRow = dbForPhi
+              .prepare('SELECT value FROM settings WHERE key = ?')
+              .get('phiDetectionEnabled') as { value: string } | undefined
+            const maskRow = dbForPhi
+              .prepare('SELECT value FROM settings WHERE key = ?')
+              .get('maskPHIBeforeSync') as { value: string } | undefined
+            phiEnabled = phiRow?.value === 'true' || phiRow?.value === '1'
+            maskBeforeSync = maskRow?.value === 'true' || maskRow?.value === '1'
+          } catch (phiSettingsError) {
+            this.log.warn('PHI settings read failed:', phiSettingsError)
+          }
+
           // Process each chunk
           for (const chunkPayload of chunkedPayloads) {
             // Generate local embeddings BEFORE encryption (Encrypted Search Paradox fix)
@@ -270,6 +288,29 @@ export class SyncManager {
               (typeof chunkPayload.content === 'string' ? chunkPayload.content : '') ||
               (typeof chunkPayload.original_text === 'string' ? chunkPayload.original_text : '') ||
               ''
+
+            // PHI Detection: Check content before cloud upload (HIPAA compliance)
+            if (phiEnabled && typeof plaintextContent === 'string' && plaintextContent.length > 0) {
+              try {
+                const phiResult = PHIDetectionService.detectPHI(plaintextContent)
+                if (phiResult.hasPHI) {
+                  this.log.warn(
+                    `PHI detected in ${event.table_name}:${event.record_id} — ` +
+                      `${phiResult.detectedIdentifiers.length} entities (risk: ${phiResult.riskLevel})`
+                  )
+                  // Mask PHI if setting enabled
+                  if (maskBeforeSync && phiResult.maskedText) {
+                    chunkPayload.text = phiResult.maskedText
+                    chunkPayload.content = phiResult.maskedText
+                    chunkPayload.original_text = phiResult.maskedText
+                    this.log.info('PHI masked before sync')
+                  }
+                }
+              } catch (phiError) {
+                this.log.warn('PHI detection failed, continuing without:', phiError)
+              }
+            }
+
             let embeddingData: number[] | undefined
             if (typeof plaintextContent === 'string' && plaintextContent.length > 0) {
               try {

@@ -1,55 +1,317 @@
-# PiyAPI Notes Documentation
+# Main Process Architecture
 
-Welcome to the PiyAPI Notes documentation. This directory contains guides, tutorials, and technical documentation for developers and users.
+This directory contains the main process code for PiyAPI Notes, organized into a clean service-based architecture with strict IPC boundaries.
 
-## User Guides
+## Directory Structure
 
-### Audio Setup
+```
+src/main/
+├── services/           # Business logic services
+├── ipc/               # IPC handlers and events
+├── workers/           # Worker threads for CPU-intensive tasks
+└── utils/             # Shared utilities
+```
 
-- **[How to Enable Stereo Mix on Windows](./ENABLE_STEREO_MIX.md)** - Complete guide for enabling system audio capture on Windows 10 and Windows 11, including troubleshooting and alternative solutions
+## Architecture Overview
 
-## Developer Documentation
+### 1. Service Layer
 
-### Build & Development
+Services encapsulate business logic and are the single source of truth for operations. Each service is a singleton that manages a specific domain.
 
-- **[Build Guide](./BUILD.md)** - Instructions for building PiyAPI Notes from source
-- **[Build Summary](./BUILD_SUMMARY.md)** - Overview of the build system and configuration
-- **[Auto Update](./AUTO_UPDATE.md)** - Documentation for the auto-update system
-- **[Linting and Formatting](./LINTING_AND_FORMATTING.md)** - Code style and quality guidelines
+**Current Services:**
 
-## Quick Links
+- `DatabaseService.ts` - SQLite operations with WAL/FTS5
 
-### For Users
+**Planned Services:**
 
-- [Enable Stereo Mix (Windows)](./ENABLE_STEREO_MIX.md) - Fix "System Audio Not Available" errors
-- [Troubleshooting Audio Capture](./ENABLE_STEREO_MIX.md#troubleshooting) - Common audio issues and solutions
+- `AudioPipelineService.ts` - Audio capture and VAD
+- `IntelligenceService.ts` - LLM inference (Ollama/MLX)
+- `SyncManager.ts` - Cloud sync and encryption
+- `HardwareTierService.ts` - Hardware detection
+- `EntityExtractorService.ts` - Entity extraction
 
-### For Developers
+### 2. IPC Layer
 
-- [Project Setup](../PROJECT_SETUP_COMPLETE.md) - Initial project setup guide
-- [Implementation Status](../CURRENT_IMPLEMENTATION_STATUS.md) - Current development status
-- [Frontend API Reference](../FRONTEND_API_REFERENCE.md) - Complete API documentation
-- [IPC Architecture](../IPC_IMPLEMENTATION_COMPLETE.md) - Inter-process communication details
+The IPC layer provides a clean API for the renderer process. It follows these principles:
 
-## Contributing
+**Handler Pattern:**
 
-If you'd like to contribute to the documentation:
+```typescript
+ipcMain.handle('resource:action', async (_event, params) => {
+  try {
+    const result = await service.operation(params)
+    return { success: true, data: result }
+  } catch (error) {
+    return {
+      success: false,
+      error: {
+        code: 'ERROR_CODE',
+        message: error.message,
+        timestamp: Date.now(),
+      },
+    }
+  }
+})
+```
 
-1. Follow the existing documentation style
-2. Include code examples where appropriate
-3. Add screenshots for UI-related guides
-4. Test all instructions before submitting
-5. Update this README when adding new documentation
+**Event Pattern:**
 
-## Support
+```typescript
+// Main process emits events
+mainWindow.webContents.send('event:name', data)
 
-If you need help:
+// Renderer subscribes via preload
+const unsubscribe = window.electronAPI.on.eventName(data => {
+  console.log('Received:', data)
+})
 
-- Check the relevant documentation above
-- Search for existing issues on GitHub
-- Contact support at support@piyapi.com
+// Cleanup
+unsubscribe()
+```
 
----
+### 3. Type Safety
 
-**Last Updated:** February 2026  
-**Version:** 1.0
+All IPC communication is strictly typed:
+
+1. **Request/Response Types** - Defined in `src/types/ipc.ts`
+2. **Database Types** - Defined in `src/types/database.ts`
+3. **Preload Bridge** - Exposes `window.electronAPI` with full TypeScript support
+
+### 4. Security
+
+- **Context Isolation**: Renderer has NO direct access to Node.js/Electron
+- **Preload Script**: Only exposes explicitly defined API
+- **Input Validation**: All inputs validated before processing
+- **SQL Injection Protection**: Parameterized queries only
+- **Path Traversal Protection**: File paths validated
+
+## Usage Examples
+
+### Frontend (Renderer Process)
+
+```typescript
+// Start a meeting
+const response = await window.electronAPI.meeting.start({
+  title: 'Team Standup',
+  namespace: 'work',
+})
+
+if (response.success) {
+  console.log('Meeting started:', response.data.meeting)
+} else {
+  console.error('Failed:', response.error.message)
+}
+
+// Subscribe to real-time transcripts
+const unsubscribe = window.electronAPI.on.transcriptChunk(chunk => {
+  console.log('New transcript:', chunk.text)
+})
+
+// Cleanup when component unmounts
+unsubscribe()
+```
+
+### Backend (Main Process)
+
+```typescript
+// In a service
+export class MyService {
+  async doSomething(params: MyParams): Promise<MyResult> {
+    const db = getDatabaseService()
+    // ... business logic
+    return result
+  }
+}
+
+// In an IPC handler
+ipcMain.handle('my:action', async (_event, params: MyParams) => {
+  try {
+    const service = getMyService()
+    const result = await service.doSomething(params)
+    return { success: true, data: result }
+  } catch (error) {
+    return {
+      success: false,
+      error: {
+        code: 'MY_ACTION_FAILED',
+        message: error.message,
+        timestamp: Date.now(),
+      },
+    }
+  }
+})
+```
+
+## Adding New Features
+
+### 1. Define Types
+
+Add types to `src/types/ipc.ts`:
+
+```typescript
+export interface MyFeatureParams {
+  id: string
+  data: string
+}
+
+export interface MyFeatureResponse {
+  result: string
+}
+```
+
+### 2. Create Service
+
+Create `src/main/services/MyFeatureService.ts`:
+
+```typescript
+export class MyFeatureService {
+  async doSomething(params: MyFeatureParams): Promise<MyFeatureResponse> {
+    // Implementation
+  }
+}
+
+let instance: MyFeatureService | null = null
+
+export function getMyFeatureService(): MyFeatureService {
+  if (!instance) {
+    instance = new MyFeatureService()
+  }
+  return instance
+}
+```
+
+### 3. Create IPC Handler
+
+Create `src/main/ipc/handlers/myfeature.handlers.ts`:
+
+```typescript
+import { ipcMain } from 'electron'
+import { getMyFeatureService } from '../../services/MyFeatureService'
+
+export function registerMyFeatureHandlers(): void {
+  ipcMain.handle('myfeature:action', async (_event, params) => {
+    try {
+      const service = getMyFeatureService()
+      const result = await service.doSomething(params)
+      return { success: true, data: result }
+    } catch (error) {
+      return {
+        success: false,
+        error: {
+          code: 'MYFEATURE_ACTION_FAILED',
+          message: error.message,
+          timestamp: Date.now(),
+        },
+      }
+    }
+  })
+}
+```
+
+### 4. Register Handler
+
+Add to `src/main/ipc/setup.ts`:
+
+```typescript
+import { registerMyFeatureHandlers } from './handlers/myfeature.handlers'
+
+export function setupIPC(): void {
+  // ... existing handlers
+  registerMyFeatureHandlers()
+}
+```
+
+### 5. Update Preload
+
+The preload script automatically exposes all handlers through the `ElectronAPI` interface. Just ensure your types are in `src/types/ipc.ts`.
+
+### 6. Use in Frontend
+
+```typescript
+const response = await window.electronAPI.myfeature.action(params)
+```
+
+## Testing
+
+### Unit Tests
+
+Test services in isolation:
+
+```typescript
+import { MyFeatureService } from '../services/MyFeatureService'
+
+describe('MyFeatureService', () => {
+  it('should do something', async () => {
+    const service = new MyFeatureService()
+    const result = await service.doSomething({ id: '123', data: 'test' })
+    expect(result.result).toBe('expected')
+  })
+})
+```
+
+### Integration Tests
+
+Test IPC handlers end-to-end:
+
+```typescript
+import { ipcMain } from 'electron'
+import { registerMyFeatureHandlers } from '../ipc/handlers/myfeature.handlers'
+
+describe('MyFeature IPC', () => {
+  beforeAll(() => {
+    registerMyFeatureHandlers()
+  })
+
+  it('should handle myfeature:action', async () => {
+    const response = await ipcMain.handle('myfeature:action', null, params)
+    expect(response.success).toBe(true)
+  })
+})
+```
+
+## Performance Considerations
+
+1. **Lazy Loading**: Services initialize on first use
+2. **Connection Pooling**: Database connections reused
+3. **Batch Operations**: Group related operations
+4. **Streaming**: Use events for large data transfers
+5. **Worker Threads**: Offload CPU-intensive tasks
+
+## Error Handling
+
+All errors follow this structure:
+
+```typescript
+interface IPCError {
+  code: string // Machine-readable error code
+  message: string // Human-readable message
+  details?: string // Stack trace or additional info
+  timestamp: number // When the error occurred
+}
+```
+
+Common error codes:
+
+- `*_NOT_FOUND` - Resource doesn't exist
+- `*_FAILED` - Operation failed
+- `*_INVALID` - Invalid input
+- `*_UNAUTHORIZED` - Permission denied
+
+## Logging
+
+Use structured logging:
+
+```typescript
+console.log('[ServiceName] Operation started', { params })
+console.error('[ServiceName] Operation failed', { error, params })
+```
+
+## Next Steps
+
+1. Implement remaining IPC handlers (note, transcript, entity, search, etc.)
+2. Create AudioPipelineService for audio capture
+3. Create IntelligenceService for LLM integration
+4. Create SyncManager for cloud sync
+5. Add comprehensive error handling
+6. Add logging infrastructure
+7. Add performance monitoring

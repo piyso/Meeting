@@ -58,6 +58,10 @@ export class ASRService extends EventEmitter {
   private lastUsedTime: number = 0
   private unloadTimeout: NodeJS.Timeout | null = null
   private readonly IDLE_TIMEOUT = 60000 // 60 seconds
+  private language: string = 'en' // Default language
+  private crashCount: number = 0
+  private readonly MAX_CRASH_RESTARTS = 3
+  private restartTimer: ReturnType<typeof setTimeout> | null = null
 
   constructor() {
     super()
@@ -100,18 +104,39 @@ export class ASRService extends EventEmitter {
         this.emit('error', error)
       })
 
-      // Set up exit handler
+      // Set up exit handler with auto-restart
       this.worker.on('exit', (code: number) => {
         log.warn(`Worker exited with code ${code}`)
         this.isReady = false
+        this.isInitializing = false
         this.worker = null
+
+        // Auto-restart on crash (non-zero exit), up to MAX_CRASH_RESTARTS times
+        if (code !== 0 && this.crashCount < this.MAX_CRASH_RESTARTS) {
+          this.crashCount++
+          const delay = Math.min(1000 * Math.pow(2, this.crashCount - 1), 8000) // 1s, 2s, 4s
+          log.warn(
+            `ASR worker crashed (attempt ${this.crashCount}/${this.MAX_CRASH_RESTARTS}), restarting in ${delay}ms...`
+          )
+          this.restartTimer = setTimeout(() => {
+            this.restartTimer = null
+            this.initialize().catch(err => {
+              log.error('ASR worker auto-restart failed:', err)
+            })
+          }, delay)
+        } else if (code !== 0) {
+          log.error(
+            `ASR worker crashed ${this.MAX_CRASH_RESTARTS} times, giving up. User must restart app.`
+          )
+          this.emit('error', new Error('ASR worker crashed too many times'))
+        }
       })
 
-      // Send init message with resolved models directory
+      // Send init message with resolved models directory and language
       const modelsDir = app.isPackaged
         ? path.join(app.getPath('userData'), 'models')
         : path.join(process.cwd(), 'resources', 'models')
-      this.sendMessage({ type: 'init', data: { modelsDir } })
+      this.sendMessage({ type: 'init', data: { modelsDir, language: this.language } })
 
       // Wait for ready
       await new Promise<void>((resolve, reject) => {
@@ -132,11 +157,25 @@ export class ASRService extends EventEmitter {
 
       this.isReady = true
       this.isInitializing = false
+      this.crashCount = 0 // Reset crash counter on successful init
       log.info('✅ ASR service ready')
     } catch (error: unknown) {
       this.isInitializing = false
       log.error('[ASR Service] Initialization failed:', error)
       throw error instanceof Error ? error : new Error(String(error))
+    }
+  }
+
+  /**
+   * Set transcription language
+   * Called when user changes language in Settings
+   */
+  setLanguage(language: string): void {
+    this.language = language || 'en'
+    log.info(`Language set to: ${this.language}`)
+    // If worker is ready, notify it of the language change
+    if (this.isReady && this.worker) {
+      this.sendMessage({ type: 'init', data: { language: this.language } })
     }
   }
 
@@ -203,6 +242,13 @@ export class ASRService extends EventEmitter {
    * Terminate the worker
    */
   async terminate(): Promise<void> {
+    // Cancel any pending auto-restart (prevents zombie worker after intentional shutdown)
+    if (this.restartTimer) {
+      clearTimeout(this.restartTimer)
+      this.restartTimer = null
+    }
+    this.crashCount = this.MAX_CRASH_RESTARTS // Prevent future restarts
+
     if (this.unloadTimeout) {
       clearTimeout(this.unloadTimeout)
       this.unloadTimeout = null

@@ -29,22 +29,22 @@ describe('TranscriptChunker', () => {
       expect(limit).toBe(4500) // 5000 * 0.9
     })
 
-    it('should return 90% of Starter tier limit (9000)', () => {
+    it('should return 90% of Starter tier limit (13500)', () => {
       const limit = chunker.getEffectiveLimit('starter')
 
-      expect(limit).toBe(9000) // 10000 * 0.9
+      expect(limit).toBe(13500) // 15000 * 0.9
     })
 
-    it('should return 90% of Pro tier limit (22500)', () => {
+    it('should return 90% of Pro tier limit (45000)', () => {
       const limit = chunker.getEffectiveLimit('pro')
 
-      expect(limit).toBe(22500) // 25000 * 0.9
+      expect(limit).toBe(45000) // 50000 * 0.9
     })
 
-    it('should return 90% of Team tier limit (45000)', () => {
+    it('should return 90% of Team tier limit (90000)', () => {
       const limit = chunker.getEffectiveLimit('team')
 
-      expect(limit).toBe(45000) // 50000 * 0.9
+      expect(limit).toBe(90000) // 100000 * 0.9
     })
 
     it('should return 90% of Enterprise tier limit (90000)', () => {
@@ -61,22 +61,22 @@ describe('TranscriptChunker', () => {
       expect(threshold).toBe(4000) // 5000 * 0.8
     })
 
-    it('should return 80% of Starter tier limit (8000)', () => {
+    it('should return 80% of Starter tier limit (12000)', () => {
       const threshold = chunker.getWarningThreshold('starter')
 
-      expect(threshold).toBe(8000) // 10000 * 0.8
+      expect(threshold).toBe(12000) // 15000 * 0.8
     })
 
-    it('should return 80% of Pro tier limit (20000)', () => {
+    it('should return 80% of Pro tier limit (40000)', () => {
       const threshold = chunker.getWarningThreshold('pro')
 
-      expect(threshold).toBe(20000) // 25000 * 0.8
+      expect(threshold).toBe(40000) // 50000 * 0.8
     })
 
-    it('should return 80% of Team tier limit (40000)', () => {
+    it('should return 80% of Team tier limit (80000)', () => {
       const threshold = chunker.getWarningThreshold('team')
 
-      expect(threshold).toBe(40000) // 50000 * 0.8
+      expect(threshold).toBe(80000) // 100000 * 0.8
     })
 
     it('should return 80% of Enterprise tier limit (80000)', () => {
@@ -516,9 +516,9 @@ describe('TranscriptChunker', () => {
 
       expect(limits).toEqual({
         free: 5000,
-        starter: 10000,
-        pro: 25000,
-        team: 50000,
+        starter: 15000,
+        pro: 50000,
+        team: 100000,
         enterprise: 100000,
       })
     })
@@ -538,9 +538,9 @@ describe('TranscriptChunker', () => {
 
       expect(limits).toEqual({
         free: 4500,
-        starter: 9000,
-        pro: 22500,
-        team: 45000,
+        starter: 13500,
+        pro: 45000,
+        team: 90000,
         enterprise: 90000,
       })
     })

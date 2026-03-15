@@ -107,7 +107,7 @@ Add a **"Privacy Architecture"** section with:
 
 ### In the App (Settings → About)
 
-- Show exact version: `v0.3.1`
+- Show exact version: `v0.3.3`
 - Show: "All data stored locally at ~/Library/Application Support/BlueArkive"
 - Show: "No telemetry. No analytics. No data collection."
 - Link to privacy architecture page

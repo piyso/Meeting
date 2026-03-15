@@ -1226,4 +1226,40 @@ export interface ElectronAPI {
     >
     export: () => Promise<IPCResponse<{ content: string; filename: string }>>
   }
+
+  // PiyAPI Power Features
+  piyapi: {
+    feedback: (params: {
+      memoryIds: string[]
+      type: 'positive' | 'negative'
+    }) => Promise<IPCResponse<{ acknowledged: boolean }>>
+    fuzzySearch: (params: {
+      query: string
+      namespace?: string
+      limit?: number
+    }) => Promise<IPCResponse<unknown[]>>
+    deduplicate: (params?: {
+      namespace?: string
+      dryRun?: boolean
+    }) => Promise<IPCResponse<{ duplicates: number; merged: number } | null>>
+    pinMemory: (params: {
+      memoryId: string
+      unpin?: boolean
+    }) => Promise<IPCResponse<{ memoryId: string; pinned: boolean }>>
+    getClusters: (params?: {
+      namespace?: string
+    }) => Promise<IPCResponse<{ totalNodes: number; totalEdges: number; clusters: number }>>
+    getContext: (params: {
+      query: string
+      namespace?: string
+      tokenBudget?: number
+      timeRange?: { start: number; end: number }
+    }) => Promise<
+      IPCResponse<{
+        context: string
+        tokens_used: number
+        segments: Array<{ content: string; timestamp: number; meeting_id: string }>
+      } | null>
+    >
+  }
 }

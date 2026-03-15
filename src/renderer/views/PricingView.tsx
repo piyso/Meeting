@@ -18,10 +18,10 @@ const features: PricingFeature[] = [
   { name: 'Connected Devices', free: '1 Device', starter: '2 Devices', pro: 'Unlimited' },
   { name: 'Cloud AI Intelligence', free: false, starter: '50 Queries/mo', pro: 'Unlimited' },
   { name: 'Secure Cloud Sync', free: false, starter: true, pro: true },
-  { name: 'Meeting Transcript Limit', free: '5k Chars', starter: '10k Chars', pro: '25k Chars' },
-  { name: 'Cloud Transcription', free: '10 hrs/mo', starter: '20 hrs/mo', pro: 'Unlimited' },
-  { name: 'Speaker Diarization', free: false, starter: false, pro: true },
-  { name: 'Weekly AI Digests', free: false, starter: false, pro: true },
+  { name: 'Meeting Transcript Limit', free: '5k Chars', starter: '15k Chars', pro: '50k Chars' },
+  { name: 'Knowledge Graph', free: 'Read-only', starter: 'Read-only', pro: 'Interactive' },
+  { name: 'Speaker Diarization', free: false, starter: '2 Speakers', pro: 'Unlimited' },
+  { name: 'Weekly AI Digests', free: false, starter: true, pro: true },
 ]
 
 interface BillingConfig {
@@ -406,7 +406,10 @@ export const PricingView: React.FC = () => {
             <h3 className="ui-pricing-enterprise-title">Team & Enterprise</h3>
             <p className="ui-pricing-enterprise-desc">
               Need organizational brain syncing? Deploy BlueArkive with SOC-2 compliance, E2E
-              Immutable Audit Logs (`AuditLogger`), and up to 100k transcript limits.
+              Immutable Audit Logs, and up to 100k transcript limits.
+            </p>
+            <p className="text-xs font-medium mt-1" style={{ color: 'var(--color-text-tertiary)' }}>
+              Team plan: $15/user/mo · 3-seat minimum ($45/mo base)
             </p>
           </div>
           <Button variant="secondary" onClick={() => window.open('mailto:sales@bluearkive.com')}>

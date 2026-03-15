@@ -122,7 +122,7 @@ export class CloudAccessManager {
     // Get user's plan tier
     const tier = await this.getUserTier(userId)
 
-    // Free tier users don't get cloud access
+    // Free tier users don't get cloud access — local-only product
     if (tier === 'free') {
       const status: CloudAccessStatus = {
         hasAccess: false,
@@ -185,18 +185,24 @@ export class CloudAccessManager {
     const { getTierLimits, isUnlimited } = await import('./TierMappingService')
     const limits = getTierLimits(status.tier)
 
-    // Free tier has no cloud access regardless of online status
+    // Cloud-dependent features: require both tier permission AND cloud access
     const hasCloud = limits.cloudSync && status.hasAccess
+    const hasCloudAI = limits.cloudAI && status.hasAccess
 
     return {
-      cloudAI: limits.cloudAI && status.hasAccess,
-      contextSessions: limits.cloudAI && status.hasAccess,
-      semanticSearch: limits.cloudAI && status.hasAccess,
+      // Cloud-gated features (require internet + login + paid tier)
+      cloudAI: hasCloudAI,
+      contextSessions: hasCloudAI,
+      semanticSearch: hasCloudAI,
       hybridSearch: limits.hybridSearch && status.hasAccess,
-      crossMeetingQueries: limits.cloudAI && status.hasAccess,
-      knowledgeGraph: limits.knowledgeGraph && status.hasAccess,
-      knowledgeGraphInteractive: limits.knowledgeGraphInteractive && status.hasAccess,
+      crossMeetingQueries: hasCloudAI,
       cloudSync: hasCloud,
+
+      // KG: basic view works locally (free=read-only), interactive requires cloud
+      knowledgeGraph: limits.knowledgeGraph,
+      knowledgeGraphInteractive: limits.knowledgeGraphInteractive && status.hasAccess,
+
+      // Local features: use tier limits directly (no cloud gate)
       multiDevice: limits.deviceLimit !== 1,
       deviceLimit: isUnlimited(limits.deviceLimit) ? Infinity : limits.deviceLimit,
       transcriptSizeLimit: limits.transcriptSize,

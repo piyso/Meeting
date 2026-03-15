@@ -288,7 +288,7 @@ const electronAPI: ElectronAPI = {
     updateState: (state: {
       isRecording: boolean
       isPaused?: boolean
-      elapsedTime: string
+      elapsedTime?: string // Legacy compat — widget now computes locally
       lastTranscriptLine: string
       audioMode?: 'system' | 'microphone' | 'none'
       syncStatus?: 'idle' | 'syncing' | 'error'
@@ -296,6 +296,14 @@ const electronAPI: ElectronAPI = {
       liveCoachTip?: string | null
       entityCount?: number
       noteCount?: number
+      // Phase 1: Timer IPC elimination — send raw timestamps instead of formatted string
+      recordingStartTime?: number | null
+      recordingPausedAt?: number | null
+      recordingTotalPausedMs?: number
+      // Phase 1: Type-safe meetingId (removes unsafe `as` cast in WidgetApp)
+      meetingId?: string
+      // Phase 3: VAD silence feedback
+      silenceDetected?: boolean
     }) => ipcRenderer.invoke('widget:updateState', state),
     triggerBookmark: () => ipcRenderer.invoke('widget:triggerBookmark'),
     triggerPauseToggle: () => ipcRenderer.invoke('widget:triggerPauseToggle'),
@@ -453,6 +461,28 @@ const electronAPI: ElectronAPI = {
     getStatus: () => ipcRenderer.invoke('billing:getStatus'),
     openCheckout: (params: { targetTier?: string }) =>
       ipcRenderer.invoke('billing:openCheckout', params),
+  },
+
+  // ============================================================================
+  // PiyAPI Power Features
+  // ============================================================================
+  piyapi: {
+    feedback: (params: { memoryIds: string[]; type: 'positive' | 'negative' }) =>
+      ipcRenderer.invoke('piyapi:feedback', params),
+    fuzzySearch: (params: { query: string; namespace?: string; limit?: number }) =>
+      ipcRenderer.invoke('piyapi:fuzzySearch', params),
+    deduplicate: (params?: { namespace?: string; dryRun?: boolean }) =>
+      ipcRenderer.invoke('piyapi:deduplicate', params),
+    pinMemory: (params: { memoryId: string; unpin?: boolean }) =>
+      ipcRenderer.invoke('piyapi:pinMemory', params),
+    getClusters: (params?: { namespace?: string }) =>
+      ipcRenderer.invoke('piyapi:getClusters', params),
+    getContext: (params: {
+      query: string
+      namespace?: string
+      tokenBudget?: number
+      timeRange?: { start: number; end: number }
+    }) => ipcRenderer.invoke('piyapi:getContext', params),
   },
 }
 

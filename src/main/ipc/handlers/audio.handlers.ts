@@ -766,8 +766,11 @@ export function registerAudioHandlers(): void {
         try {
           const os = await import('os')
           os.setPriority(os.constants.priority.PRIORITY_ABOVE_NORMAL)
-        } catch {
-          /* best effort */
+        } catch (e) {
+          log.debug(
+            'Process priority elevation skipped:',
+            e instanceof Error ? e.message : String(e)
+          )
         }
 
         return {

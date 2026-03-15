@@ -93,6 +93,10 @@ export type EmbeddingStatus = 'pending' | 'processing' | 'ready' | 'failed'
 export class SyncManager {
   private backend: PiyAPIBackend
   private userId: string | null = null
+  // Security: password is held in memory only for encryption operations during sync.
+  // EncryptionService.encrypt() requires the raw password to derive the encryption key.
+  // We store it here rather than re-prompting the user on every sync cycle.
+  // TODO: Refactor EncryptionService to accept a pre-derived key instead.
   private password: string | null = null
   private syncInterval: NodeJS.Timeout | null = null
   private isSyncing: boolean = false

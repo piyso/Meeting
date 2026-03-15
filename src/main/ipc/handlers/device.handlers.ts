@@ -84,8 +84,8 @@ export function registerDeviceHandlers(): void {
 
           const devices = await dm.getDevices(params.userId, true)
           deviceCount = devices.length
-        } catch {
-          // Best effort
+        } catch (e) {
+          log.debug('Device limit lookup skipped:', e instanceof Error ? e.message : String(e))
         }
 
         return {

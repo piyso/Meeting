@@ -69,8 +69,11 @@ export function createHighlight(params: {
       record_id: id,
       payload: highlight as unknown as Record<string, unknown>,
     })
-  } catch {
-    // Sync queue is non-critical — bookmark works locally regardless
+  } catch (e) {
+    log.debug(
+      'Sync queue for highlight create skipped:',
+      e instanceof Error ? e.message : String(e)
+    )
   }
 
   return highlight
@@ -115,8 +118,11 @@ export function deleteHighlight(id: string): boolean {
         record_id: id,
         payload: { id },
       })
-    } catch {
-      // Non-critical
+    } catch (e) {
+      log.debug(
+        'Sync queue for highlight delete skipped:',
+        e instanceof Error ? e.message : String(e)
+      )
     }
     return true
   }

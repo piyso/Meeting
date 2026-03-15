@@ -88,8 +88,9 @@ export function registerSettingsHandlers(): void {
       if (params.key === 'transcription_language' && typeof params.value === 'string') {
         try {
           getASRService().setLanguage(params.value)
-        } catch {
+        } catch (e) {
           // ASR service may not be initialized yet — language will be picked up on next init
+          void e // Logged at debug level intentionally — non-critical
         }
       }
 

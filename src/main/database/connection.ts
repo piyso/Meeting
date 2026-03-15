@@ -94,8 +94,8 @@ export function initializeDatabase(config?: Partial<DatabaseConfig>): Database.D
       if (db) {
         db.pragma('wal_checkpoint(PASSIVE)')
       }
-    } catch {
-      // Non-critical — checkpoint will be retried next interval
+    } catch (e) {
+      log.debug('Periodic WAL checkpoint skipped:', e instanceof Error ? e.message : String(e))
     }
   }, 300_000) // Every 5 minutes
   // OPT-16: Prevent timer from keeping process alive on Windows (zombie process fix)
@@ -171,8 +171,8 @@ export function closeDatabase(): void {
     // Final checkpoint before close to flush WAL
     try {
       db.pragma('wal_checkpoint(TRUNCATE)')
-    } catch {
-      // Best-effort
+    } catch (e) {
+      log.debug('Final WAL checkpoint skipped:', e instanceof Error ? e.message : String(e))
     }
     db.close()
     db = null
@@ -281,7 +281,7 @@ export async function walHealthCheck(dbPath: string): Promise<void> {
       walCheckpoint('PASSIVE')
     }
   } catch {
-    /* WAL file may not exist yet */
+    // WAL file may not exist yet — this is normal before first write
   }
 }
 

@@ -61,7 +61,7 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({ meetingId }) => {
           noteId: currentNoteId,
           meetingId,
           timestamp: Math.floor(Date.now() / 1000),
-          text: e ? e.innerHTML : '', // Tiptap content or fallback
+          text: e ? e.textContent || '' : '', // Use textContent instead of innerHTML for security
         })
         if (res?.success && res.data) {
           const expansionHtml = `

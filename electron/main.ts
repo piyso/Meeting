@@ -108,7 +108,18 @@ app.on('second-instance', async (_event, argv) => {
         mainWindow.webContents.send('auth:oauthError', { error: String(err) })
       }
     } else {
-      mainWindow.webContents.send('deep-link', deepLink)
+      // Security: validate deep-link route against allowlist
+      const ALLOWED_ROUTES = ['/meeting/', '/import/', '/settings', '/note/']
+      try {
+        const parsed = new URL(deepLink)
+        if (ALLOWED_ROUTES.some(r => parsed.pathname.startsWith(r))) {
+          mainWindow.webContents.send('deep-link', deepLink)
+        } else {
+          log.warn('Blocked deep-link with unknown route:', parsed.pathname)
+        }
+      } catch {
+        log.warn('Blocked malformed deep-link URL:', deepLink)
+      }
     }
   }
 })
@@ -466,7 +477,18 @@ app
             mainWindow.webContents.send('auth:oauthError', { error: String(err) })
           }
         } else {
-          mainWindow.webContents.send('deep-link', url)
+          // Security: validate deep-link route against allowlist
+          const ALLOWED_ROUTES = ['/meeting/', '/import/', '/settings', '/note/']
+          try {
+            const parsed = new URL(url)
+            if (ALLOWED_ROUTES.some(r => parsed.pathname.startsWith(r))) {
+              mainWindow.webContents.send('deep-link', url)
+            } else {
+              log.warn('Blocked deep-link with unknown route:', parsed.pathname)
+            }
+          } catch {
+            log.warn('Blocked malformed deep-link URL:', url)
+          }
         }
       }
     })
@@ -538,19 +560,9 @@ app
     }
 
     // Issue 26: Auto-launch at login on Windows (production only)
-    // Only set on first launch — subsequent launches respect user's choice
-    // Users can disable via Windows Settings → Startup Apps
-    if (process.platform === 'win32' && app.isPackaged) {
-      const loginSettings = app.getLoginItemSettings()
-      if (!loginSettings.wasOpenedAtLogin && loginSettings.openAtLogin === false) {
-        // First launch (or user hasn't been registered yet) — register once
-        app.setLoginItemSettings({
-          openAtLogin: true,
-          openAsHidden: true,
-        })
-        log.info('Windows auto-launch registered (first time)')
-      }
-    }
+    // Disabled by default — users can enable via Settings.
+    // Auto-enabling without consent violates Microsoft Store guidelines.
+    // The setting is available in Settings > General > "Launch at startup"
   })
   .catch(err => {
     log.error('FATAL: Startup failed:', err)
@@ -578,13 +590,15 @@ app.on('will-quit', () => {
 app.on('open-file', (event, filePath) => {
   event.preventDefault()
   log.info(`open-file event: ${filePath}`)
+  // Security: validate file extension and path
   if (filePath.endsWith('.pnotes')) {
-    // If app is ready and main window exists, send to renderer
-    const win = BrowserWindow.getAllWindows().find(w => !w.isDestroyed())
-    if (win) {
+    const win = getMainWindow()
+    if (win && !win.isDestroyed()) {
       win.webContents.send('file:open', filePath)
       win.focus()
     }
+  } else {
+    log.warn('Blocked open-file with non-.pnotes extension:', filePath)
   }
 })
 
@@ -600,22 +614,22 @@ app.on('before-quit', async () => {
         log.info('Flushing audio pipeline before quit...')
         await pipeline.stopCapture()
       }
-    } catch {
-      // AudioPipelineService may not be initialized
+    } catch (e) {
+      log.debug('AudioPipelineService cleanup skipped:', e instanceof Error ? e.message : String(e))
     }
 
     // Terminate ASR worker thread
     try {
       await getASRService().terminate()
-    } catch {
-      // ASRService may not be initialized
+    } catch (e) {
+      log.debug('ASRService cleanup skipped:', e instanceof Error ? e.message : String(e))
     }
 
     // #37: Unload ONNX models + dispose GPU sessions to free VRAM
     try {
       await getModelManager().forceUnload()
-    } catch {
-      // ModelManager may not be initialized
+    } catch (e) {
+      log.debug('ModelManager cleanup skipped:', e instanceof Error ? e.message : String(e))
     }
 
     // Cleanup IPC handlers

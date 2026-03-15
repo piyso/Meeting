@@ -25,7 +25,7 @@ export const WidgetApp: React.FC = () => {
   const [activeMeetingId, setActiveMeetingId] = useState<string | null>(null)
 
   useEffect(() => {
-    const unsubscribe = window.electronAPI.on.widgetStateUpdated(state => {
+    const unsubscribe = window.electronAPI?.on?.widgetStateUpdated?.(state => {
       setIsRecording(state.isRecording)
       setIsPaused(!!state.isPaused)
       setElapsedTime(state.elapsedTime)
@@ -42,31 +42,31 @@ export const WidgetApp: React.FC = () => {
     })
 
     return () => {
-      unsubscribe()
+      unsubscribe?.()
     }
   }, [])
 
   const handleRestore = () => {
-    window.electronAPI.window.restoreMain()
+    window.electronAPI?.window?.restoreMain()
   }
 
   const handleStop = () => {
     // I21 fix: Use the activeMeetingId from the state pushed by main process
     // rather than hardcoded 'current'. The main process pushes meetingId
     // via widgetStateUpdated, so we track it in local state.
-    window.electronAPI.audio.stopCapture({ meetingId: activeMeetingId || 'current' })
+    window.electronAPI?.audio?.stopCapture({ meetingId: activeMeetingId || 'current' })
   }
 
   const handleBookmark = () => {
-    window.electronAPI.widget.triggerBookmark()
+    window.electronAPI?.widget?.triggerBookmark()
   }
 
   const handleQuickNote = (text: string) => {
-    window.electronAPI.widget.submitQuickNote(text)
+    window.electronAPI?.widget?.submitQuickNote(text)
   }
 
   const handlePauseToggle = () => {
-    window.electronAPI.widget.triggerPauseToggle()
+    window.electronAPI?.widget?.triggerPauseToggle()
   }
 
   return (

@@ -8,7 +8,7 @@ export function useNotes(meetingId: string | null) {
     queryKey: ['notes', meetingId],
     queryFn: async () => {
       if (!meetingId) return []
-      const response = await window.electronAPI.note.get({ meetingId })
+      const response = await window.electronAPI?.note?.get({ meetingId })
       if (!response.success) {
         throw new Error(response.error?.message || 'Failed to fetch notes')
       }
@@ -21,7 +21,7 @@ export function useNotes(meetingId: string | null) {
 
   const createNote = useMutation({
     mutationFn: async (params: CreateNoteParams) => {
-      const response = await window.electronAPI.note.create(params)
+      const response = await window.electronAPI?.note?.create(params)
       if (!response.success) throw new Error(response.error?.message)
       if (!response.data) throw new Error('Return data is undefined')
       return response.data
@@ -33,7 +33,7 @@ export function useNotes(meetingId: string | null) {
 
   const updateNote = useMutation({
     mutationFn: async (params: UpdateNoteParams) => {
-      const response = await window.electronAPI.note.update(params)
+      const response = await window.electronAPI?.note?.update(params)
       if (!response.success) throw new Error(response.error?.message)
       if (!response.data) throw new Error('Return data is undefined')
       return response.data
@@ -45,7 +45,7 @@ export function useNotes(meetingId: string | null) {
 
   const deleteNote = useMutation({
     mutationFn: async (params: DeleteNoteParams) => {
-      const response = await window.electronAPI.note.delete(params)
+      const response = await window.electronAPI?.note?.delete(params)
       if (!response.success) throw new Error(response.error?.message)
     },
     onSuccess: () => {

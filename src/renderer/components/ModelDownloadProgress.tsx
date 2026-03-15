@@ -50,9 +50,9 @@ export const ModelDownloadProgress: React.FC<ModelDownloadProgressProps> = ({ on
   )
 
   useEffect(() => {
-    const unsubscribe = window.electronAPI.model.onDownloadProgress(handleProgress)
+    const unsubscribe = window.electronAPI?.model?.onDownloadProgress?.(handleProgress)
     return () => {
-      unsubscribe()
+      unsubscribe?.()
     }
   }, [handleProgress])
 

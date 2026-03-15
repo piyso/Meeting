@@ -102,7 +102,7 @@ export const PricingView: React.FC = () => {
         throw new Error('License activation not available offline')
       }
 
-      const res = (await window.electronAPI.auth.activateLicense({
+      const res = (await window.electronAPI?.auth?.activateLicense({
         key: licenseKey.trim(),
       })) as unknown as {
         data?: { tier: string }

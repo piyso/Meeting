@@ -15,14 +15,14 @@ export function useLLMStream(noteId: string | null) {
     setTokens([])
     // We assume it might be generating if a request just started, but we'll wait for the first token.
 
-    const unsubscribe = window.electronAPI.on.llmToken((tokenData: LLMToken) => {
+    const unsubscribe = window.electronAPI?.on?.llmToken?.((tokenData: LLMToken) => {
       if (tokenData.noteId !== noteId) return
 
       setIsGenerating(!tokenData.isComplete)
       setTokens(prev => [...prev, tokenData])
     })
 
-    return () => unsubscribe()
+    return () => unsubscribe?.()
   }, [noteId])
 
   const fullText = tokens.map(t => t.token).join('')

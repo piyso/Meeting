@@ -22,7 +22,7 @@ export function useTranscriptStream(meetingId: string | null) {
     queryKey: ['transcripts', meetingId],
     queryFn: async () => {
       if (!meetingId) return []
-      const response = await window.electronAPI.transcript.get({ meetingId })
+      const response = await window.electronAPI?.transcript?.get({ meetingId })
       if (!response.success) {
         throw new Error(response.error?.message || 'Failed to fetch transcripts')
       }
@@ -44,7 +44,7 @@ export function useTranscriptStream(meetingId: string | null) {
     chunksRef.current = new Map()
     setRenderTick(0)
 
-    const unsubscribe = window.electronAPI.on.transcriptChunk((chunk: TranscriptChunk) => {
+    const unsubscribe = window.electronAPI?.on?.transcriptChunk((chunk: TranscriptChunk) => {
       if (chunk.meetingId === meetingId) {
         // O(1) upsert into Map — no array copying
         chunksRef.current.set(chunk.transcriptId, chunk)

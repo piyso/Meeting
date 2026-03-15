@@ -141,8 +141,8 @@ export const AppLayout: React.FC = () => {
       // Trigger recording just like in MeetingListView.tsx handleQuickStart
       setRecordingState('starting')
       try {
-        const res = await window.electronAPI.meeting.start({})
-        if (res.success && res.data) {
+        const res = await window.electronAPI?.meeting?.start({})
+        if (res?.success && res.data) {
           useAppStore.getState().setActiveMeetingId(res.data.meeting.id)
           useAppStore.getState().setRecordingStartTime(Date.now())
           navigate('meeting-detail', res.data.meeting.id)

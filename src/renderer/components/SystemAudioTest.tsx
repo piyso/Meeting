@@ -54,7 +54,7 @@ export const SystemAudioTest: React.FC<SystemAudioTestProps> = ({ onTestComplete
 
     try {
       // Start system audio test session on backend
-      const result = await window.electronAPI.audio.startSystemAudioTest()
+      const result = await window.electronAPI?.audio?.startSystemAudioTest()
 
       if (!result.success || !result.data) {
         throw new Error(result.error?.message || 'Failed to start system audio test')
@@ -178,7 +178,7 @@ export const SystemAudioTest: React.FC<SystemAudioTestProps> = ({ onTestComplete
 
     // Stop backend test session
     try {
-      const result = await window.electronAPI.audio.stopSystemAudioTest()
+      const result = await window.electronAPI?.audio?.stopSystemAudioTest()
 
       if (result.success && result.data) {
         log.info('System audio test stopped:', result.data)

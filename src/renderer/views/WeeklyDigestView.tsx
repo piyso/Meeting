@@ -303,7 +303,7 @@ export default function WeeklyDigestView() {
     if (isAiLocked) return // Free users never need AI status
     async function checkAIStatus() {
       try {
-        const res = await window.electronAPI.intelligence.getEngineStatus()
+        const res = await window.electronAPI?.intelligence?.getEngineStatus()
         if (res.success && res.data) {
           const modelsLoaded = res.data.models.some(m => m.isLoaded)
           setAiReady(modelsLoaded)
@@ -333,7 +333,7 @@ export default function WeeklyDigestView() {
   async function fetchDigest() {
     setIsLoading(true)
     try {
-      const res = await window.electronAPI.digest.getLatest({ periodType: activePeriod })
+      const res = await window.electronAPI?.digest?.getLatest({ periodType: activePeriod })
       if (res.success && res.data) {
         setDigest(res.data)
       }
@@ -351,7 +351,7 @@ export default function WeeklyDigestView() {
     try {
       const { start, end } = getDateRange(activePeriod)
 
-      const res = await window.electronAPI.digest.generate({
+      const res = await window.electronAPI?.digest?.generate({
         startDate: start.getTime(),
         endDate: end.getTime(),
         periodType: activePeriod,

@@ -35,7 +35,7 @@ export const AudioFallbackNotification: React.FC = () => {
 
     // Listen for fallback notifications from main process (Task 13.2)
     if (window.electronAPI?.audio?.onFallbackOccurred) {
-      unsubFallback = window.electronAPI.audio.onFallbackOccurred((info: FallbackInfo) => {
+      unsubFallback = window.electronAPI?.audio?.onFallbackOccurred?.((info: FallbackInfo) => {
         if (!mounted) return
         log.info('Received fallback notification:', info)
         setFallbackInfo(info)
@@ -53,7 +53,7 @@ export const AudioFallbackNotification: React.FC = () => {
 
     // Legacy fallback notification support (for backward compatibility)
     if (window.electronAPI?.ipcRenderer) {
-      unsubLegacy = window.electronAPI.ipcRenderer.on(
+      unsubLegacy = window.electronAPI?.ipcRenderer?.on(
         'audio:fallbackNotification',
         (_event: unknown, rawData: unknown) => {
           if (!mounted) return
@@ -93,10 +93,10 @@ export const AudioFallbackNotification: React.FC = () => {
     try {
       if (fallbackInfo?.guidance?.link) {
         // Open external link if provided
-        await window.electronAPI.shell.openExternal(fallbackInfo.guidance.link)
+        await window.electronAPI?.shell?.openExternal(fallbackInfo.guidance.link)
       } else {
         // Default to sound settings
-        await window.electronAPI.audio.openSoundSettings()
+        await window.electronAPI?.audio?.openSoundSettings()
       }
     } catch (error) {
       log.error('Failed to open settings:', error)

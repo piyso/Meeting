@@ -27,8 +27,8 @@ export default function KnowledgeGraphView() {
       setIsLoading(true)
       try {
         const [graphRes, contraRes] = await Promise.all([
-          window.electronAPI.graph.get({ maxHops: 3 }),
-          window.electronAPI.graph.getContradictions({}),
+          window.electronAPI?.graph?.get({ maxHops: 3 }),
+          window.electronAPI?.graph?.getContradictions({}),
         ])
 
         if (graphRes.success && graphRes.data) {

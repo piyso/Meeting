@@ -42,9 +42,9 @@ export const AudioCaptureWithPermissions: React.FC<AudioCaptureWithPermissionsPr
 
   const checkPermissionStatus = async () => {
     try {
-      const result = await window.electronAPI.audio.getScreenRecordingPermission()
+      const result = await window.electronAPI?.audio?.getScreenRecordingPermission()
 
-      if (result.success && result.data) {
+      if (result?.success && result.data) {
         setPermissionStatus(result.data.status as PermissionStatus)
 
         if (result.data.guidance) {
@@ -82,7 +82,7 @@ export const AudioCaptureWithPermissions: React.FC<AudioCaptureWithPermissionsPr
       setIsCapturing(true)
       setCaptureMode(mode)
 
-      const result = await window.electronAPI.audio.startCapture({
+      const result = await window.electronAPI?.audio?.startCapture({
         meetingId,
         fallbackToMicrophone: mode === 'microphone',
       })
@@ -125,7 +125,7 @@ export const AudioCaptureWithPermissions: React.FC<AudioCaptureWithPermissionsPr
 
   const stopCapture = async () => {
     try {
-      const result = await window.electronAPI.audio.stopCapture({ meetingId })
+      const result = await window.electronAPI?.audio?.stopCapture({ meetingId })
 
       if (result.success) {
         setIsCapturing(false)

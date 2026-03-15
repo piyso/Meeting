@@ -28,7 +28,7 @@ export const AudioSetup: React.FC = () => {
   const runPreFlightTest = async () => {
     setIsLoading(true)
     try {
-      const result = await window.electronAPI.audio.preFlightTest()
+      const result = await window.electronAPI?.audio?.preFlightTest()
       if (result.success && result.data) {
         setTestResult(result.data)
 
@@ -51,8 +51,11 @@ export const AudioSetup: React.FC = () => {
     setShowDialog(false)
     // Update app settings to use microphone as audio source
     try {
-      await window.electronAPI.settings.update({ key: 'audioSource', value: 'microphone' })
-      await window.electronAPI.settings.update({ key: 'systemAudioFallback', value: 'microphone' })
+      await window.electronAPI?.settings?.update({ key: 'audioSource', value: 'microphone' })
+      await window.electronAPI?.settings?.update({
+        key: 'systemAudioFallback',
+        value: 'microphone',
+      })
     } catch (err) {
       log.warn('Failed to save audio source setting:', err)
     }
@@ -63,8 +66,8 @@ export const AudioSetup: React.FC = () => {
     setShowDialog(false)
     // Update app settings to use cloud transcription as fallback
     try {
-      await window.electronAPI.settings.update({ key: 'audioSource', value: 'cloud' })
-      await window.electronAPI.settings.update({ key: 'systemAudioFallback', value: 'cloud' })
+      await window.electronAPI?.settings?.update({ key: 'audioSource', value: 'cloud' })
+      await window.electronAPI?.settings?.update({ key: 'systemAudioFallback', value: 'cloud' })
     } catch (err) {
       log.warn('Failed to save audio source setting:', err)
     }

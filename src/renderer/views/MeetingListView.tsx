@@ -53,7 +53,7 @@ export default function MeetingListView() {
 
   const deleteMeeting = useMutation({
     mutationFn: async (id: string) => {
-      const res = await window.electronAPI.meeting.delete({ meetingId: id })
+      const res = await window.electronAPI?.meeting?.delete({ meetingId: id })
       if (!res.success) throw new Error(res.error?.message)
     },
     onSuccess: () => {
@@ -69,7 +69,7 @@ export default function MeetingListView() {
     log.info('Starting new meeting (quick start)')
     setRecordingState('starting')
     try {
-      const res = await window.electronAPI.meeting.start({})
+      const res = await window.electronAPI?.meeting?.start({})
       if (res.success && res.data) {
         log.info('Meeting created:', res.data.meeting.id)
         useAppStore.getState().setActiveMeetingId(res.data.meeting.id)
@@ -114,7 +114,7 @@ export default function MeetingListView() {
     setRecordingState('starting')
     try {
       const title = typeof config === 'string' ? config : config?.title
-      const res = await window.electronAPI.meeting.start({
+      const res = await window.electronAPI?.meeting?.start({
         title: typeof title === 'string' ? title : undefined,
       })
       if (res.success && res.data) {
@@ -152,7 +152,7 @@ export default function MeetingListView() {
   const renameMeeting = useMutation({
     mutationFn: async ({ id, title }: { id: string; title: string }) => {
       // IPC structure usually takes a single object for updates
-      return window.electronAPI.meeting.update({ meetingId: id, updates: { title } })
+      return window.electronAPI?.meeting?.update({ meetingId: id, updates: { title } })
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['meetings'] })

@@ -107,7 +107,7 @@ export function useSystemState() {
   useEffect(() => {
     let unsub: (() => void) | undefined
     if (window.electronAPI?.on?.showIntelligenceWall) {
-      unsub = window.electronAPI.on.showIntelligenceWall(
+      unsub = window.electronAPI?.on?.showIntelligenceWall(
         (data: { used: number; limit: number }) => {
           // Update quota in store to reflect exhaustion immediately
           useAppStore.getState().setQuotaData({

@@ -28,7 +28,7 @@ export const MeetingListSidebar: React.FC<MeetingListSidebarProps> = ({
   } = useQuery({
     queryKey: ['meetings'],
     queryFn: async () => {
-      const result = await window.electronAPI.meeting.list({})
+      const result = await window.electronAPI?.meeting?.list({})
       if (!result.success) {
         throw new Error(result.error?.message || 'Failed to fetch meetings')
       }
@@ -63,7 +63,7 @@ export const MeetingListSidebar: React.FC<MeetingListSidebarProps> = ({
     }
 
     try {
-      await window.electronAPI.meeting.update({
+      await window.electronAPI?.meeting?.update({
         meetingId: meetingId,
         updates: { title: editTitle.trim() },
       })

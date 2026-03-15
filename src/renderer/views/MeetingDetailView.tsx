@@ -89,7 +89,7 @@ export default function MeetingDetailView() {
     queryKey: ['meeting', selectedMeetingId],
     queryFn: async () => {
       if (!selectedMeetingId) return null
-      const res = await window.electronAPI.meeting.get({ meetingId: selectedMeetingId })
+      const res = await window.electronAPI?.meeting?.get({ meetingId: selectedMeetingId })
       return res.success ? res.data : null
     },
     enabled: !!selectedMeetingId,
@@ -149,8 +149,8 @@ export default function MeetingDetailView() {
             if (titleSaveTimerRef.current) clearTimeout(titleSaveTimerRef.current)
             titleSaveTimerRef.current = setTimeout(() => {
               if (selectedMeetingId) {
-                window.electronAPI.meeting
-                  .update({
+                window.electronAPI?.meeting
+                  ?.update({
                     meetingId: selectedMeetingId,
                     updates: { title: newTitle },
                   })

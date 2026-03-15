@@ -80,7 +80,7 @@ class AudioCaptureManager {
             await this.startMicrophoneCapture(sampleRate, channelCount)
             // Notify user about fallback
             if (window.electronAPI && window.electronAPI.ipcRenderer) {
-              window.electronAPI.ipcRenderer.send('audio:fallbackUsed', {
+              window.electronAPI?.ipcRenderer?.send('audio:fallbackUsed', {
                 type: 'microphone',
                 reason: 'Screen Recording permission denied',
               })
@@ -161,7 +161,7 @@ class AudioCaptureManager {
   private async startWindowsSystemAudioCapture(_deviceId: string): Promise<MediaStream> {
     try {
       // Issue 13: Get a valid chromeMediaSourceId from the main process via desktopCapturer
-      const sources = await window.electronAPI.desktopCapturerSources()
+      const sources = await window.electronAPI?.desktopCapturerSources()
       if (!sources || sources.length === 0) {
         throw new Error('No desktop capturer sources found for system audio')
       }
@@ -330,7 +330,7 @@ class AudioCaptureManager {
     // NOTE: ipcRenderer.postMessage's transfer only supports MessagePort[], NOT
     // ArrayBuffer[], so zero-copy transfer is not available in Electron IPC.
     if (window.electronAPI?.ipcRenderer) {
-      window.electronAPI.ipcRenderer.send('audio:chunk', {
+      window.electronAPI?.ipcRenderer?.send('audio:chunk', {
         data: data.data,
         timestamp: data.timestamp,
         sampleRate: data.sampleRate,
@@ -397,7 +397,7 @@ const audioCaptureManager = new AudioCaptureManager()
 
 // Listen for IPC messages from main process
 if (typeof window !== 'undefined' && window.electronAPI?.ipcRenderer) {
-  window.electronAPI.ipcRenderer.on('audio:startCapture', (_event: unknown, data: unknown) => {
+  window.electronAPI?.ipcRenderer?.on('audio:startCapture', (_event: unknown, data: unknown) => {
     const params = data as {
       deviceId: string
       sampleRate: number
@@ -416,7 +416,7 @@ if (typeof window !== 'undefined' && window.electronAPI?.ipcRenderer) {
       })
   })
 
-  window.electronAPI.ipcRenderer.on(
+  window.electronAPI?.ipcRenderer?.on(
     'audio:startMicrophoneCapture',
     (_event: unknown, data: unknown) => {
       const params = data as { sampleRate: number; channelCount: number }
@@ -428,7 +428,7 @@ if (typeof window !== 'undefined' && window.electronAPI?.ipcRenderer) {
     }
   )
 
-  window.electronAPI.ipcRenderer.on('audio:stopCapture', () => {
+  window.electronAPI?.ipcRenderer?.on('audio:stopCapture', () => {
     audioCaptureManager.stopCapture().catch(error => {
       log.error('Failed to stop audio capture:', error)
     })

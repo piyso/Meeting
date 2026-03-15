@@ -40,7 +40,7 @@ export function useKeyboardShortcuts() {
       // Cmd+Shift+M → Toggle floating widget
       if (meta && e.shiftKey && (e.key === 'm' || e.key === 'M')) {
         e.preventDefault()
-        window.electronAPI.window.restoreMain()
+        window.electronAPI?.window?.restoreMain()
         return
       }
 

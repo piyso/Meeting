@@ -35,7 +35,7 @@ export const PostMeetingDigest: React.FC<PostMeetingDigestProps> = ({
   const handleExport = async (format: 'markdown' | 'pdf' | 'json') => {
     setExportingType(format)
     try {
-      const res = await window.electronAPI.meeting.export({
+      const res = await window.electronAPI?.meeting?.export({
         meetingId,
         format,
         includeAudio: false,

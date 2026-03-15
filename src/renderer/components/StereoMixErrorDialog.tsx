@@ -31,7 +31,7 @@ export const StereoMixErrorDialog: React.FC<StereoMixErrorDialogProps> = ({
 }) => {
   const handleOpenSettings = async () => {
     try {
-      const result = await window.electronAPI.audio.openSoundSettings()
+      const result = await window.electronAPI?.audio?.openSoundSettings()
       if (result.success) {
         log.info('Opened Windows Sound settings')
       } else {

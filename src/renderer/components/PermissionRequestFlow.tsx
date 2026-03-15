@@ -49,9 +49,9 @@ export const PermissionRequestFlow: React.FC<PermissionRequestFlowProps> = ({
     setError(null)
 
     try {
-      const result = await window.electronAPI.audio.getScreenRecordingPermission()
+      const result = await window.electronAPI?.audio?.getScreenRecordingPermission()
 
-      if (result.success && result.data) {
+      if (result?.success && result.data) {
         setStatus(result.data.status as PermissionStatus)
       } else {
         setError(result.error?.message || 'Failed to check permission status')
@@ -69,9 +69,9 @@ export const PermissionRequestFlow: React.FC<PermissionRequestFlowProps> = ({
   const handleRequestPermission = async () => {
     try {
       // Open System Settings to request permission
-      const result = await window.electronAPI.audio.openScreenRecordingSettings()
+      const result = await window.electronAPI?.audio?.openScreenRecordingSettings()
 
-      if (result.success) {
+      if (result?.success) {
         // Show message to user
         setStatus('denied') // Will show instructions
       } else {
@@ -264,7 +264,7 @@ export const PermissionRequestFlow: React.FC<PermissionRequestFlowProps> = ({
               <button
                 className="help-link"
                 onClick={() => {
-                  window.electronAPI.shell?.openExternal(
+                  window.electronAPI?.shell?.openExternal(
                     'https://docs.bluearkive.com/macos-screen-recording-permission'
                   )
                 }}
@@ -275,7 +275,7 @@ export const PermissionRequestFlow: React.FC<PermissionRequestFlowProps> = ({
               <button
                 className="help-link"
                 onClick={() => {
-                  window.electronAPI.shell?.openExternal(
+                  window.electronAPI?.shell?.openExternal(
                     'https://support.apple.com/guide/mac-help/control-access-to-screen-recording-mchld6aa7d23/mac'
                   )
                 }}

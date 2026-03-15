@@ -26,7 +26,7 @@ export function useSyncEngine() {
       }
 
       try {
-        const res = await window.electronAPI.sync.getStatus()
+        const res = await window.electronAPI?.sync?.getStatus()
         if (res.success && res.data) {
           if (res.data.isSyncing) {
             setSyncStatus('syncing')

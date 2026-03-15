@@ -56,7 +56,7 @@ export const AudioTestUI: React.FC<AudioTestUIProps> = ({
   // Subscribe to audio level updates
   useEffect(() => {
     if (isTesting) {
-      const unsubscribe = window.electronAPI.on.audioEvent(event => {
+      const unsubscribe = window.electronAPI?.on?.audioEvent?.(event => {
         if (event.type === 'level' && event.level) {
           setAudioLevel(event.level.level)
         }
@@ -77,7 +77,7 @@ export const AudioTestUI: React.FC<AudioTestUIProps> = ({
 
     try {
       // Run pre-flight test
-      const result = await window.electronAPI.audio.preFlightTest()
+      const result = await window.electronAPI?.audio?.preFlightTest()
 
       if (result.success && result.data) {
         setTestResult(result.data)
@@ -297,7 +297,7 @@ export const AudioTestUI: React.FC<AudioTestUIProps> = ({
                 className="btn-export-diagnostics"
                 onClick={async () => {
                   try {
-                    const result = await window.electronAPI.audio.exportDiagnostics()
+                    const result = await window.electronAPI?.audio?.exportDiagnostics()
                     if (result.success && result.data) {
                       alert(`Diagnostics exported to:\n${result.data}`)
                     } else {
@@ -315,7 +315,7 @@ export const AudioTestUI: React.FC<AudioTestUIProps> = ({
                 className="btn-open-diagnostics"
                 onClick={async () => {
                   try {
-                    await window.electronAPI.audio.openDiagnosticsFolder()
+                    await window.electronAPI?.audio?.openDiagnosticsFolder()
                   } catch (err) {
                     log.error('Failed to open diagnostics folder:', err)
                   }
@@ -346,7 +346,7 @@ export const AudioTestUI: React.FC<AudioTestUIProps> = ({
                     className="btn-open-settings"
                     onClick={async () => {
                       try {
-                        await window.electronAPI.audio.openSoundSettings()
+                        await window.electronAPI?.audio?.openSoundSettings()
                       } catch (err) {
                         log.error('Failed to open settings:', err)
                       }

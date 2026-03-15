@@ -57,7 +57,7 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({ meetingId }) => {
       setIsAIExpanding(true)
 
       try {
-        const res = await window.electronAPI.note.expand({
+        const res = await window.electronAPI?.note?.expand({
           noteId: currentNoteId,
           meetingId,
           timestamp: Math.floor(Date.now() / 1000),

@@ -26,7 +26,7 @@ export function useAudioStatus(meetingId: string | null) {
       return
     }
 
-    const unsubscribe = window.electronAPI.on.audioEvent((event: AudioEvent) => {
+    const unsubscribe = window.electronAPI?.on?.audioEvent((event: AudioEvent) => {
       if (event.meetingId !== meetingId) return
 
       switch (event.type) {

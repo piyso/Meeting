@@ -212,7 +212,7 @@ export default function AskMeetingsView() {
   // On mount, load user and their history
   useEffect(() => {
     let mounted = true
-    window.electronAPI.auth
+    window.electronAPI?.auth
       ?.getCurrentUser?.()
       .then(res => {
         if (!mounted) return
@@ -327,7 +327,7 @@ export default function AskMeetingsView() {
 
       try {
         // Step 1: Semantic search across all transcripts for context
-        const searchResult = await window.electronAPI.search.semantic({
+        const searchResult = await window.electronAPI?.search?.semantic({
           query,
           limit: 5,
         })
@@ -359,7 +359,7 @@ export default function AskMeetingsView() {
         }
 
         // Step 2: Use dedicated askMeetings handler with streaming
-        const intelligenceResult = await window.electronAPI.intelligence.askMeetings({
+        const intelligenceResult = await window.electronAPI?.intelligence?.askMeetings({
           question: query,
           context: contextText,
         })

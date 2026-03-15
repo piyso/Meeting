@@ -465,8 +465,11 @@ export class SyncManager {
             )
             try {
               deleteSyncQueueItems([event.id])
-            } catch {
-              /* best effort */
+            } catch (delErr) {
+              this.log.warn(
+                'Failed to remove dead-lettered event from queue:',
+                (delErr as Error).message
+              )
             }
             continue
           }

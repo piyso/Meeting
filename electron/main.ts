@@ -109,13 +109,16 @@ app.on('second-instance', async (_event, argv) => {
       }
     } else {
       // Security: validate deep-link route against allowlist
-      const ALLOWED_ROUTES = ['/meeting/', '/import/', '/settings', '/note/']
+      // Note: new URL('bluearkive://meeting/123') parses 'meeting' as hostname,
+      // so we must check host+pathname to reconstruct the full route.
+      const ALLOWED_ROUTES = ['meeting', 'import', 'settings', 'note']
       try {
         const parsed = new URL(deepLink)
-        if (ALLOWED_ROUTES.some(r => parsed.pathname.startsWith(r))) {
+        const route = parsed.host // e.g. 'meeting', 'settings', 'import'
+        if (ALLOWED_ROUTES.includes(route)) {
           mainWindow.webContents.send('deep-link', deepLink)
         } else {
-          log.warn('Blocked deep-link with unknown route:', parsed.pathname)
+          log.warn('Blocked deep-link with unknown route:', route)
         }
       } catch {
         log.warn('Blocked malformed deep-link URL:', deepLink)
@@ -478,13 +481,16 @@ app
           }
         } else {
           // Security: validate deep-link route against allowlist
-          const ALLOWED_ROUTES = ['/meeting/', '/import/', '/settings', '/note/']
+          // Note: new URL('bluearkive://meeting/123') parses 'meeting' as hostname,
+          // so we must check host+pathname to reconstruct the full route.
+          const ALLOWED_ROUTES = ['meeting', 'import', 'settings', 'note']
           try {
             const parsed = new URL(url)
-            if (ALLOWED_ROUTES.some(r => parsed.pathname.startsWith(r))) {
+            const route = parsed.host // e.g. 'meeting', 'settings', 'import'
+            if (ALLOWED_ROUTES.includes(route)) {
               mainWindow.webContents.send('deep-link', url)
             } else {
-              log.warn('Blocked deep-link with unknown route:', parsed.pathname)
+              log.warn('Blocked deep-link with unknown route:', route)
             }
           } catch {
             log.warn('Blocked malformed deep-link URL:', url)

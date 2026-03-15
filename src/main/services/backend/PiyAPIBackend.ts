@@ -870,13 +870,13 @@ export class PiyAPIBackend implements IBackendProvider {
               try {
                 await this.deleteMemory(mem.id)
                 totalDeleted++
-              } catch {
-                // Continue deleting other memories
+              } catch (e) {
+                log.debug(`GDPR: Failed to delete memory ${mem.id}:`, (e as Error).message)
               }
             }
           }
-        } catch {
-          // Namespace may not have memories — continue
+        } catch (e) {
+          log.debug(`GDPR: Namespace ${ns} cleanup skipped:`, (e as Error).message)
         }
       }
 

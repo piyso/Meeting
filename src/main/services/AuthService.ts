@@ -122,6 +122,9 @@ export class AuthService {
    * Send a password reset email via Supabase
    */
   async forgotPassword(email: string): Promise<void> {
+    if (!this.isConfigured()) {
+      throw new Error('Authentication service not configured (no Supabase URL)')
+    }
     if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
       throw new Error('Invalid email format')
     }
@@ -172,6 +175,7 @@ export class AuthService {
     const result = await this.buildAuthResult(data.session)
     await this.storeTokens(result)
     this.scheduleRefresh(result.tokens.expiresIn)
+    this.startSessionTimer()
 
     log.info('Registration successful', { email, tier: result.user.tier })
 
@@ -281,6 +285,10 @@ export class AuthService {
    * Refresh the access token using the refresh token
    */
   async refreshToken(): Promise<AuthTokens | null> {
+    if (!this.isConfigured()) {
+      log.debug('refreshToken: Supabase not configured, skipping')
+      return null
+    }
     try {
       const keytar = await keytarSafe()
       if (!keytar) return null
@@ -425,6 +433,12 @@ export class AuthService {
    * Called from app.on('open-url') in main process
    */
   async handleOAuthCallback(url: string): Promise<AuthResult> {
+    if (!this.isConfigured()) {
+      throw new Error('Authentication service not configured (no Supabase URL)')
+    }
+    if (!url.startsWith('bluearkive://auth/callback')) {
+      throw new Error('Invalid callback URL scheme')
+    }
     const urlObj = new URL(url)
     const code = urlObj.searchParams.get('code')
 
@@ -508,11 +522,16 @@ export class AuthService {
    * Called on window focus to detect tier changes after payment.
    */
   async refreshProfile(): Promise<UserInfo | null> {
+    if (!this.isConfigured()) return this.getCurrentUser()
     try {
       const token = await this.getAccessToken()
       if (!token) return null
 
-      // Set the session so Supabase client can make authenticated requests
+      // Set the Supabase session so authenticated queries work
+      await this.supabase.auth.setSession({
+        access_token: token,
+        refresh_token: '', // Not needed for reads — Supabase auto-refreshes
+      })
       const { data: profile } = await this.supabase
         .from('profiles')
         .select('tier, billing_status')
@@ -552,6 +571,9 @@ export class AuthService {
    * Calls the license-activate Edge Function.
    */
   async activateLicense(licenseKey: string): Promise<UserInfo> {
+    if (!this.functionsUrl) {
+      throw new Error('License activation service not configured')
+    }
     if (!licenseKey || typeof licenseKey !== 'string') {
       throw new Error('License key is required')
     }

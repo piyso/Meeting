@@ -49,7 +49,7 @@ export const PostMeetingDigest: React.FC<PostMeetingDigestProps> = ({
           duration: 4000,
         })
       } else {
-        log.error('Export failed:', res.error)
+        log.error('Export failed:', res?.error)
         addToast({
           type: 'error',
           title: 'Export failed',

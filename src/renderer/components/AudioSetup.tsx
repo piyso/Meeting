@@ -37,7 +37,7 @@ export const AudioSetup: React.FC = () => {
           setShowDialog(true)
         }
       } else {
-        log.error('Pre-flight test failed:', result.error)
+        log.error('Pre-flight test failed:', result?.error)
       }
     } catch (error) {
       log.error('Error running pre-flight test:', error)

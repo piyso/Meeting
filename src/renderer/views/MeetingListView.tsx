@@ -79,7 +79,7 @@ export default function MeetingListView() {
         queryClient.invalidateQueries({ queryKey: ['meetings'] })
         navigate('meeting-detail', res.data.meeting.id)
       } else {
-        log.error('Failed to start meeting:', res.error)
+        log.error('Failed to start meeting:', res?.error)
         useAppStore.getState().addToast({
           type: 'error',
           title: 'Failed to start meeting',
@@ -123,7 +123,7 @@ export default function MeetingListView() {
         queryClient.invalidateQueries({ queryKey: ['meetings'] })
         navigate('meeting-detail', res.data.meeting.id)
       } else {
-        log.error('Failed to start meeting:', res.error)
+        log.error('Failed to start meeting:', res?.error)
         useAppStore.getState().addToast({
           type: 'error',
           title: 'Failed to start meeting',

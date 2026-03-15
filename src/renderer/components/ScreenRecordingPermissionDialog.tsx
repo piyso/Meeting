@@ -34,7 +34,7 @@ export const ScreenRecordingPermissionDialog: React.FC<ScreenRecordingPermission
       if (result?.success) {
         log.info('Opened macOS System Settings for Screen Recording')
       } else {
-        log.error('Failed to open System Settings:', result.error)
+        log.error('Failed to open System Settings:', result?.error)
       }
     } catch (error) {
       log.error('Error opening System Settings:', error)
@@ -125,7 +125,7 @@ export const ScreenRecordingPermissionDialog: React.FC<ScreenRecordingPermission
               <button
                 className="resource-link"
                 onClick={() => {
-                  window.electronAPI.shell?.openExternal(
+                  window.electronAPI?.shell?.openExternal(
                     'https://docs.bluearkive.com/macos-screen-recording-permission'
                   )
                 }}
@@ -135,7 +135,7 @@ export const ScreenRecordingPermissionDialog: React.FC<ScreenRecordingPermission
               <button
                 className="resource-link"
                 onClick={() => {
-                  window.electronAPI.shell?.openExternal(
+                  window.electronAPI?.shell?.openExternal(
                     'https://support.apple.com/guide/mac-help/control-access-to-screen-recording-mchld6aa7d23/mac'
                   )
                 }}

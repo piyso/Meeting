@@ -35,7 +35,7 @@ export const StereoMixErrorDialog: React.FC<StereoMixErrorDialogProps> = ({
       if (result?.success) {
         log.info('Opened Windows Sound settings')
       } else {
-        log.error('Failed to open Sound settings:', result.error)
+        log.error('Failed to open Sound settings:', result?.error)
       }
     } catch (error) {
       log.error('Error opening Sound settings:', error)

@@ -298,77 +298,13 @@ app
       node: process.versions.node,
     })
 
-    // ─── FAST PATH: Show window IMMEDIATELY ────────────────────
-    // Other apps (Slack, VS Code) show a window in <500ms then load in background.
-    // We create the window FIRST, then initialize services behind the splash screen.
-    createWindow()
-    createWidgetWindow()
-    log.info('Windows created — user sees splash screen')
+    // ─── PHASE 1: Essential init (fast, ~300ms) ────────────────
+    // These MUST complete before window creation because the renderer
+    // sends IPC calls as soon as React mounts. If IPC handlers aren't
+    // registered yet, those calls silently fail → broken UI.
 
-    // ─── Tray Icon (macOS menubar / Windows system tray) ───────
-    try {
-      // Use a 16x16 template image for macOS menubar
-      const iconPath = app.isPackaged
-        ? path.join(process.resourcesPath, 'assets', 'tray-icon.png')
-        : path.join(__dirname, '../resources/icons/tray-icon.png')
-
-      // Create a small icon even if file doesn't exist (fallback to app icon)
-      let trayIcon: Electron.NativeImage
-      try {
-        trayIcon = nativeImage.createFromPath(iconPath)
-        if (trayIcon.isEmpty()) throw new Error('empty')
-      } catch {
-        // Fallback: create a tiny 16x16 icon from the app icon
-        trayIcon = nativeImage.createEmpty()
-      }
-
-      if (process.platform === 'darwin') {
-        trayIcon = trayIcon.resize({ width: 16, height: 16 })
-        trayIcon.setTemplateImage(true)
-      }
-
-      tray = new Tray(trayIcon)
-      tray.setToolTip('BlueArkive')
-
-      const contextMenu = Menu.buildFromTemplate([
-        {
-          label: 'Show BlueArkive',
-          click: () => {
-            if (mainWindow) {
-              if (mainWindow.isMinimized()) mainWindow.restore()
-              mainWindow.show()
-              mainWindow.focus()
-            } else {
-              createWindow()
-            }
-          },
-        },
-        { type: 'separator' },
-        {
-          label: `v${app.getVersion()}`,
-          enabled: false,
-        },
-        { type: 'separator' },
-        {
-          label: 'Quit',
-          click: () => app.quit(),
-        },
-      ])
-      tray.setContextMenu(contextMenu)
-      tray.on('click', () => {
-        if (mainWindow) {
-          if (mainWindow.isMinimized()) mainWindow.restore()
-          mainWindow.show()
-          mainWindow.focus()
-        }
-      })
-      log.info('Tray icon created')
-    } catch (trayErr) {
-      log.warn('Tray icon creation failed (non-critical):', trayErr)
-    }
-
-    // ─── BACKGROUND INIT: Services behind splash ───────────────
     // Migrate data from old app name (piyapi-notes → bluearkive)
+    // MUST run before DB init to copy old DB if it exists
     await migrateIfNeeded()
     CrashReporter.addBreadcrumb('lifecycle', 'Migration check complete')
 
@@ -462,10 +398,17 @@ app
       optimizeTimer.unref()
     }
 
-    // Setup IPC handlers (must be after DB init)
+    // IPC handlers — MUST be registered before createWindow()
+    // because renderer sends IPC calls as soon as React mounts
     setupIPC()
     CrashReporter.addBreadcrumb('lifecycle', 'IPC handlers registered')
     log.info('IPC handlers registered')
+
+    // ─── PHASE 2: Create windows ───────────────────────────────
+    // IPC is now ready — renderer can safely send calls on mount
+    createWindow()
+    createWidgetWindow()
+    log.info('Windows created — user sees splash screen')
 
     // Wire model download progress to the renderer window (async, non-blocking)
     if (mainWindow) {
@@ -479,6 +422,65 @@ app
             '~/Library/Logs/BlueArkive/bluearkive.log'
         )
       }
+    }
+
+    // ─── PHASE 3: Deferred work (non-blocking) ─────────────────
+    // Tray icon — non-critical, if it fails app still works
+    try {
+      const iconPath = app.isPackaged
+        ? path.join(process.resourcesPath, 'assets', 'tray-icon.png')
+        : path.join(__dirname, '../resources/icons/tray-icon.png')
+
+      let trayIcon: Electron.NativeImage
+      try {
+        trayIcon = nativeImage.createFromPath(iconPath)
+        if (trayIcon.isEmpty()) throw new Error('empty')
+      } catch {
+        // Fallback: use build icon instead of empty (empty crashes Tray)
+        const fallbackPath = path.join(__dirname, '../build/icon.png')
+        trayIcon = nativeImage.createFromPath(fallbackPath)
+        if (trayIcon.isEmpty()) {
+          log.warn('Tray: no icon available, skipping')
+          throw new Error('no icon')
+        }
+      }
+
+      if (process.platform === 'darwin') {
+        trayIcon = trayIcon.resize({ width: 16, height: 16 })
+        trayIcon.setTemplateImage(true)
+      }
+
+      tray = new Tray(trayIcon)
+      tray.setToolTip('BlueArkive')
+      const contextMenu = Menu.buildFromTemplate([
+        {
+          label: 'Show BlueArkive',
+          click: () => {
+            if (mainWindow) {
+              if (mainWindow.isMinimized()) mainWindow.restore()
+              mainWindow.show()
+              mainWindow.focus()
+            } else {
+              createWindow()
+            }
+          },
+        },
+        { type: 'separator' },
+        { label: `v${app.getVersion()}`, enabled: false },
+        { type: 'separator' },
+        { label: 'Quit', click: () => app.quit() },
+      ])
+      tray.setContextMenu(contextMenu)
+      tray.on('click', () => {
+        if (mainWindow) {
+          if (mainWindow.isMinimized()) mainWindow.restore()
+          mainWindow.show()
+          mainWindow.focus()
+        }
+      })
+      log.info('Tray icon created')
+    } catch (trayErr) {
+      log.warn('Tray icon creation failed (non-critical):', trayErr)
     }
 
     // Register Global OS Hotkey for instant recording

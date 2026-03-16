@@ -61,8 +61,8 @@ if ('requestIdleCallback' in window) {
   setTimeout(removeSplash, 100)
 }
 
-// Safety net: remove splash after 15s regardless — if React crashes during
+// Safety net: remove splash after 5s regardless — if React crashes during
 // mount, requestIdleCallback never fires and the user sees the pulsing logo forever.
 // Also listen for uncaught errors to remove splash immediately on crash.
-setTimeout(removeSplash, 15_000)
+setTimeout(removeSplash, 5_000)
 window.addEventListener('error', removeSplash, { once: true })

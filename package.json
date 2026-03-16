@@ -181,6 +181,10 @@
           "silero_vad.onnx",
           "all-MiniLM-L6-v2*"
         ]
+      },
+      {
+        "from": "resources/icons/tray-icon.png",
+        "to": "assets/tray-icon.png"
       }
     ],
     "publish": {

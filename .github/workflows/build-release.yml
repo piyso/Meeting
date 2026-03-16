@@ -80,6 +80,9 @@ jobs:
           APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
           USE_HARD_LINKS: false
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+          BLUEARKIVE_FUNCTIONS_URL: ${{ secrets.BLUEARKIVE_FUNCTIONS_URL }}
 
       - name: Verify DMG sizes (must be < 500MB)
         run: |
@@ -154,6 +157,9 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           CSC_LINK: ${{ secrets.WIN_CERTIFICATE }}
           CSC_KEY_PASSWORD: ${{ secrets.WIN_CERTIFICATE_PASSWORD }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+          BLUEARKIVE_FUNCTIONS_URL: ${{ secrets.BLUEARKIVE_FUNCTIONS_URL }}
 
       - name: Upload Windows artifacts
         uses: actions/upload-artifact@v4
@@ -195,6 +201,9 @@ jobs:
         run: npm run build:linux
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
+          BLUEARKIVE_FUNCTIONS_URL: ${{ secrets.BLUEARKIVE_FUNCTIONS_URL }}
 
       - name: Upload Linux artifacts
         uses: actions/upload-artifact@v4

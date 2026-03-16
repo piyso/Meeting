@@ -436,11 +436,13 @@ app
         trayIcon = nativeImage.createFromPath(iconPath)
         if (trayIcon.isEmpty()) throw new Error('empty')
       } catch {
-        // Fallback: use build icon instead of empty (empty crashes Tray)
-        const fallbackPath = path.join(__dirname, '../build/icon.png')
+        // Fallback: use build icon instead of empty (empty crashes Tray on macOS)
+        // __dirname resolves to app.asar/dist-electron in prod, so '../build' works
+        // leverage Electron's transparent asar interception.
+        const fallbackPath = path.join(__dirname, '..', 'build', 'icon.png')
         trayIcon = nativeImage.createFromPath(fallbackPath)
         if (trayIcon.isEmpty()) {
-          log.warn('Tray: no icon available, skipping')
+          log.warn(`Tray: no icon available at ${fallbackPath} — skipping tray`)
           throw new Error('no icon')
         }
       }
@@ -663,6 +665,19 @@ app.on('open-file', (event, filePath) => {
 // Handle app quit
 app.on('before-quit', async () => {
   log.info('Application quitting — starting cleanup...')
+
+  // Cleanup tray icon and dock badge (prevent leaked OS resources)
+  if (tray) {
+    tray.destroy()
+    tray = null
+  }
+  if (process.platform === 'darwin') {
+    try {
+      app.dock?.setBadge('')
+    } catch {
+      /* ignore */
+    }
+  }
 
   try {
     // Stop audio capture and flush any buffered audio

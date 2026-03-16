@@ -43,6 +43,25 @@ jobs:
           done
           echo "✅ Large model files moved out"
 
+      - name: Free disk space (prevent hdiutil failures)
+        run: |
+          echo "=== Disk space BEFORE cleanup ==="
+          df -h /
+          # Remove iOS/watchOS/tvOS simulators (~12GB)
+          sudo rm -rf /Library/Developer/CoreSimulator/Profiles/Runtimes/iOS*.simruntime || true
+          sudo rm -rf /Library/Developer/CoreSimulator/Profiles/Runtimes/watchOS*.simruntime || true
+          sudo rm -rf /Library/Developer/CoreSimulator/Profiles/Runtimes/tvOS*.simruntime || true
+          # Remove Android SDK (~5GB)
+          sudo rm -rf /usr/local/lib/android || true
+          # Remove .NET (~3GB)
+          sudo rm -rf /usr/local/share/dotnet || true
+          # Remove Haskell/GHC (~2GB)
+          sudo rm -rf /opt/ghc || true
+          # Remove large Homebrew caches
+          rm -rf ~/Library/Caches/Homebrew || true
+          echo "=== Disk space AFTER cleanup ==="
+          df -h /
+
       - name: Build Mac (arm64 + x64)
         run: |
           # If no certificate is configured, explicitly disable code signing
@@ -60,6 +79,7 @@ jobs:
           APPLE_ID: ${{ secrets.APPLE_ID }}
           APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          USE_HARD_LINKS: false
 
       - name: Verify DMG sizes (must be < 500MB)
         run: |

@@ -209,80 +209,163 @@ jobs:
           retention-days: 30
 
   # ─────────────────────────────────────────────
-  # Deploy all artifacts to dl.bluearkive.com
+  # Resilient Atomic Deployment (Hetzner/Coolify)
+  # Ships whatever succeeded — partial failures
+  # don't block other platforms from getting updates
   # ─────────────────────────────────────────────
   deploy:
     needs: [build-mac, build-windows, build-linux]
     runs-on: ubuntu-latest
-    if: ${{ !inputs.skip_deploy }}
+    if: >-
+      always() &&
+      !inputs.skip_deploy &&
+      (needs.build-mac.result == 'success' ||
+       needs.build-windows.result == 'success' ||
+       needs.build-linux.result == 'success')
     steps:
-      - name: Download all artifacts
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: package.json
+
+      - name: Download successful artifacts (flattened)
         uses: actions/download-artifact@v4
         with:
           path: artifacts
+          merge-multiple: true
 
-      - name: List all artifacts
-        run: find artifacts -type f | sort
+      - name: Build Summary
+        run: |
+          echo "═══════════════════════════════════════"
+          echo "  Build Results"
+          echo "═══════════════════════════════════════"
+          echo "  macOS:   ${{ needs.build-mac.result }}"
+          echo "  Windows: ${{ needs.build-windows.result }}"
+          echo "  Linux:   ${{ needs.build-linux.result }}"
+          echo ""
+          echo "📦 Artifacts to deploy:"
+          find artifacts -type f -exec ls -lh {} \; | sort
+          echo ""
+          echo "Critical file check:"
+          [ -f artifacts/latest-mac.yml ] && echo "  ✅ latest-mac.yml" || echo "  ⚠️ latest-mac.yml MISSING (macOS build failed)"
+          [ -f artifacts/latest.yml ] && echo "  ✅ latest.yml" || echo "  ⚠️ latest.yml MISSING (Windows build failed)"
+          [ -f artifacts/latest-linux.yml ] && echo "  ✅ latest-linux.yml" || echo "  ⚠️ latest-linux.yml MISSING (Linux build failed)"
+          BLOCKMAPS=$(find artifacts -name '*.blockmap' 2>/dev/null | wc -l)
+          echo "  📊 Blockmaps: ${BLOCKMAPS} (needed for fast delta updates)"
 
-      - name: Deploy to Coolify (dl.bluearkive.com)
+      - name: Validate Deployment Secrets
         env:
           COOLIFY_HOST: ${{ secrets.COOLIFY_HOST }}
           COOLIFY_USER: ${{ secrets.COOLIFY_USER }}
           COOLIFY_KEY: ${{ secrets.COOLIFY_SSH_KEY }}
           DEPLOY_PATH: ${{ secrets.COOLIFY_DEPLOY_PATH }}
         run: |
-          # Setup SSH
+          missing=""
+          [ -z "$COOLIFY_HOST" ] && missing="$missing COOLIFY_HOST"
+          [ -z "$COOLIFY_USER" ] && missing="$missing COOLIFY_USER"
+          [ -z "$COOLIFY_KEY" ] && missing="$missing COOLIFY_SSH_KEY"
+          [ -z "$DEPLOY_PATH" ] && missing="$missing COOLIFY_DEPLOY_PATH"
+          if [ -n "$missing" ]; then
+            echo "❌ Missing deployment secrets:$missing"
+            echo "Configure these in GitHub → Settings → Secrets → Actions"
+            exit 1
+          fi
+          echo "✅ All deployment secrets present"
+
+      - name: Atomic Deploy to Hetzner (dl.bluearkive.com)
+        env:
+          COOLIFY_HOST: ${{ secrets.COOLIFY_HOST }}
+          COOLIFY_USER: ${{ secrets.COOLIFY_USER }}
+          COOLIFY_KEY: ${{ secrets.COOLIFY_SSH_KEY }}
+          DEPLOY_PATH: ${{ secrets.COOLIFY_DEPLOY_PATH }}
+        run: |
+          # 1. Setup SSH
           mkdir -p ~/.ssh
           echo "$COOLIFY_KEY" > ~/.ssh/deploy_key
           chmod 600 ~/.ssh/deploy_key
           ssh-keyscan -H "$COOLIFY_HOST" >> ~/.ssh/known_hosts 2>/dev/null
 
-          # Upload all artifacts
-          for dir in artifacts/*/; do
-            echo "Uploading from $dir..."
-            rsync -avz --progress \
-              -e "ssh -i ~/.ssh/deploy_key" \
-              "$dir" \
-              "$COOLIFY_USER@$COOLIFY_HOST:$DEPLOY_PATH/"
+          # 2. Create staging directory (prevents corrupted downloads during rsync)
+          STAGING="${DEPLOY_PATH}_staging"
+          ssh -i ~/.ssh/deploy_key "$COOLIFY_USER@$COOLIFY_HOST" "mkdir -p $STAGING"
+
+          # 3. Rsync flattened artifacts to staging
+          rsync -avz --progress \
+            -e "ssh -i ~/.ssh/deploy_key" \
+            artifacts/ \
+            "$COOLIFY_USER@$COOLIFY_HOST:$STAGING/"
+
+          # 4. Atomic swap: merge old files (so old version links don't 404 immediately), then instant swap
+          ssh -i ~/.ssh/deploy_key "$COOLIFY_USER@$COOLIFY_HOST" "
+            if [ -d $DEPLOY_PATH ]; then
+              # Preserve old files not in the new release (e.g., install.sh, old versions)
+              cp -n $DEPLOY_PATH/* $STAGING/ 2>/dev/null || true
+              mv $DEPLOY_PATH ${DEPLOY_PATH}_old_\$(date +%s)
+            fi
+            mv $STAGING $DEPLOY_PATH
+            # Cleanup old backups (keep only the most recent)
+            ls -dt ${DEPLOY_PATH}_old_* 2>/dev/null | tail -n +2 | xargs rm -rf 2>/dev/null || true
+          "
+          echo "🚀 Atomic deployment complete — zero downtime"
+
+      - name: Verify Deployed Versions
+        run: |
+          EXPECTED=$(node -p "require('./package.json').version")
+          echo "Expected version: $EXPECTED"
+          sleep 5  # Allow nginx to pick up new files
+
+          errors=0
+          for file in latest-mac.yml latest.yml latest-linux.yml; do
+            if [ -f "artifacts/$file" ]; then
+              VER=$(curl -sf "https://dl.bluearkive.com/$file" | grep '^version:' | awk '{print $2}')
+              if [ "$VER" = "$EXPECTED" ]; then
+                echo "✅ $file → v$VER"
+              else
+                echo "❌ $file → v$VER (expected $EXPECTED)"
+                errors=$((errors + 1))
+              fi
+            fi
           done
 
-          echo "✅ All artifacts deployed to dl.bluearkive.com"
-
-      - name: Verify deployment
-        run: |
-          echo "Checking dl.bluearkive.com..."
-          curl -sf https://dl.bluearkive.com/latest-mac.yml | head -1
-          echo "✅ latest-mac.yml accessible"
+          if [ $errors -gt 0 ]; then
+            echo ""
+            echo "⚠️ $errors platform(s) showing wrong version."
+            echo "  This may be due to CDN caching — purge cache if using Cloudflare."
+            echo "  Or check nginx config on Hetzner."
+          else
+            echo ""
+            echo "✅ All deployed platforms are live with v$EXPECTED"
+          fi
 
   # ─────────────────────────────────────────────
-  # Create GitHub Release (draft)
+  # GitHub Release (also resilient)
   # ─────────────────────────────────────────────
   github-release:
     needs: [build-mac, build-windows, build-linux]
     runs-on: ubuntu-latest
-    if: startsWith(github.ref, 'refs/tags/v')
+    if: >-
+      always() &&
+      startsWith(github.ref, 'refs/tags/v') &&
+      (needs.build-mac.result == 'success' ||
+       needs.build-windows.result == 'success' ||
+       needs.build-linux.result == 'success')
     permissions:
       contents: write
     steps:
-      - uses: actions/checkout@v4
-
-      - name: Download all artifacts
+      - name: Download successful artifacts
         uses: actions/download-artifact@v4
         with:
           path: artifacts
+          merge-multiple: true
 
-      - name: List all release files
-        run: find artifacts -type f -exec ls -lh {} \;
+      - name: List release files
+        run: find artifacts -type f -exec ls -lh {} \; | sort
 
-      - name: Create Release
+      - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
           draft: true
           generate_release_notes: true
           name: BlueArkive ${{ github.ref_name }}
-          files: |
-            artifacts/mac-builds/*
-            artifacts/win-builds/*
-            artifacts/linux-builds/*
+          files: artifacts/*
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

@@ -3,7 +3,10 @@
   "version": "0.3.3",
   "description": "Local-first meeting transcription application with AI-powered note expansion",
   "main": "dist-electron/main.js",
-  "author": "BlueArkive",
+  "author": {
+    "name": "BlueArkive",
+    "email": "hello@bluearkive.com"
+  },
   "license": "MIT",
   "private": true,
   "scripts": {

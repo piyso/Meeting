@@ -10,6 +10,13 @@ APP_NAME="BlueArkive"
 BASE_URL="https://dl.bluearkive.com"
 INSTALL_DIR="/Applications"
 
+# Colors (must be defined before first use in version check below)
+GREEN='\033[0;32m'
+BLUE='\033[0;34m'
+YELLOW='\033[1;33m'
+NC='\033[0m' # No Color
+BOLD='\033[1m'
+
 # Auto-detect latest version from server
 VERSION=$(curl -sf "${BASE_URL}/latest-mac.yml" 2>/dev/null | head -1 | sed 's/version: *//')
 if [ -z "$VERSION" ]; then
@@ -18,12 +25,6 @@ if [ -z "$VERSION" ]; then
     exit 1
 fi
 
-# Colors
-GREEN='\033[0;32m'
-BLUE='\033[0;34m'
-YELLOW='\033[1;33m'
-NC='\033[0m' # No Color
-BOLD='\033[1m'
 
 echo ""
 echo -e "${BLUE}${BOLD}  ╔══════════════════════════════════════╗${NC}"

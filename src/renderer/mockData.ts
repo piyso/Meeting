@@ -957,7 +957,7 @@ export const MOCK_ENGINE_STATUS: InferenceEngineStatus = {
 // ============================================================================
 
 export const MOCK_BILLING_CONFIG = {
-  billingUrl: 'https://billing.bluearkive.com',
+  billingUrl: 'https://billing-web-azure.vercel.app',
   functionsUrl: 'https://api.bluearkive.com',
   appName: 'BlueArkive',
   tiers: [

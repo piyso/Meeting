@@ -412,7 +412,10 @@ export const PricingView: React.FC = () => {
               Team plan: $15/user/mo · 3-seat minimum ($45/mo base)
             </p>
           </div>
-          <Button variant="secondary" onClick={() => window.open('mailto:sales@bluearkive.com')}>
+          <Button
+            variant="secondary"
+            onClick={() => window.electronAPI?.shell?.openExternal('mailto:sales@bluearkive.com')}
+          >
             Contact Sales
           </Button>
         </motion.div>

@@ -313,6 +313,14 @@ jobs:
             mv $STAGING $DEPLOY_PATH
             # Cleanup old backups (keep only the most recent)
             ls -dt ${DEPLOY_PATH}_old_* 2>/dev/null | tail -n +2 | xargs rm -rf 2>/dev/null || true
+            # CRITICAL: Restart the Nginx container so Docker re-mounts the bind volume.
+            # Docker bind mounts track the INODE, not the path. After mv swaps directories,
+            # the container still sees the OLD directory (now renamed _old). Restart fixes this.
+            CONTAINER=\$(docker ps --filter 'ancestor=nginx:alpine' --format '{{.Names}}' | head -1)
+            if [ -n \"\$CONTAINER\" ]; then
+              docker restart \$CONTAINER
+              echo '🔄 Restarted Nginx container to pick up new files'
+            fi
           "
           echo "🚀 Atomic deployment complete — zero downtime"
 

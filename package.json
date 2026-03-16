@@ -4,8 +4,8 @@
   "description": "Local-first meeting transcription application with AI-powered note expansion",
   "main": "dist-electron/main.js",
   "author": {
-    "name": "BlueArkive",
-    "email": "hello@bluearkive.com"
+    "name": "Piyush",
+    "email": "piyso2004@gmail.com"
   },
   "license": "MIT",
   "private": true,

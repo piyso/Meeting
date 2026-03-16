@@ -130,7 +130,7 @@ export function registerBillingHandlers(): void {
       const isDevMode = !!process.env.VITE_DEV_SERVER_URL
       const billingUrl = isDevMode
         ? `${process.env.VITE_DEV_SERVER_URL}billing-web/index.html`
-        : config.BLUEARKIVE_BILLING_URL || 'https://bluearkive.com/billing'
+        : config.BLUEARKIVE_BILLING_URL || 'https://billing-web-azure.vercel.app'
 
       const url = new URL(billingUrl)
 

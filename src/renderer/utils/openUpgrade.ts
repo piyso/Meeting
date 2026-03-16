@@ -7,7 +7,7 @@ const log = rendererLog.create('openUpgrade')
  * and opens it in the default browser.
  *
  * In dev mode, routes to the local billing-web page served by Vite.
- * In production, routes to the live bluearkive.com/billing page.
+ * In production, routes to the live billing-web-azure.vercel.app page.
  *
  * Usage:
  *   import { openUpgrade } from '../utils/openUpgrade'
@@ -15,7 +15,7 @@ const log = rendererLog.create('openUpgrade')
  */
 
 const DEV_BILLING_URL = 'http://localhost:5173/billing-web/index.html'
-const PROD_BILLING_URL = 'https://bluearkive.com/billing'
+const PROD_BILLING_URL = 'https://billing-web-azure.vercel.app'
 
 export async function openUpgrade(targetTier?: string): Promise<void> {
   try {

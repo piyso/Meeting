@@ -57,7 +57,7 @@ export const config = {
     process.env.BLUEARKIVE_BILLING_URL ||
     (process.env.VITE_DEV_SERVER_URL
       ? `${process.env.VITE_DEV_SERVER_URL}billing-web/index.html`
-      : 'https://bluearkive.com/billing'),
+      : 'https://billing-web-azure.vercel.app'),
 
   /** App display name (for user-facing strings) */
   APP_NAME: process.env.APP_NAME || 'BlueArkive',

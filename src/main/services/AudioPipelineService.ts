@@ -710,7 +710,7 @@ export class AudioPipelineService extends EventEmitter {
         'Right-click "Stereo Mix" → "Enable"',
         'Set as default recording device',
       ],
-      link: 'https://support.bluearkive.com/stereo-mix',
+      link: 'https://support.microsoft.com/en-us/windows/how-to-set-up-and-test-microphones-in-windows-ba9a4aab-35d1-12ee-5835-cccac7ee872a',
     }
   }
 

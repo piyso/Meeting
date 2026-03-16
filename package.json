@@ -393,10 +393,10 @@
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/piyso/piynoteskiro.git"
+    "url": "https://github.com/piyso/Meeting.git"
   },
   "homepage": "https://bluearkive.com",
   "bugs": {
-    "url": "https://github.com/piyso/piynoteskiro/issues"
+    "url": "https://github.com/piyso/Meeting/issues"
   }
 }

@@ -122,7 +122,7 @@ export const StereoMixErrorDialog: React.FC<StereoMixErrorDialogProps> = ({
                 onClick={() => {
                   // Open the comprehensive documentation
                   window.electronAPI.shell?.openExternal(
-                    'https://docs.bluearkive.com/enable-stereo-mix'
+                    'https://support.microsoft.com/en-us/windows/how-to-set-up-and-test-microphones-in-windows-ba9a4aab-35d1-12ee-5835-cccac7ee872a'
                   )
                 }}
               >

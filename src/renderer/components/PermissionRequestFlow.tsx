@@ -265,7 +265,7 @@ export const PermissionRequestFlow: React.FC<PermissionRequestFlowProps> = ({
                 className="help-link"
                 onClick={() => {
                   window.electronAPI?.shell?.openExternal(
-                    'https://docs.bluearkive.com/macos-screen-recording-permission'
+                    'https://support.apple.com/guide/mac-help/control-access-to-screen-recording-on-mac-mchla1b1e1fe/mac'
                   )
                 }}
               >

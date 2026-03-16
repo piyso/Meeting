@@ -115,10 +115,19 @@ export function registerAudioHandlers(): void {
         await audioPipeline.startCapture(params.meetingId)
 
         // Issue 19: Prevent system sleep during recording
-        // Start AFTER startCapture succeeds — prevents leak if startCapture throws
         if (sleepBlockerId === null) {
           sleepBlockerId = powerSaveBlocker.start('prevent-display-sleep')
           log.info(`powerSaveBlocker started (id: ${sleepBlockerId})`)
+        }
+
+        // OPT-15: Show dock badge on macOS when recording
+        try {
+          const { app } = await import('electron')
+          if (process.platform === 'darwin' && app.dock) {
+            app.dock.setBadge('●')
+          }
+        } catch {
+          /* non-critical */
         }
 
         const status = audioPipeline.getStatus()
@@ -178,11 +187,19 @@ export function registerAudioHandlers(): void {
         try {
           const os = await import('os')
           os.setPriority(os.constants.priority.PRIORITY_NORMAL)
-          log.info('Process priority reset to normal')
-        } catch (e) {
-          log.warn('Could not reset process priority:', e)
+        } catch {
+          /* ignore */
         }
 
+        // OPT-15: Clear dock badge on macOS when recording stops
+        try {
+          const { app } = await import('electron')
+          if (process.platform === 'darwin' && app.dock) {
+            app.dock.setBadge('')
+          }
+        } catch {
+          /* non-critical */
+        }
         return {
           success: true,
           data: undefined,

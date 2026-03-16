@@ -8,38 +8,35 @@ export function useSystemState() {
 
   useEffect(() => {
     const loadUserData = async () => {
-      try {
-        const userRes = await window.electronAPI?.auth?.getCurrentUser()
-        if (userRes?.success && userRes.data) {
-          setCurrentTier(userRes.data.tier)
-        }
-      } catch {
-        /* not logged in */
+      // OPT: Fire all 3 IPC calls in parallel instead of sequentially.
+      // Saves ~200ms since each call waits for IPC round-trip.
+      const [userRes, quotaRes, devRes] = await Promise.allSettled([
+        window.electronAPI?.auth?.getCurrentUser(),
+        window.electronAPI?.quota?.check(),
+        window.electronAPI?.device?.list({ activeOnly: true }),
+      ])
+
+      if (userRes.status === 'fulfilled' && userRes.value?.success && userRes.value.data) {
+        setCurrentTier(userRes.value.data.tier)
       }
 
-      try {
-        const quotaRes = await window.electronAPI?.quota?.check()
-        if (quotaRes?.success && quotaRes.data) {
-          setQuotaData(
-            quotaRes.data as {
-              used: number
-              limit: number
-              remaining: number
-              exhausted: boolean
-            }
-          )
-        }
-      } catch {
-        /* quota check failed, defaults remain */
+      if (quotaRes.status === 'fulfilled' && quotaRes.value?.success && quotaRes.value.data) {
+        setQuotaData(
+          quotaRes.value.data as {
+            used: number
+            limit: number
+            remaining: number
+            exhausted: boolean
+          }
+        )
       }
 
-      try {
-        const devRes = await window.electronAPI?.device?.list({ activeOnly: true })
-        if (devRes?.success && Array.isArray(devRes.data)) {
-          setDeviceInfo({ count: devRes.data.length })
-        }
-      } catch {
-        /* device list failed */
+      if (
+        devRes.status === 'fulfilled' &&
+        devRes.value?.success &&
+        Array.isArray(devRes.value.data)
+      ) {
+        setDeviceInfo({ count: devRes.value.data.length })
       }
     }
 

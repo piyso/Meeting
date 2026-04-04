@@ -3,18 +3,18 @@ import ReactDOM from 'react-dom/client'
 import App from './App'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import './index.css'
-import { installMockElectronAPI } from './mockElectronAPI'
-
 // ── Mock Data Toggle ──────────────────────────────────────────────
-// Controlled via USE_MOCK_DATA in .env file.
-// When USE_MOCK_DATA=true, the preload script skips contextBridge,
-// leaving window.electronAPI undefined. We detect that and install mocks.
-// To switch modes: change USE_MOCK_DATA in .env and restart `npm run electron:dev`.
-const USE_MOCK_DATA = typeof window !== 'undefined' && !window.electronAPI
+// In production Electron: window.electronAPI is injected by preload.ts → real backend.
+// In browser dev mode:    window.electronAPI is undefined → mock layer auto-installs.
+// Dynamic import ensures mock code (~110KB) is NEVER bundled into production Electron.
+const IS_ELECTRON = typeof window !== 'undefined' && !!window.electronAPI
 
-if (USE_MOCK_DATA) {
-  console.info('[BlueArkive] Mock mode active — using simulated data')
-  installMockElectronAPI()
+if (!IS_ELECTRON) {
+  // Dynamic import — Vite code-splits this into a separate chunk
+  import('./mockElectronAPI').then(({ installMockElectronAPI }) => {
+    console.info('[BlueArkive] Mock mode active — using simulated data')
+    installMockElectronAPI()
+  })
 }
 
 const queryClient = new QueryClient({

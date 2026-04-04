@@ -246,64 +246,6 @@
 }
 
 /* Dark Mode Support */
-@media (prefers-color-scheme: dark) {
-  .transcript-display {
-    background: var(--bg-secondary-dark, #1e1e1e);
-  }
-
-  .transcript-header {
-    background: var(--bg-primary-dark, #2d2d2d);
-    border-bottom-color: var(--border-color-dark, #404040);
-  }
-
-  .transcript-header h3 {
-    color: var(--text-primary-dark, #e0e0e0);
-  }
-
-  .auto-scroll-toggle {
-    background: var(--bg-primary-dark, #2d2d2d);
-    border-color: var(--border-color-dark, #404040);
-    color: var(--text-secondary-dark, #b0b0b0);
-  }
-
-  .auto-scroll-toggle:hover {
-    background: var(--bg-hover-dark, #3a3a3a);
-  }
-
-  .transcript-count {
-    background: var(--bg-secondary-dark, #1e1e1e);
-    color: var(--text-secondary-dark, #b0b0b0);
-  }
-
-  .transcript-segment {
-    background: var(--bg-primary-dark, #2d2d2d);
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
-  }
-
-  .transcript-segment.low-confidence {
-    border-left-color: #e74c3c;
-    background: linear-gradient(to right, rgba(220, 53, 69, 0.15), var(--bg-primary-dark, #2d2d2d));
-  }
-
-  .segment-speaker {
-    background: var(--bg-secondary-dark, #1e1e1e);
-    color: var(--text-secondary-dark, #b0b0b0);
-  }
-
-  .segment-text {
-    color: var(--text-primary-dark, #e0e0e0);
-  }
-
-  .empty-text,
-  .waiting-text {
-    color: var(--text-primary-dark, #e0e0e0);
-  }
-
-  .empty-hint,
-  .waiting-hint {
-    color: var(--text-secondary-dark, #b0b0b0);
-  }
-}
 
 /* Responsive Design */
 @media (max-width: 768px) {

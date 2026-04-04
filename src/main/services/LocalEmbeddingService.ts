@@ -18,12 +18,24 @@
  * - Search: Local semantic search (Cmd+Shift+K)
  */
 
-import * as ort from 'onnxruntime-node'
 import * as path from 'path'
 import * as fs from 'fs'
 import { app } from 'electron'
 import { Logger } from './Logger'
 const log = Logger.create('LocalEmbedding')
+
+// LAZY IMPORT: onnxruntime-node is loaded on first use, NOT at module parse time.
+// This prevents a fatal crash if the native binary is missing or wrong-arch.
+// The bundler (Vite) would otherwise hoist `import * as ort from 'onnxruntime-node'`
+// to a top-level `require()` that executes before any error handling is set up.
+type OrtModule = typeof import('onnxruntime-node')
+let _ort: OrtModule | null = null
+async function getOrt(): Promise<OrtModule> {
+  if (!_ort) {
+    _ort = await import('onnxruntime-node')
+  }
+  return _ort
+}
 
 export interface EmbeddingResult {
   embedding: number[]
@@ -40,7 +52,7 @@ export interface SearchResult {
 }
 
 export class LocalEmbeddingService {
-  private session: ort.InferenceSession | null = null
+  private session: Awaited<ReturnType<OrtModule['InferenceSession']['create']>> | null = null
   private vocab: Map<string, number> = new Map()
   private modelPath: string
   private tokenizerPath: string
@@ -100,6 +112,7 @@ export class LocalEmbeddingService {
 
       // Load ONNX model
       log.info('[LocalEmbeddingService] Loading ONNX model...')
+      const ort = await getOrt()
       this.session = await ort.InferenceSession.create(this.modelPath, {
         // OPT-1: Use DirectML GPU on Windows for 2-10x speedup, falls back to CPU
         executionProviders: process.platform === 'win32' ? ['dml', 'cpu'] : ['cpu'],
@@ -161,7 +174,8 @@ export class LocalEmbeddingService {
       // Tokenize text using WordPiece
       const { inputIds: tokenIds, attentionMask: mask } = this.tokenize(text)
 
-      // Create input tensors
+      // Create input tensors (lazy-load ort to avoid top-level require crash)
+      const ort = await getOrt()
       const inputIds = new ort.Tensor('int64', BigInt64Array.from(tokenIds.map(t => BigInt(t))), [
         1,
         tokenIds.length,

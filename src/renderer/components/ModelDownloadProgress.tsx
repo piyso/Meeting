@@ -1,13 +1,6 @@
-/**
- * Model Download Progress Component
- *
- * Displays download progress for AI models during first launch.
- * Tracks multiple parallel downloads (ASR + LLM) independently
- * to prevent UI flickering from interleaved progress events.
- */
-
 import React, { useEffect, useState, useCallback } from 'react'
 import { Button } from './ui/Button'
+import { Cpu, HardDriveDownload, Orbit, CheckCircle2, AlertTriangle, Loader2 } from 'lucide-react'
 import './ModelDownloadProgress.css'
 
 interface ModelDownloadProgressProps {
@@ -87,104 +80,145 @@ export const ModelDownloadProgress: React.FC<ModelDownloadProgressProps> = ({ on
 
   if (allModels.length === 0) {
     return (
-      <div className="model-download-progress">
-        <div className="download-header">
-          <h3>Preparing Download...</h3>
+      <div className="model-download-wrapper">
+        <div className="model-download-progress initializing">
+          <Orbit className="pulsing-icon" size={48} />
+          <h3>Establishing Cognitive Substrate...</h3>
+          <p>Preparing to download core AI models.</p>
         </div>
       </div>
     )
   }
 
   return (
-    <div className="model-download-progress">
-      <div className="download-header">
-        <h3>
-          {allComplete && '✓ All Models Ready'}
-          {hasError && '✗ Download Failed'}
-          {!allComplete && !hasError && isVerifying && 'Verifying Models...'}
-          {!allComplete &&
-            !hasError &&
-            !isVerifying &&
-            `Downloading AI Models (${combinedPercent}%)`}
-        </h3>
-      </div>
-
-      {/* Combined progress bar */}
-      <div className="progress-bar-container">
-        <div
-          className={`progress-bar ${allComplete ? 'complete' : hasError ? 'error' : 'downloading'}`}
-          style={{ width: `${allComplete ? 100 : combinedPercent}%` }}
-        >
-          <span className="progress-text">{allComplete ? 100 : combinedPercent}%</span>
-        </div>
-      </div>
-
-      {/* Per-model status lines */}
-      <div className="download-models">
-        {allModels.map(m => (
-          <div key={m.modelName} className={`model-line ${m.status}`}>
-            <span className="model-name">{m.modelName}</span>
-            <span className="model-status">
-              {m.status === 'downloading' && `${m.percent}%`}
-              {m.status === 'verifying' && 'Verifying...'}
-              {m.status === 'complete' && '✓'}
-              {m.status === 'error' && '✗'}
-            </span>
+    <div className="model-download-wrapper">
+      <div
+        className={`model-download-progress ${allComplete ? 'state-complete' : hasError ? 'state-error' : 'state-active'}`}
+      >
+        <div className="download-header">
+          <div className="header-icon-container">
+            {allComplete ? (
+              <CheckCircle2 size={32} className="text-emerald" />
+            ) : hasError ? (
+              <AlertTriangle size={32} className="text-amber" />
+            ) : isVerifying ? (
+              <Cpu size={32} className="text-violet pulsing-icon" />
+            ) : (
+              <HardDriveDownload size={32} className="text-violet" />
+            )}
           </div>
-        ))}
-      </div>
+          <div className="header-text">
+            <h3>
+              {allComplete && 'Memory Fabric Integrated'}
+              {hasError && 'Substrate Initialization Failed'}
+              {!allComplete && !hasError && isVerifying && 'Verifying Neural Weights...'}
+              {!allComplete && !hasError && !isVerifying && 'Initializing Core Models'}
+            </h3>
+            <p className="subtitle">
+              {allComplete
+                ? 'System ready for autonomous operation.'
+                : 'Local-first architecture requires downloading initial components.'}
+            </p>
+          </div>
+          {!allComplete && !hasError && !isVerifying && (
+            <div className="progress-percentage">{combinedPercent}%</div>
+          )}
+        </div>
 
-      <div className="download-stats">
-        {!allComplete && !hasError && (
-          <>
-            <div className="stat">
-              <span className="stat-label">Downloaded:</span>
-              <span className="stat-value">
-                {downloadedMB.toFixed(1)} MB / {totalMB.toFixed(1)} MB
+        {/* Combined progress bar */}
+        <div className="progress-bar-container">
+          <div className="progress-bar-track">
+            <div
+              className={`progress-bar-fill ${allComplete ? 'complete' : hasError ? 'error' : 'downloading'}`}
+              style={{ width: `${allComplete ? 100 : combinedPercent}%` }}
+            >
+              <div className="progress-glow"></div>
+            </div>
+          </div>
+        </div>
+
+        {/* Per-model status lines */}
+        <div className="download-models-card">
+          {allModels.map(m => (
+            <div key={m.modelName} className={`model-line ${m.status}`}>
+              <div className="model-info">
+                <Cpu size={16} className="model-icon" />
+                <span className="model-name">{m.modelName}</span>
+              </div>
+              <span className="model-status">
+                {m.status === 'downloading' && (
+                  <span className="flex items-center gap-2">{m.percent}%</span>
+                )}
+                {m.status === 'verifying' && (
+                  <span className="flex items-center gap-2">
+                    <Loader2 size={14} className="spin-icon" /> Verifying
+                  </span>
+                )}
+                {m.status === 'complete' && <CheckCircle2 size={16} className="text-emerald" />}
+                {m.status === 'error' && <AlertTriangle size={16} className="text-amber" />}
               </span>
             </div>
-            {speed > 0 && (
-              <div className="stat">
-                <span className="stat-label">Speed:</span>
-                <span className="stat-value">{speed.toFixed(2)} MB/s</span>
-              </div>
-            )}
-            {speed > 0 && (
-              <div className="stat">
-                <span className="stat-label">Time Remaining:</span>
-                <span className="stat-value">{formatTime(remainingSeconds)}</span>
-              </div>
-            )}
-          </>
-        )}
+          ))}
+        </div>
 
-        {allComplete && (
-          <div className="stat success">
-            <span className="stat-label">Status:</span>
-            <span className="stat-value">All models downloaded and verified!</span>
-          </div>
-        )}
+        <div className="download-stats-grid">
+          {!allComplete && !hasError && (
+            <>
+              <div className="stat-box">
+                <span className="stat-label">DATA POOL</span>
+                <span className="stat-value monitor-font">
+                  {(downloadedMB / 1024).toFixed(2)} / {(totalMB / 1024).toFixed(2)} GB
+                </span>
+              </div>
+              <div className="stat-box">
+                <span className="stat-label">BANDWIDTH</span>
+                <span className="stat-value monitor-font">
+                  {speed > 0 ? `${speed.toFixed(1)} MB/s` : '---'}
+                </span>
+              </div>
+              <div className="stat-box">
+                <span className="stat-label">EST. TIME</span>
+                <span className="stat-value monitor-font">
+                  {speed > 0 ? formatTime(remainingSeconds) : '---'}
+                </span>
+              </div>
+            </>
+          )}
+
+          {allComplete && (
+            <div className="stat-box success-box full-width">
+              <span className="stat-label">SYSTEM STATUS</span>
+              <span className="stat-value text-emerald">
+                All models downloaded and verified successfully.
+              </span>
+            </div>
+          )}
+
+          {hasError && (
+            <div className="stat-box error-box full-width">
+              <span className="stat-label">ERROR LOG</span>
+              <span className="stat-value text-amber monitor-font">
+                {allModels.find(m => m.status === 'error')?.error || 'ERR_CONNECTION_DROPPED'}
+              </span>
+            </div>
+          )}
+        </div>
 
         {hasError && (
-          <div className="stat error">
-            <span className="stat-label">Error:</span>
-            <span className="stat-value">
-              {allModels.find(m => m.status === 'error')?.error || 'Unknown error'}
-            </span>
+          <div className="error-actions">
+            <Button
+              variant="primary"
+              onClick={() => window.location.reload()}
+              className="w-full justify-center"
+            >
+              Re-initialize Connection
+            </Button>
+            <Button variant="secondary" onClick={onComplete} className="w-full justify-center mt-3">
+              Bypass (Use Cloud Fallback)
+            </Button>
           </div>
         )}
       </div>
-
-      {hasError && (
-        <div className="error-actions flex gap-3 mt-4">
-          <Button variant="primary" onClick={() => window.location.reload()}>
-            Retry Download
-          </Button>
-          <Button variant="secondary" onClick={onComplete}>
-            Skip (Use Cloud Transcription)
-          </Button>
-        </div>
-      )}
     </div>
   )
 }

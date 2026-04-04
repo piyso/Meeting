@@ -17,6 +17,10 @@ import type { CreateTranscriptInput, Transcript, Word } from '../../types/databa
 import { Logger } from './Logger'
 const log = Logger.create('TranscriptService')
 
+// Cache dynamic imports to avoid re-resolving per segment
+let _embeddingMod: typeof import('./LocalEmbeddingService') | null = null
+let _dbMod: typeof import('../database/connection') | null = null
+
 interface TranscriptSegment {
   text: string
   start: number
@@ -84,7 +88,10 @@ export class TranscriptService extends EventEmitter {
     )
 
     // Generate embedding asynchronously (fire-and-forget, non-blocking)
-    this.generateEmbeddingAsync(transcript.id, transcript.text)
+    // FIX: Added .catch() — previously async errors were silently swallowed
+    this.generateEmbeddingAsync(transcript.id, transcript.text).catch(err =>
+      log.debug('Embedding generation failed (non-critical):', err)
+    )
 
     return transcript
   }
@@ -95,12 +102,16 @@ export class TranscriptService extends EventEmitter {
    */
   private async generateEmbeddingAsync(transcriptId: string, text: string): Promise<void> {
     try {
-      const { getLocalEmbeddingService } = await import('./LocalEmbeddingService')
-      const embeddingService = getLocalEmbeddingService()
+      if (!_embeddingMod) {
+        _embeddingMod = await import('./LocalEmbeddingService')
+      }
+      const embeddingService = _embeddingMod.getLocalEmbeddingService()
 
       const result = await embeddingService.embed(text)
-      const { getDatabase } = await import('../database/connection')
-      const db = getDatabase()
+      if (!_dbMod) {
+        _dbMod = await import('../database/connection')
+      }
+      const db = _dbMod.getDatabase()
 
       // Store as raw Float32Array binary (BLOB) instead of JSON text
       const buffer = Buffer.from(new Float32Array(result.embedding).buffer)
@@ -151,8 +162,11 @@ export class TranscriptService extends EventEmitter {
     )
 
     // Generate embeddings for batch-saved transcripts (fire-and-forget, non-blocking)
+    // FIX: Added .catch() — previously async errors were silently swallowed
     for (const transcript of transcripts) {
-      this.generateEmbeddingAsync(transcript.id, transcript.text)
+      this.generateEmbeddingAsync(transcript.id, transcript.text).catch(err =>
+        log.debug('Batch embedding failed (non-critical):', err)
+      )
     }
 
     return transcripts

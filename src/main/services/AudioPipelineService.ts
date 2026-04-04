@@ -19,6 +19,10 @@ import { Logger } from './Logger'
 const log = Logger.create('AudioPipeline')
 const TEMP_PREFIX = 'bluearkive-audio-'
 
+// #11 fix: Cache dynamic imports to avoid re-resolving on hot path per-segment
+let _embeddingQueueMod: typeof import('./BackgroundEmbeddingQueue') | null = null
+let _cloudTranscriptionMod: typeof import('./CloudTranscriptionService') | null = null
+
 // Issue 20: Use app userData cache instead of os.tmpdir() to avoid Windows Disk Cleanup
 function getAudioCacheDir(): string {
   const cacheDir = path.join(app.getPath('userData'), 'cache', 'audio')
@@ -70,6 +74,12 @@ class AudioBufferPool {
 }
 
 export class AudioPipelineService extends EventEmitter {
+  constructor() {
+    super()
+    // #13: Prevent MaxListenersExceeded warnings — pipeline emits to multiple subscribers
+    this.setMaxListeners(20)
+  }
+
   private config: PipelineConfig = {
     sampleRate: 16000,
     chunkDurationSec: 30, // We buffer exactly 30s chunks
@@ -218,7 +228,8 @@ export class AudioPipelineService extends EventEmitter {
         this.pendingChunkProcess = true
         return
       }
-      this.processAccumulatedChunk()
+      // #1 fix: Previously fire-and-forget — async errors were silently swallowed
+      this.processAccumulatedChunk().catch(err => log.error('Chunk processing failed:', err))
 
       // If there was overflow from this chunk, drop it into the next buffer
       if (overflowData && this.currentBuffer) {
@@ -304,10 +315,11 @@ export class AudioPipelineService extends EventEmitter {
         // transcript.handlers.ts auto-forwards to renderer via IPC
         // useTranscriptStream picks it up automatically
 
-        // Enqueue for background embedding generation (semantic search)
         try {
-          const { getBackgroundEmbeddingQueue } = await import('./BackgroundEmbeddingQueue')
-          getBackgroundEmbeddingQueue().enqueue({
+          if (!_embeddingQueueMod) {
+            _embeddingQueueMod = await import('./BackgroundEmbeddingQueue')
+          }
+          _embeddingQueueMod.getBackgroundEmbeddingQueue().enqueue({
             id: `${this.currentMeetingId}-seg-${this.segmentCounter}`,
             meetingId: this.currentMeetingId,
             text: segmentText,
@@ -332,8 +344,10 @@ export class AudioPipelineService extends EventEmitter {
       if (this.consecutiveAsrFailures >= AudioPipelineService.MAX_LOCAL_FAILURES) {
         log.warn('Local ASR failed repeatedly — attempting cloud transcription fallback')
         try {
-          const { getCloudTranscriptionService } = await import('./CloudTranscriptionService')
-          const cloudService = getCloudTranscriptionService()
+          if (!_cloudTranscriptionMod) {
+            _cloudTranscriptionMod = await import('./CloudTranscriptionService')
+          }
+          const cloudService = _cloudTranscriptionMod.getCloudTranscriptionService()
           if (cloudService.isEnabled() && !cloudService.isLimitReached()) {
             const cloudResult = await cloudService.transcribe(mergedAudio)
             if (cloudResult && cloudResult.length > 0) {
@@ -545,49 +559,82 @@ export class AudioPipelineService extends EventEmitter {
 
   /**
    * Enumerate available audio sources/devices
+   * G5: Uses Electron's webContents to query real system devices
    */
   async enumerateAudioSources(): Promise<AudioDeviceInfo[]> {
+    const devices: AudioDeviceInfo[] = []
+
     try {
+      // Always include system audio source (platform-specific)
       if (process.platform === 'darwin') {
-        return [
-          {
-            id: 'system-audio',
-            label: 'System Audio (via ScreenCaptureKit)',
-            kind: 'system' as const,
-            isDefault: true,
-            isAvailable: true,
-            deviceType: 'built-in' as const,
-            connectionType: 'internal' as const,
-          },
-        ]
+        devices.push({
+          id: 'system-audio',
+          label: 'System Audio (via ScreenCaptureKit)',
+          kind: 'system' as const,
+          isDefault: true,
+          isAvailable: true,
+          deviceType: 'built-in' as const,
+          connectionType: 'internal' as const,
+        })
+      } else if (process.platform === 'win32') {
+        devices.push({
+          id: 'wasapi-loopback',
+          label: 'System Audio (WASAPI Loopback)',
+          kind: 'system' as const,
+          isDefault: true,
+          isAvailable: true,
+          deviceType: 'built-in' as const,
+          connectionType: 'internal' as const,
+        })
       }
-      // Issue 4: Return WASAPI loopback + default microphone stubs for Windows
-      if (process.platform === 'win32') {
-        return [
-          {
-            id: 'wasapi-loopback',
-            label: 'System Audio (WASAPI Loopback)',
-            kind: 'system' as const,
-            isDefault: true,
-            isAvailable: true,
-            deviceType: 'built-in' as const,
-            connectionType: 'internal' as const,
-          },
-          {
-            id: 'default-microphone',
-            label: 'Default Microphone',
-            kind: 'input' as const,
-            isDefault: true,
-            isAvailable: true,
-            deviceType: 'built-in' as const,
-            connectionType: 'internal' as const,
-          },
-        ]
+
+      // G5: Query real input devices via BrowserWindow webContents
+      const { BrowserWindow } = await import('electron')
+      const win = BrowserWindow.getAllWindows()[0]
+      if (win && !win.isDestroyed()) {
+        const rawDevices = await win.webContents.executeJavaScript(
+          `navigator.mediaDevices.enumerateDevices().then(d => d.filter(x => x.kind === 'audioinput').map(x => ({ deviceId: x.deviceId, label: x.label, groupId: x.groupId })))`,
+          true
+        )
+
+        if (Array.isArray(rawDevices)) {
+          for (const d of rawDevices) {
+            const label = d.label || 'Unknown Microphone'
+            const isDefault = d.deviceId === 'default' || label.toLowerCase().includes('default')
+            const isBluetooth = label.toLowerCase().includes('bluetooth')
+            const isUsb = label.toLowerCase().includes('usb')
+            const devType = isBluetooth ? 'bluetooth' : isUsb ? 'usb' : 'built-in'
+            const connType = isBluetooth ? 'bluetooth' : isUsb ? 'usb' : 'internal'
+
+            devices.push({
+              id: d.deviceId || `mic-${devices.length}`,
+              label,
+              kind: 'input' as const,
+              isDefault,
+              isAvailable: true,
+              deviceType: devType as AudioDeviceInfo['deviceType'],
+              connectionType: connType as AudioDeviceInfo['connectionType'],
+            })
+          }
+        }
+      } else {
+        // Fallback: add a generic microphone entry if no window is available
+        devices.push({
+          id: 'default-microphone',
+          label: 'Default Microphone',
+          kind: 'input' as const,
+          isDefault: true,
+          isAvailable: true,
+          deviceType: 'built-in' as const,
+          connectionType: 'internal' as const,
+        })
       }
-      return []
+
+      return devices
     } catch (error) {
-      log.error('Enumeration failed:', error)
-      return []
+      log.error('Device enumeration failed:', error)
+      // Return whatever we've collected so far rather than empty
+      return devices.length > 0 ? devices : []
     }
   }
 
@@ -730,6 +777,8 @@ export class AudioPipelineService extends EventEmitter {
     this.consecutiveAsrFailures = 0
     this.deviceSwitchHistory = []
     this.currentDevice = 'System Audio'
+    // #13: Clean up all event listeners to prevent memory leaks
+    this.removeAllListeners()
   }
 }
 

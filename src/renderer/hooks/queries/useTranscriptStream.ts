@@ -9,7 +9,6 @@ import type { TranscriptChunk } from '../../../types/ipc'
  * not on every incoming chunk event.
  */
 export function useTranscriptStream(meetingId: string | null) {
-  const chunksRef = useRef(new Map<string, TranscriptChunk>())
   const [renderTick, setRenderTick] = useState(0)
   const recordingState = useAppStore(s => s.recordingState)
   const isActivelyRecording = recordingState === 'recording' || recordingState === 'paused'
@@ -38,23 +37,38 @@ export function useTranscriptStream(meetingId: string | null) {
     return () => clearInterval(interval)
   }, [meetingId, isActivelyRecording])
 
+  // Dual-buffer for Speculative UI Engine
+  // Committed buffer stores highly accurate, slow Whisper output
+  const committedChunksRef = useRef(new Map<string, TranscriptChunk>())
+  // Phantom buffer stores hyper-fast, phonetic ASR output
+  const phantomChunksRef = useRef(new Map<string, TranscriptChunk>())
+
+  // Throttled render tick for phantom chunks to prevent UI locking,
+  // while committed chunks force immediate re-renders.
   useEffect(() => {
     if (!meetingId) return
 
-    chunksRef.current = new Map()
+    committedChunksRef.current = new Map()
+    phantomChunksRef.current = new Map()
     setRenderTick(0)
 
     const unsubscribe = window.electronAPI?.on?.transcriptChunk((chunk: TranscriptChunk) => {
       if (chunk.meetingId === meetingId) {
-        // O(1) upsert into Map — no array copying
-        chunksRef.current.set(chunk.transcriptId, chunk)
+        if (chunk.isFinal) {
+          // Promote to committed, remove from phantom
+          committedChunksRef.current.set(chunk.transcriptId, chunk)
+          phantomChunksRef.current.delete(chunk.transcriptId)
+          // Force immediate tick for committed text to feel snappy
+          setRenderTick(t => t + 1)
+        } else {
+          // Update phantom buffer
+          phantomChunksRef.current.set(chunk.transcriptId, chunk)
+        }
 
-        // Cap at 500 segments — evict oldest by insertion order
-        if (chunksRef.current.size > 500) {
-          const firstKey = chunksRef.current.keys().next().value
-          if (firstKey !== undefined) {
-            chunksRef.current.delete(firstKey)
-          }
+        // Memory cap — evict oldest from committed if > 500
+        if (committedChunksRef.current.size > 500) {
+          const firstKey = committedChunksRef.current.keys().next().value
+          if (firstKey !== undefined) committedChunksRef.current.delete(firstKey)
         }
       }
     })
@@ -81,8 +95,13 @@ export function useTranscriptStream(meetingId: string | null) {
       deduped.set(t.id, normalized)
     }
 
-    // Live chunks override stale historical entries with same ID
-    for (const [id, chunk] of chunksRef.current) {
+    // Live committed chunks override historical entries
+    for (const [id, chunk] of committedChunksRef.current) {
+      deduped.set(id, chunk)
+    }
+
+    // Phantom chunks sit on top of the committed state
+    for (const [id, chunk] of phantomChunksRef.current) {
       deduped.set(id, chunk)
     }
 

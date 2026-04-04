@@ -6,6 +6,8 @@ export interface Toast {
   title: string
   message?: string
   duration?: number // ms, default 5000
+  undoAction?: () => void
+  undoLabel?: string
 }
 
 interface AppState {

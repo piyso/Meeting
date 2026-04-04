@@ -5,6 +5,9 @@ import { v4 as uuidv4 } from 'uuid'
 
 const log = Logger.create('DigestHandlers')
 
+// Cache dynamic imports to avoid re-resolving per call (generateText is called 3× in parallel)
+let _modelManagerMod: typeof import('../../services/ModelManager') | null = null
+
 export function registerDigestHandlers(): void {
   // digest:generate — Generate meeting digest via local AI engine
   // Pro+: Uses cloud /ask for AI-generated key decisions, action items, contradictions
@@ -41,15 +44,15 @@ export function registerDigestHandlers(): void {
         // Run all 3 AI calls in parallel for ~3× speedup
         const [summary, actions, decisions] = await Promise.all([
           generateText(
-            `Summarize this meeting transcript concisely in exactly 3 bullet points.\n\nTRANSCRIPT:\n${transcriptText}\n\nSUMMARY:`,
+            `Summarize this meeting transcript concisely in exactly 3 bullet points. Respond in the same language as the transcript.\n\nTRANSCRIPT:\n${transcriptText}\n\nSUMMARY:`,
             300
           ),
           generateText(
-            `Extract action items from this meeting. Format: "- [ASSIGNEE]: Task description".\n\nTRANSCRIPT:\n${transcriptText}\n\nACTION ITEMS:`,
+            `Extract action items from this meeting. Format: "- [ASSIGNEE]: Task description". Respond in the same language as the transcript.\n\nTRANSCRIPT:\n${transcriptText}\n\nACTION ITEMS:`,
             300
           ),
           generateText(
-            `List only the final decisions made in this meeting. Format: "- Decision statement".\n\nTRANSCRIPT:\n${transcriptText}\n\nDECISIONS:`,
+            `List only the final decisions made in this meeting. Format: "- Decision statement". Respond in the same language as the transcript.\n\nTRANSCRIPT:\n${transcriptText}\n\nDECISIONS:`,
             300
           ),
         ])
@@ -203,7 +206,7 @@ export function registerDigestHandlers(): void {
                   .join('\n')
 
                 const askResult = await backend.ask(
-                  `You are analyzing a week's worth of meetings. Provide:\n1. A 2-3 sentence executive summary of the week\n2. Key decisions made (format: "DECISION: [text] | MEETING: [title]")\n3. Action items (format: "ACTION: [task] | ASSIGNEE: [person] | STATUS: open")\n\nMeetings this week:\n${meetingList}\n\nTotal meetings: ${meetings.length}, Total hours: ${(totalDurationSec / 3600).toFixed(1)}, Participants: ${speakerRows.length}\nTop topics: ${topTopics.map(t => t.topic).join(', ')}\nTop people: ${topPeople.map(p => p.name).join(', ')}\n\nAnalysis:`,
+                  `You are analyzing a week's worth of meetings. Respond in the same language as the meeting titles and content. Provide:\n1. A 2-3 sentence executive summary of the week\n2. Key decisions made (format: "DECISION: [text] | MEETING: [title]")\n3. Action items (format: "ACTION: [task] | ASSIGNEE: [person] | STATUS: open")\n\nMeetings this week:\n${meetingList}\n\nTotal meetings: ${meetings.length}, Total hours: ${(totalDurationSec / 3600).toFixed(1)}, Participants: ${speakerRows.length}\nTop topics: ${topTopics.map(t => t.topic).join(', ')}\nTop people: ${topPeople.map(p => p.name).join(', ')}\n\nAnalysis:`,
                   'meetings'
                 )
 
@@ -519,8 +522,10 @@ export function registerDigestHandlers(): void {
  */
 async function generateText(prompt: string, maxTokens: number = 300): Promise<string> {
   try {
-    const { getModelManager } = await import('../../services/ModelManager')
-    const modelManager = getModelManager()
+    if (!_modelManagerMod) {
+      _modelManagerMod = await import('../../services/ModelManager')
+    }
+    const modelManager = _modelManagerMod.getModelManager()
 
     return await modelManager.generate({
       prompt,

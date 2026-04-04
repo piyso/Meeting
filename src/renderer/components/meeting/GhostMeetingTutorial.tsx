@@ -46,7 +46,7 @@ const TutorialNotePane: React.FC<{
             <span className="text-[14px] text-[var(--color-text-secondary)] mt-2 mb-5 max-w-[300px] leading-relaxed tracking-wide text-center">
               Type a brief thought below, then press{' '}
               <kbd className="bg-black/40 px-1.5 py-0.5 rounded-md text-white border border-white/20 shadow-sm font-sans mx-0.5">
-                ⌘
+                {modLabel}
               </kbd>{' '}
               +{' '}
               <kbd className="bg-black/40 px-1.5 py-0.5 rounded-md text-white border border-white/20 shadow-sm font-sans mx-0.5">
@@ -62,7 +62,7 @@ const TutorialNotePane: React.FC<{
         )}
       </AnimatePresence>
 
-      <div className="ui-note-editor-scroll scrollbar-webkit">
+      <div className="ui-note-editor-scroll sovereign-scrollbar">
         <div className="ui-note-editor-content p-[calc(var(--space-24)*0.75)] sm:p-[var(--space-24)] text-[var(--text-base)] text-[var(--color-text-primary)]">
           <textarea
             ref={textareaRef}

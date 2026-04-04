@@ -126,10 +126,10 @@ function MarkdownText({ content }: { content: string }) {
     const headingMatch = line.match(/^(#{1,4})\s+(.+)/)
     if (headingMatch) {
       flushList(`list-pre-h-${i}`)
-      const level = (headingMatch[1] ?? '#').length
-      const Tag = `h${level}` as keyof JSX.IntrinsicElements
+      const level = Math.min((headingMatch[1] ?? '#').length, 4) as 1 | 2 | 3 | 4
+      const Tag = `h${level}` as const satisfies keyof JSX.IntrinsicElements
       blocks.push(
-        <Tag key={i} className="ask-msg-heading">
+        <Tag key={`h-${i}`} className="ask-msg-heading">
           {formatInline(headingMatch[2] ?? '')}
         </Tag>
       )

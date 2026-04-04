@@ -103,6 +103,14 @@ export const FEATURE_FLAG_DEFAULTS: Record<string, boolean> = {
   phi_detection: false,
   /** Enable telemetry (anonymized usage data) */
   telemetry: false,
+  /** Enable Action Item extraction from transcripts */
+  action_items: true,
+  /** Enable Sentiment Analysis on transcript segments */
+  sentiment_analysis: true,
+  /** Enable Calendar Integration (Apple ICS / Google Calendar) */
+  calendar_integration: false,
+  /** Enable Webhook dispatching for external integrations */
+  webhooks: false,
 }
 
 /**

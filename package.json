@@ -42,6 +42,7 @@
   "dependencies": {
     "@react-three/drei": "^9.122.0",
     "@react-three/fiber": "^8.18.0",
+    "@sentry/electron": "^7.10.0",
     "@supabase/supabase-js": "^2.98.0",
     "@tanstack/react-query": "^5.90.21",
     "@tanstack/react-virtual": "^3.13.19",
@@ -141,10 +142,7 @@
       "!**/node_modules/cmake-js/**",
       "!**/node_modules/node-llama-cpp/llama/**",
       "!**/node_modules/node-llama-cpp/templates/**",
-      "!**/node_modules/node-llama-cpp/bins/**",
       "!**/node_modules/node-llama-cpp/dist/cli/**",
-      "!**/node_modules/onnxruntime-node/bin/napi-v6/linux/**",
-      "!**/node_modules/onnxruntime-node/bin/napi-v6/win32/**",
       "!**/node_modules/three/**",
       "!**/node_modules/@react-three/**",
       "!**/node_modules/lucide-react/**",
@@ -218,7 +216,10 @@
       "minimumSystemVersion": "11.0",
       "darkModeSupport": true,
       "files": [
-        "!**/node_modules/onnxruntime-node/bin/napi-v6/win32/**"
+        "!**/node_modules/onnxruntime-node/bin/napi-v6/win32/**",
+        "!**/node_modules/onnxruntime-node/bin/napi-v6/linux/**",
+        "!**/node_modules/node-llama-cpp/bins/win-*/**",
+        "!**/node_modules/node-llama-cpp/bins/linux-*/**"
       ],
       "extendInfo": {
         "NSMicrophoneUsageDescription": "BlueArkive needs microphone access to record meeting audio for transcription.",
@@ -269,8 +270,11 @@
       "requestedExecutionLevel": "asInvoker",
       "files": [
         "!**/node_modules/onnxruntime-node/bin/napi-v6/darwin/**",
+        "!**/node_modules/onnxruntime-node/bin/napi-v6/linux/**",
         "!**/node_modules/node-llama-cpp/prebuilds/mac-*/**",
-        "!**/node_modules/node-llama-cpp/prebuilds/linux-*/**"
+        "!**/node_modules/node-llama-cpp/prebuilds/linux-*/**",
+        "!**/node_modules/node-llama-cpp/bins/mac-*/**",
+        "!**/node_modules/node-llama-cpp/bins/linux-*/**"
       ],
       "fileAssociations": [
         {

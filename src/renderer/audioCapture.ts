@@ -69,29 +69,26 @@ class AudioCaptureManager {
     } catch (error) {
       log.error('Failed to start system audio capture:', error)
 
-      // If fallback is enabled and error is permission-related, fall back to microphone
+      // G1: Fall back to microphone on ANY error when fallback is enabled.
+      // Previously only triggered on NotAllowedError (macOS permission denial).
+      // Windows WASAPI failures throw generic Error or NotFoundError — must catch all.
       if (fallbackToMicrophone && error instanceof Error) {
-        if (
-          error.name === 'NotAllowedError' ||
-          error.message.includes('Screen Recording permission denied')
-        ) {
-          log.info('Falling back to microphone capture due to permission denial')
-          try {
-            await this.startMicrophoneCapture(sampleRate, channelCount)
-            // Notify user about fallback
-            if (window.electronAPI && window.electronAPI.ipcRenderer) {
-              window.electronAPI?.ipcRenderer?.send('audio:fallbackUsed', {
-                type: 'microphone',
-                reason: 'Screen Recording permission denied',
-              })
-            }
-            return
-          } catch (micError) {
-            log.error('Microphone fallback also failed:', micError)
-            throw new Error(
-              `System audio capture failed and microphone fallback failed: ${micError instanceof Error ? micError.message : 'Unknown error'}`
-            )
+        log.info(`Falling back to microphone capture (reason: ${error.name}: ${error.message})`)
+        try {
+          await this.startMicrophoneCapture(sampleRate, channelCount)
+          // Notify main process about fallback
+          if (window.electronAPI?.ipcRenderer) {
+            window.electronAPI.ipcRenderer.send('audio:fallbackUsed', {
+              type: 'microphone',
+              reason: error.message,
+            })
           }
+          return
+        } catch (micError) {
+          log.error('Microphone fallback also failed:', micError)
+          throw new Error(
+            `System audio capture failed and microphone fallback failed: ${micError instanceof Error ? micError.message : 'Unknown error'}`
+          )
         }
       }
 
@@ -354,7 +351,7 @@ class AudioCaptureManager {
   /**
    * Clean up audio resources
    */
-  private cleanup(): void {
+  private async cleanup(): Promise<void> {
     // Stop media stream tracks
     if (this.mediaStream) {
       this.mediaStream.getTracks().forEach(track => track.stop())
@@ -373,9 +370,13 @@ class AudioCaptureManager {
       this.workletNode = null
     }
 
-    // Close audio context
+    // Close audio context — await to ensure resources are released before re-init
     if (this.audioContext) {
-      this.audioContext.close()
+      try {
+        await this.audioContext.close()
+      } catch {
+        // AudioContext may already be closed
+      }
       this.audioContext = null
     }
 

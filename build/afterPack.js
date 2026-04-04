@@ -93,7 +93,46 @@ function verifyBinaryArch(nodePath, expectedArch) {
   }
 
   try {
-    const output = execSync(`file "${nodePath}"`, { encoding: 'utf-8' }).trim()
+    let output
+
+    if (process.platform === 'win32') {
+      // Windows: `file` command doesn't exist. Use PowerShell to read PE header.
+      // The PE machine type is at offset 0x3C (PE header offset) + 4 (signature) bytes.
+      // Machine type: 0x8664 = x64 (AMD64), 0x14c = i386, 0xAA64 = arm64
+      try {
+        output = execSync(
+          `powershell -Command "$bytes = [System.IO.File]::ReadAllBytes('${nodePath.replace(/'/g, "''")}'); $peOffset = [BitConverter]::ToInt32($bytes, 0x3C); $machine = [BitConverter]::ToUInt16($bytes, $peOffset + 4); Write-Output ('MACHINE:' + '0x' + $machine.ToString('X4'))"`,
+          { encoding: 'utf-8', timeout: 10000 }
+        ).trim()
+        console.log(`[afterPack] 🔍 Binary check (PE header): ${output}`)
+
+        const peArchMap = {
+          'x64': /MACHINE:0x8664/i,
+          'ia32': /MACHINE:0x014C/i,
+          'arm64': /MACHINE:0xAA64/i,
+        }
+
+        if (expectedArch === 'universal') return true // Can't verify universal on Windows
+
+        const pattern = peArchMap[expectedArch]
+        if (!pattern) {
+          console.warn(`[afterPack] ⚠️ No PE verification pattern for arch "${expectedArch}"`)
+          return true
+        }
+
+        const matches = pattern.test(output)
+        if (!matches) {
+          console.error(`[afterPack] ❌ ARCH MISMATCH (PE): expected ${expectedArch}, got: ${output}`)
+        }
+        return matches
+      } catch (peErr) {
+        console.warn(`[afterPack] ⚠️ PE header check failed: ${peErr.message}`)
+        // Fall through to `file` command attempt
+      }
+    }
+
+    // macOS/Linux: use the `file` command
+    output = execSync(`file "${nodePath}"`, { encoding: 'utf-8' }).trim()
     console.log(`[afterPack] 🔍 Binary check: ${output}`)
 
     // Map expected arch to what `file` reports
@@ -174,7 +213,7 @@ exports.default = async function afterPack(context) {
         {
           cwd: projectDir,
           stdio: 'inherit',
-          timeout: 180000, // 3 minute timeout per module
+          timeout: 600000, // 10 minute timeout per module (Windows CI with node-gyp + MSVC is slow)
           env: {
             ...process.env,
             npm_config_runtime: 'electron',

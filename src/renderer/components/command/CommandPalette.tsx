@@ -263,6 +263,9 @@ export const CommandPalette: React.FC = () => {
         e.preventDefault()
         allItems[selectedIndex]?.onSelect()
       }
+      if (e.key === 'Tab') {
+        e.preventDefault() // Trapped in input for command palette since arrow keys navigate
+      }
     }
 
     window.addEventListener('keydown', handleKey)

@@ -22,6 +22,10 @@ const features: PricingFeature[] = [
   { name: 'Knowledge Graph', free: 'Read-only', starter: 'Read-only', pro: 'Interactive' },
   { name: 'Speaker Diarization', free: false, starter: '2 Speakers', pro: 'Unlimited' },
   { name: 'Weekly AI Digests', free: false, starter: true, pro: true },
+  { name: 'Action Item Extraction', free: false, starter: true, pro: true },
+  { name: 'Multi-lingual Support', free: false, starter: true, pro: true },
+  { name: 'Webhook Integrations', free: false, starter: false, pro: true },
+  { name: 'Priority Support', free: false, starter: false, pro: true },
 ]
 
 interface BillingConfig {

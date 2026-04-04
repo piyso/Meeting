@@ -233,6 +233,45 @@ export const IPC_CHANNELS = {
     getContext: 'piyapi:getContext',
   },
 
+  // ── Action Items ──
+  actionItem: {
+    list: 'actionItem:list',
+    create: 'actionItem:create',
+    update: 'actionItem:update',
+    delete: 'actionItem:delete',
+    extract: 'actionItem:extract',
+    extractRealTime: 'actionItem:extractRealTime',
+    getOverdue: 'actionItem:getOverdue',
+    stats: 'actionItem:stats',
+  },
+
+  // ── Sentiment Analysis ──
+  sentiment: {
+    analyze: 'sentiment:analyze',
+    getByMeeting: 'sentiment:getByMeeting',
+    getMood: 'sentiment:getMood',
+    getTimeline: 'sentiment:getTimeline',
+  },
+
+  // ── Calendar ──
+  calendar: {
+    sync: 'calendar:sync',
+    list: 'calendar:list',
+    link: 'calendar:link',
+    autoLink: 'calendar:autoLink',
+    getPreContext: 'calendar:getPreContext',
+  },
+
+  // ── Webhooks ──
+  webhook: {
+    list: 'webhook:list',
+    create: 'webhook:create',
+    update: 'webhook:update',
+    delete: 'webhook:delete',
+    test: 'webhook:test',
+    getDeliveries: 'webhook:getDeliveries',
+  },
+
   // ── Streaming Events (webContents.send channels, not ipcMain.handle) ──
   events: {
     transcriptChunk: 'event:transcriptChunk',
@@ -246,6 +285,10 @@ export const IPC_CHANNELS = {
     bookmarkRequested: 'event:bookmarkRequested',
     quickNoteRequested: 'event:quickNoteRequested',
     pauseRequested: 'event:pauseRequested',
+    actionItemDetected: 'event:actionItemDetected',
+    sentimentUpdate: 'event:sentimentUpdate',
+    calendarEventSoon: 'event:calendarEventSoon',
+    webhookDelivery: 'event:webhookDelivery',
   },
 } as const
 

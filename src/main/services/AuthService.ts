@@ -86,7 +86,9 @@ export class AuthService {
       throw new Error('Password must be at least 8 characters')
     }
 
-    log.info('Attempting login', { email })
+    // #6 fix: Mask email in logs to prevent PII leakage in log files
+    const maskedEmail = email.replace(/^(.{2})(.*)(@.*)$/, '$1***$3')
+    log.info('Attempting login', { email: maskedEmail })
 
     const { data, error } = await this.supabase.auth.signInWithPassword({
       email,
@@ -106,7 +108,7 @@ export class AuthService {
     this.scheduleRefresh(result.tokens.expiresIn)
     this.startSessionTimer()
 
-    log.info('Login successful', { email, tier: result.user.tier })
+    log.info('Login successful', { email: maskedEmail, tier: result.user.tier })
 
     // SYNC FIX: Initialize SyncManager after successful login.
     // This was the #1 pipeline blocker — login() previously returned without
@@ -157,7 +159,8 @@ export class AuthService {
       throw new Error('Password must be at least 8 characters')
     }
 
-    log.info('Attempting registration', { email })
+    const maskedEmail = email.replace(/^(.{2})(.*)(@.*)$/, '$1***$3')
+    log.info('Attempting registration', { email: maskedEmail })
 
     const { data, error } = await this.supabase.auth.signUp({
       email,
@@ -177,7 +180,7 @@ export class AuthService {
     this.scheduleRefresh(result.tokens.expiresIn)
     this.startSessionTimer()
 
-    log.info('Registration successful', { email, tier: result.user.tier })
+    log.info('Registration successful', { email: maskedEmail, tier: result.user.tier })
 
     // SYNC: Initialize SyncManager after registration (same as login)
     this.initializeSyncManager(result.user.id, password).catch(err => {
@@ -439,8 +442,14 @@ export class AuthService {
     if (!url.startsWith('bluearkive://auth/callback')) {
       throw new Error('Invalid callback URL scheme')
     }
-    const urlObj = new URL(url)
-    const code = urlObj.searchParams.get('code')
+    // #8 fix: Defensively parse URL — malformed deeplinks should not crash
+    let code: string | null
+    try {
+      const urlObj = new URL(url)
+      code = urlObj.searchParams.get('code')
+    } catch {
+      throw new Error('Malformed OAuth callback URL')
+    }
 
     if (!code) {
       throw new Error('No auth code in callback URL')
@@ -679,9 +688,11 @@ export class AuthService {
       }
 
       if (elapsed >= timeoutMs) {
+        // #4 fix: Stop timer BEFORE async logout to prevent race condition
+        // where next interval tick fires while logout() is still in progress
+        this.stopSessionTimer()
         log.info(`Session timed out after ${Math.round(elapsed / 1000)}s of inactivity`)
         this.logout().catch(err => log.warn('Session timeout logout failed', err))
-        this.stopSessionTimer()
 
         // Notify renderer to show re-login prompt
         try {

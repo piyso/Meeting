@@ -41,6 +41,18 @@ export interface TierLimits {
   teamCollaboration: boolean
   /** Audit logs */
   auditLogs: boolean
+  /** Action item extraction (local — all tiers) */
+  actionItems: boolean
+  /** Sentiment analysis (local — all tiers) */
+  sentimentAnalysis: boolean
+  /** Calendar sync (cloud — Starter+ only) */
+  calendarSync: boolean
+  /** Auto-link calendar events to meetings (cloud — Pro+ only) */
+  calendarAutoLink: boolean
+  /** Webhook dispatching (cloud — Starter+ only) */
+  webhooks: boolean
+  /** Max active webhooks (0 = none, -1 = unlimited) */
+  webhookLimit: number
 }
 
 // ─── Tier Configuration ──────────────────────────────────────

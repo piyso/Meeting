@@ -13,6 +13,7 @@ import {
   Database,
   Lock,
   Code,
+  Webhook,
 } from 'lucide-react'
 import { Select } from '../ui/Select'
 import { Toggle } from '../ui/Toggle'
@@ -27,6 +28,7 @@ import { HealthDashboard } from './HealthDashboard'
 import { RecoveryKeySettings } from '../RecoveryKeySettings'
 import { UpgradePrompt } from './UpgradePrompt'
 import { openUpgrade } from '../../utils/openUpgrade'
+import { WebhookSettingsView } from '../webhooks/WebhookSettingsView'
 
 import { rendererLog } from '../../utils/logger'
 const log = rendererLog.create('Settings')
@@ -70,7 +72,7 @@ const DEFAULT_SETTINGS: SettingsState = {
   keepAudioFiles: true,
   hardwareTier: '',
   useCloudTranscription: false,
-  language: 'en',
+  language: 'auto',
   autoExpandNotes: false,
   llmEngine: 'local',
   maxTokensPerExpansion: 512,
@@ -343,6 +345,37 @@ export const SettingsView: React.FC = () => {
               onChange={e => updateSetting('useCloudTranscription', e.target.checked)}
             />
           </div>
+          <div className="flex flex-wrap items-center justify-between gap-2 min-h-[40px]">
+            <span className="text-[var(--text-sm)] text-[var(--color-text-secondary)]">
+              Transcription language
+            </span>
+            <Select
+              value={settings.language}
+              onChange={value => {
+                updateSetting('language', value)
+                // Also persist as transcription_language for ASR + Deepgram wiring
+                window.electronAPI?.settings?.update({
+                  key: 'transcription_language',
+                  value: value,
+                })
+              }}
+              options={[
+                { label: '🌐 Auto-detect', value: 'auto' },
+                { label: '🇬🇧 English', value: 'en' },
+                { label: '🇮🇳 हिन्दी (Hindi)', value: 'hi' },
+                { label: '🇯🇵 日本語 (Japanese)', value: 'ja' },
+                { label: '🇫🇷 Français (French)', value: 'fr' },
+                { label: '🇪🇸 Español (Spanish)', value: 'es' },
+                { label: '🇩🇪 Deutsch (German)', value: 'de' },
+                { label: '🇧🇷 Português (Portuguese)', value: 'pt' },
+                { label: '🇰🇷 한국어 (Korean)', value: 'ko' },
+                { label: '🇸🇦 العربية (Arabic)', value: 'ar' },
+                { label: '🇮🇹 Italiano (Italian)', value: 'it' },
+                { label: '🇳🇱 Nederlands (Dutch)', value: 'nl' },
+                { label: '🇨🇳 中文 (Chinese)', value: 'zh' },
+              ]}
+            />
+          </div>
         </>
       ),
     },
@@ -545,6 +578,12 @@ export const SettingsView: React.FC = () => {
           )}
         </>
       ),
+    },
+    {
+      id: 'automations',
+      title: 'Automations',
+      icon: <Webhook size={20} className="text-[var(--color-violet)]" />,
+      content: <WebhookSettingsView />,
     },
     {
       id: 'devices',

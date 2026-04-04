@@ -418,9 +418,14 @@ export class DatabaseService {
    * Rebuild FTS5 indexes from source tables.
    * Use after crash recovery or if full-text search returns stale results.
    */
-  rebuildFtsIndexes(): { transcripts: boolean; notes: boolean; entities: boolean } {
+  rebuildFtsIndexes(): {
+    transcripts: boolean
+    notes: boolean
+    entities: boolean
+    actionItems: boolean
+  } {
     const db = this.getDb()
-    const result = { transcripts: false, notes: false, entities: false }
+    const result = { transcripts: false, notes: false, entities: false, actionItems: false }
 
     try {
       db.exec("INSERT INTO transcripts_fts(transcripts_fts) VALUES ('rebuild')")
@@ -442,6 +447,14 @@ export class DatabaseService {
       result.entities = true
     } catch {
       // entities_fts may not exist in older schemas
+    }
+
+    // Rebuild action_items_fts (added in schema v4)
+    try {
+      db.exec("INSERT INTO action_items_fts(action_items_fts) VALUES ('rebuild')")
+      result.actionItems = true
+    } catch {
+      // action_items_fts may not exist in older schemas
     }
 
     return result

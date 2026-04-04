@@ -186,7 +186,7 @@ export function registerNoteHandlers(): void {
 
               // Use /ask endpoint with enriched context
               const result = await backend.ask(
-                `You are an executive assistant helping write meeting notes.\n\nCONTEXT (what was being discussed):\n${cloudContext}\n\nUSER'S BRIEF NOTE:\n${params.text}\n\nINSTRUCTIONS:\n1. Expand the user's note into 1-2 clear, professional sentences\n2. Include specific details from the context (numbers, names, deadlines)\n3. Write in third person ("The team decided..." not "We decided...")\n4. Be concise - maximum 50 words\n5. Do not add information not present in the context\n\nEXPANDED NOTE:`
+                `You are an executive assistant helping write meeting notes. Respond in the same language as the context and user's note.\n\nCONTEXT (what was being discussed):\n${cloudContext}\n\nUSER'S BRIEF NOTE:\n${params.text}\n\nINSTRUCTIONS:\n1. Expand the user's note into 1-2 clear, professional sentences\n2. Include specific details from the context (numbers, names, deadlines)\n3. Write in third person ("The team decided..." not "We decided...")\n4. Be concise - maximum 50 words\n5. Do not add information not present in the context\n6. Use the same language as the transcript context\n\nEXPANDED NOTE:`
               )
 
               // Record cloud AI usage AFTER confirmed success (not before)
@@ -216,7 +216,7 @@ export function registerNoteHandlers(): void {
       const modelManager = getModelManager()
       const localStartTime = Date.now()
 
-      const prompt = `You are an executive assistant helping write meeting notes.
+      const prompt = `You are an executive assistant helping write meeting notes. Respond in the same language as the context and user's note.
 
 CONTEXT (what was being discussed):
 ${context.contextText}
@@ -230,6 +230,7 @@ INSTRUCTIONS:
 3. Write in third person ("The team decided..." not "We decided...")
 4. Be concise - maximum 50 words
 5. Do not add information not present in the context
+6. Use the same language as the transcript context
 
 EXPANDED NOTE:`
 
@@ -306,7 +307,7 @@ EXPANDED NOTE:`
             10
           )
 
-          const prompt = `You are an executive assistant helping write meeting notes.\n\nCONTEXT:\n${context.contextText}\n\nUSER'S BRIEF NOTE:\n${(note as { original_text?: string }).original_text ?? ''}\n\nINSTRUCTIONS:\n1. Expand into 1-2 professional sentences\n2. Include specific details from context\n3. Third person, max 50 words\n4. Do not fabricate information\n\nEXPANDED NOTE:`
+          const prompt = `You are an executive assistant helping write meeting notes. Respond in the same language as the context and user's note.\n\nCONTEXT:\n${context.contextText}\n\nUSER'S BRIEF NOTE:\n${(note as { original_text?: string }).original_text ?? ''}\n\nINSTRUCTIONS:\n1. Expand into 1-2 professional sentences\n2. Include specific details from context\n3. Third person, max 50 words\n4. Do not fabricate information\n5. Use the same language as the transcript context\n\nEXPANDED NOTE:`
 
           const expandedText = await modelManager.generate({
             prompt,

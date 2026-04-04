@@ -18,14 +18,18 @@ export interface ExtractedEntity {
 export class LocalEntityExtractor {
   // Regex patterns for real-time extraction (Blueprint §2.9)
   private patterns: Record<string, RegExp> = {
-    // Unicode-aware: matches names in Latin, CJK, and other scripts
+    // Unicode-aware: matches names in Latin, CJK, Devanagari, Arabic, Hangul, and Thai scripts
     PERSON:
-      /\b(?:(?:Mr|Mrs|Ms|Dr|Prof)\.?\s+)?(?:\p{Lu}\p{Ll}{1,20}\s+\p{Lu}\p{Ll}{1,20}|[\u4e00-\u9fff]{2,4}|[\uac00-\ud7af]{2,4})\b/gu,
-    DATE: /\b(?:\d{1,2}\/\d{1,2}\/\d{2,4}|\w+ \d{1,2}(?:st|nd|rd|th)?(?:,? \d{4})?)\b/g,
-    // International currencies: $, €, £, ¥, ₹, ₩
-    AMOUNT: /(?:[$€£¥₹₩])[\d,]+(?:\.\d{2})?[KMB]?\b/g,
+      /\b(?:(?:Mr|Mrs|Ms|Dr|Prof)\.?\s+)?(?:\p{Lu}\p{Ll}{1,20}\s+\p{Lu}\p{Ll}{1,20}|[\u4e00-\u9fff]{2,4}|[\uac00-\ud7af]{2,4}|[\u0900-\u097f]{2,15}(?:\s[\u0900-\u097f]{2,15}){0,2}|[\u0600-\u06ff]{2,15}(?:\s[\u0600-\u06ff]{2,15}){0,2}|[\u0e00-\u0e7f]{2,15})\b/gu,
+    // International date formats: MM/DD/YYYY, DD.MM.YYYY, YYYY-MM-DD, "Month Day, Year"
+    DATE: /\b(?:\d{1,2}[/\-.]?\d{1,2}[/\-.]?\d{2,4}|\d{4}[/\-.]?\d{1,2}[/\-.]?\d{1,2}|\w+ \d{1,2}(?:st|nd|rd|th)?(?:,? \d{4})?)\b/g,
+    // International currencies: prefix ($, €, £, ¥, ₹, ₩) and postfix (万円, 원, EUR)
+    AMOUNT:
+      /(?:[$€£¥₹₩][\d,]+(?:\.\d{2})?[KMB]?\b|\b[\d,]+(?:\.\d{2})?\s*(?:万?円|원|EUR|GBP|USD|CHF|RUB|INR)\b|\b[\d,]+(?:\.\d{2})?\s*[$€£¥₹₩])/g,
     EMAIL: /\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}\b/g,
-    ACTION_ITEM: /\b(?:TODO|ACTION|TASK|need to|should|must|will)\b[^\n]*?[.!?\n]/gi,
+    // Multilingual action item keywords (English, Spanish, French, German, Japanese, Korean, Hindi)
+    ACTION_ITEM:
+      /\b(?:TODO|ACTION|TASK|need to|should|must|will|necesita|doit|muss|soll|必要|해야|करना\s+है|करना\s+होगा)\b[^\n]*?[.!?\n。！？]/giu,
   }
 
   /**

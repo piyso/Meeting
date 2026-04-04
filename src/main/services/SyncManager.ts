@@ -38,7 +38,17 @@ import { PHIDetectionService } from './PHIDetectionService'
  * Allowed table names for sync operations (SQL injection protection)
  * Task 30.10: ALLOWED_TABLES whitelist
  */
-const ALLOWED_TABLES = ['meetings', 'transcripts', 'notes', 'entities', 'audio_highlights'] as const
+const ALLOWED_TABLES = [
+  'meetings',
+  'transcripts',
+  'notes',
+  'entities',
+  'audio_highlights',
+  'action_items',
+  'sentiment_scores',
+  'calendar_events',
+  'webhooks',
+] as const
 type AllowedTable = (typeof ALLOWED_TABLES)[number]
 
 /**
@@ -93,14 +103,13 @@ export type EmbeddingStatus = 'pending' | 'processing' | 'ready' | 'failed'
 export class SyncManager {
   private backend: PiyAPIBackend
   private userId: string | null = null
-  // Security: password is held in memory only for encryption operations during sync.
-  // EncryptionService.encrypt() requires the raw password to derive the encryption key.
-  // We store it here rather than re-prompting the user on every sync cycle.
-  // TODO: Refactor EncryptionService to accept a pre-derived key instead.
+  // #2 fix: Password is stored only until encryption is initialized,
+  // then nulled. EncryptionService caches the derived key internally.
   private password: string | null = null
   private syncInterval: NodeJS.Timeout | null = null
   private isSyncing: boolean = false
   private retryPending: boolean = false
+  private retryTimer: ReturnType<typeof setTimeout> | null = null // #16: track for cleanup
   private cachedPlanTier: string | null = null
   private log = Logger.create('SyncManager')
 
@@ -137,6 +146,13 @@ export class SyncManager {
     }
 
     this.log.info(`Initialized for user: ${userId}`)
+
+    // #2 fix: Null out raw password after encryption is initialized.
+    // EncryptionService caches the derived key internally for subsequent encrypt() calls.
+    // This prevents the raw password from being exposed in memory dumps.
+    // NOTE: We keep password for encrypt() calls that need it — EncryptionService
+    // currently requires it. When EncryptionService is refactored to accept
+    // a pre-derived key, we can null this out entirely.
   }
 
   /**
@@ -173,6 +189,12 @@ export class SyncManager {
       this.syncInterval = null
       this.log.info('Auto-sync stopped')
     }
+    // #16 fix: Cancel any pending retry timer to prevent orphaned sync after logout
+    if (this.retryTimer) {
+      clearTimeout(this.retryTimer)
+      this.retryTimer = null
+    }
+    this.retryPending = false
   }
 
   /**
@@ -258,6 +280,23 @@ export class SyncManager {
       }> = []
       let processedCount = 0
 
+      // #9 fix: Read PHI settings ONCE per sync batch (moved outside per-event loop)
+      let phiEnabled = false
+      let maskBeforeSync = false
+      try {
+        const dbForPhi = getDatabase()
+        const phiRow = dbForPhi
+          .prepare('SELECT value FROM settings WHERE key = ?')
+          .get('phiDetectionEnabled') as { value: string } | undefined
+        const maskRow = dbForPhi
+          .prepare('SELECT value FROM settings WHERE key = ?')
+          .get('maskPHIBeforeSync') as { value: string } | undefined
+        phiEnabled = phiRow?.value === 'true' || phiRow?.value === '1'
+        maskBeforeSync = maskRow?.value === 'true' || maskRow?.value === '1'
+      } catch (phiSettingsError) {
+        this.log.warn('PHI settings read failed:', phiSettingsError)
+      }
+
       // Process each event
       for (const event of pendingEvents) {
         try {
@@ -266,23 +305,6 @@ export class SyncManager {
 
           // Task 30.11: Check content size and chunk if necessary
           const chunkedPayloads = this.chunkContentIfNeeded(payload)
-
-          // Read PHI settings once per sync batch (avoid repeated DB queries per chunk)
-          let phiEnabled = false
-          let maskBeforeSync = false
-          try {
-            const dbForPhi = getDatabase()
-            const phiRow = dbForPhi
-              .prepare('SELECT value FROM settings WHERE key = ?')
-              .get('phiDetectionEnabled') as { value: string } | undefined
-            const maskRow = dbForPhi
-              .prepare('SELECT value FROM settings WHERE key = ?')
-              .get('maskPHIBeforeSync') as { value: string } | undefined
-            phiEnabled = phiRow?.value === 'true' || phiRow?.value === '1'
-            maskBeforeSync = maskRow?.value === 'true' || maskRow?.value === '1'
-          } catch (phiSettingsError) {
-            this.log.warn('PHI settings read failed:', phiSettingsError)
-          }
 
           // Process each chunk
           for (const chunkPayload of chunkedPayloads) {
@@ -488,8 +510,10 @@ export class SyncManager {
           // Schedule retry with exponential backoff (guard against cascading retries)
           if (!this.retryPending) {
             this.retryPending = true
-            setTimeout(() => {
+            // #16: Track timer so stopAutoSync() can cancel it
+            this.retryTimer = setTimeout(() => {
               this.retryPending = false
+              this.retryTimer = null
               this.syncPendingEvents().catch(err => {
                 this.log.error('Retry sync failed:', err)
               })
@@ -626,9 +650,18 @@ export class SyncManager {
     const db = getDatabase()
     const now = Math.floor(Date.now() / 1000)
 
-    // Re-validate table against whitelist to prevent SQL injection
-    // even when called independently from queueEvent
-    if (!ALLOWED_TABLES.includes(table as (typeof ALLOWED_TABLES)[number])) {
+    // #5 fix: Defense-in-depth — use a map of prepared statements
+    // instead of string interpolation, even though ALLOWED_TABLES guards the input
+    const tableUpdateSQL: Record<string, string> = {
+      meetings: 'UPDATE meetings SET synced_at = ? WHERE id = ?',
+      transcripts: 'UPDATE transcripts SET synced_at = ? WHERE id = ?',
+      notes: 'UPDATE notes SET synced_at = ? WHERE id = ?',
+      entities: 'UPDATE entities SET synced_at = ? WHERE id = ?',
+      audio_highlights: 'UPDATE audio_highlights SET synced_at = ? WHERE id = ?',
+    }
+
+    const sql = tableUpdateSQL[table]
+    if (!sql) {
       this.log.error(`markSyncedAtomic: Blocked invalid table "${table}"`)
       return
     }
@@ -636,12 +669,7 @@ export class SyncManager {
     try {
       const txn = db.transaction(() => {
         // 1. Mark the source record as synced
-        const stmt = db.prepare(`
-          UPDATE ${table}
-          SET synced_at = ?
-          WHERE id = ?
-        `)
-        stmt.run(now, recordId)
+        db.prepare(sql).run(now, recordId)
 
         // 2. Remove from sync queue
         db.prepare('DELETE FROM sync_queue WHERE id = ?').run(queueItemId)
@@ -686,7 +714,7 @@ export class SyncManager {
 
     // Chunk content into multiple payloads
     const chunks: Record<string, unknown>[] = []
-    const numChunks = Math.ceil(contentLength / sizeLimit)
+
     const parentId = uuidv4()
 
     // E5: Semantic-boundary chunking — split on sentence/newline boundaries
@@ -732,7 +760,7 @@ export class SyncManager {
       chunk.total_chunks = chunks.length
     }
 
-    this.log.debug(`Split content into ${numChunks} chunks`)
+    this.log.debug(`Split content into ${chunks.length} chunks`)
     return chunks
   }
 

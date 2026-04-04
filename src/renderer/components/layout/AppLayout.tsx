@@ -1,4 +1,5 @@
 import React, { Suspense, lazy } from 'react'
+import { motion, AnimatePresence } from 'framer-motion'
 import { WindowsTitleBar } from './WindowsTitleBar'
 import { useAppStore } from '../../store/appStore'
 import { ZenRail } from './ZenRail'
@@ -521,15 +522,26 @@ export const AppLayout: React.FC = () => {
         }}
       >
         <ErrorBoundary viewName="Main View">
-          <Suspense fallback={<div className="ui-app-loader">Loading View...</div>}>
-            {activeView === 'meeting-list' && <MeetingListView />}
-            {activeView === 'meeting-detail' && <MeetingDetailView />}
-            {activeView === 'settings' && <SettingsView />}
-            {activeView === 'knowledge-graph' && <KnowledgeGraphView />}
-            {activeView === 'weekly-digest' && <WeeklyDigestView />}
-            {activeView === 'ask-meetings' && <AskMeetingsView />}
-            {activeView === 'pricing' && <PricingView />}
-          </Suspense>
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={activeView}
+              initial={{ opacity: 0, y: 12, filter: 'blur(8px)' }}
+              animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
+              exit={{ opacity: 0, y: -12, filter: 'blur(8px)' }}
+              transition={{ type: 'spring', stiffness: 350, damping: 30, mass: 0.8 }}
+              className="w-full h-full"
+            >
+              <Suspense fallback={<div className="ui-app-loader">Loading View...</div>}>
+                {activeView === 'meeting-list' && <MeetingListView />}
+                {activeView === 'meeting-detail' && <MeetingDetailView />}
+                {activeView === 'settings' && <SettingsView />}
+                {activeView === 'knowledge-graph' && <KnowledgeGraphView />}
+                {activeView === 'weekly-digest' && <WeeklyDigestView />}
+                {activeView === 'ask-meetings' && <AskMeetingsView />}
+                {activeView === 'pricing' && <PricingView />}
+              </Suspense>
+            </motion.div>
+          </AnimatePresence>
         </ErrorBoundary>
       </main>
 

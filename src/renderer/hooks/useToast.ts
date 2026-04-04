@@ -13,8 +13,14 @@ export function useToast() {
   const removeToast = useAppStore(s => s.removeToast)
 
   const toast = useCallback(
-    (type: 'info' | 'success' | 'warning' | 'error', title: string, message?: string) => {
-      addToast({ type, title, message })
+    (
+      type: 'info' | 'success' | 'warning' | 'error',
+      title: string,
+      message?: string,
+      undoAction?: () => void,
+      undoLabel?: string
+    ) => {
+      addToast({ type, title, message, undoAction, undoLabel })
     },
     [addToast]
   )

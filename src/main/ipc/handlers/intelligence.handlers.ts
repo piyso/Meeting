@@ -195,12 +195,12 @@ export function registerIntelligenceHandlers(): void {
 
       const prompts: Record<string, { text: string; maxTokens: number; temperature: number }> = {
         title: {
-          text: `Suggest a concise meeting title (3-6 words) based on this discussion:\n\n${params.recentContext}\n\nMEETING TITLE:`,
+          text: `Suggest a concise meeting title in the same language as the discussion content (3-6 words). Do NOT translate — use the same language as the transcript.\n\n${params.recentContext}\n\nMEETING TITLE:`,
           maxTokens: 20,
           temperature: 0.3,
         },
         question: {
-          text: `Based on this meeting discussion, suggest ONE insightful follow-up question that hasn't been addressed yet:\n\n${params.recentContext}\n\nSUGGESTED QUESTION:`,
+          text: `Based on this meeting discussion, suggest ONE insightful follow-up question that hasn't been addressed yet. Respond in the same language as the discussion content.\n\n${params.recentContext}\n\nSUGGESTED QUESTION:`,
           maxTokens: 60,
           temperature: 0.5,
         },
@@ -340,7 +340,7 @@ export function registerIntelligenceHandlers(): void {
       const modelManager = getModelManager()
 
       const systemPrompt = params.context
-        ? `You are a helpful meeting assistant. Answer the user's question based ONLY on the provided meeting transcript excerpts. Be concise and cite which meeting the information comes from. If the answer is not in the context, clearly say so.
+        ? `You are a helpful meeting assistant. Answer the user's question based ONLY on the provided meeting transcript excerpts. Be concise and cite which meeting the information comes from. If the answer is not in the context, clearly say so. IMPORTANT: Respond in the same language as the user's question.
 
 MEETING CONTEXT:
 ${params.context}
@@ -348,7 +348,7 @@ ${params.context}
 USER QUESTION: ${params.question}
 
 ANSWER:`
-        : `You are a helpful meeting assistant. The user asked: "${params.question}" but no relevant meeting transcripts were found. Let the user know and suggest they try different keywords.
+        : `You are a helpful meeting assistant. The user asked: "${params.question}" but no relevant meeting transcripts were found. Let the user know and suggest they try different keywords. Respond in the same language as the question.
 
 ANSWER:`
 

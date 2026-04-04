@@ -14,7 +14,13 @@ interface PostMeetingDigestProps {
   participantCount: number
   summary?: string
   decisions?: Array<{ text: string; changed?: boolean; previousValue?: string }>
-  actionItems?: Array<{ text: string; assignee: string; dueDate?: string; completed: boolean }>
+  actionItems?: Array<{
+    id?: string
+    text: string
+    assignee: string
+    dueDate?: string
+    completed: boolean
+  }>
   pinnedMoments?: Array<{ timestamp: string; text: string }>
 }
 
@@ -127,7 +133,7 @@ export const PostMeetingDigest: React.FC<PostMeetingDigestProps> = ({
         </div>
       </div>
 
-      <div className="ui-digest-content scrollbar-webkit">
+      <div className="ui-digest-content sovereign-scrollbar">
         <AnimatePresence mode="wait">
           {activeTab === 'summary' && (
             <motion.div
@@ -186,22 +192,42 @@ export const PostMeetingDigest: React.FC<PostMeetingDigestProps> = ({
               animate="visible"
               exit="exit"
             >
-              {actionItems?.map((a, i) => (
-                <motion.div key={i} variants={itemVariants} className="ui-digest-action-card">
-                  <input
-                    type="checkbox"
-                    defaultChecked={a.completed}
-                    className="mt-1 ui-toggle-checkbox accent-[var(--color-violet)]"
-                  />
-                  <div className="ui-digest-action-content">
-                    <div className="ui-digest-action-text">
-                      <span className="ui-digest-action-assignee">{a.assignee}: </span>
-                      {a.text}
+              {actionItems?.map((a, i) => {
+                const domId = `action-item-${i}`
+                return (
+                  <motion.div key={i} variants={itemVariants} className="ui-digest-action-card">
+                    <input
+                      id={domId}
+                      type="checkbox"
+                      defaultChecked={a.completed}
+                      className="mt-1 ui-toggle-checkbox accent-[var(--color-violet)] focus:ring-2 focus:ring-[var(--color-violet)] focus:outline-none"
+                      onChange={async e => {
+                        // Attempt to persist if ID exists from DB
+                        if (window.electronAPI?.actionItem && a.id) {
+                          try {
+                            await window.electronAPI.actionItem.update({
+                              id: a.id,
+                              updates: { status: e.target.checked ? 'completed' : 'open' },
+                            })
+                          } catch (err) {
+                            console.error('Failed to update action item', err)
+                          }
+                        }
+                      }}
+                    />
+                    <div className="ui-digest-action-content">
+                      <label
+                        htmlFor={domId}
+                        className="ui-digest-action-text cursor-pointer select-none block"
+                      >
+                        <span className="ui-digest-action-assignee">{a.assignee}: </span>
+                        {a.text}
+                      </label>
+                      {a.dueDate && <span className="ui-digest-action-due">{a.dueDate}</span>}
                     </div>
-                    {a.dueDate && <span className="ui-digest-action-due">{a.dueDate}</span>}
-                  </div>
-                </motion.div>
-              ))}
+                  </motion.div>
+                )
+              })}
               {(!actionItems || actionItems.length === 0) && (
                 <motion.div
                   variants={itemVariants}

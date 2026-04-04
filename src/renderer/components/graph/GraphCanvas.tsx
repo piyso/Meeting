@@ -238,6 +238,8 @@ export const GraphCanvas: React.FC<GraphCanvasProps> = ({
       .join('text')
       .text(d => d.label)
       .attr('font-size', '10px')
+      // Use system-ui fallback for CJK, Devanagari, Arabic glyph coverage
+      .attr('font-family', 'var(--font-body), system-ui, sans-serif')
       .attr('fill', 'var(--color-text-primary, #e5e7eb)') // Matches dark mode
       .style('pointer-events', 'none')
       .attr('dx', 15)

@@ -1,4 +1,5 @@
 import React, { useState, useRef } from 'react'
+import { motion, AnimatePresence } from 'framer-motion'
 import './ui.css'
 
 interface TooltipProps {
@@ -29,9 +30,27 @@ export const Tooltip: React.FC<TooltipProps> = ({
   return (
     <div className="ui-tooltip-container" onMouseEnter={onMouseEnter} onMouseLeave={onMouseLeave}>
       {children}
-      {isVisible && (
-        <div className={`ui-tooltip-content tooltip-${position} stagger-child`}>{content}</div>
-      )}
+      <AnimatePresence>
+        {isVisible && (
+          <motion.div
+            initial={{
+              opacity: 0,
+              scale: 0.95,
+              y: position === 'top' ? 4 : position === 'bottom' ? -4 : 0,
+            }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{
+              opacity: 0,
+              scale: 0.95,
+              y: position === 'top' ? 4 : position === 'bottom' ? -4 : 0,
+            }}
+            transition={{ type: 'spring', stiffness: 500, damping: 30 }}
+            className={`ui-tooltip-content tooltip-${position}`}
+          >
+            {content}
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   )
 }

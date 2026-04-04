@@ -36,6 +36,10 @@ import { registerBillingHandlers } from './handlers/billing.handler'
 import { registerHighlightHandlers } from './handlers/highlight.handlers'
 import { registerShellHandlers } from './handlers/shell.handlers'
 import { registerPiyapiHandlers } from './handlers/piyapi.handlers'
+import { registerActionItemHandlers } from './handlers/action-item.handlers'
+import { registerSentimentHandlers } from './handlers/sentiment.handlers'
+import { registerCalendarHandlers } from './handlers/calendar.handlers'
+import { registerWebhookHandlers } from './handlers/webhook.handlers'
 
 /**
  * Register all IPC handlers
@@ -70,8 +74,12 @@ export function setupIPC(): void {
   registerHighlightHandlers()
   registerShellHandlers()
   registerPiyapiHandlers()
+  registerActionItemHandlers()
+  registerSentimentHandlers()
+  registerCalendarHandlers()
+  registerWebhookHandlers()
 
-  log.info('All 24 IPC handler groups registered successfully')
+  log.info('All 28 IPC handler groups registered successfully')
 }
 
 /**

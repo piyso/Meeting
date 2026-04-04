@@ -76,10 +76,38 @@ export const ConflictMergeDialog: React.FC<ConflictMergeDialogProps> = ({
           setStrategy('keep_remote')
           setMergedContent(conflict.remoteVersion)
           break
+        case 'Tab': {
+          const dialog = document.getElementById('conflict-merge-dialog')
+          if (!dialog) break
+          const focusableElements = dialog.querySelectorAll<HTMLElement>(
+            'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+          )
+          if (focusableElements.length === 0) break
+
+          const firstElement = focusableElements[0]
+          const lastElement = focusableElements[focusableElements.length - 1]
+
+          if (!firstElement || !lastElement) break
+
+          if (!e.shiftKey && document.activeElement === lastElement) {
+            firstElement.focus()
+            e.preventDefault()
+          } else if (e.shiftKey && document.activeElement === firstElement) {
+            lastElement.focus()
+            e.preventDefault()
+          }
+          break
+        }
       }
     }
 
     window.addEventListener('keydown', handleKeyDown)
+    // Auto-focus the dialog to trap initial focus
+    const dialog = document.getElementById('conflict-merge-dialog')
+    if (dialog && !dialog.contains(document.activeElement)) {
+      dialog.focus()
+    }
+
     return () => window.removeEventListener('keydown', handleKeyDown)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [strategy, mergedContent, conflict])

@@ -224,7 +224,7 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({ meetingId }) => {
 
   return (
     <div className="ui-note-editor-panel relative">
-      <div className="ui-note-editor-scroll scrollbar-webkit">
+      <div className="ui-note-editor-scroll sovereign-scrollbar">
         <EditorContent editor={editor} className="h-full" />
       </div>
       {isAIExpanding && (

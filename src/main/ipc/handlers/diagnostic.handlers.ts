@@ -8,6 +8,7 @@
 import { ipcMain, shell, systemPreferences, app } from 'electron'
 import { getDiagnosticLogger } from '../../services/DiagnosticLogger'
 import { getDatabaseService } from '../../services/DatabaseService'
+import { config } from '../../config/environment'
 import { getAuthService } from '../../services/AuthService'
 import { Logger } from '../../services/Logger'
 import os from 'os'
@@ -86,10 +87,20 @@ export function registerDiagnosticHandlers(): void {
         })
       }
     } else {
-      results.push({ system: 'Microphone', status: 'ok', message: 'Check via OS settings' })
+      // Windows/Linux: Electron auto-grants microphone access.
+      // Check if microphone devices are enumerable as a proxy for availability.
+      results.push({
+        system: 'Microphone',
+        status: 'ok',
+        message: 'Available (managed by OS privacy settings)',
+        fix:
+          process.platform === 'win32'
+            ? 'If not working: Settings → Privacy → Microphone → Allow apps to access'
+            : undefined,
+      })
     }
 
-    // 4. Screen Recording (macOS only)
+    // 4. Screen Recording / System Audio
     if (process.platform === 'darwin') {
       const screenStatus = systemPreferences.getMediaAccessStatus('screen')
       if (screenStatus === 'granted') {
@@ -102,13 +113,23 @@ export function registerDiagnosticHandlers(): void {
           fix: 'Open System Settings → Privacy → Screen Recording',
         })
       }
+    } else if (process.platform === 'win32') {
+      // Windows uses WASAPI loopback for system audio — no special permission needed
+      results.push({
+        system: 'System Audio',
+        status: 'ok',
+        message: 'Available via WASAPI loopback (no permission required)',
+      })
     }
 
     // 5. Network
     try {
       const controller = new AbortController()
       const timeout = setTimeout(() => controller.abort(), 5000)
-      const resp = await fetch('https://jjmgacvxualukdjgpsix.supabase.co/rest/v1/', {
+      const networkUrl = config.SUPABASE_URL
+        ? `${config.SUPABASE_URL}/rest/v1/`
+        : 'https://api.piyapi.cloud/health'
+      const resp = await fetch(networkUrl, {
         method: 'HEAD',
         signal: controller.signal,
       })

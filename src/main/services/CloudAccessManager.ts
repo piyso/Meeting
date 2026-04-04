@@ -62,6 +62,14 @@ export interface FeatureAccess {
   weeklyDigest: boolean // Weekly summary generation
   teamCollaboration: boolean // Team sharing and collaboration
   auditLogs: boolean // Audit logging (Enterprise only)
+
+  // New feature gates
+  actionItems: boolean // Action item extraction (all tiers — local)
+  sentimentAnalysis: boolean // Sentiment analysis (all tiers — local)
+  calendarSync: boolean // Calendar sync (Starter+ — cloud)
+  calendarAutoLink: boolean // Auto-link calendar events (Pro+ — cloud)
+  webhooks: boolean // Webhook dispatching (Starter+ — cloud)
+  webhookLimit: number // Max active webhooks (0/3/10/Infinity)
 }
 
 export class CloudAccessManager {
@@ -211,6 +219,14 @@ export class CloudAccessManager {
       weeklyDigest: limits.weeklyDigest,
       teamCollaboration: limits.teamCollaboration,
       auditLogs: limits.auditLogs,
+
+      // New features
+      actionItems: limits.actionItems, // Local-only — no cloud gate
+      sentimentAnalysis: limits.sentimentAnalysis, // Local-only — no cloud gate
+      calendarSync: limits.calendarSync && status.hasAccess, // Cloud-gated
+      calendarAutoLink: limits.calendarAutoLink && status.hasAccess, // Cloud-gated
+      webhooks: limits.webhooks && status.hasAccess, // Cloud-gated
+      webhookLimit: isUnlimited(limits.webhookLimit) ? Infinity : limits.webhookLimit,
     }
   }
 

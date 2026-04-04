@@ -121,6 +121,15 @@ export class PHIDetectionService {
 
     // Japan phone: 090-1234-5678, 03-1234-5678
     JP_PHONE: /\b0\d{1,4}[\s-]\d{2,4}[\s-]\d{3,4}\b/g,
+
+    // European: IBAN (2-letter country + 2 check + up to 30 alphanumeric)
+    IBAN: /\b[A-Z]{2}\d{2}\s?[\dA-Z]{4}\s?[\dA-Z]{4}\s?[\dA-Z]{4}\s?[\dA-Z]{0,16}\b/g,
+
+    // UK: National Insurance Number (AB 12 34 56 C)
+    UK_NINO: /\b[A-CEGHJ-PR-TW-Z]{2}\s?\d{2}\s?\d{2}\s?\d{2}\s?[A-D]\b/gi,
+
+    // Germany: Tax ID / Steuer-IdNr (11 digits)
+    DE_TAX_ID: /\b\d{2}\s?\d{3}\s?\d{3}\s?\d{3}\b/g,
   }
 
   /**

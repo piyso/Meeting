@@ -80,20 +80,3 @@
 }
 
 /* Dark mode support (future enhancement) */
-@media (prefers-color-scheme: dark) {
-  .gutter {
-    background-color: #333;
-  }
-
-  .gutter:hover {
-    background-color: #667eea;
-  }
-
-  .transcript-pane {
-    background: #1a1a1a;
-  }
-
-  .notes-pane {
-    background: #2a2a2a;
-  }
-}

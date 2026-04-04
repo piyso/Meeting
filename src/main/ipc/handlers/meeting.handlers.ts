@@ -56,10 +56,32 @@ export function registerMeetingHandlers(): void {
           isAvailable: boolean
         }> = []
         try {
-          const { systemPreferences } = await import('electron')
-          // Check for audio input devices (microphone)
-          const hasMic = systemPreferences.getMediaAccessStatus('microphone') === 'granted'
-          if (hasMic) {
+          if (process.platform === 'darwin') {
+            // macOS: use systemPreferences to check permission status
+            const { systemPreferences } = await import('electron')
+            const hasMic = systemPreferences.getMediaAccessStatus('microphone') === 'granted'
+            if (hasMic) {
+              audioDevices.push({
+                id: 'microphone-default',
+                label: 'Default Microphone',
+                kind: 'microphone',
+                isDefault: true,
+                isAvailable: true,
+              })
+            }
+            const hasScreen = systemPreferences.getMediaAccessStatus('screen') === 'granted'
+            if (hasScreen) {
+              audioDevices.push({
+                id: 'system-default',
+                label: 'System Audio',
+                kind: 'system',
+                isDefault: !hasMic,
+                isAvailable: true,
+              })
+            }
+          } else {
+            // Windows/Linux: no OS-level permission gating — Electron auto-grants
+            // media access. Always report both devices as available.
             audioDevices.push({
               id: 'microphone-default',
               label: 'Default Microphone',
@@ -67,15 +89,11 @@ export function registerMeetingHandlers(): void {
               isDefault: true,
               isAvailable: true,
             })
-          }
-          // Check for screen recording (system audio)
-          const hasScreen = systemPreferences.getMediaAccessStatus('screen') === 'granted'
-          if (hasScreen) {
             audioDevices.push({
               id: 'system-default',
               label: 'System Audio',
               kind: 'system',
-              isDefault: !hasMic,
+              isDefault: false,
               isAvailable: true,
             })
           }
@@ -375,7 +393,7 @@ export function registerMeetingHandlers(): void {
           const meetingStartSec = meeting.start_time || 0
           content = [
             `# ${meeting.title || 'Meeting'}`,
-            `**Date:** ${new Date(meeting.start_time * 1000).toLocaleString()}`,
+            `**Date:** ${new Date(meeting.start_time * 1000).toLocaleDateString(undefined, { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric', hour: 'numeric', minute: '2-digit' })}`,
             `**Duration:** ${meeting.duration ? Math.round(meeting.duration / 60) + ' minutes' : 'N/A'}`,
             '',
             '## Transcript',

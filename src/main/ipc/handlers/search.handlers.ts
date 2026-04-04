@@ -149,95 +149,54 @@ export function registerSearchHandlers(): void {
           const namespace = params.namespace || 'meetings'
           const limit = params.limit || 10
 
+          // Helper to map a cloud search hit to the result format
+          // (previously this 15-line block was copy-pasted 3× for hybrid/semantic/fuzzy)
+          const mapCloudHit = (
+            hit: {
+              memory?: { id?: string; content?: string; metadata?: Record<string, unknown> }
+              similarity?: number | string
+            },
+            source: 'cloud-hybrid' | 'cloud-semantic' | 'cloud-fuzzy',
+            defaultRelevance: number
+          ) => {
+            const isEncrypted = hit.memory?.metadata?.encrypted === true
+            const snippet = isEncrypted
+              ? String(
+                  hit.memory?.metadata?.meeting_title ||
+                    hit.memory?.metadata?.meetingTitle ||
+                    'Cloud result'
+                )
+              : (hit.memory?.content || '').substring(0, 200)
+            return {
+              snippet,
+              relevance: Number(hit.similarity) || defaultRelevance,
+              source,
+              _piyApiMemoryId: hit.memory?.id || '',
+              meeting: {
+                id: String(
+                  hit.memory?.metadata?.meeting_id || hit.memory?.metadata?.meetingId || ''
+                ),
+                title: String(
+                  hit.memory?.metadata?.meeting_title ||
+                    hit.memory?.metadata?.meetingTitle ||
+                    'Cloud Result'
+                ),
+              },
+            }
+          }
+
           if (features.hybridSearch) {
             // Pro+: Hybrid search (semantic + keyword) — best quality
             const cloudHits = await backend.hybridSearch(params.query, namespace, limit)
-            cloudResults = cloudHits.map(hit => {
-              // E-CRIT: Cloud memories are encrypted — don't show ciphertext as snippet.
-              // Use metadata title or a sanitized fallback.
-              const isEncrypted = hit.memory?.metadata?.encrypted === true
-              const snippet = isEncrypted
-                ? String(
-                    hit.memory?.metadata?.meeting_title ||
-                      hit.memory?.metadata?.meetingTitle ||
-                      'Cloud result'
-                  )
-                : (hit.memory?.content || '').substring(0, 200)
-              return {
-                snippet,
-                relevance: Number(hit.similarity) || 0.5,
-                source: 'cloud-hybrid' as const,
-                _piyApiMemoryId: hit.memory?.id || '', // P1-3: track actual PiyAPI memory ID
-                meeting: {
-                  id: String(
-                    hit.memory?.metadata?.meeting_id || hit.memory?.metadata?.meetingId || ''
-                  ),
-                  title: String(
-                    hit.memory?.metadata?.meeting_title ||
-                      hit.memory?.metadata?.meetingTitle ||
-                      'Cloud Result'
-                  ),
-                },
-              }
-            })
+            cloudResults = cloudHits.map(hit => mapCloudHit(hit, 'cloud-hybrid', 0.5))
           } else if (features.semanticSearch) {
             // Starter: Semantic search only
             const cloudHits = await backend.semanticSearch(params.query, namespace, limit)
-            cloudResults = cloudHits.map(hit => {
-              const isEncrypted = hit.memory?.metadata?.encrypted === true
-              const snippet = isEncrypted
-                ? String(
-                    hit.memory?.metadata?.meeting_title ||
-                      hit.memory?.metadata?.meetingTitle ||
-                      'Cloud result'
-                  )
-                : (hit.memory?.content || '').substring(0, 200)
-              return {
-                snippet,
-                relevance: Number(hit.similarity) || 0.5,
-                source: 'cloud-semantic' as const,
-                _piyApiMemoryId: hit.memory?.id || '', // P1-3: track actual PiyAPI memory ID
-                meeting: {
-                  id: String(
-                    hit.memory?.metadata?.meeting_id || hit.memory?.metadata?.meetingId || ''
-                  ),
-                  title: String(
-                    hit.memory?.metadata?.meeting_title ||
-                      hit.memory?.metadata?.meetingTitle ||
-                      'Cloud Result'
-                  ),
-                },
-              }
-            })
+            cloudResults = cloudHits.map(hit => mapCloudHit(hit, 'cloud-semantic', 0.5))
           } else {
             // Free tier: Fuzzy search (typo-tolerant, no plan requirement)
             const cloudHits = await backend.fuzzySearch(params.query, namespace, limit)
-            cloudResults = cloudHits.map(hit => {
-              const isEncrypted = hit.memory?.metadata?.encrypted === true
-              const snippet = isEncrypted
-                ? String(
-                    hit.memory?.metadata?.meeting_title ||
-                      hit.memory?.metadata?.meetingTitle ||
-                      'Cloud result'
-                  )
-                : (hit.memory?.content || '').substring(0, 200)
-              return {
-                snippet,
-                relevance: Number(hit.similarity) || 0.4,
-                source: 'cloud-fuzzy' as const,
-                _piyApiMemoryId: hit.memory?.id || '', // P1-3: track actual PiyAPI memory ID
-                meeting: {
-                  id: String(
-                    hit.memory?.metadata?.meeting_id || hit.memory?.metadata?.meetingId || ''
-                  ),
-                  title: String(
-                    hit.memory?.metadata?.meeting_title ||
-                      hit.memory?.metadata?.meetingTitle ||
-                      'Cloud Result'
-                  ),
-                },
-              }
-            })
+            cloudResults = cloudHits.map(hit => mapCloudHit(hit, 'cloud-fuzzy', 0.4))
           }
 
           // P1-3 FIX: Track actual PiyAPI memory IDs for feedback (not local meeting IDs)

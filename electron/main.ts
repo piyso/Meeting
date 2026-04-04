@@ -1,3 +1,55 @@
+// ─── STARTUP CRASH GUARD ──────────────────────────────────────────
+// This block MUST stay at the very top of the file, before any imports
+// that touch native modules (better-sqlite3, onnxruntime-node, keytar).
+// If a native module fails to load (wrong arch, missing DLL, etc.),
+// this ensures we get diagnostic output instead of a silent crash.
+// ───────────────────────────────────────────────────────────────────
+process.stderr.write(`[BlueArkive] Starting (${process.platform}/${process.arch}, pid=${process.pid})...\n`)
+
+process.on('uncaughtException', (err: NodeJS.ErrnoException) => {
+  // Silently ignore broken pipe (terminal closed)
+  if (err.code === 'EPIPE') return
+
+  // Attempt to write crash log BEFORE requiring electron (which may be the thing that failed)
+  try {
+    const fs = require('fs')
+    const nodePath = require('path')
+    const logDir = nodePath.join(
+      process.env.APPDATA || process.env.HOME || require('os').tmpdir(),
+      'BlueArkive'
+    )
+    fs.mkdirSync(logDir, { recursive: true })
+    const crashLogPath = nodePath.join(logDir, 'crash.log')
+    fs.appendFileSync(
+      crashLogPath,
+      `[${new Date().toISOString()}] FATAL: ${err.message}\n${err.stack || ''}\n\n`
+    )
+    process.stderr.write(`[BlueArkive] Crash logged to: ${crashLogPath}\n`)
+  } catch {
+    // Last resort: stderr
+    process.stderr.write(`[BlueArkive] FATAL (could not write crash log): ${err.message}\n`)
+  }
+
+  // Try to show an OS-level error dialog (may fail if electron itself crashed)
+  try {
+    const { dialog: dlg } = require('electron')
+    dlg.showErrorBox(
+      'BlueArkive Crashed',
+      `${err.message}\n\n` +
+        `Platform: ${process.platform}/${process.arch}\n` +
+        `Check crash log at:\n` +
+        `  Windows: %APPDATA%\\BlueArkive\\crash.log\n` +
+        `  macOS: ~/BlueArkive/crash.log\n\n` +
+        `Stack: ${err.stack?.substring(0, 500) || 'N/A'}`
+    )
+  } catch {
+    // dialog unavailable — silent exit
+  }
+
+  process.exit(1)
+})
+// ─── END CRASH GUARD ──────────────────────────────────────────────
+
 import {
   app,
   BrowserWindow,
@@ -34,17 +86,9 @@ const log = Logger.create('Main')
 let tray: Tray | null = null
 
 // ─── Global Error Handling ─────────────────────────────────
-process.on('uncaughtException', (err: NodeJS.ErrnoException) => {
-  if (err.code === 'EPIPE') return // Silently ignore — terminal closed
-
-  log.error('FATAL UNCAUGHT EXCEPTION:', err)
-  // In production, we log and try to keep running unless it's a critical native crash
-  // In development, we throw to fail fast
-  if (process.env.NODE_ENV === 'development') {
-    throw err
-  }
-})
-
+// NOTE: The top-level uncaughtException handler (crash guard) handles
+// fatal native module failures. This handler covers runtime errors
+// AFTER the app has successfully initialized.
 process.on('unhandledRejection', (reason, promise) => {
   log.error('UNHANDLED PROMISE REJECTION:', { reason, promise })
 })
@@ -76,32 +120,27 @@ function initAutoUpdater() {
   }
 }
 
-// Handle creating/removing shortcuts on Windows when installing/uninstalling.
-// NOTE: This is dead code with the current NSIS installer config.
-// NSIS handles shortcuts natively via createDesktopShortcut/createStartMenuShortcut.
-// Kept for potential future Squirrel migration.
-if (process.platform === 'win32') {
-  try {
-    if (require('electron-squirrel-startup')) {
-      app.quit()
-    }
-  } catch {
-    // Not installed, skip
-  }
-}
-
 // ─── Single instance lock ────────────────────────────────
+// On Windows (especially post-install), the NSIS installer may launch the app
+// while a previous zombie process or installer is still running. We quit
+// immediately without waiting for app.whenReady() to avoid hanging.
 const gotLock = app.requestSingleInstanceLock()
 if (!gotLock) {
-  // Show a user-visible notification instead of silently quitting
-  app.whenReady().then(() => {
-    dialog.showErrorBox(
-      'BlueArkive is Already Running',
-      'Another instance of BlueArkive is already open.\n\n' +
-        'Look for it in your taskbar/dock, or quit the existing instance first.'
-    )
+  log.warn('Another instance is already running — quitting this one')
+  // On Windows, app.whenReady() may never resolve if the other instance
+  // holds system resources. Quit synchronously instead of waiting.
+  if (process.platform === 'win32') {
     app.quit()
-  })
+  } else {
+    app.whenReady().then(() => {
+      dialog.showErrorBox(
+        'BlueArkive is Already Running',
+        'Another instance of BlueArkive is already open.\n\n' +
+          'Look for it in your taskbar/dock, or quit the existing instance first.'
+      )
+      app.quit()
+    })
+  }
 }
 
 // Focus existing window when a second instance is launched (or deep link received)
@@ -168,7 +207,8 @@ const createWindow = () => {
     minHeight: 600,
     titleBarStyle: 'hiddenInset',
     trafficLightPosition: { x: 16, y: 12 },
-    frame: process.platform === 'darwin' ? true : false,
+    // On Windows, use frameless for custom title bar — unless --safe-mode is passed
+    frame: process.platform === 'darwin' ? true : process.argv.includes('--safe-mode'),
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       nodeIntegration: false,
@@ -287,6 +327,11 @@ app
     // Initialize crash reporting first (catches errors during init)
     CrashReporter.init()
 
+    // G8: Clean up orphaned audio temp files from previous crashed sessions
+    import('../src/main/services/AudioCacheCleanup')
+      .then(({ runAudioCacheCleanup }) => runAudioCacheCleanup())
+      .catch(err => log.debug('Audio cache cleanup skipped:', err))
+
     // Initialize file logging
     Logger.initFileLogging()
 
@@ -334,16 +379,21 @@ app
       log.error(`Expected arch: ${process.arch}, platform: ${process.platform}`)
       log.error(`Failed modules:\n  - ${nativeModuleErrors.join('\n  - ')}`)
 
+      const archAdvice =
+        process.platform === 'darwin'
+          ? 'Please download the correct version for your Mac:\n• Apple Silicon (M1/M2/M3/M4) → arm64 version\n• Intel Mac → x64 version'
+          : process.platform === 'win32'
+            ? 'Please download the correct version for your PC:\n• Most PCs → x64 version'
+            : 'Please download the correct version for your system.'
+
       dialog.showErrorBox(
         'BlueArkive Cannot Start',
         `Critical components failed to load:\n\n` +
           nativeModuleErrors.map(e => `• ${e}`).join('\n') +
           `\n\nYour system: ${process.platform} ${process.arch}\n\n` +
           'This usually means the app was built for the wrong CPU architecture. ' +
-          'Please download the correct version for your Mac:\n' +
-          '• Apple Silicon (M1/M2/M3/M4) → arm64 version\n' +
-          '• Intel Mac → x64 version\n\n' +
-          `Logs: ~/Library/Logs/BlueArkive/bluearkive.log`
+          archAdvice +
+          `\n\nLogs: ${app.getPath('logs')}`
       )
       app.quit()
       return
@@ -596,6 +646,18 @@ app
         })
       }
     )
+
+    // H1: Permission request handler — explicitly control which permissions the app grants.
+    // Without this, Chromium uses defaults (auto-grant media in Electron).
+    // This gives us logging and the ability to deny unexpected permission requests.
+    session.defaultSession.setPermissionRequestHandler((_webContents, permission, callback) => {
+      const allowedPermissions = ['media', 'display-capture', 'mediaKeySystem']
+      const granted = allowedPermissions.includes(permission)
+      if (!granted) {
+        log.warn(`Denied permission request: ${permission}`)
+      }
+      callback(granted)
+    })
 
     // OPT-13: GPU crash recovery — reload renderer instead of blank screen
     if (mainWindow) {

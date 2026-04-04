@@ -21,6 +21,8 @@
  */
 
 import { PlanTier } from './CloudAccessManager'
+import { Logger } from './Logger'
+const log = Logger.create('TranscriptChunker')
 
 export interface ChunkMetadata {
   chunkIndex: number
@@ -132,15 +134,25 @@ export class TranscriptChunker {
     const chunks: TranscriptChunk[] = []
 
     // Split content into chunks at sentence/word boundaries
+    let safetyCounter = 0
     for (let i = 0; i < chunkCount; i++) {
+      // Safety: prevent infinite loop if boundary detection produces zero-length chunks
+      if (++safetyCounter > chunkCount + 10) {
+        log.error('[TranscriptChunker] Safety break — too many iterations')
+        break
+      }
+
       const start = i === 0 ? 0 : chunks.reduce((acc, c) => acc + c.content.length, 0)
       let end = Math.min(start + effectiveLimit, totalSize)
 
+      // Guard: if start >= totalSize, all content has been consumed
+      if (start >= totalSize) break
+
       // For all chunks except the last, find the nearest sentence/word boundary
       if (end < totalSize) {
-        // Try to find a sentence boundary (. ! ? followed by space or newline)
+        // Try to find a sentence boundary (. ! ? 。 ！ ？ followed by space/newline or CJK terminator at end)
         const searchRegion = content.substring(Math.max(start, end - 200), end)
-        const sentenceMatch = searchRegion.match(/.*[.!?\n]\s/)
+        const sentenceMatch = searchRegion.match(/.*[.!?\n。！？]\s?/)
         if (sentenceMatch && sentenceMatch.index !== undefined) {
           end = Math.max(start, end - 200) + sentenceMatch.index + sentenceMatch[0].length
         } else {
@@ -150,6 +162,11 @@ export class TranscriptChunker {
             end = lastSpace + 1
           }
         }
+      }
+
+      // Safety: ensure we always advance (prevent zero-length chunks)
+      if (end <= start) {
+        end = Math.min(start + effectiveLimit, totalSize)
       }
 
       const chunkContent = content.substring(start, end)

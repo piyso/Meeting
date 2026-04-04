@@ -9,7 +9,7 @@
   height: 100%;
   display: flex;
   overflow: hidden;
-  background: var(--color-bg-root);
+  background: transparent;
   color: var(--color-text-primary);
   position: relative;
 }
@@ -19,7 +19,7 @@
   left: 0;
   right: 0;
   height: 32px;
-  z-index: 50;
+  z-index: var(--z-overlay-base);
 }
 .ui-app-main {
   display: flex;
@@ -40,7 +40,7 @@
 .ui-app-onboarding {
   width: 100%;
   height: 100%;
-  background: var(--color-bg-root);
+  background: transparent;
   color: var(--color-text-primary);
 }
 
@@ -53,7 +53,7 @@
   transform: translateY(-50%) translateZ(0); /* Center vertically & GPU composite */
   width: 68px;
   padding: 24px 8px;
-  z-index: 50;
+  z-index: var(--z-overlay-base);
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -106,7 +106,7 @@
   width: max-content;
   min-width: 120px;
   max-width: 500px;
-  z-index: 40;
+  z-index: var(--z-island);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -513,7 +513,7 @@ body[data-platform='win32'] .ui-dynamic-island {
   height: 28px;
   background: rgba(30, 30, 34, 0.9);
   border-top: 1px solid var(--color-border-subtle);
-  z-index: 30;
+  z-index: var(--z-navigation);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -541,7 +541,7 @@ body[data-platform='win32'] .ui-dynamic-island {
   left: 50%;
   top: 16px;
   transform: translateX(-50%) translateY(-10px);
-  z-index: 50;
+  z-index: var(--z-overlay-base);
   background: rgba(15, 15, 17, 0.85);
   backdrop-filter: blur(24px);
   -webkit-backdrop-filter: blur(24px);

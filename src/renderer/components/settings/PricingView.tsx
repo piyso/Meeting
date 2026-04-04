@@ -75,7 +75,7 @@ export const PricingView: React.FC<{ onPlanSelect?: (plan: string) => void }> = 
   }
 
   return (
-    <div className="w-full flex flex-col items-center p-4 overflow-y-auto scrollbar-webkit">
+    <div className="w-full flex flex-col items-center p-4 overflow-y-auto sovereign-scrollbar">
       {/* Currency Toggle */}
       <div className="flex items-center gap-2 mb-8 bg-[var(--color-bg-elevated)] p-1 rounded-full border border-[var(--color-border-subtle)] animate-fade-in">
         <button

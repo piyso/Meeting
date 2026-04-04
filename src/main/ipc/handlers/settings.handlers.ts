@@ -84,13 +84,21 @@ export function registerSettingsHandlers(): void {
         now
       )
 
-      // Propagate language changes to ASR service (reaches worker thread)
+      // Propagate language changes to ASR and Cloud Transcription services
       if (params.key === 'transcription_language' && typeof params.value === 'string') {
         try {
           getASRService().setLanguage(params.value)
         } catch (e) {
           // ASR service may not be initialized yet — language will be picked up on next init
           void e // Logged at debug level intentionally — non-critical
+        }
+        // Also propagate to cloud transcription (Deepgram language parameter)
+        try {
+          const { getCloudTranscriptionService } =
+            await import('../../services/CloudTranscriptionService')
+          getCloudTranscriptionService().setLanguage(params.value)
+        } catch {
+          // Cloud service may not be initialized — language will be picked up on next session
         }
       }
 

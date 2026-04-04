@@ -262,36 +262,26 @@ export default function WeeklyDigestView() {
     return { start, end }
   }
 
-  /** Format a date range for display, e.g. "Mar 3 – 9, 2026" */
+  /** Format a date range for display — uses system locale for month names */
   function formatDateRange(startMs: number, endMs: number): string {
     const s = new Date(startMs)
     const e = new Date(endMs)
-    const monthNames = [
-      'Jan',
-      'Feb',
-      'Mar',
-      'Apr',
-      'May',
-      'Jun',
-      'Jul',
-      'Aug',
-      'Sep',
-      'Oct',
-      'Nov',
-      'Dec',
-    ]
+    // Use Intl.DateTimeFormat for locale-aware month names instead of hardcoded English
+    const monthFmt = new Intl.DateTimeFormat(undefined, { month: 'short' })
+    const sMonth = monthFmt.format(s)
+    const eMonth = monthFmt.format(e)
     if (
       s.getMonth() === e.getMonth() &&
       s.getFullYear() === e.getFullYear() &&
       s.getDate() === e.getDate()
     ) {
       // Same day (daily period)
-      return `${monthNames[s.getMonth()]} ${s.getDate()}, ${e.getFullYear()}`
+      return `${sMonth} ${s.getDate()}, ${e.getFullYear()}`
     }
     if (s.getMonth() === e.getMonth() && s.getFullYear() === e.getFullYear()) {
-      return `${monthNames[s.getMonth()]} ${s.getDate()} – ${e.getDate()}, ${e.getFullYear()}`
+      return `${sMonth} ${s.getDate()} – ${e.getDate()}, ${e.getFullYear()}`
     }
-    return `${monthNames[s.getMonth()]} ${s.getDate()} – ${monthNames[e.getMonth()]} ${e.getDate()}, ${e.getFullYear()}`
+    return `${sMonth} ${s.getDate()} – ${eMonth} ${e.getDate()}, ${e.getFullYear()}`
   }
 
   const periodLabel =
@@ -482,7 +472,7 @@ export default function WeeklyDigestView() {
         </div>
       </header>
 
-      <div className="ui-digest-content scrollbar-webkit sovereign-scrollbar">
+      <div className="ui-digest-content sovereign-scrollbar">
         {isLoading && !isGenerating ? (
           <DigestSkeleton />
         ) : error ? (

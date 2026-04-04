@@ -121,7 +121,7 @@ export const AuditLogViewer: React.FC = () => {
             No audit logs recorded yet.
           </div>
         ) : (
-          <div className="overflow-y-auto flex-1 scrollbar-webkit p-1 text-[13px]">
+          <div className="overflow-y-auto flex-1 sovereign-scrollbar p-1 text-[13px]">
             <table className="w-full text-left">
               <thead className="bg-[#1a1a1a] sticky top-0 border-b border-[var(--color-border-subtle)] shadow-sm">
                 <tr>

@@ -5,7 +5,7 @@
  * Includes tables, indexes, FTS5 full-text search, and triggers.
  */
 
-export const SCHEMA_VERSION = 3
+export const SCHEMA_VERSION = 4
 
 /**
  * Core table schemas
@@ -154,6 +154,7 @@ CREATE TABLE IF NOT EXISTS action_items (
   deadline INTEGER,
   priority TEXT DEFAULT 'normal',
   status TEXT DEFAULT 'open',
+  source TEXT DEFAULT 'manual',
   created_at INTEGER DEFAULT (strftime('%s', 'now')),
   completed_at INTEGER,
   FOREIGN KEY (meeting_id) REFERENCES meetings(id) ON DELETE CASCADE
@@ -193,6 +194,69 @@ CREATE TABLE IF NOT EXISTS audio_highlights (
   color TEXT DEFAULT '#7c3aed',
   created_at INTEGER DEFAULT (strftime('%s', 'now')),
   FOREIGN KEY (meeting_id) REFERENCES meetings(id) ON DELETE CASCADE
+);
+
+-- Sentiment scores per transcript segment
+CREATE TABLE IF NOT EXISTS sentiment_scores (
+  id TEXT PRIMARY KEY,
+  meeting_id TEXT NOT NULL,
+  transcript_id TEXT,
+  score REAL NOT NULL,
+  label TEXT NOT NULL DEFAULT 'neutral',
+  confidence REAL NOT NULL DEFAULT 0.5,
+  source TEXT NOT NULL DEFAULT 'heuristic',
+  speaker_name TEXT,
+  timestamp_sec INTEGER NOT NULL,
+  created_at INTEGER DEFAULT (strftime('%s', 'now')),
+  FOREIGN KEY (meeting_id) REFERENCES meetings(id) ON DELETE CASCADE,
+  FOREIGN KEY (transcript_id) REFERENCES transcripts(id) ON DELETE SET NULL
+);
+
+-- Calendar events from Apple ICS / Google Calendar
+CREATE TABLE IF NOT EXISTS calendar_events (
+  id TEXT PRIMARY KEY,
+  provider TEXT NOT NULL DEFAULT 'apple',
+  external_id TEXT NOT NULL,
+  title TEXT NOT NULL,
+  description TEXT,
+  location TEXT,
+  start_time INTEGER NOT NULL,
+  end_time INTEGER NOT NULL,
+  attendees TEXT,
+  meeting_id TEXT,
+  organizer TEXT,
+  is_all_day INTEGER DEFAULT 0,
+  created_at INTEGER DEFAULT (strftime('%s', 'now')),
+  synced_at INTEGER DEFAULT (strftime('%s', 'now')),
+  FOREIGN KEY (meeting_id) REFERENCES meetings(id) ON DELETE SET NULL
+);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_calendar_provider_ext ON calendar_events(provider, external_id);
+
+-- Webhook endpoint registrations
+CREATE TABLE IF NOT EXISTS webhooks (
+  id TEXT PRIMARY KEY,
+  url TEXT NOT NULL,
+  events TEXT NOT NULL DEFAULT '[]',
+  secret TEXT NOT NULL,
+  description TEXT,
+  is_active INTEGER DEFAULT 1,
+  created_at INTEGER DEFAULT (strftime('%s', 'now')),
+  updated_at INTEGER DEFAULT (strftime('%s', 'now'))
+);
+
+-- Webhook delivery log
+CREATE TABLE IF NOT EXISTS webhook_deliveries (
+  id TEXT PRIMARY KEY,
+  webhook_id TEXT NOT NULL,
+  event_type TEXT NOT NULL,
+  payload TEXT NOT NULL,
+  status_code INTEGER,
+  response_body TEXT,
+  status TEXT NOT NULL DEFAULT 'pending',
+  retry_count INTEGER DEFAULT 0,
+  next_retry_at INTEGER,
+  created_at INTEGER DEFAULT (strftime('%s', 'now')),
+  FOREIGN KEY (webhook_id) REFERENCES webhooks(id) ON DELETE CASCADE
 );
 `
 
@@ -246,6 +310,23 @@ CREATE INDEX IF NOT EXISTS idx_audio_highlights_meeting ON audio_highlights(meet
 
 -- Query usage index
 CREATE INDEX IF NOT EXISTS idx_query_usage_timestamp ON query_usage(timestamp);
+
+-- Action items deadline index (overdue query)
+CREATE INDEX IF NOT EXISTS idx_action_items_deadline ON action_items(deadline) WHERE deadline IS NOT NULL;
+
+-- Sentiment indexes
+CREATE INDEX IF NOT EXISTS idx_sentiment_meeting_time ON sentiment_scores(meeting_id, timestamp_sec);
+CREATE INDEX IF NOT EXISTS idx_sentiment_speaker ON sentiment_scores(meeting_id, speaker_name);
+
+-- Calendar indexes
+CREATE INDEX IF NOT EXISTS idx_calendar_time ON calendar_events(start_time);
+CREATE INDEX IF NOT EXISTS idx_calendar_meeting ON calendar_events(meeting_id);
+
+-- Webhook indexes
+CREATE INDEX IF NOT EXISTS idx_webhooks_active ON webhooks(is_active);
+CREATE INDEX IF NOT EXISTS idx_deliveries_webhook ON webhook_deliveries(webhook_id);
+CREATE INDEX IF NOT EXISTS idx_deliveries_status ON webhook_deliveries(status);
+CREATE INDEX IF NOT EXISTS idx_deliveries_created ON webhook_deliveries(created_at DESC);
 `
 
 /**
@@ -271,6 +352,13 @@ CREATE VIRTUAL TABLE IF NOT EXISTS notes_fts USING fts5(
 CREATE VIRTUAL TABLE IF NOT EXISTS entities_fts USING fts5(
   text,
   content=entities,
+  content_rowid=rowid
+);
+
+-- Action items full-text search
+CREATE VIRTUAL TABLE IF NOT EXISTS action_items_fts USING fts5(
+  text,
+  content=action_items,
   content_rowid=rowid
 );
 `
@@ -333,6 +421,24 @@ BEGIN
   INSERT INTO entities_fts(entities_fts, rowid, text)
   VALUES ('delete', old.rowid, old.text);
   INSERT INTO entities_fts(rowid, text) VALUES (new.rowid, new.text);
+END;
+
+-- Action items FTS triggers
+CREATE TRIGGER IF NOT EXISTS action_items_fts_insert AFTER INSERT ON action_items BEGIN
+  INSERT INTO action_items_fts(rowid, text) VALUES (new.rowid, new.text);
+END;
+
+CREATE TRIGGER IF NOT EXISTS action_items_fts_delete AFTER DELETE ON action_items BEGIN
+  INSERT INTO action_items_fts(action_items_fts, rowid, text)
+  VALUES ('delete', old.rowid, old.text);
+END;
+
+CREATE TRIGGER IF NOT EXISTS action_items_fts_update AFTER UPDATE ON action_items
+  WHEN old.text IS NOT new.text
+BEGIN
+  INSERT INTO action_items_fts(action_items_fts, rowid, text)
+  VALUES ('delete', old.rowid, old.text);
+  INSERT INTO action_items_fts(rowid, text) VALUES (new.rowid, new.text);
 END;
 `
 

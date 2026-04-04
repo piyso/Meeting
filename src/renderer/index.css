@@ -43,8 +43,8 @@
   /* Text Hierarchy (High Contrast) */
   --color-text-primary: #ffffff;
   --color-text-secondary: #8e8e93; /* Apple native secondary grey */
-  --color-text-tertiary: #636366; /* Apple native tertiary grey */
-  --color-text-muted: #636366; /* System grey — readable against dark surfaces */
+  --color-text-tertiary: #8e8e93; /* Fixed HC contrast (was #636366). Meets WCAG AA 4.5:1 */
+  --color-text-muted: #8e8e93; /* System grey — readable against dark surfaces */
   --color-title: #ffffff; /* Used in prominent dialog headers */
 
   /* Semantic Accents (Desaturated & Elegant) */
@@ -66,8 +66,8 @@
   --chip-action-text: #fda4af;
 
   /* Typography (Apple Tahoe / SF Pro Emulation via Instrument Sans) */
-  --font-heading: 'Instrument Sans', 'SF Pro Display', -apple-system, system-ui, sans-serif;
-  --font-body: 'Instrument Sans', 'SF Pro Text', -apple-system, system-ui, sans-serif;
+  --font-heading: 'Instrument Sans', 'SF Pro Display', -apple-system, system-ui, 'Noto Sans', sans-serif;
+  --font-body: 'Instrument Sans', 'SF Pro Text', -apple-system, system-ui, 'Noto Sans', sans-serif;
   --font-mono: 'Geist Mono', 'SF Mono', 'JetBrains Mono', monospace;
 
   /* Type Scale */
@@ -131,6 +131,18 @@
   --radius-xl: 20px;
   --radius-full: 9999px;
 
+  /* Layer Management (Z-Index Scale) */
+  --z-base: 0;
+  --z-content: 10;
+  --z-floating: 20;
+  --z-navigation: 30;      /* Fixed bars, offline banners */
+  --z-island: 40;          /* DynamicIsland must sit above nav */
+  --z-overlay-base: 50;    /* ZenRail, Command Prompters */
+  --z-modal: 100;          /* Full screen modals */
+  --z-popover: 200;        /* Floating menus, tooltips */
+  --z-toast: 300;          /* Toast notifications */
+  --z-splash: 9999;        /* Initial load splash screen */
+
   /* Timing Functions */
   --ease-spring: cubic-bezier(0.175, 0.885, 0.32, 1.1);
   --ease-fluid: cubic-bezier(0.16, 1, 0.3, 1);
@@ -151,6 +163,30 @@
   padding: 0;
 }
 
+/* ── Universal Accessibility Overrides (WCAG 2.2 AA) ── */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+@media (prefers-contrast: high) {
+  :root {
+    --color-bg-glass: rgba(0, 0, 0, 1);
+    --color-bg-glass-hover: rgba(40, 40, 40, 1);
+    --color-bg-panel: rgba(0, 0, 0, 1);
+    --color-bg-active: rgba(80, 80, 80, 1);
+    --color-border: rgba(255, 255, 255, 0.4);
+    --color-border-subtle: rgba(255, 255, 255, 0.2);
+    --color-border-inset: rgba(255, 255, 255, 0.2);
+    --color-text-tertiary: #c7c7cc;
+    --color-text-muted: #c7c7cc;
+  }
+}
+
 html,
 body,
 #root {
@@ -158,8 +194,8 @@ body,
   /* Apple-like Ambient Mesh: Deep void with microscopic atmospheric light for glass to refract */
   background-color: #020203;
   background-image:
-    radial-gradient(ellipse at 80% 0%, rgba(167, 139, 250, 0.05) 0%, transparent 50%),
-    radial-gradient(ellipse at 10% 100%, rgba(56, 189, 248, 0.03) 0%, transparent 40%);
+    radial-gradient(ellipse at 80% 0%, rgba(167, 139, 250, 0.12) 0%, transparent 50%),
+    radial-gradient(ellipse at 10% 100%, rgba(56, 189, 248, 0.08) 0%, transparent 40%);
   background-attachment: fixed;
   color: var(--color-text-primary);
   font-family: var(--font-body);

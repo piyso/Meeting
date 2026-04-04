@@ -69,40 +69,6 @@
 }
 
 /* Dark Mode Support */
-@media (prefers-color-scheme: dark) {
-  .settings-page {
-    background: #121212;
-  }
-
-  .settings-header h1 {
-    color: #ffffff;
-  }
-
-  .settings-subtitle {
-    color: #b0b0b0;
-  }
-
-  .settings-section {
-    background: #1e1e1e;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
-  }
-
-  .section-header {
-    border-bottom-color: #333;
-  }
-
-  .section-header h2 {
-    color: #ffffff;
-  }
-
-  .section-description {
-    color: #b0b0b0;
-  }
-
-  .placeholder-text {
-    color: #666;
-  }
-}
 
 /* Responsive Design */
 @media (max-width: 768px) {

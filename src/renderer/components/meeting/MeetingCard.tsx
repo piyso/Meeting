@@ -49,13 +49,13 @@ export const MeetingCard: React.FC<MeetingCardProps> = ({
   }
 
   // Format the date for display
-  const formattedDate = date.toLocaleDateString('en-US', {
+  const formattedDate = date.toLocaleDateString(undefined, {
     weekday: 'long',
     month: 'short',
     day: 'numeric',
   })
 
-  const formattedTime = date.toLocaleTimeString('en-US', {
+  const formattedTime = date.toLocaleTimeString(undefined, {
     hour: 'numeric',
     minute: '2-digit',
     hour12: true,

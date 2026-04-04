@@ -1003,6 +1003,81 @@ export interface ElectronAPI {
     delete: (id: string) => Promise<IPCResponse<{ deleted: boolean }>>
   }
 
+  // Action Item operations
+  actionItem: {
+    list: (params: {
+      meetingId?: string
+      status?: string
+    }) => Promise<IPCResponse<import('./features').ActionItem[]>>
+    create: (
+      params: import('./features').CreateActionItemInput
+    ) => Promise<IPCResponse<import('./features').ActionItem>>
+    update: (params: {
+      id: string
+      updates: import('./features').UpdateActionItemInput
+    }) => Promise<IPCResponse<import('./features').ActionItem>>
+    delete: (params: { id: string }) => Promise<IPCResponse<void>>
+    extract: (params: {
+      meetingId: string
+    }) => Promise<IPCResponse<import('./features').ActionItem[]>>
+    extractRealTime: (params: {
+      text: string
+      meetingId: string
+    }) => Promise<IPCResponse<unknown[]>>
+    getOverdue: () => Promise<IPCResponse<import('./features').ActionItem[]>>
+    stats: () => Promise<IPCResponse<{ open: number; completed: number; overdue: number }>>
+  }
+
+  // Sentiment Analysis operations
+  sentiment: {
+    analyze: (params: {
+      meetingId: string
+    }) => Promise<IPCResponse<import('./features').SentimentScore[]>>
+    getByMeeting: (params: {
+      meetingId: string
+    }) => Promise<IPCResponse<import('./features').SentimentScore[]>>
+    getMood: (params: {
+      meetingId: string
+    }) => Promise<IPCResponse<import('./features').MeetingMood | null>>
+    getTimeline: (params: {
+      meetingId: string
+    }) => Promise<IPCResponse<import('./features').SentimentScore[]>>
+  }
+
+  // Calendar operations
+  calendar: {
+    sync: (params: { provider: 'google' | 'apple' }) => Promise<IPCResponse<{ synced: number }>>
+    list: (params: {
+      start: number
+      end: number
+    }) => Promise<IPCResponse<import('./features').CalendarEvent[]>>
+    link: (params: { eventId: string; meetingId: string }) => Promise<IPCResponse<void>>
+    autoLink: (params: {
+      meetingId: string
+    }) => Promise<IPCResponse<import('./features').CalendarEvent | null>>
+    getPreContext: (params: { eventId: string }) => Promise<IPCResponse<{ context: string }>>
+  }
+
+  // Webhook operations
+  webhook: {
+    list: () => Promise<IPCResponse<import('./features').Webhook[]>>
+    create: (params: {
+      url: string
+      events: string[]
+      description?: string
+    }) => Promise<IPCResponse<import('./features').Webhook>>
+    update: (params: {
+      id: string
+      updates: import('./features').UpdateWebhookInput
+    }) => Promise<IPCResponse<import('./features').Webhook>>
+    delete: (params: { id: string }) => Promise<IPCResponse<void>>
+    test: (params: { id: string }) => Promise<IPCResponse<{ success: boolean; status?: number }>>
+    getDeliveries: (params: {
+      webhookId: string
+      limit?: number
+    }) => Promise<IPCResponse<import('./features').WebhookDelivery[]>>
+  }
+
   // Window controls (Windows title bar)
   windowControls: {
     minimize: () => Promise<IPCResponse>
@@ -1043,6 +1118,15 @@ export interface ElectronAPI {
     bookmarkRequested: (callback: () => void) => () => void
     pauseRequested: (callback: () => void) => () => void
     quickNoteRequested: (callback: (text: string) => void) => () => void
+    actionItemDetected: (
+      callback: (data: import('./features').ActionItemDetectedEvent) => void
+    ) => () => void
+    sentimentUpdate: (
+      callback: (data: import('./features').SentimentUpdateEvent) => void
+    ) => () => void
+    calendarEventSoon: (
+      callback: (data: import('./features').CalendarEventSoonEvent) => void
+    ) => () => void
     deepLink: (callback: (url: string) => void) => () => void
     windowMaximized: (callback: () => void) => () => void
     windowUnmaximized: (callback: () => void) => () => void

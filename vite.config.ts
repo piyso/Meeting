@@ -23,7 +23,24 @@ const envKeys = [
 ]
 const electronDefine: Record<string, string> = {}
 for (const key of envKeys) {
-  electronDefine[`process.env.${key}`] = JSON.stringify(envVars[key] || process.env[key] || '')
+  const value = envVars[key] || process.env[key] || ''
+  electronDefine[`process.env.${key}`] = JSON.stringify(value)
+}
+
+// Build-time validation: catch misconfigured GitHub Secrets that would produce broken builds.
+// If SUPABASE_ANON_KEY is set to the literal string 'supabase_anon_key' (the variable name
+// itself rather than the actual JWT), the Supabase JS client will concatenate it into the
+// URL hostname, causing DNS failures like 'xxx.supabase.cosupabase_anon_key'.
+const criticalKeys = ['SUPABASE_URL', 'SUPABASE_ANON_KEY'] as const
+for (const key of criticalKeys) {
+  const val = JSON.parse(electronDefine[`process.env.${key}`])
+  if (val && val === key.toLowerCase()) {
+    throw new Error(
+      `\n❌ BUILD ERROR: process.env.${key} is set to the literal string "${val}".\n` +
+        `   This is the variable NAME, not its VALUE.\n` +
+        `   Check your .env file or GitHub Secrets configuration.\n`
+    )
+  }
 }
 
 // All native Node.js built-in modules (with and without node: prefix)
@@ -36,7 +53,6 @@ const nativeModules = [
   'onnxruntime-node',
   'node-llama-cpp',
   'keytar',
-  'electron-squirrel-startup',
 ]
 
 const allExternals = [...nativeModules, ...nodeBuiltins]

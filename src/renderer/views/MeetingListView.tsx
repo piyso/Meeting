@@ -1,10 +1,11 @@
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import { modKey } from '../utils/platformShortcut'
 import '../views/views.css'
-import { Plus, FileText, Search } from 'lucide-react'
+import { Plus, FileText, Search, MicOff } from 'lucide-react'
 import { useAppStore } from '../store/appStore'
 import { MeetingCard } from '../components/meeting/MeetingCard'
 import { NewMeetingDialog } from '../components/meeting/NewMeetingDialog'
+import { CalendarStrip } from '../components/calendar/CalendarStrip'
 import { EmptyState } from '../components/ui/EmptyState'
 import { MeetingCardSkeleton } from '../components/ui/Skeletons'
 import { Button } from '../components/ui/Button'
@@ -221,7 +222,7 @@ export default function MeetingListView() {
       } else if (meetingDay.getTime() === yesterday.getTime()) {
         label = 'Yesterday'
       } else {
-        label = meetingDay.toLocaleDateString('en-US', {
+        label = meetingDay.toLocaleDateString(undefined, {
           weekday: 'long',
           month: 'short',
           day: 'numeric',
@@ -316,7 +317,7 @@ export default function MeetingListView() {
   }
 
   return (
-    <div ref={scrollRef} className="ui-view-meeting-list scrollbar-webkit sovereign-scrollbar">
+    <div ref={scrollRef} className="ui-view-meeting-list sovereign-scrollbar">
       <motion.div
         className="ui-view-meeting-list-header"
         initial={{ opacity: 0, y: -20 }}
@@ -413,6 +414,15 @@ export default function MeetingListView() {
         </div>
       </motion.div>
 
+      {/* --- TIMELINE STRIP --- */}
+      <div className="px-6 mb-2 mt-[-8px]">
+        <CalendarStrip
+          selectedDate={new Date()}
+          onSelectDate={() => {}}
+          meetingDates={meetings.map(m => new Date(m.start_time * 1000))}
+        />
+      </div>
+
       <div
         className="ui-view-meeting-list-sections"
         style={{
@@ -420,82 +430,105 @@ export default function MeetingListView() {
           position: 'relative',
         }}
       >
-        {rowVirtualizer.getVirtualItems().map(virtualItem => {
-          const row = virtualRows[virtualItem.index]
-          if (!row) return null
+        {meetings.length === 0 ? (
+          <div className="mt-8 animate-fade-in mx-6">
+            <EmptyState
+              icon={MicOff}
+              title="No Meetings Recorded Yet"
+              description="Start your first Sovereign recording session to begin populating your cosmic local memory."
+              action={
+                <Button variant="primary" onClick={() => setDialogOpen(true)}>
+                  Start First Session
+                </Button>
+              }
+            />
+          </div>
+        ) : filteredMeetings.length === 0 ? (
+          <div className="mt-8 animate-fade-in mx-6">
+            <EmptyState
+              icon={Search}
+              title="No search results"
+              description={`We couldn't find any meetings matching "${searchQuery}".`}
+            />
+          </div>
+        ) : (
+          rowVirtualizer.getVirtualItems().map(virtualItem => {
+            const row = virtualRows[virtualItem.index]
+            if (!row) return null
 
-          return (
-            <div
-              key={virtualItem.key}
-              style={{
-                position: 'absolute',
-                top: 0,
-                left: 0,
-                width: '100%',
-                transform: `translateY(${virtualItem.start}px)`,
-                paddingBottom: '24px', // gap equivalent
-              }}
-            >
-              {row.type === 'header' ? (
-                <motion.h2
-                  className="ui-view-meeting-list-section-title !mb-0 border-none pb-2"
-                  initial={{ opacity: 0, x: -20 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{
-                    delay: 0.1,
-                    type: 'spring',
-                    stiffness: 350,
-                    damping: 28,
-                    mass: 0.8,
-                  }}
-                >
-                  {row.label}
-                </motion.h2>
-              ) : (
-                <motion.div
-                  style={{
-                    display: 'grid',
-                    gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))`,
-                    gap: '20px',
-                  }}
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  transition={{ staggerChildren: 0.05 }}
-                >
-                  {row.items.map((m: MeetingItem, i: number) => (
-                    <MeetingCard
-                      key={m.id}
-                      id={m.id}
-                      title={m.title ?? 'Untitled Meeting'}
-                      date={new Date(m.start_time * 1000)}
-                      duration={m.duration || 0}
-                      hasTranscript={m.has_transcript || false}
-                      hasNotes={m.has_notes || false}
-                      participantCount={m.participant_count || 1}
-                      index={virtualItem.index * columns + i}
-                      isRenaming={renamingMeetingId === m.id}
-                      onRenameSubmit={(newTitle: string) => {
-                        if (newTitle && newTitle !== m.title) {
-                          renameMeeting.mutate({ id: m.id, title: newTitle })
-                        } else {
-                          setRenamingMeetingId(null)
-                        }
-                      }}
-                      onClick={(id: string) => {
-                        if (renamingMeetingId) {
-                          setRenamingMeetingId(null)
-                          return
-                        }
-                        navigate('meeting-detail', id)
-                      }}
-                      onContextMenu={handleContextMenu}
-                    />
-                  ))}
-                </motion.div>
-              )}
-            </div>
-          )
-        })}
+            return (
+              <div
+                key={virtualItem.key}
+                style={{
+                  position: 'absolute',
+                  top: 0,
+                  left: 0,
+                  width: '100%',
+                  transform: `translateY(${virtualItem.start}px)`,
+                  paddingBottom: '24px', // gap equivalent
+                }}
+              >
+                {row.type === 'header' ? (
+                  <motion.h2
+                    className="ui-view-meeting-list-section-title !mb-0 border-none pb-2"
+                    initial={{ opacity: 0, x: -20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{
+                      delay: 0.1,
+                      type: 'spring',
+                      stiffness: 350,
+                      damping: 28,
+                      mass: 0.8,
+                    }}
+                  >
+                    {row.label}
+                  </motion.h2>
+                ) : (
+                  <motion.div
+                    style={{
+                      display: 'grid',
+                      gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))`,
+                      gap: '20px',
+                    }}
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    transition={{ staggerChildren: 0.05 }}
+                  >
+                    {row.items.map((m: MeetingItem, i: number) => (
+                      <MeetingCard
+                        key={m.id}
+                        id={m.id}
+                        title={m.title ?? 'Untitled Meeting'}
+                        date={new Date(m.start_time * 1000)}
+                        duration={m.duration || 0}
+                        hasTranscript={m.has_transcript || false}
+                        hasNotes={m.has_notes || false}
+                        participantCount={m.participant_count || 1}
+                        index={virtualItem.index * columns + i}
+                        isRenaming={renamingMeetingId === m.id}
+                        onRenameSubmit={(newTitle: string) => {
+                          if (newTitle && newTitle !== m.title) {
+                            renameMeeting.mutate({ id: m.id, title: newTitle })
+                          } else {
+                            setRenamingMeetingId(null)
+                          }
+                        }}
+                        onClick={(id: string) => {
+                          if (renamingMeetingId) {
+                            setRenamingMeetingId(null)
+                            return
+                          }
+                          navigate('meeting-detail', id)
+                        }}
+                        onContextMenu={handleContextMenu}
+                      />
+                    ))}
+                  </motion.div>
+                )}
+              </div>
+            )
+          })
+        )}
       </div>
 
       <NewMeetingDialog

@@ -40,7 +40,7 @@ export const AudioCaptureWithPermissions: React.FC<AudioCaptureWithPermissionsPr
     checkPermissionStatus()
   }, [])
 
-  const checkPermissionStatus = async () => {
+  const checkPermissionStatus = async (): Promise<string> => {
     try {
       const result = await window.electronAPI?.audio?.getScreenRecordingPermission()
 
@@ -50,10 +50,12 @@ export const AudioCaptureWithPermissions: React.FC<AudioCaptureWithPermissionsPr
         if (result.data.guidance) {
           setGuidance(result.data.guidance)
         }
+        return result.data.status
       }
     } catch (error) {
       log.error('Error checking permission:', error)
     }
+    return 'unknown'
   }
 
   const startCapture = async (mode: 'system' | 'microphone' | 'cloud' = 'system') => {
@@ -62,17 +64,31 @@ export const AudioCaptureWithPermissions: React.FC<AudioCaptureWithPermissionsPr
       const isMacOS = window.electronAPI?.platform === 'darwin'
 
       if (isMacOS) {
-        await checkPermissionStatus()
+        // Use return value directly — React setState is async, so `permissionStatus`
+        // state would still be stale at the if-checks below
+        const currentStatus = await checkPermissionStatus()
 
-        // If permission not granted, show permission flow
-        if (permissionStatus === 'not-determined') {
+        if (currentStatus === 'not-determined') {
           setShowPermissionFlow(true)
           return
         }
 
-        if (permissionStatus === 'denied') {
+        if (currentStatus === 'denied') {
           setShowPermissionDialog(true)
           return
+        }
+      } else {
+        // G2: Windows/Linux pre-flight — verify at least one audio device exists
+        try {
+          const devices = await navigator.mediaDevices.enumerateDevices()
+          const hasAudioInput = devices.some(d => d.kind === 'audioinput')
+          if (!hasAudioInput) {
+            log.error('No audio input devices found')
+            onCaptureFailed('No audio input devices found on this system')
+            return
+          }
+        } catch (enumErr) {
+          log.warn('Device enumeration failed (non-blocking):', enumErr)
         }
       }
     }
@@ -84,7 +100,8 @@ export const AudioCaptureWithPermissions: React.FC<AudioCaptureWithPermissionsPr
 
       const result = await window.electronAPI?.audio?.startCapture({
         meetingId,
-        fallbackToMicrophone: mode === 'microphone',
+        // G1-FIX: Was `mode === 'microphone'` — must enable fallback for system mode too
+        fallbackToMicrophone: mode !== 'cloud',
       })
 
       if (result?.success) {

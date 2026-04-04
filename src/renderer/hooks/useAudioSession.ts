@@ -40,13 +40,27 @@ export function useAudioSession(meetingId: string | null) {
     async (mode: CaptureMode = 'system'): Promise<boolean> => {
       if (!meetingId) return false
 
-      // Check permission for system mode on Mac
+      // Check permission for system mode on Mac, device availability on Windows
       if (mode === 'system') {
         const isMacOS = window.electronAPI?.platform === 'darwin'
         if (isMacOS) {
           const status = await checkPermissionStatus()
           if (status === 'not-determined' || status === 'denied') {
             return false // Flow will be handled by UI observing permissionStatus
+          }
+        } else {
+          // G2: Windows/Linux pre-flight — verify at least one audio device exists
+          // Without this, startCapture proceeds silently and produces a blank recording
+          try {
+            const devices = await navigator.mediaDevices.enumerateDevices()
+            const hasAudioInput = devices.some(d => d.kind === 'audioinput')
+            if (!hasAudioInput) {
+              log.error('No audio input devices found — cannot start capture')
+              return false
+            }
+          } catch (enumErr) {
+            log.warn('Device enumeration failed (non-blocking):', enumErr)
+            // Continue anyway — capture may still work via WASAPI loopback
           }
         }
       }
@@ -57,7 +71,9 @@ export function useAudioSession(meetingId: string | null) {
 
         const result = await window.electronAPI?.audio?.startCapture({
           meetingId,
-          fallbackToMicrophone: mode === 'microphone',
+          // G1-FIX: Was `mode === 'microphone'` which set fallback to FALSE for 'system' mode,
+          // completely negating the G1 fallback fix. Must be true for both system and microphone.
+          fallbackToMicrophone: mode !== 'cloud',
         })
 
         if (!result?.success) {

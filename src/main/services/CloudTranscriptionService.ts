@@ -54,6 +54,8 @@ export class CloudTranscriptionService extends EventEmitter {
   private _stopRequested: boolean = false
   private _reconnectAttempts: number = 0
   private _reconnectTimer: ReturnType<typeof setTimeout> | null = null
+  /** Transcription language code (e.g., 'en', 'hi', 'ja') or 'auto' for auto-detection */
+  private language: string = 'auto'
   private usageStats: UsageStats = {
     totalSeconds: 0,
     monthlyLimit: 36000, // 10 hours for free tier
@@ -63,6 +65,16 @@ export class CloudTranscriptionService extends EventEmitter {
   constructor() {
     super()
     // Config is loaded lazily on first use (avoids async-in-constructor antipattern)
+  }
+
+  /**
+   * Set the transcription language (e.g., 'en', 'hi', 'ja', 'auto').
+   * If changed during an active streaming session, the session must be
+   * restarted for the new language to take effect.
+   */
+  setLanguage(lang: string): void {
+    this.language = lang || 'auto'
+    log.info(`[Cloud Transcription] Language set to: ${this.language}`)
   }
 
   /**
@@ -80,6 +92,7 @@ export class CloudTranscriptionService extends EventEmitter {
   private async loadConfig(): Promise<void> {
     const db = getDatabaseService()
     this.enabled = db.getSetting('cloud_transcription_enabled') === 'true'
+    this.language = db.getSetting('transcription_language') || 'auto'
 
     // Load API key from OS keychain (secure storage)
     try {
@@ -190,8 +203,10 @@ export class CloudTranscriptionService extends EventEmitter {
       // Convert Float32Array to WAV format
       const wavBuffer = this.float32ToWav(audioBuffer, 16000)
 
-      // Call Deepgram API
-      const response = await fetch(`${config.DEEPGRAM_API_URL}/listen`, {
+      // Call Deepgram API — inject language parameter for multilingual support
+      const langParam =
+        this.language === 'auto' ? 'detect_language=true' : `language=${this.language}`
+      const response = await fetch(`${config.DEEPGRAM_API_URL}/listen?${langParam}`, {
         method: 'POST',
         headers: {
           Authorization: `Token ${this.apiKey}`,
@@ -237,7 +252,10 @@ export class CloudTranscriptionService extends EventEmitter {
       throw new Error('Cloud transcription not enabled')
     }
 
-    const wsUrl = `wss://api.deepgram.com/v1/listen?punctuate=true&diarize=false&model=nova-2`
+    // Inject language parameter — Deepgram Nova-2 supports 36+ languages
+    const langParam =
+      this.language === 'auto' ? 'detect_language=true' : `language=${this.language}`
+    const wsUrl = `wss://api.deepgram.com/v1/listen?punctuate=true&diarize=false&model=nova-2&${langParam}`
 
     // Node.js WebSocket (ws) accepts options with headers, but browser WebSocket doesn't.
     // In Electron main process, this uses the ws library which supports headers.

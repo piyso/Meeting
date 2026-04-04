@@ -2,11 +2,12 @@ import { useEffect, useState } from 'react'
 import { useAppStore } from '../store/appStore'
 import { GraphCanvas } from '../components/graph/GraphCanvas'
 import '../components/graph/graph.css'
-import { RefreshCw, AlertCircle, ChevronLeft } from 'lucide-react'
+import { RefreshCw, AlertCircle, ChevronLeft, Brain } from 'lucide-react'
 import type { GraphData, Contradiction, GraphNode } from '../../types/ipc'
 import { IconButton } from '../components/ui/IconButton'
 import { Button } from '../components/ui/Button'
 import { ProTeaseOverlay } from '../components/ui/ProTeaseOverlay'
+import { EmptyState } from '../components/ui/EmptyState'
 
 export default function KnowledgeGraphView() {
   const currentTier = useAppStore(s => s.currentTier)
@@ -128,12 +129,25 @@ export default function KnowledgeGraphView() {
               <p className="text-center">{error}</p>
             </div>
           ) : graphData ? (
-            <GraphCanvas
-              nodes={graphData.nodes}
-              edges={graphData.edges}
-              contradictions={contradictions}
-              onNodeClick={handleNodeClick}
-            />
+            <>
+              <GraphCanvas
+                nodes={graphData.nodes}
+                edges={graphData.edges}
+                contradictions={contradictions}
+                onNodeClick={handleNodeClick}
+              />
+              {graphData.nodes.length === 0 && (
+                <div className="absolute inset-0 z-10 flex items-center justify-center bg-black/20 backdrop-blur-sm pointer-events-none">
+                  <div className="max-w-md w-full mx-auto pointer-events-auto">
+                    <EmptyState
+                      icon={Brain}
+                      title="Cognitive Void"
+                      description="Your knowledge graph is empty. Record your first sovereign meeting, and the semantic engine will automatically extract and map entities and relationships here."
+                    />
+                  </div>
+                </div>
+              )}
+            </>
           ) : null}
         </div>
 

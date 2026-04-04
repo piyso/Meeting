@@ -15,6 +15,10 @@ import { Logger } from './Logger'
 
 const log = Logger.create('EmbeddingQueue')
 
+// #10 fix: Cache dynamic imports to avoid re-resolving on every batch
+let _embeddingServiceMod: typeof import('./LocalEmbeddingService') | null = null
+let _dbConnectionMod: typeof import('../database/connection') | null = null
+
 interface QueueItem {
   id: string
   meetingId: string
@@ -88,8 +92,11 @@ export class BackgroundEmbeddingQueue {
     const batch = this.queue.splice(0, this.BATCH_SIZE)
 
     try {
-      const { getLocalEmbeddingService } = await import('./LocalEmbeddingService')
-      const embeddingService = getLocalEmbeddingService()
+      // #10: Use cached imports instead of dynamic import() on every batch
+      if (!_embeddingServiceMod) {
+        _embeddingServiceMod = await import('./LocalEmbeddingService')
+      }
+      const embeddingService = _embeddingServiceMod.getLocalEmbeddingService()
 
       // OPT-6: Process batch items in parallel (up to BATCH_SIZE concurrent)
       const results = await Promise.allSettled(
@@ -99,8 +106,10 @@ export class BackgroundEmbeddingQueue {
 
             // Persist the embedding as BLOB to the transcripts table
             try {
-              const { getDatabase } = await import('../database/connection')
-              const db = getDatabase()
+              if (!_dbConnectionMod) {
+                _dbConnectionMod = await import('../database/connection')
+              }
+              const db = _dbConnectionMod.getDatabase()
               const buffer = Buffer.from(new Float32Array(result.embedding).buffer)
               db.prepare('UPDATE transcripts SET embedding_blob = ? WHERE id = ?').run(
                 buffer,

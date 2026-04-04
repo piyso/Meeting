@@ -166,61 +166,6 @@
 }
 
 /* Dark mode support */
-@media (prefers-color-scheme: dark) {
-  .notification-content {
-    background: #2d2d2d;
-    border-color: #444;
-    border-left-color: #ff9800;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
-  }
-
-  .audio-fallback-notification.requires-action .notification-content {
-    border-left-color: #f44336;
-  }
-
-  @keyframes pulse {
-    0%,
-    100% {
-      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
-    }
-    50% {
-      box-shadow: 0 4px 16px rgba(244, 67, 54, 0.5);
-    }
-  }
-
-  .notification-title {
-    color: #e0e0e0;
-  }
-
-  .notification-details {
-    color: #b0b0b0;
-  }
-
-  .notification-reason {
-    color: #888;
-  }
-
-  .notification-guidance {
-    border-top-color: #444;
-  }
-
-  .guidance-title {
-    color: #e0e0e0;
-  }
-
-  .guidance-steps {
-    color: #b0b0b0;
-  }
-
-  .btn-close:hover {
-    background: #3d3d3d;
-    color: #e0e0e0;
-  }
-
-  .btn-close:active {
-    background: #4d4d4d;
-  }
-}
 
 /* Mobile responsive */
 @media (max-width: 768px) {

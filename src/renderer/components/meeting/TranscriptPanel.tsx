@@ -86,7 +86,7 @@ export const TranscriptPanel: React.FC<TranscriptPanelProps> = ({
     <div className="ui-transcript-panel" role="log" aria-live={autoScroll ? 'polite' : 'off'}>
       <div
         ref={parentRef}
-        className="ui-transcript-scroll scrollbar-webkit sovereign-scrollbar"
+        className="ui-transcript-scroll sovereign-scrollbar"
         onScroll={handleScroll}
       >
         <div

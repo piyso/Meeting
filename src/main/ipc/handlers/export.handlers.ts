@@ -69,6 +69,32 @@ export function registerExportHandlers(): void {
           entities,
           actionItems,
           digests,
+          sentimentScores: (() => {
+            try {
+              return db.prepare('SELECT * FROM sentiment_scores').all()
+            } catch {
+              return []
+            }
+          })(),
+          calendarEvents: (() => {
+            try {
+              return db.prepare('SELECT * FROM calendar_events').all()
+            } catch {
+              return []
+            }
+          })(),
+          webhooks: (() => {
+            try {
+              // Strip HMAC secrets from webhooks export
+              return db
+                .prepare(
+                  'SELECT id, url, events, description, is_active, created_at, updated_at FROM webhooks'
+                )
+                .all()
+            } catch {
+              return []
+            }
+          })(),
         },
         stats: {
           totalMeetings: meetings.length,
@@ -176,6 +202,10 @@ export function registerExportHandlers(): void {
         'notes',
         'entities',
         'action_items',
+        'sentiment_scores',
+        'webhook_deliveries', // BEFORE webhooks (FK constraint)
+        'webhooks',
+        'calendar_events',
         'digests',
         'audio_highlights',
         'sync_queue',
@@ -197,7 +227,7 @@ export function registerExportHandlers(): void {
 
       // Clear FTS virtual tables (separate since they need different handling)
       // I11 fix: include entities_fts — was missing, causing stale search results
-      for (const fts of ['transcripts_fts', 'notes_fts', 'entities_fts']) {
+      for (const fts of ['transcripts_fts', 'notes_fts', 'entities_fts', 'action_items_fts']) {
         try {
           db.prepare(`DELETE FROM ${fts}`).run()
         } catch {

@@ -1,7 +1,8 @@
 /**
  * Crash Reporter — Sentry integration for BlueArkive
  *
- * Conditionally initializes Sentry when SENTRY_DSN is set.
+ * G7: Activated Sentry SDK (@sentry/electron).
+ * Conditionally initializes when SENTRY_DSN is set.
  * Graceful no-op in development (when DSN is empty).
  *
  * Features:
@@ -21,6 +22,10 @@ import { Logger } from './Logger'
 
 const log = Logger.create('CrashReporter')
 
+// Lazy-loaded Sentry module reference
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+let Sentry: any = null
+
 interface CrashContext {
   hardwareTier?: string
   planTier?: string
@@ -30,6 +35,7 @@ interface CrashContext {
 
 class CrashReporterService {
   private initialized = false
+  private sentryAvailable = false
   private context: CrashContext = {}
 
   /**
@@ -46,18 +52,37 @@ class CrashReporterService {
     }
 
     try {
-      // Sentry SDK would be initialized here when installed:
-      // const Sentry = require('@sentry/electron')
-      // Sentry.init(...)
+      // G7: Load @sentry/electron dynamically to handle missing native module gracefully
 
-      // NOTE: uncaughtException + unhandledRejection handlers are registered
-      // in electron/main.ts (lines 14-27). Do NOT duplicate them here.
-      // CrashReporter only provides captureException/captureMessage API.
+      Sentry = require('@sentry/electron')
+      Sentry.init({
+        dsn: config.SENTRY_DSN,
+        release: `bluearkive@${this.getAppVersion()}`,
+        environment: config.IS_DEV ? 'development' : 'production',
+        // Don't send events in dev unless DSN is explicitly set
+        enabled: true,
+        // Attach stack traces to non-Error events
+        attachStacktrace: true,
+        // Sample rate for performance monitoring (0 = disabled, 1 = 100%)
+        tracesSampleRate: config.IS_DEV ? 1.0 : 0.1,
+        // Filter events before sending
+        beforeSend(event: { environment?: string }) {
+          // Don't send development events unless intentional
+          if (event.environment === 'development' && !config.SENTRY_DSN) {
+            return null
+          }
+          return event
+        },
+      })
 
+      this.sentryAvailable = true
       this.initialized = true
-      log.info('Initialized successfully')
+      log.info('Sentry initialized successfully', { dsn: config.SENTRY_DSN.slice(0, 20) + '...' })
     } catch (error) {
-      log.error('Failed to initialize:', error)
+      // @sentry/electron native module may fail to load on some platforms
+      log.warn('Sentry SDK failed to load (crash reporting disabled):', error)
+      this.sentryAvailable = false
+      this.initialized = true
     }
   }
 
@@ -67,15 +92,15 @@ class CrashReporterService {
   setContext(context: Partial<CrashContext>): void {
     this.context = { ...this.context, ...context }
 
-    // When Sentry is installed:
-    // const Sentry = require('@sentry/electron')
-    // Sentry.setContext('device', {
-    //   hardwareTier: this.context.hardwareTier,
-    //   planTier: this.context.planTier,
-    // })
-    // if (this.context.userId) {
-    //   Sentry.setUser({ id: this.context.userId })
-    // }
+    if (this.sentryAvailable && Sentry) {
+      Sentry.setContext('device', {
+        hardwareTier: this.context.hardwareTier,
+        planTier: this.context.planTier,
+      })
+      if (this.context.userId) {
+        Sentry.setUser({ id: this.context.userId })
+      }
+    }
   }
 
   /**
@@ -84,16 +109,16 @@ class CrashReporterService {
   captureException(error: Error, extra?: Record<string, unknown>): void {
     if (!this.initialized) return
 
-    // Log locally
+    // Always log locally
     log.error(`Exception: ${error.message}`, {
       stack: error.stack,
       context: this.context,
       ...extra,
     })
 
-    // When Sentry is installed:
-    // const Sentry = require('@sentry/electron')
-    // Sentry.captureException(error, { extra })
+    if (this.sentryAvailable && Sentry) {
+      Sentry.captureException(error, { extra })
+    }
   }
 
   /**
@@ -104,18 +129,18 @@ class CrashReporterService {
 
     log.info(`Message (${level}): ${message}`)
 
-    // When Sentry is installed:
-    // const Sentry = require('@sentry/electron')
-    // Sentry.captureMessage(message, level)
+    if (this.sentryAvailable && Sentry) {
+      Sentry.captureMessage(message, level)
+    }
   }
 
   /**
    * Add a breadcrumb for debugging
    */
-  addBreadcrumb(_category: string, _message: string, _data?: Record<string, unknown>): void {
-    // When Sentry is installed:
-    // const Sentry = require('@sentry/electron')
-    // Sentry.addBreadcrumb({ category, message, data })
+  addBreadcrumb(category: string, message: string, data?: Record<string, unknown>): void {
+    if (this.sentryAvailable && Sentry) {
+      Sentry.addBreadcrumb({ category, message, data })
+    }
   }
 
   /**

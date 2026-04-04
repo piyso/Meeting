@@ -340,6 +340,9 @@ const electronAPI: ElectronAPI = {
     bookmarkRequested: createEventListener('event:bookmarkRequested'),
     quickNoteRequested: createEventListener('event:quickNoteRequested'),
     pauseRequested: createEventListener('event:pauseRequested'),
+    actionItemDetected: createEventListener('event:actionItemDetected'),
+    sentimentUpdate: createEventListener('event:sentimentUpdate'),
+    calendarEventSoon: createEventListener('event:calendarEventSoon'),
     deepLink: createEventListener<string>('deep-link'),
     windowMaximized: createEventListener<void>('window:maximized'),
     windowUnmaximized: createEventListener<void>('window:unmaximized'),
@@ -483,6 +486,58 @@ const electronAPI: ElectronAPI = {
       tokenBudget?: number
       timeRange?: { start: number; end: number }
     }) => ipcRenderer.invoke('piyapi:getContext', params),
+  },
+
+  // ============================================================================
+  // Action Item Operations
+  // ============================================================================
+  actionItem: {
+    list: (params: { meetingId?: string; status?: string }) =>
+      ipcRenderer.invoke('actionItem:list', params),
+    create: (params: unknown) => ipcRenderer.invoke('actionItem:create', params),
+    update: (params: unknown) => ipcRenderer.invoke('actionItem:update', params),
+    delete: (params: { id: string }) => ipcRenderer.invoke('actionItem:delete', params),
+    extract: (params: { meetingId: string }) => ipcRenderer.invoke('actionItem:extract', params),
+    getOverdue: () => ipcRenderer.invoke('actionItem:getOverdue'),
+    stats: () => ipcRenderer.invoke('actionItem:stats'),
+  },
+
+  // ============================================================================
+  // Sentiment Analysis Operations
+  // ============================================================================
+  sentiment: {
+    analyze: (params: { meetingId: string }) => ipcRenderer.invoke('sentiment:analyze', params),
+    getByMeeting: (params: { meetingId: string }) =>
+      ipcRenderer.invoke('sentiment:getByMeeting', params),
+    getMood: (params: { meetingId: string }) => ipcRenderer.invoke('sentiment:getMood', params),
+    getTimeline: (params: { meetingId: string }) =>
+      ipcRenderer.invoke('sentiment:getTimeline', params),
+  },
+
+  // ============================================================================
+  // Calendar Operations
+  // ============================================================================
+  calendar: {
+    sync: (params: { provider: string }) => ipcRenderer.invoke('calendar:sync', params),
+    list: (params: { start: number; end: number }) => ipcRenderer.invoke('calendar:list', params),
+    link: (params: { eventId: string; meetingId: string }) =>
+      ipcRenderer.invoke('calendar:link', params),
+    autoLink: (params: { meetingId: string }) => ipcRenderer.invoke('calendar:autoLink', params),
+    getPreContext: (params: { eventId: string }) =>
+      ipcRenderer.invoke('calendar:getPreContext', params),
+  },
+
+  // ============================================================================
+  // Webhook Operations
+  // ============================================================================
+  webhook: {
+    list: () => ipcRenderer.invoke('webhook:list'),
+    create: (params: unknown) => ipcRenderer.invoke('webhook:create', params),
+    update: (params: unknown) => ipcRenderer.invoke('webhook:update', params),
+    delete: (params: { id: string }) => ipcRenderer.invoke('webhook:delete', params),
+    test: (params: { id: string }) => ipcRenderer.invoke('webhook:test', params),
+    getDeliveries: (params: { webhookId: string; limit?: number }) =>
+      ipcRenderer.invoke('webhook:getDeliveries', params),
   },
 }
 

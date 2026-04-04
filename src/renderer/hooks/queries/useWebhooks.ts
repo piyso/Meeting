@@ -44,7 +44,7 @@ export function useWebhooks() {
             events: payload.events,
             description: undefined,
           })
-      if (!res?.success) throw new Error(res?.error?.message)
+      if (!res?.success) throw new Error(res?.error?.message ?? 'Webhook save failed')
       return res.data
     },
     onSuccess: () => {
@@ -55,7 +55,7 @@ export function useWebhooks() {
   const removeWebhook = useMutation({
     mutationFn: async (id: string) => {
       const res = await window.electronAPI?.webhook?.delete?.({ id })
-      if (!res?.success) throw new Error(res?.error?.message)
+      if (!res?.success) throw new Error(res?.error?.message ?? 'Webhook delete failed')
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['webhooks'] })

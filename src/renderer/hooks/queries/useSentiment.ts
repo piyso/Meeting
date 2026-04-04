@@ -1,6 +1,13 @@
 import { useQuery } from '@tanstack/react-query'
 
-export function useSentiment(meetingId?: string) {
+/**
+ * Fetches sentiment timeline for a meeting.
+ *
+ * @param meetingId - The meeting to fetch sentiment for
+ * @param isRecording - When true, polls every 5s for live updates.
+ *                      When false (viewing completed meetings), fetches once and caches.
+ */
+export function useSentiment(meetingId?: string, isRecording = false) {
   const { data: sentimentTimeline = [], isLoading } = useQuery({
     queryKey: ['sentiment', meetingId],
     queryFn: async () => {
@@ -11,7 +18,8 @@ export function useSentiment(meetingId?: string) {
     },
     enabled: !!meetingId,
     initialData: [],
-    refetchInterval: 5000, // Poll every 5s during active meeting
+    // Only poll during active recording — viewing past meetings fetches once and caches
+    refetchInterval: isRecording ? 5000 : false,
   })
 
   return { sentimentTimeline, isLoading }

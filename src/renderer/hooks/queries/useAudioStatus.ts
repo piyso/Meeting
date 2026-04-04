@@ -53,7 +53,7 @@ export function useAudioStatus(meetingId: string | null) {
       }
     })
 
-    return () => unsubscribe()
+    return () => unsubscribe?.()
   }, [meetingId])
 
   // Read volume from ref on throttled tick — only recomputes when tick changes

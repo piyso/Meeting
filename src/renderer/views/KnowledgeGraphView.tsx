@@ -34,13 +34,15 @@ export default function KnowledgeGraphView() {
           window.electronAPI?.graph?.getContradictions({}),
         ])
 
-        if (graphRes.success && graphRes.data) {
+        if (!graphRes) {
+          setError('Graph API unavailable — electronAPI.graph.get returned undefined.')
+        } else if (graphRes.success && graphRes.data) {
           setGraphData(graphRes.data)
         } else {
           setError(graphRes.error?.message || 'Failed to load graph.')
         }
 
-        if (contraRes.success && contraRes.data) {
+        if (contraRes?.success && contraRes.data) {
           setContradictions(contraRes.data)
         }
       } catch (err) {

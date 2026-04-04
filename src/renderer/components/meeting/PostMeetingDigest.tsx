@@ -59,7 +59,7 @@ export const PostMeetingDigest: React.FC<PostMeetingDigestProps> = ({
         addToast({
           type: 'error',
           title: 'Export failed',
-          message: res.error?.message || 'Unknown error',
+          message: res?.error?.message || 'Unknown error',
           duration: 5000,
         })
       }
@@ -210,7 +210,7 @@ export const PostMeetingDigest: React.FC<PostMeetingDigestProps> = ({
                               updates: { status: e.target.checked ? 'completed' : 'open' },
                             })
                           } catch (err) {
-                            console.error('Failed to update action item', err)
+                            log.error('Failed to update action item', err)
                           }
                         }
                       }}

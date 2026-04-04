@@ -29,9 +29,12 @@ import type {
 // Helpers
 // ============================================================================
 
-const now = Date.now()
-const hour = 3600_000
-const day = 86400_000
+// All timestamps in UNIX SECONDS to match the production SQLite schema
+// (strftime('%s','now')). The renderer does `timestamp * 1000` to convert
+// to JS Date — using milliseconds here would produce dates in year ~58000.
+const now = Math.floor(Date.now() / 1000)
+const hour = 3600
+const day = 86400
 
 // ============================================================================
 // Meetings — 12 realistic entries across 3 days
@@ -286,7 +289,7 @@ function generateTranscripts(meetingId: string, meetingStart: number, count: num
 
   const dialogue = dialogues[Math.abs(meetingId.charCodeAt(7)) % dialogues.length]!
   const segmentCount = Math.min(count, dialogue.length)
-  const segmentDuration = 15000 // 15 seconds per segment
+  const segmentDuration = 15 // 15 seconds per segment (Unix seconds)
 
   return Array.from({ length: segmentCount }, (_, i) => ({
     id: `txn-${meetingId}-${String(i).padStart(3, '0')}`,
@@ -299,7 +302,7 @@ function generateTranscripts(meetingId: string, meetingStart: number, count: num
     speaker_name: SPEAKERS[i % SPEAKERS.length]!.name,
     words: null,
     created_at: meetingStart + i * segmentDuration,
-    synced_at: meetingStart + i * segmentDuration + 5000,
+    synced_at: meetingStart + i * segmentDuration + 5,
   }))
 }
 
@@ -372,15 +375,15 @@ function generateNotes(meetingId: string, meetingStart: number): Note[] {
     return {
       id: `note-${meetingId}-${i}`,
       meeting_id: meetingId,
-      timestamp: meetingStart + (i + 1) * 60000,
+      timestamp: meetingStart + (i + 1) * 60,
       original_text: template.original,
       augmented_text: template.augmented,
       context: template.context,
       is_augmented: true,
       version: 1,
-      created_at: meetingStart + (i + 1) * 60000,
-      updated_at: meetingStart + (i + 2) * 60000,
-      synced_at: meetingStart + (i + 2) * 60000,
+      created_at: meetingStart + (i + 1) * 60,
+      updated_at: meetingStart + (i + 2) * 60,
+      synced_at: meetingStart + (i + 2) * 60,
     }
   })
 }

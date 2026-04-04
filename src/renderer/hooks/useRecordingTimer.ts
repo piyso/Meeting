@@ -32,7 +32,8 @@ export function useRecordingTimer() {
       return
     }
 
-    const tick = () => setElapsed(Date.now() - recordingStartTime - recordingTotalPausedMs)
+    const tick = () =>
+      setElapsed(Math.max(0, Date.now() - recordingStartTime - recordingTotalPausedMs))
     tick() // immediate first tick
     const id = setInterval(tick, 1000)
     return () => clearInterval(id)

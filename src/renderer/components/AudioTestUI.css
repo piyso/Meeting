@@ -626,7 +626,6 @@
   transform: translateY(0);
 }
 
-
 /* Task 12.6: Diagnostic Export Section */
 .diagnostic-export-section {
   margin-top: 16px;
@@ -680,7 +679,6 @@
 .btn-open-diagnostics:active {
   transform: translateY(0);
 }
-
 
 /* Task 12.3: Microphone Test Modal */
 .microphone-test-modal {

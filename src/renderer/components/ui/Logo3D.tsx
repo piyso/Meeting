@@ -12,6 +12,18 @@ interface Logo3DProps {
 export const Logo3D: React.FC<Logo3DProps> = ({ className = '' }) => {
   return (
     <div className={`relative w-48 h-48 mx-auto flex items-center justify-center ${className}`}>
+      <style>{`
+        @keyframes logo3d-orbit-spin {
+          from { transform-origin: 512px 512px; transform: rotate(0deg); }
+          to   { transform-origin: 512px 512px; transform: rotate(360deg); }
+        }
+        @keyframes logo3d-core-pulse {
+          0%, 100% { filter: url(#ba3-core-fx); opacity: 1; }
+          50%      { filter: url(#ba3-core-fx) brightness(1.15); opacity: 0.92; }
+        }
+        .logo3d-orbit-ring { animation: logo3d-orbit-spin 20s linear infinite; }
+        .logo3d-core-orb   { animation: logo3d-core-pulse 4s ease-in-out infinite; }
+      `}</style>
       <svg width="160" height="160" viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg">
         <defs>
           <linearGradient id="ba3-bg" x1="0%" y1="0%" x2="100%" y2="100%">
@@ -87,8 +99,9 @@ export const Logo3D: React.FC<Logo3DProps> = ({ className = '' }) => {
         {/* Ambient backlight */}
         <circle cx="512" cy="512" r="340" fill="#0088FF" opacity="0.06" filter="url(#ba3-glow)" />
 
-        {/* Outer orbit */}
+        {/* Outer orbit — now animated */}
         <circle
+          className="logo3d-orbit-ring"
           cx="512"
           cy="512"
           r="300"
@@ -136,8 +149,15 @@ export const Logo3D: React.FC<Logo3DProps> = ({ className = '' }) => {
           strokeWidth="1.5"
         />
 
-        {/* Core orb */}
-        <circle cx="512" cy="512" r="80" fill="url(#ba3-core)" filter="url(#ba3-core-fx)" />
+        {/* Core orb — now pulsing */}
+        <circle
+          className="logo3d-core-orb"
+          cx="512"
+          cy="512"
+          r="80"
+          fill="url(#ba3-core)"
+          filter="url(#ba3-core-fx)"
+        />
 
         {/* Core specular highlight */}
         <ellipse

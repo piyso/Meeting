@@ -19,12 +19,14 @@ interface DownloadProgress {
 export const ModelDownloadProgress: React.FC<ModelDownloadProgressProps> = ({ onComplete }) => {
   // Track each model independently to prevent flicker from interleaved events
   const [models, setModels] = useState<Map<string, DownloadProgress>>(new Map())
-  const [startTime] = useState<number>(Date.now())
+  const [firstEventTime, setFirstEventTime] = useState<number | null>(null)
 
   const completeFiredRef = React.useRef(false)
 
   const handleProgress = useCallback(
     (progressData: DownloadProgress) => {
+      // Capture the timestamp of the very first progress event (not component mount)
+      setFirstEventTime(prev => prev ?? Date.now())
       setModels(prev => {
         const next = new Map(prev)
         next.set(progressData.modelName, progressData)
@@ -56,7 +58,7 @@ export const ModelDownloadProgress: React.FC<ModelDownloadProgressProps> = ({ on
   const combinedPercent = totalMB > 0 ? Math.round((downloadedMB / totalMB) * 100) : 0
 
   // Download speed and ETA based on combined data
-  const elapsedSeconds = (Date.now() - startTime) / 1000
+  const elapsedSeconds = firstEventTime ? (Date.now() - firstEventTime) / 1000 : 0
   const speed = elapsedSeconds > 0 ? downloadedMB / elapsedSeconds : 0
   const remainingMB = totalMB - downloadedMB
   const remainingSeconds = speed > 0 ? remainingMB / speed : 0

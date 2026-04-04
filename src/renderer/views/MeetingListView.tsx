@@ -55,7 +55,7 @@ export default function MeetingListView() {
   const deleteMeeting = useMutation({
     mutationFn: async (id: string) => {
       const res = await window.electronAPI?.meeting?.delete({ meetingId: id })
-      if (!res?.success) throw new Error(res.error?.message)
+      if (!res?.success) throw new Error(res?.error?.message || 'Delete failed')
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['meetings'] })
@@ -84,7 +84,7 @@ export default function MeetingListView() {
         useAppStore.getState().addToast({
           type: 'error',
           title: 'Failed to start meeting',
-          message: res.error?.message || 'Unknown error',
+          message: res?.error?.message || 'Unknown error',
           duration: 5000,
         })
         setRecordingState('idle')
@@ -94,7 +94,7 @@ export default function MeetingListView() {
       useAppStore.getState().addToast({
         type: 'error',
         title: 'Failed to start meeting',
-        message: 'An unexpected error occurred',
+        message: err instanceof Error ? err.message : 'An unexpected error occurred',
         duration: 5000,
       })
       setRecordingState('idle')
@@ -128,7 +128,7 @@ export default function MeetingListView() {
         useAppStore.getState().addToast({
           type: 'error',
           title: 'Failed to start meeting',
-          message: res.error?.message || 'Unknown error',
+          message: res?.error?.message || 'Unknown error',
           duration: 5000,
         })
         setRecordingState('idle')
@@ -138,7 +138,7 @@ export default function MeetingListView() {
       useAppStore.getState().addToast({
         type: 'error',
         title: 'Failed to start meeting',
-        message: 'An unexpected error occurred',
+        message: err instanceof Error ? err.message : 'An unexpected error occurred',
         duration: 5000,
       })
       setRecordingState('idle')
@@ -358,7 +358,7 @@ export default function MeetingListView() {
                 </div>
               </div>
               {/* Background Glow */}
-              <div className="absolute inset-0 bg-gradient-to-r from-[var(--color-amber)]/0 to-[var(--color-amber)]/5 opacity-50 pointer-events-none rounded-[16px]"></div>
+              <div className="absolute inset-0 bg-gradient-to-r from-[var(--color-amber)]/0 to-[var(--color-amber)]/5 opacity-50 pointer-events-none rounded-full"></div>
             </motion.button>
           ) : (
             <motion.button

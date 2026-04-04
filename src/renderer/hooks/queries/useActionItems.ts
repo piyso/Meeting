@@ -20,7 +20,7 @@ export function useActionItems(meetingId?: string) {
         id: actionId,
         updates: { status: status as 'open' | 'completed' },
       })
-      if (!res?.success) throw new Error(res?.error?.message)
+      if (!res?.success) throw new Error(res?.error?.message ?? 'Failed to update action item')
       return res.data
     },
     onSuccess: () => {

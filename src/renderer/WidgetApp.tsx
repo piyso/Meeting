@@ -86,7 +86,8 @@ export const WidgetApp: React.FC = () => {
   }
 
   const handleStop = () => {
-    window.electronAPI?.audio?.stopCapture({ meetingId: state.activeMeetingId || 'current' })
+    if (!state.activeMeetingId) return
+    window.electronAPI?.audio?.stopCapture({ meetingId: state.activeMeetingId })
   }
 
   const handleBookmark = () => {

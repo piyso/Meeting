@@ -566,17 +566,18 @@ function createMockElectronAPI() {
         const id = `meet-new-${nextMeetingNum++}`
         const mockDuration = (Math.floor(Math.random() * 40) + 15) * 60 // 15-55 min in seconds
         const mockParticipants = Math.floor(Math.random() * 5) + 2 // 2-6 participants
+        const nowSec = Math.floor(Date.now() / 1000)
         const newMeeting: Meeting = {
           id,
           title: params.title || `New Meeting ${nextMeetingNum}`,
-          start_time: Date.now() - mockDuration * 1000,
-          end_time: Date.now(),
+          start_time: nowSec - mockDuration,
+          end_time: nowSec,
           duration: mockDuration,
           participant_count: mockParticipants,
           tags: '[]',
           namespace: 'default',
-          created_at: Date.now(),
-          synced_at: Date.now(),
+          created_at: nowSec,
+          synced_at: nowSec,
           performance_tier: 'high',
         }
         meetings = [newMeeting, ...meetings]
@@ -630,9 +631,9 @@ function createMockElectronAPI() {
           context: null,
           is_augmented: false,
           version: 1,
-          created_at: Date.now(),
-          updated_at: Date.now(),
-          synced_at: Date.now(),
+          created_at: Math.floor(Date.now() / 1000),
+          updated_at: Math.floor(Date.now() / 1000),
+          synced_at: Math.floor(Date.now() / 1000),
         }
         if (!notes[params.meetingId]) {
           notes[params.meetingId] = []
@@ -648,16 +649,20 @@ function createMockElectronAPI() {
           if (!noteArr) continue
           const idx = noteArr.findIndex(n => n.id === params.noteId)
           if (idx !== -1) {
-            noteArr[idx] = { ...noteArr[idx], ...params.updates, updated_at: Date.now() } as Note
+            noteArr[idx] = {
+              ...noteArr[idx],
+              ...params.updates,
+              updated_at: Math.floor(Date.now() / 1000),
+            } as Note
             return ok(noteArr[idx])
           }
         }
         return ok(null)
       },
-      expand: async (params: { text: string }) => {
-        await new Promise(r => setTimeout(r, MOCK_DELAY_MS * 3)) // Simulate AI processing
+      expand: async (_params: { text: string }) => {
+        await new Promise(r => setTimeout(r, MOCK_DELAY_MS * 15)) // Simulate AI processing delay for beautiful UI shimmer
         return ok({
-          expandedText: `${params.text}\n\n**AI Expansion:** This point was discussed in the context of improving team velocity. The consensus was to prioritize automation and reduce manual overhead. Key stakeholders expressed strong support for this direction, with a target implementation date of end of quarter.`,
+          expandedText: `This point was discussed in the context of improving team velocity. The consensus was to prioritize automation and reduce manual overhead. Key stakeholders expressed strong support for this direction, with a target implementation date of end of quarter.`,
           context: 'Expanded using local LLM with meeting transcript context',
           tokensUsed: 128,
           inferenceTime: 1200,
@@ -1093,7 +1098,7 @@ function createMockElectronAPI() {
           end_time: params.endTime,
           label: params.label || null,
           color: params.color || '#8B5CF6',
-          created_at: Date.now(),
+          created_at: Math.floor(Date.now() / 1000),
         })
       },
       list: async () => delayed([]),
@@ -1261,6 +1266,44 @@ function createMockElectronAPI() {
           electronVersion: '28.2.0',
         }),
       rebuildFts: async () => delayed({ transcripts: true, notes: true }),
+      healthCheck: async () =>
+        delayed({
+          results: [
+            {
+              system: 'Database',
+              status: 'ok',
+              message: 'SQLite WAL mode active, 4 tables healthy',
+            },
+            {
+              system: 'Audio Pipeline',
+              status: 'ok',
+              message: 'VAD + ASR workers ready',
+            },
+            {
+              system: 'LLM Engine',
+              status: 'ok',
+              message: 'qwen2.5:3b loaded (3.1 GB VRAM)',
+            },
+            {
+              system: 'Storage',
+              status: 'ok',
+              message: '2.1 GB used / 256 GB available',
+            },
+            {
+              system: 'Network',
+              status: 'ok',
+              message: 'Mock mode — all systems simulated',
+            },
+          ],
+          systemInfo: {
+            Platform: 'macOS 15.3 (darwin/arm64)',
+            Electron: '33.4.11',
+            Node: 'v20.18.3',
+            'App Version': '0.3.3',
+            Memory: '16 GB',
+            CPUs: '10 cores',
+          },
+        }),
     },
 
     // ── Billing ───────────────────────────────────────────────────────
@@ -1292,6 +1335,229 @@ function createMockElectronAPI() {
             l => `${l.timestamp},${l.operation},${l.table},${l.recordId || ''},${l.ipAddress || ''}`
           ).join('\n')
         return ok({ content: csv, filename: 'audit-log-export.csv' })
+      },
+    },
+
+    // ── Action Items ───────────────────────────────────────────────────
+    actionItem: {
+      list: async (_params: { meetingId?: string; status?: string }) => {
+        await new Promise(r => setTimeout(r, MOCK_DELAY_MS))
+        const items = [
+          {
+            id: 'ai-001',
+            meeting_id: 'meet-001',
+            text: 'Review pull request #347 — cursor pagination',
+            assignee: 'Piyush Kumar',
+            status: 'open' as const,
+            due_date: Math.floor(Date.now() / 1000) + 86400,
+            created_at: Math.floor(Date.now() / 1000) - 7200,
+            source_segment: 'Can you review PR #347 today?',
+            confidence: 0.92,
+          },
+          {
+            id: 'ai-002',
+            meeting_id: 'meet-002',
+            text: 'Update Figma mockups for settings panel',
+            assignee: 'Sarah Chen',
+            status: 'open' as const,
+            due_date: Math.floor(Date.now() / 1000) + 172800,
+            created_at: Math.floor(Date.now() / 1000) - 14400,
+            source_segment: 'Sarah, can you update the Figma?',
+            confidence: 0.88,
+          },
+          {
+            id: 'ai-003',
+            meeting_id: 'meet-001',
+            text: 'Fix flaky CI test in auth module',
+            assignee: 'Alex Rivera',
+            status: 'completed' as const,
+            due_date: Math.floor(Date.now() / 1000) - 3600,
+            created_at: Math.floor(Date.now() / 1000) - 28800,
+            source_segment: 'The auth module test keeps failing on CI.',
+            confidence: 0.95,
+          },
+        ]
+        const filtered = _params.meetingId
+          ? items.filter(i => i.meeting_id === _params.meetingId)
+          : _params.status
+            ? items.filter(i => i.status === _params.status)
+            : items
+        return ok(filtered)
+      },
+      create: async (params: unknown) => {
+        await new Promise(r => setTimeout(r, MOCK_DELAY_MS))
+        return ok({
+          id: `ai-new-${Date.now()}`,
+          ...(params as object),
+          created_at: Math.floor(Date.now() / 1000),
+        })
+      },
+      update: async (params: { id: string; updates: object }) => {
+        await new Promise(r => setTimeout(r, MOCK_DELAY_MS))
+        return ok({ id: params.id, ...params.updates, updated_at: Math.floor(Date.now() / 1000) })
+      },
+      delete: async (_params: { id: string }) => delayedVoid(),
+      extract: async (_params: { meetingId: string }) => {
+        await new Promise(r => setTimeout(r, MOCK_DELAY_MS * 3))
+        return ok({ extracted: 2, items: [] })
+      },
+      getOverdue: async () => delayed([]),
+      stats: async () => delayed({ total: 3, open: 2, completed: 1, overdue: 0 }),
+    },
+
+    // ── Sentiment Analysis ────────────────────────────────────────────
+    sentiment: {
+      analyze: async (_params: { meetingId: string }) => {
+        await new Promise(r => setTimeout(r, MOCK_DELAY_MS * 2))
+        return ok({ meetingId: _params.meetingId, overallSentiment: 0.72, analyzed: true })
+      },
+      getByMeeting: async (_params: { meetingId: string }) => {
+        await new Promise(r => setTimeout(r, MOCK_DELAY_MS))
+        return ok([
+          {
+            timestamp: Date.now() - 3600000,
+            score: 0.65,
+            label: 'positive',
+            segment: 'Great progress on the sprint.',
+          },
+          {
+            timestamp: Date.now() - 3000000,
+            score: 0.45,
+            label: 'neutral',
+            segment: "Let's revisit the timeline.",
+          },
+          {
+            timestamp: Date.now() - 2400000,
+            score: 0.82,
+            label: 'positive',
+            segment: 'The demo went really well!',
+          },
+        ])
+      },
+      getMood: async (_params: { meetingId: string }) => {
+        await new Promise(r => setTimeout(r, MOCK_DELAY_MS))
+        return ok({ mood: 'productive', score: 0.72, energy: 'high' })
+      },
+      getTimeline: async (_params: { meetingId: string }) => {
+        await new Promise(r => setTimeout(r, MOCK_DELAY_MS))
+        const now = Math.floor(Date.now() / 1000)
+        return ok([
+          { timestamp: now - 3600, score: 0.65, label: 'positive' },
+          { timestamp: now - 3000, score: 0.45, label: 'neutral' },
+          { timestamp: now - 2400, score: 0.82, label: 'positive' },
+          { timestamp: now - 1800, score: 0.38, label: 'negative' },
+          { timestamp: now - 1200, score: 0.71, label: 'positive' },
+          { timestamp: now - 600, score: 0.88, label: 'positive' },
+        ])
+      },
+    },
+
+    // ── Calendar ──────────────────────────────────────────────────────
+    calendar: {
+      sync: async (_params: { provider: string }) => {
+        await new Promise(r => setTimeout(r, MOCK_DELAY_MS * 2))
+        return ok({ synced: true, provider: _params.provider, eventsImported: 5 })
+      },
+      list: async (_params: { start: number; end: number }) => {
+        await new Promise(r => setTimeout(r, MOCK_DELAY_MS))
+        const now = Math.floor(Date.now() / 1000)
+        return ok([
+          {
+            id: 'cal-001',
+            title: 'Sprint Planning',
+            start_time: now + 3600,
+            end_time: now + 5400,
+            attendees: ['Piyush Kumar', 'Sarah Chen', 'Alex Rivera'],
+            location: 'Zoom',
+            calendar_provider: 'google',
+            linked_meeting_id: null,
+          },
+          {
+            id: 'cal-002',
+            title: 'Design Review',
+            start_time: now + 86400,
+            end_time: now + 90000,
+            attendees: ['Piyush Kumar', 'Maya Patel'],
+            location: 'Meet',
+            calendar_provider: 'google',
+            linked_meeting_id: null,
+          },
+          {
+            id: 'cal-003',
+            title: '1:1 with Manager',
+            start_time: now + 172800,
+            end_time: now + 174600,
+            attendees: ['Piyush Kumar', 'David Thompson'],
+            location: 'Office',
+            calendar_provider: 'apple',
+            linked_meeting_id: null,
+          },
+        ])
+      },
+      link: async (_params: { eventId: string; meetingId: string }) => {
+        await new Promise(r => setTimeout(r, MOCK_DELAY_MS))
+        return ok({ linked: true, eventId: _params.eventId, meetingId: _params.meetingId })
+      },
+      autoLink: async (_params: { meetingId: string }) => {
+        await new Promise(r => setTimeout(r, MOCK_DELAY_MS))
+        return ok({ matched: false, eventId: null })
+      },
+      getPreContext: async (_params: { eventId: string }) => {
+        await new Promise(r => setTimeout(r, MOCK_DELAY_MS))
+        return ok({
+          previousMeetings: [],
+          openActionItems: [],
+          suggestedTopics: ["Follow up on last week's decisions", 'Review sprint progress'],
+        })
+      },
+    },
+
+    // ── Webhooks ──────────────────────────────────────────────────────
+    webhook: {
+      list: async () => {
+        await new Promise(r => setTimeout(r, MOCK_DELAY_MS))
+        return ok([
+          {
+            id: 'wh-001',
+            url: 'https://hooks.slack.com/services/mock/webhook',
+            events: ['meeting.completed', 'action_item.created'],
+            is_active: 1,
+            description: 'Slack notifications',
+            created_at: Math.floor(Date.now() / 1000) - 604800,
+            last_triggered: Math.floor(Date.now() / 1000) - 3600,
+          },
+        ])
+      },
+      create: async (params: unknown) => {
+        await new Promise(r => setTimeout(r, MOCK_DELAY_MS))
+        return ok({
+          id: `wh-new-${Date.now()}`,
+          ...(params as object),
+          is_active: 1,
+          created_at: Math.floor(Date.now() / 1000),
+        })
+      },
+      update: async (params: { id: string; updates: object }) => {
+        await new Promise(r => setTimeout(r, MOCK_DELAY_MS))
+        return ok({ id: params.id, ...params.updates })
+      },
+      delete: async (_params: { id: string }) => delayedVoid(),
+      test: async (_params: { id: string }) => {
+        await new Promise(r => setTimeout(r, MOCK_DELAY_MS * 2))
+        return ok({ delivered: true, statusCode: 200, responseTime: 142 })
+      },
+      getDeliveries: async (_params: { webhookId: string; limit?: number }) => {
+        await new Promise(r => setTimeout(r, MOCK_DELAY_MS))
+        return ok([
+          {
+            id: 'del-001',
+            webhook_id: _params.webhookId,
+            event_type: 'meeting.completed',
+            status_code: 200,
+            delivered_at: Math.floor(Date.now() / 1000) - 3600,
+            response_time_ms: 142,
+          },
+        ])
       },
     },
 

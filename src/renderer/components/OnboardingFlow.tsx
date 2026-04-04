@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState, Component, ErrorInfo, ReactNode } from 'react'
+import { motion, AnimatePresence, useMotionValue, useMotionTemplate } from 'framer-motion'
 import { useAppStore } from '../store/appStore'
 
 import { Button } from './ui/Button'
@@ -6,7 +7,17 @@ import { Input } from './ui/Input'
 import { PricingView } from './settings/PricingView'
 import { GhostMeetingTutorial } from './meeting/GhostMeetingTutorial'
 import { ModelDownloadProgress } from './ModelDownloadProgress'
-import { Key, Unlock, ShieldAlert, Copy, Download } from 'lucide-react'
+import {
+  Key,
+  Unlock,
+  ShieldAlert,
+  Copy,
+  Download,
+  GitMerge,
+  Activity,
+  Layers,
+  Landmark,
+} from 'lucide-react'
 import { Logo3D } from './ui/Logo3D'
 
 import { rendererLog } from '../utils/logger'
@@ -62,9 +73,20 @@ interface HardwareTierInfo {
 
 export const OnboardingFlow: React.FC = () => {
   const [step, setStep] = useState<OnboardingStep>('auth')
+  const mouseX = useMotionValue(0)
+  const mouseY = useMotionValue(0)
+
+  const handlePointerMove = (e: React.PointerEvent) => {
+    mouseX.set(e.clientX)
+    mouseY.set(e.clientY)
+  }
+
+  const spotlightBackground = useMotionTemplate`radial-gradient(800px circle at ${mouseX}px ${mouseY}px, rgba(255,255,255,0.04), transparent 40%)`
+
   const [tierInfo, setTierInfo] = useState<HardwareTierInfo | null>(null)
   const [isDownloading, setIsDownloading] = useState(false)
   const [recoveryPhrase, setRecoveryPhrase] = useState<string[]>([])
+  const [recoveryError, setRecoveryError] = useState(false)
 
   const [authEmail, setAuthEmail] = useState('')
   const [authPass, setAuthPass] = useState('')
@@ -83,23 +105,8 @@ export const OnboardingFlow: React.FC = () => {
     }
   }, [])
 
-  // Check if onboarding already completed — skip to main app
-  useEffect(() => {
-    const checkOnboardingCompleted = async () => {
-      try {
-        const result = await window.electronAPI?.settings?.get?.({
-          key: 'onboarding_completed',
-        } as { key: string })
-        if (result?.success && result.data) {
-          // Onboarding was already completed — go to main app
-          useAppStore.getState().navigate('meeting-list')
-        }
-      } catch {
-        // Settings unavailable — stay on onboarding (safe default)
-      }
-    }
-    checkOnboardingCompleted()
-  }, [])
+  // NOTE: Onboarding completion check is handled exclusively by AppLayout.tsx
+  // to avoid a double-IPC race condition. If this component is mounted, onboarding is needed.
 
   // Listen for Google OAuth callback from main process deeplink handler
   useEffect(() => {
@@ -162,39 +169,15 @@ export const OnboardingFlow: React.FC = () => {
       const recoveryResult = await window.electronAPI?.auth?.generateRecoveryKey?.()
       if (recoveryResult?.success && recoveryResult.data?.phrase) {
         setRecoveryPhrase(recoveryResult.data.phrase)
+        setRecoveryError(false)
       } else {
-        const fallbackWords = [
-          'abandon',
-          'ability',
-          'able',
-          'about',
-          'above',
-          'absent',
-          'absorb',
-          'abstract',
-          'absurd',
-          'abuse',
-          'access',
-          'accident',
-        ]
-        setRecoveryPhrase(fallbackWords)
+        // SECURITY: Never present a fake/hardcoded key — block the user instead
+        log.error('Recovery key generation failed — no phrase returned')
+        setRecoveryError(true)
       }
-    } catch {
-      const fallbackWords = [
-        'abandon',
-        'ability',
-        'able',
-        'about',
-        'above',
-        'absent',
-        'absorb',
-        'abstract',
-        'absurd',
-        'abuse',
-        'access',
-        'accident',
-      ]
-      setRecoveryPhrase(fallbackWords)
+    } catch (err) {
+      log.error('Recovery key generation threw an exception:', err)
+      setRecoveryError(true)
     }
     setIsDownloading(false)
     setStep('recovery-key')
@@ -295,52 +278,134 @@ export const OnboardingFlow: React.FC = () => {
   }
 
   return (
-    <div className="w-full h-full flex bg-[#020617] text-[var(--color-text-primary)] relative">
+    <div
+      className="w-full h-full flex bg-[#020617] text-[var(--color-text-primary)] relative"
+      onPointerMove={handlePointerMove}
+    >
       {/* Left Visual Art Panel (Hidden on mobile, and hidden during wide steps) */}
       {step !== 'plan-selection' && step !== 'ghost-meeting' && (
-        <div className="hidden lg:flex w-1/2 h-full bg-slate-950 p-12 flex-col justify-between relative overflow-hidden border-r border-white/5">
-          <div className="absolute inset-0 with-noise opacity-[0.03] pointer-events-none" />
-          <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-blue-600/10 blur-[100px] rounded-full pointer-events-none translate-x-1/3 -translate-y-1/3" />
+        <div className="hidden lg:flex w-1/2 h-full bg-slate-950 p-12 flex-col justify-between relative overflow-hidden border-r border-white/[0.04]">
+          <div className="absolute inset-0 with-noise opacity-[0.03] pointer-events-none z-0" />
+          <motion.div
+            className="absolute inset-0 pointer-events-none z-0 transition-opacity duration-300 opacity-60"
+            style={{
+              background: spotlightBackground,
+            }}
+          />
+          <div className="absolute top-0 right-0 w-[600px] h-[600px] bg-slate-800/30 blur-[130px] rounded-full pointer-events-none translate-x-1/4 -translate-y-1/4 z-0" />
+          <div className="absolute bottom-10 left-0 w-[500px] h-[500px] bg-emerald-500/5 blur-[120px] rounded-full pointer-events-none -translate-x-1/4 translate-y-1/4 z-0" />
 
-          <div className="relative z-10">
+          <div className="relative z-10 pb-8">
             <Logo3DErrorBoundary>
               <Logo3D />
             </Logo3DErrorBoundary>
           </div>
 
-          <div className="relative z-10 max-w-md mt-12">
-            <h1 className="text-4xl font-heading font-medium tracking-wide text-white mb-6">
-              {step === 'auth'
-                ? authMode === 'register'
-                  ? 'The Sovereign Memory Fabric.'
-                  : 'Welcome Back.'
-                : ''}
-              {step === 'setup' ? 'Initializing Core.' : ''}
-              {step === 'recovery-key' ? 'Absolute Sovereignty.' : ''}
-              {(step as string) === 'plan-selection' ? 'Systems Ready.' : ''}
-              {(step as string) === 'ghost-meeting' ? 'Simulation Mode.' : ''}
-            </h1>
-            <p className="text-slate-400 font-serif italic text-lg leading-relaxed">
-              {step === 'auth'
-                ? 'Constructing the autonomous agentic web. Infinite recall, zero dependencies.'
-                : ''}
-              {step === 'setup'
-                ? 'Injecting AI models directly into your secure local environment.'
-                : ''}
-              {step === 'recovery-key'
-                ? 'You are the only one holding the keys. True ownership of your data.'
-                : ''}
-              {(step as string) === 'plan-selection'
-                ? 'Choose the cognitive capacity required for your workflows.'
-                : ''}
-              {(step as string) === 'ghost-meeting'
-                ? 'Your first session. Experiencing the intelligence locally.'
-                : ''}
-            </p>
-          </div>
+          <AnimatePresence mode="wait">
+            <motion.div
+              key={step + (step === 'auth' ? authMode : '')}
+              initial={{ opacity: 0, y: 15, filter: 'blur(6px)' }}
+              animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
+              exit={{ opacity: 0, y: -15, filter: 'blur(6px)' }}
+              transition={{ duration: 0.4, ease: 'easeOut' }}
+              className="relative z-10 max-w-xl mt-auto mb-auto"
+            >
+              <h1 className="text-[2.75rem] leading-[1.15] font-heading font-medium tracking-tight text-white mb-6 drop-shadow-lg">
+                {step === 'auth'
+                  ? authMode === 'register'
+                    ? 'The Sovereign Memory Fabric.'
+                    : 'Welcome Back.'
+                  : ''}
+                {step === 'setup' ? 'Initializing Core.' : ''}
+                {step === 'recovery-key' ? 'Absolute Sovereignty.' : ''}
+                {(step as string) === 'plan-selection' ? 'Systems Ready.' : ''}
+                {(step as string) === 'ghost-meeting' ? 'Simulation Mode.' : ''}
+              </h1>
+              <p className="text-slate-400 font-serif italic text-xl leading-[1.7] opacity-90">
+                {step === 'auth'
+                  ? 'Constructing the autonomous agentic web. Infinite recall, zero dependencies.'
+                  : ''}
+                {step === 'setup'
+                  ? 'Injecting AI models directly into your secure local environment.'
+                  : ''}
+                {step === 'recovery-key'
+                  ? 'You are the only one holding the keys. True ownership of your data.'
+                  : ''}
+                {(step as string) === 'plan-selection'
+                  ? 'Choose the cognitive capacity required for your workflows.'
+                  : ''}
+                {(step as string) === 'ghost-meeting'
+                  ? 'Your first session. Experiencing the intelligence locally.'
+                  : ''}
+              </p>
 
-          <div className="relative z-10 text-[10px] font-mono tracking-widest text-slate-600 uppercase">
-            All processing happens locally.
+              {step === 'auth' && (
+                <div className="mt-12 grid grid-cols-2 gap-5 pr-8">
+                  <div className="group relative p-6 rounded-2xl bg-white/[0.02] border border-white/[0.05] hover:bg-white/[0.04] hover:shadow-2xl hover:shadow-violet-500/10 transition-all duration-300 overflow-hidden cursor-default">
+                    <div className="absolute inset-0 bg-gradient-to-br from-violet-500/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+                    <Layers
+                      className="text-violet-400 mb-4 opacity-80 group-hover:opacity-100 group-hover:scale-110 transition-all duration-300"
+                      size={24}
+                    />
+                    <h3 className="text-slate-200 font-medium tracking-wide mb-1.5 text-[15px]">
+                      Cognitive Substrate
+                    </h3>
+                    <p className="text-[13px] text-slate-500 leading-relaxed group-hover:text-slate-400 transition-colors">
+                      100% offline inference with zero external telemetry.
+                    </p>
+                  </div>
+
+                  <div className="group relative p-6 rounded-2xl bg-white/[0.02] border border-white/[0.05] hover:bg-white/[0.04] hover:shadow-2xl hover:shadow-emerald-500/10 transition-all duration-300 overflow-hidden cursor-default">
+                    <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+                    <Activity
+                      className="text-emerald-400 mb-4 opacity-80 group-hover:opacity-100 group-hover:scale-110 transition-all duration-300"
+                      size={24}
+                    />
+                    <h3 className="text-slate-200 font-medium tracking-wide mb-1.5 text-[15px]">
+                      Infinite Recall
+                    </h3>
+                    <p className="text-[13px] text-slate-500 leading-relaxed group-hover:text-slate-400 transition-colors">
+                      Continuous background ingestion and ambient retrieval.
+                    </p>
+                  </div>
+
+                  <div className="group relative p-6 rounded-2xl bg-white/[0.02] border border-white/[0.05] hover:bg-white/[0.04] hover:shadow-2xl hover:shadow-amber-500/10 transition-all duration-300 overflow-hidden cursor-default">
+                    <div className="absolute inset-0 bg-gradient-to-br from-amber-500/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+                    <GitMerge
+                      className="text-amber-400 mb-4 opacity-80 group-hover:opacity-100 group-hover:scale-110 transition-all duration-300"
+                      size={24}
+                    />
+                    <h3 className="text-slate-200 font-medium tracking-wide mb-1.5 text-[15px]">
+                      Agentic Action
+                    </h3>
+                    <p className="text-[13px] text-slate-500 leading-relaxed group-hover:text-slate-400 transition-colors">
+                      Autonomous workflow synthesis executed on-device.
+                    </p>
+                  </div>
+
+                  <div className="group relative p-6 rounded-2xl bg-white/[0.02] border border-white/[0.05] hover:bg-white/[0.04] hover:shadow-2xl hover:shadow-sky-500/10 transition-all duration-300 overflow-hidden cursor-default">
+                    <div className="absolute inset-0 bg-gradient-to-br from-sky-500/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+                    <Landmark
+                      className="text-sky-400 mb-4 opacity-80 group-hover:opacity-100 group-hover:scale-110 transition-all duration-300"
+                      size={24}
+                    />
+                    <h3 className="text-slate-200 font-medium tracking-wide mb-1.5 text-[15px]">
+                      Data Sovereignty
+                    </h3>
+                    <p className="text-[13px] text-slate-500 leading-relaxed group-hover:text-slate-400 transition-colors">
+                      Cryptographically guaranteed single-tenant architecture.
+                    </p>
+                  </div>
+                </div>
+              )}
+            </motion.div>
+          </AnimatePresence>
+
+          <div className="relative z-10 pt-10 mt-auto">
+            <div className="flex items-center gap-3 text-[11px] font-mono tracking-[0.2em] text-slate-500 uppercase bg-black/20 w-max px-4 py-2 rounded-full border border-white/5 backdrop-blur-md">
+              <div className="w-2 h-2 rounded-full bg-emerald-500/80 animate-pulse shadow-[0_0_8px_rgba(16,185,129,0.5)]" />
+              All processing happens locally.
+            </div>
           </div>
         </div>
       )}
@@ -373,22 +438,37 @@ export const OnboardingFlow: React.FC = () => {
               </div>
             )}
 
-            <div className="w-full space-y-4 mb-6">
+            <form
+              className="w-full space-y-4 mb-6"
+              onSubmit={e => {
+                e.preventDefault()
+                handleAuth()
+              }}
+            >
               <div className="">
                 <Input
+                  id="email"
+                  name="email"
+                  type="email"
                   label="Email"
                   value={authEmail}
                   onChange={e => setAuthEmail(e.target.value)}
                   placeholder="name@example.com"
+                  autoComplete="username"
+                  required
                 />
               </div>
               <div className="">
                 <Input
+                  id="password"
+                  name="password"
                   type="password"
                   label="Password"
                   value={authPass}
                   onChange={e => setAuthPass(e.target.value)}
                   placeholder="••••••••"
+                  autoComplete={authMode === 'register' ? 'new-password' : 'current-password'}
+                  required
                 />
               </div>
 
@@ -418,10 +498,10 @@ export const OnboardingFlow: React.FC = () => {
 
               <div className="">
                 <Button
+                  type="submit"
                   variant="primary"
                   size="lg"
                   className="w-full mt-4 bg-white text-slate-950 hover:bg-slate-200 border-none transition-colors"
-                  onClick={handleAuth}
                   disabled={authLoading}
                 >
                   {authLoading
@@ -488,7 +568,7 @@ export const OnboardingFlow: React.FC = () => {
                   Continue with Google
                 </button>
               </div>
-            </div>
+            </form>
 
             <div className="flex flex-col items-center pt-6 border-t border-white/10 mt-2 ">
               <div className="text-xs text-slate-400 tracking-wide">
@@ -618,30 +698,62 @@ export const OnboardingFlow: React.FC = () => {
             </div>
 
             {/* Word grid - Vault style */}
-            <div className="grid grid-cols-3 gap-3 mb-8 w-full p-5 rounded-2xl bg-[#0a0f1d] border border-white/5 shadow-inner">
-              {recoveryPhrase.map((word, i) => (
-                <div
-                  key={i}
-                  className="flex items-center gap-2.5 px-3 py-2.5 rounded-lg bg-white/[0.03] border border-white/[0.03] hover:bg-white/[0.06] transition-colors"
+            {recoveryError ? (
+              <div className="flex flex-col items-center gap-4 mb-8 w-full p-8 rounded-2xl bg-rose-950/20 border border-rose-500/20">
+                <ShieldAlert size={36} className="text-rose-400" />
+                <p className="text-rose-300 text-sm text-center leading-relaxed max-w-sm">
+                  Recovery key generation failed. Your data cannot be securely protected without a
+                  valid key.
+                </p>
+                <Button
+                  variant="secondary"
+                  className="bg-white/5 border-white/10 hover:bg-white/10"
+                  onClick={async () => {
+                    setRecoveryError(false)
+                    try {
+                      const res = await window.electronAPI?.auth?.generateRecoveryKey?.()
+                      if (res?.success && res.data?.phrase) {
+                        setRecoveryPhrase(res.data.phrase)
+                      } else {
+                        setRecoveryError(true)
+                      }
+                    } catch {
+                      setRecoveryError(true)
+                    }
+                  }}
                 >
-                  <span className="text-slate-500 text-[10px] font-mono opacity-60 w-4 shrink-0 select-none">
-                    {(i + 1).toString().padStart(2, '0')}
-                  </span>
-                  <span className="text-slate-200 font-mono text-[14px] font-medium tracking-widest select-all">
-                    {word}
-                  </span>
-                </div>
-              ))}
-            </div>
+                  Retry Key Generation
+                </Button>
+              </div>
+            ) : (
+              <div className="grid grid-cols-3 gap-3 mb-8 w-full p-5 rounded-2xl bg-[#0a0f1d] border border-white/5 shadow-inner">
+                {recoveryPhrase.map((word, i) => (
+                  <div
+                    key={i}
+                    className="flex items-center gap-2.5 px-3 py-2.5 rounded-lg bg-white/[0.03] border border-white/[0.03] hover:bg-white/[0.06] transition-colors"
+                  >
+                    <span className="text-slate-500 text-[10px] font-mono opacity-60 w-4 shrink-0 select-none">
+                      {(i + 1).toString().padStart(2, '0')}
+                    </span>
+                    <span className="text-slate-200 font-mono text-[14px] font-medium tracking-widest select-all">
+                      {word}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
 
             {/* Action buttons */}
             <div className="flex gap-4 w-full mb-6">
               <Button
                 variant="secondary"
                 className={`flex-1 bg-white/5 border-white/10 hover:bg-white/10 gap-2 h-12 transition-all ${
-                  !keySaved ? 'animate-pulse-slow shadow-[0_0_15px_rgba(255,255,255,0.05)]' : ''
+                  !keySaved && !recoveryError
+                    ? 'animate-pulse-slow shadow-[0_0_15px_rgba(255,255,255,0.05)]'
+                    : ''
                 }`}
                 onClick={handleCopyKey}
+                disabled={recoveryError || recoveryPhrase.length === 0}
               >
                 {keyCopied ? (
                   '✓ Copied!'
@@ -655,6 +767,7 @@ export const OnboardingFlow: React.FC = () => {
                 variant="secondary"
                 className="flex-1 bg-white/5 border-white/10 hover:bg-white/10 gap-2 h-12"
                 onClick={handleDownloadKey}
+                disabled={recoveryError || recoveryPhrase.length === 0}
               >
                 <Download size={16} /> Save as Text File
               </Button>
@@ -664,14 +777,18 @@ export const OnboardingFlow: React.FC = () => {
               variant="primary"
               size="lg"
               className={`w-full border-none transition-all duration-500 h-14 text-base font-medium tracking-wide shadow-xl ${
-                keySaved
+                keySaved && !recoveryError
                   ? 'bg-white text-slate-950 hover:bg-slate-200 shadow-[0_0_30px_rgba(255,255,255,0.15)]'
                   : 'bg-white/5 text-slate-500 cursor-not-allowed opacity-70'
               }`}
-              disabled={!keySaved}
+              disabled={!keySaved || recoveryError}
               onClick={() => setStep('plan-selection')}
             >
-              {keySaved ? "I've Saved It Securely →" : 'Copy or Download to Continue'}
+              {recoveryError
+                ? 'Recovery Key Required'
+                : keySaved
+                  ? "I've Saved It Securely →"
+                  : 'Copy or Download to Continue'}
             </Button>
           </div>
         )}

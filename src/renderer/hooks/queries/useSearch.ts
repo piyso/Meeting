@@ -6,8 +6,8 @@ export function useSearch(params: SearchParams, enabled = true) {
     queryKey: ['search', params.query, params.namespace, params.limit],
     queryFn: async () => {
       const resp = await window.electronAPI?.search?.query(params)
-      if (!resp.success || !resp.data) {
-        throw new Error(resp.error?.message || 'Search failed')
+      if (!resp?.success || !resp?.data) {
+        throw new Error(resp?.error?.message || 'Search failed')
       }
       return resp.data
     },
@@ -21,8 +21,8 @@ export function useSemanticSearch(params: SemanticSearchParams, enabled = true) 
     queryKey: ['semanticSearch', params.query, params.namespace, params.limit],
     queryFn: async () => {
       const resp = await window.electronAPI?.search?.semantic(params)
-      if (!resp.success || !resp.data) {
-        throw new Error(resp.error?.message || 'Semantic search failed')
+      if (!resp?.success || !resp?.data) {
+        throw new Error(resp?.error?.message || 'Semantic search failed')
       }
       return resp.data
     },

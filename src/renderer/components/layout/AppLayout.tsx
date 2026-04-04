@@ -13,6 +13,7 @@ import { GlobalContextBar } from '../command/GlobalContextBar'
 import { DeviceWallDialog } from '../meeting/DeviceWallDialog'
 import { IntelligenceWallDialog } from '../meeting/IntelligenceWallDialog'
 import { useAudioSession } from '../../hooks/useAudioSession'
+import { useKeyboardShortcuts } from '../../hooks/useKeyboardShortcuts'
 
 // Determine platform globally
 const platform = window.electronAPI?.platform || 'web'
@@ -82,6 +83,10 @@ export const AppLayout: React.FC = () => {
   React.useEffect(() => {
     document.body.setAttribute('data-platform', platform)
   }, [])
+
+  // ── Global keyboard shortcuts (Cmd+N, Cmd+K, Cmd+Shift+R, etc.) ──
+  useKeyboardShortcuts()
+
   const focusMode = useAppStore(s => s.focusMode)
   const recordingState = useAppStore(s => s.recordingState)
   const isOnline = useAppStore(s => s.isOnline)
@@ -93,6 +98,7 @@ export const AppLayout: React.FC = () => {
 
   // Prevent flash of onboarding for returning users
   const [initializing, setInitializing] = React.useState(true)
+  const [statusBannerVisible, setStatusBannerVisible] = React.useState(false)
 
   // State for global API limit dialogs
   const [deviceWallOpen, setDeviceWallOpen] = React.useState(false)
@@ -159,7 +165,7 @@ export const AppLayout: React.FC = () => {
         useAppStore.getState().addToast({
           type: 'error',
           title: 'Failed to start meeting',
-          message: 'An unexpected error occurred',
+          message: err instanceof Error ? err.message : 'An unexpected error occurred',
           duration: 5000,
         })
         setRecordingState('idle')
@@ -491,7 +497,7 @@ export const AppLayout: React.FC = () => {
       </ErrorBoundary>
 
       <OfflineBanner isOnline={isOnline} />
-      <StatusBanner />
+      <StatusBanner onVisibilityChange={setStatusBannerVisible} />
 
       {/* Session Expiring Warning Banner */}
       {sessionExpiringMs !== null && (
@@ -517,7 +523,7 @@ export const AppLayout: React.FC = () => {
           position: 'absolute',
           left: focusMode ? 0 : 104, // 20px float + 68px pill width + 16px gap
           right: 0,
-          top: 72, // Island height (48) + top gap (8) + spacing (16)
+          top: 72 + (statusBannerVisible ? 36 : 0), // Shift down when health banner is visible
           bottom: 0,
         }}
       >

@@ -56,7 +56,7 @@ export const MicrophoneTest: React.FC<MicrophoneTestProps> = ({ onTestComplete }
       const result = await window.electronAPI?.audio?.startMicrophoneTest()
 
       if (!result?.success || !result.data) {
-        throw new Error(result.error?.message || 'Failed to start microphone test')
+        throw new Error(result?.error?.message || 'Failed to start microphone test')
       }
 
       setTestMessage(result.data.message)

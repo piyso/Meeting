@@ -7,7 +7,7 @@ export function useCurrentMeeting(meetingId: string | null) {
       if (!meetingId) return null
       const response = await window.electronAPI?.meeting?.get({ meetingId })
       if (!response?.success) {
-        throw new Error(response.error?.message || 'Failed to fetch meeting details')
+        throw new Error(response?.error?.message || 'Failed to fetch meeting details')
       }
       return response.data ?? null
     },

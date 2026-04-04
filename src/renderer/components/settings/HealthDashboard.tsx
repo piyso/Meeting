@@ -71,8 +71,8 @@ export const HealthDashboard: React.FC = () => {
     )
   }
 
-  const errorCount = results.filter(r => r.status === 'error').length
-  const warnCount = results.filter(r => r.status === 'warn').length
+  const errorCount = (results || []).filter(r => r.status === 'error').length
+  const warnCount = (results || []).filter(r => r.status === 'warn').length
 
   const copyReport = () => {
     const lines = [

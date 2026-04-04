@@ -96,7 +96,9 @@ export default defineConfig({
             // Toggle mock mode: 'true' ONLY for local UI dev (Vite dev server running)
             // so the renderer's mock layer can set window.electronAPI.
             // MUST be 'false' for production builds. Uses VITE_DEV_SERVER_URL presence to detect.
-            'process.env.USE_MOCK_DATA': JSON.stringify('false'),
+            'process.env.USE_MOCK_DATA': JSON.stringify(
+              envVars['USE_MOCK_DATA'] || process.env.USE_MOCK_DATA || 'false'
+            ),
           },
           build: {
             outDir: 'dist-electron',

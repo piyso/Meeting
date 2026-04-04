@@ -108,10 +108,13 @@ export const PricingView: React.FC = () => {
 
       const res = (await window.electronAPI?.auth?.activateLicense({
         key: licenseKey.trim(),
-      })) as unknown as {
-        data?: { tier: string }
-        tier: string
-      }
+      })) as unknown as
+        | {
+            data?: { tier: string }
+            tier: string
+          }
+        | undefined
+      if (!res) throw new Error('License activation returned no response')
       const updatedUser = res.data !== undefined ? res.data : res
       setGlobalTier(updatedUser.tier)
       addToast({

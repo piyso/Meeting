@@ -57,7 +57,7 @@ export const SystemAudioTest: React.FC<SystemAudioTestProps> = ({ onTestComplete
       const result = await window.electronAPI?.audio?.startSystemAudioTest()
 
       if (!result?.success || !result.data) {
-        throw new Error(result.error?.message || 'Failed to start system audio test')
+        throw new Error(result?.error?.message || 'Failed to start system audio test')
       }
 
       setTestMessage(result.data.message)

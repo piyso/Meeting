@@ -36,12 +36,14 @@ export const Tooltip: React.FC<TooltipProps> = ({
             initial={{
               opacity: 0,
               scale: 0.95,
+              x: '-50%',
               y: position === 'top' ? 4 : position === 'bottom' ? -4 : 0,
             }}
-            animate={{ opacity: 1, scale: 1, y: 0 }}
+            animate={{ opacity: 1, scale: 1, x: '-50%', y: 0 }}
             exit={{
               opacity: 0,
               scale: 0.95,
+              x: '-50%',
               y: position === 'top' ? 4 : position === 'bottom' ? -4 : 0,
             }}
             transition={{ type: 'spring', stiffness: 500, damping: 30 }}

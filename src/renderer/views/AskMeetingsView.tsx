@@ -190,7 +190,12 @@ const STORAGE_KEY_PREFIX = 'bluearkive:ask-meetings-history'
 const loadHistory = (userId: string): ChatMessage[] => {
   try {
     const stored = localStorage.getItem(`${STORAGE_KEY_PREFIX}:${userId}`)
-    if (stored) return JSON.parse(stored)
+    if (stored) {
+      const parsed = JSON.parse(stored) as ChatMessage[]
+      // Cap at 50 on load as well (matches the save cap) — prevents
+      // stale excess from old versions from bloating state
+      return Array.isArray(parsed) ? parsed.slice(-50) : []
+    }
   } catch (e) {
     // ignore
   }
@@ -336,12 +341,12 @@ export default function AskMeetingsView() {
         let contextText = ''
 
         // searchResult.data may be { results: [...], query } (object) or SemanticSearchResult[] (array)
-        const rawData = searchResult.data as unknown
+        const rawData = searchResult?.data as unknown
         const searchResults: SemanticSearchResult[] = Array.isArray(rawData)
           ? rawData
           : (rawData as { results?: SemanticSearchResult[] })?.results || []
 
-        if (searchResult.success && searchResults.length > 0) {
+        if (searchResult?.success && searchResults.length > 0) {
           sources = searchResults.map((r: SemanticSearchResult) => ({
             meetingId: r.meeting?.id || '',
             meetingTitle: r.meeting?.title || 'Untitled Meeting',
@@ -366,7 +371,7 @@ export default function AskMeetingsView() {
 
         // Final answer (streaming would have already updated content in real-time)
         const answer =
-          intelligenceResult.success && intelligenceResult.data
+          intelligenceResult?.success && intelligenceResult?.data
             ? intelligenceResult.data.answer
             : 'I could not process your question. Make sure the AI engine is loaded.'
 

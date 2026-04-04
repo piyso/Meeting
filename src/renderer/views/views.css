@@ -32,10 +32,6 @@
   padding: 48px 0 var(--space-20);
   margin-bottom: var(--space-16);
   background: linear-gradient(180deg, var(--color-bg-root) 60%, transparent);
-  backdrop-filter: blur(16px) saturate(140%);
-  -webkit-backdrop-filter: blur(16px) saturate(140%);
-  mask-image: linear-gradient(to bottom, black 75%, transparent);
-  -webkit-mask-image: linear-gradient(to bottom, black 75%, transparent);
   min-width: 0;
 }
 
@@ -90,6 +86,7 @@
   opacity: 0;
   transition: opacity 400ms ease;
   z-index: 0;
+  border-radius: inherit;
 }
 
 .ui-hero-start-btn-bg {

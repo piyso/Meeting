@@ -18,7 +18,7 @@ export function useCalendar() {
   const connectCalendar = useMutation({
     mutationFn: async (provider: 'google' | 'apple') => {
       const res = await window.electronAPI?.calendar?.sync?.({ provider })
-      if (!res?.success) throw new Error(res?.error?.message)
+      if (!res?.success) throw new Error(res?.error?.message ?? 'Calendar sync failed')
       return res.data
     },
     onSuccess: () => {

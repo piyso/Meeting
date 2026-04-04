@@ -4,6 +4,14 @@ import { useState, useEffect, useCallback } from 'react'
  * Hook that drives PostMeetingDigest by calling the digest:generate IPC handler.
  * Auto-generates summary, action items, and decisions when meeting stops.
  */
+
+/** Normalizes a timestamp value (string or number) into an ISO string. */
+function extractTimestamp(value: unknown): string | undefined {
+  if (typeof value === 'string') return value
+  if (typeof value === 'number') return new Date(value).toISOString()
+  return undefined
+}
+
 export function useDigest(meetingId: string | null, skip = false) {
   interface DigestData {
     summary?: string
@@ -37,16 +45,7 @@ export function useDigest(meetingId: string | null, skip = false) {
                 ? raw.action_items
                 : undefined,
           decisions: typeof raw.decisions === 'string' ? raw.decisions : undefined,
-          generatedAt:
-            typeof raw.generatedAt === 'string'
-              ? raw.generatedAt
-              : typeof raw.generatedAt === 'number'
-                ? new Date(raw.generatedAt).toISOString()
-                : typeof raw.generated_at === 'string'
-                  ? raw.generated_at
-                  : typeof raw.generated_at === 'number'
-                    ? new Date(raw.generated_at as number).toISOString()
-                    : undefined,
+          generatedAt: extractTimestamp(raw.generatedAt) ?? extractTimestamp(raw.generated_at),
         })
       } else {
         setError(result?.error?.message || 'Failed to generate digest')

@@ -340,7 +340,7 @@ class AudioCaptureManager {
    */
   public async stopCapture(): Promise<void> {
     try {
-      this.cleanup()
+      await this.cleanup()
       log.info('Audio capture stopped')
     } catch (error) {
       log.error('Failed to stop audio capture:', error)
@@ -398,26 +398,29 @@ const audioCaptureManager = new AudioCaptureManager()
 
 // Listen for IPC messages from main process
 if (typeof window !== 'undefined' && window.electronAPI?.ipcRenderer) {
-  window.electronAPI?.ipcRenderer?.on('audio:startCapture', (_event: unknown, data: unknown) => {
-    const params = data as {
-      deviceId: string
-      sampleRate: number
-      channelCount: number
-      fallbackToMicrophone?: boolean
+  const unsub1 = window.electronAPI?.ipcRenderer?.on(
+    'audio:startCapture',
+    (_event: unknown, data: unknown) => {
+      const params = data as {
+        deviceId: string
+        sampleRate: number
+        channelCount: number
+        fallbackToMicrophone?: boolean
+      }
+      audioCaptureManager
+        .startSystemAudioCapture(
+          params.deviceId,
+          params.sampleRate,
+          params.channelCount,
+          params.fallbackToMicrophone ?? true
+        )
+        .catch(error => {
+          log.error('Failed to start system audio capture:', error)
+        })
     }
-    audioCaptureManager
-      .startSystemAudioCapture(
-        params.deviceId,
-        params.sampleRate,
-        params.channelCount,
-        params.fallbackToMicrophone ?? true
-      )
-      .catch(error => {
-        log.error('Failed to start system audio capture:', error)
-      })
-  })
+  )
 
-  window.electronAPI?.ipcRenderer?.on(
+  const unsub2 = window.electronAPI?.ipcRenderer?.on(
     'audio:startMicrophoneCapture',
     (_event: unknown, data: unknown) => {
       const params = data as { sampleRate: number; channelCount: number }
@@ -429,11 +432,24 @@ if (typeof window !== 'undefined' && window.electronAPI?.ipcRenderer) {
     }
   )
 
-  window.electronAPI?.ipcRenderer?.on('audio:stopCapture', () => {
+  const unsub3 = window.electronAPI?.ipcRenderer?.on('audio:stopCapture', () => {
     audioCaptureManager.stopCapture().catch(error => {
       log.error('Failed to stop audio capture:', error)
     })
   })
+
+  // Cleanup listeners on page unload to prevent leaks during HMR/reload
+  const cleanup = () => {
+    unsub1?.()
+    unsub2?.()
+    unsub3?.()
+  }
+  window.addEventListener('beforeunload', cleanup, { once: true })
+
+  // Vite HMR cleanup — prevents listener duplication during dev
+  if (import.meta.hot) {
+    import.meta.hot.dispose(cleanup)
+  }
 }
 
 export default audioCaptureManager

@@ -88,8 +88,8 @@ export function useIPCCall<T>(
         }
 
         // ── Handle IPC error ──
-        const code = result.error?.code ?? 'UNKNOWN'
-        const message = result.error?.message ?? 'An unexpected error occurred'
+        const code = result?.error?.code ?? 'UNKNOWN'
+        const message = result?.error?.message ?? 'An unexpected error occurred'
 
         setErrorCode(code)
         setError(message)

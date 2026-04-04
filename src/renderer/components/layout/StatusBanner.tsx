@@ -4,9 +4,13 @@ import { useAppStore } from '../../store/appStore'
 
 interface StatusBannerProps {
   onViewDetails?: () => void
+  onVisibilityChange?: (visible: boolean) => void
 }
 
-export const StatusBanner: React.FC<StatusBannerProps> = ({ onViewDetails }) => {
+export const StatusBanner: React.FC<StatusBannerProps> = ({
+  onViewDetails,
+  onVisibilityChange,
+}) => {
   const [issues, setIssues] = useState<{ errors: number; warnings: number }>({
     errors: 0,
     warnings: 0,
@@ -46,7 +50,14 @@ export const StatusBanner: React.FC<StatusBannerProps> = ({ onViewDetails }) => 
     return undefined
   }, [visible, dismissed])
 
-  if (!visible || dismissed || (issues.errors === 0 && issues.warnings === 0)) {
+  const shouldShow = visible && !dismissed && (issues.errors > 0 || issues.warnings > 0)
+
+  // Notify parent whenever visibility changes
+  useEffect(() => {
+    onVisibilityChange?.(shouldShow)
+  }, [shouldShow, onVisibilityChange])
+
+  if (!shouldShow) {
     return null
   }
 
@@ -64,8 +75,14 @@ export const StatusBanner: React.FC<StatusBannerProps> = ({ onViewDetails }) => 
 
   return (
     <div
+      id="status-banner"
       className="flex items-center justify-between px-4 py-2 text-[13px] font-medium animate-slide-down"
       style={{
+        position: 'fixed',
+        top: 64,
+        left: 104,
+        right: 0,
+        zIndex: 35,
         background: isError
           ? 'linear-gradient(90deg, rgba(255,69,58,0.12), rgba(255,69,58,0.06))'
           : 'linear-gradient(90deg, rgba(255,159,10,0.12), rgba(255,159,10,0.06))',

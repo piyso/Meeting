@@ -116,7 +116,10 @@ class VADWorkletProcessor extends AudioWorkletProcessor {
       if (this.chunksBuffered >= this.maxChunks) {
         // Drop oldest chunk by clearing buffer
         // This prevents memory overflow on long meetings
-        console.warn('Audio buffer full, dropping oldest chunk')
+        this.port.postMessage({
+          type: 'warning',
+          message: 'Audio buffer full, dropping oldest chunk',
+        })
         this.buffer = this.buffer.slice(this.targetBufferSize)
         this.chunksBuffered--
       }

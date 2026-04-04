@@ -354,8 +354,8 @@ export default function WeeklyDigestView() {
         // Reset expand states for fresh data — keep action items expanded
         setExpandedSections(new Set(['actions']))
       } else {
-        const errorMsg = res.error?.message || 'Failed to generate digest.'
-        const errorCode = res.error?.code || ''
+        const errorMsg = res?.error?.message || 'Failed to generate digest.'
+        const errorCode = res?.error?.code || ''
         if (errorCode === 'LLM_NOT_LOADED' || errorMsg.toLowerCase().includes('ai engine')) {
           setError('AI engine is still loading. Please wait a moment and try again.')
         } else {

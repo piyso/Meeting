@@ -30,7 +30,7 @@ export const MeetingListSidebar: React.FC<MeetingListSidebarProps> = ({
     queryFn: async () => {
       const result = await window.electronAPI?.meeting?.list({})
       if (!result?.success) {
-        throw new Error(result.error?.message || 'Failed to fetch meetings')
+        throw new Error(result?.error?.message || 'Failed to fetch meetings')
       }
       return result
     },

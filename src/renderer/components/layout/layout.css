@@ -96,32 +96,66 @@
   margin-top: auto;
 }
 
+.ui-zen-rail-upgrade-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  border: 1px solid rgba(167, 139, 250, 0.2);
+  background: rgba(167, 139, 250, 0.08);
+  color: var(--color-violet);
+  cursor: pointer;
+  transition:
+    background 300ms var(--ease-fluid),
+    border-color 300ms var(--ease-fluid),
+    transform 300ms var(--ease-fluid),
+    box-shadow 300ms var(--ease-fluid);
+}
+.ui-zen-rail-upgrade-btn:hover {
+  background: rgba(167, 139, 250, 0.18);
+  border-color: rgba(167, 139, 250, 0.4);
+  transform: scale(1.08);
+  box-shadow: 0 0 16px rgba(167, 139, 250, 0.2);
+}
+.ui-zen-rail-upgrade-btn:active {
+  transform: scale(0.95);
+}
+
 /* DynamicIsland */
 .ui-dynamic-island {
   position: fixed;
   top: var(--space-16);
   height: var(--h-xl);
-  left: 50%;
-  transform: translateX(-50%) translateZ(0);
+
+  /* ── Center on the FULL VIEWPORT (Apple Dynamic Island style) ──
+     Uses margin-inline:auto instead of transform:translateX(-50%)
+     because Framer Motion's layout FLIP animation overwrites CSS transforms
+     on every animation frame, erasing the -50% centering and causing
+     the island to expand only rightward during animations. */
+  left: 0;
+  right: 0;
+  margin-inline: auto;
+
   width: max-content;
   min-width: 120px;
   max-width: 500px;
-  z-index: var(--z-island);
+  z-index: var(--z-overlay-base); /* Must be ≥ drag region (50) to receive hover events */
   display: flex;
   align-items: center;
   justify-content: center;
   gap: var(--space-16);
   padding: 0 var(--space-16);
   border-radius: var(--radius-full);
-  contain: style paint; /* Isolate paint — not layout (conflicts with max-content) */
 
-  /* Explicit compositor-safe transitions */
+  /* Explicit compositor-safe transitions for aesthetics (layout managed by Framer Motion) */
   transition:
-    padding 350ms cubic-bezier(0.25, 1, 0.2, 1.15),
     background 300ms ease-out,
     border-color 300ms ease-out,
     box-shadow 300ms ease-out;
-  will-change: transform; /* Single GPU-compositable property */
+  /* will-change removed — FM v12 auto-promotes layout-animated elements.
+     Double-compositing with backdrop-filter causes blur rendering artifacts. */
 
   /* Deep premium frost glass for best readability and aesthetics */
   background: linear-gradient(180deg, rgba(20, 20, 24, 0.35) 0%, rgba(10, 10, 12, 0.55) 100%);
@@ -159,7 +193,7 @@ body[data-platform='win32'] .ui-dynamic-island {
   position: absolute;
   inset: -4px;
   border-radius: inherit;
-  background: radial-gradient(ellipse at center, rgba(245, 158, 11, 0.2) 0%, transparent 70%);
+  background: radial-gradient(ellipse at center, rgba(245, 158, 11, 0.14) 0%, transparent 70%);
   pointer-events: none;
   animation: glow-pulse 2.5s ease-in-out infinite;
   z-index: -1;
@@ -178,7 +212,7 @@ body[data-platform='win32'] .ui-dynamic-island {
   position: absolute;
   inset: -4px;
   border-radius: inherit;
-  background: radial-gradient(ellipse at center, rgba(251, 191, 36, 0.15) 0%, transparent 70%);
+  background: radial-gradient(ellipse at center, rgba(251, 191, 36, 0.10) 0%, transparent 70%);
   pointer-events: none;
   animation: glow-pulse 3.5s ease-in-out infinite;
   z-index: -1;
@@ -197,7 +231,7 @@ body[data-platform='win32'] .ui-dynamic-island {
   position: absolute;
   inset: -4px;
   border-radius: inherit;
-  background: radial-gradient(ellipse at center, rgba(167, 139, 250, 0.2) 0%, transparent 70%);
+  background: radial-gradient(ellipse at center, rgba(167, 139, 250, 0.14) 0%, transparent 70%);
   pointer-events: none;
   animation: glow-pulse 2.5s ease-in-out infinite;
   z-index: -1;
@@ -214,16 +248,16 @@ body[data-platform='win32'] .ui-dynamic-island {
   }
 }
 
-.ui-di-expanded {
-  padding: 0 var(--space-24); /* Expand via padding, not min-width — avoids layout recalc */
-}
+/* ui-di-expanded padding snap removed — was causing 1-frame stutter.
+   The padding snapped instantly (not in transition list) while FM was
+   trying to smooth-animate the layout change. Content expansion now
+   handled naturally by children width changes + FM layout animation. */
 
-/* Specificity override: surface-glass-premium sets transform:translateZ(0)
-   which would replace our centering translateX(-50%). This rule wins by
-   combining both class selectors on the same element. */
-.ui-dynamic-island.surface-glass-premium {
-  transform: translateX(-50%) translateZ(0);
-}
+/* surface-glass-premium transform override removed — no longer needed.
+   Centering is now via margin-inline:auto, not transform. */
+
+/* Focus mode: no override needed — DI already centers on full viewport (left:0).
+   The .focus-mode-active class is still applied by React for future styling hooks. */
 
 /* ── Idle Content ── */
 .ui-dynamic-island-idle-content {

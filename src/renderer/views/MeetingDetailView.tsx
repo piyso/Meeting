@@ -67,7 +67,7 @@ export default function MeetingDetailView() {
     queryKey: ['highlights', selectedMeetingId],
     queryFn: async () => {
       if (!selectedMeetingId) return []
-      const res = await window.electronAPI.highlight?.list?.(selectedMeetingId)
+      const res = await window.electronAPI?.highlight?.list?.(selectedMeetingId)
       if (res?.success && res.data) return res.data
       return []
     },

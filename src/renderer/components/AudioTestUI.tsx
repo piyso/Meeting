@@ -63,7 +63,7 @@ export const AudioTestUI: React.FC<AudioTestUIProps> = ({
       })
       audioLevelUnsubscribeRef.current = unsubscribe
       return () => {
-        unsubscribe()
+        unsubscribe?.()
       }
     }
     return undefined
@@ -87,7 +87,7 @@ export const AudioTestUI: React.FC<AudioTestUIProps> = ({
           onTestComplete(result.data)
         }
       } else {
-        setError(result.error?.message || 'Audio test failed')
+        setError(result?.error?.message || 'Audio test failed')
         setTestPhase('idle')
       }
     } catch (err) {

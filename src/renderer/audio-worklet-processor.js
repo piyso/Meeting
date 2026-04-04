@@ -11,6 +11,8 @@
  * - Implements buffering for 10-second chunks (reduced from 30s for lower latency)
  */
 
+/* global sampleRate, currentTime */
+
 class AudioCaptureProcessor extends AudioWorkletProcessor {
   constructor() {
     super()
@@ -44,11 +46,11 @@ class AudioCaptureProcessor extends AudioWorkletProcessor {
    * Called automatically by the audio system for each 128-sample frame
    *
    * @param {Float32Array[][]} inputs - Input audio data [channel][sample]
-   * @param {Float32Array[][]} outputs - Output audio data (unused)
-   * @param {Object} parameters - Audio parameters (unused)
+   * @param {Float32Array[][]} _outputs - Output audio data (unused)
+   * @param {Object} _parameters - Audio parameters (unused)
    * @returns {boolean} - true to keep processor alive
    */
-  process(inputs, outputs, parameters) {
+  process(inputs, _outputs, _parameters) {
     // Log sample rate on first process call to verify 16kHz configuration
     if (!this.hasLoggedSampleRate) {
       this.port.postMessage({
@@ -83,7 +85,10 @@ class AudioCaptureProcessor extends AudioWorkletProcessor {
       // Check if we've exceeded max chunks buffered
       if (this.chunksBuffered >= this.maxChunks) {
         // Drop oldest chunk by clearing buffer
-        console.warn('Audio buffer full, dropping oldest chunk')
+        this.port.postMessage({
+          type: 'warning',
+          message: 'Audio buffer full, dropping oldest chunk',
+        })
         this.buffer = this.buffer.slice(this.targetBufferSize)
         this.chunksBuffered--
       }

@@ -485,3 +485,124 @@
   pointer-events: none;
   height: 0;
 }
+
+/* ── Custom AI Expansion Widget ── */
+.ui-ai-expansion-widget {
+  margin: var(--space-16) 0;
+  padding: var(--space-16);
+  border-left: 2px solid var(--color-violet);
+  background: rgba(167, 139, 250, 0.08);
+  border-radius: 0 var(--radius-lg) var(--radius-lg) 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-12);
+  cursor: default;
+  transition: background var(--transition-base), border-color var(--transition-base);
+  /* contain: paint kept for compositing — but will-change only on hover to avoid GPU waste */
+  contain: layout style;
+}
+.ui-ai-expansion-widget:hover {
+  background: rgba(167, 139, 250, 0.12);
+  will-change: transform, opacity;
+}
+.ui-ai-expansion-header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-8);
+  color: var(--color-violet);
+  font-weight: 600;
+  font-size: var(--text-sm);
+  margin: 0;
+  letter-spacing: var(--tracking-wide);
+}
+.ui-ai-expansion-body {
+  font-size: var(--text-sm);
+  color: var(--color-text-primary);
+  opacity: 0.95;
+  line-height: var(--leading-relaxed);
+}
+.ui-ai-expansion-body p {
+  margin: 0 !important;
+}
+
+/* ── Shimmer Skeleton (Loading State) ── */
+.ui-ai-shimmer-container {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 4px;
+  animation: ai-pulse 1.8s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+.ui-ai-shimmer-bar {
+  height: 10px;
+  background: rgba(167, 139, 250, 0.15);
+  border-radius: 4px;
+}
+
+@keyframes ai-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.35; }
+}
+
+/* ── Spinner Icon ── */
+.ui-ai-spin-icon {
+  animation: ai-spin 1s linear infinite;
+}
+@keyframes ai-spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+/* ── Error State ── */
+.ui-ai-expansion-error-text {
+  color: var(--color-rose, #f87171);
+  opacity: 0.9;
+  margin: 0;
+  font-style: italic;
+}
+
+/* ── Actions Bar ── */
+.ui-ai-expansion-actions {
+  display: flex;
+  gap: var(--space-8);
+  margin-top: var(--space-4);
+  animation: ai-slide-up 200ms var(--ease-snappy, ease-out);
+}
+@keyframes ai-slide-up {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.ui-ai-expansion-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 12px;
+  font-size: 11px;
+  font-weight: 600;
+  font-family: var(--font-mono);
+  border-radius: var(--radius-base);
+  border: 1px solid transparent;
+  cursor: pointer;
+  transition: all 200ms ease;
+  letter-spacing: var(--tracking-wide);
+  text-transform: uppercase;
+}
+.ui-ai-expansion-btn-accept {
+  background: rgba(167, 139, 250, 0.15);
+  color: var(--color-violet-light);
+  border-color: rgba(167, 139, 250, 0.1);
+}
+.ui-ai-expansion-btn-accept:hover {
+  background: rgba(167, 139, 250, 0.25);
+  border-color: rgba(167, 139, 250, 0.3);
+  box-shadow: 0 0 12px rgba(167, 139, 250, 0.2);
+}
+.ui-ai-expansion-btn-reject {
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--color-text-secondary);
+  border-color: rgba(255, 255, 255, 0.05);
+}
+.ui-ai-expansion-btn-reject:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: var(--color-text-primary);
+}

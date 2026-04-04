@@ -23,7 +23,7 @@ export function useTranscriptStream(meetingId: string | null) {
       if (!meetingId) return []
       const response = await window.electronAPI?.transcript?.get({ meetingId })
       if (!response?.success) {
-        throw new Error(response.error?.message || 'Failed to fetch transcripts')
+        throw new Error(response?.error?.message || 'Failed to fetch transcripts')
       }
       return response.data ?? []
     },
@@ -73,7 +73,7 @@ export function useTranscriptStream(meetingId: string | null) {
       }
     })
 
-    return () => unsubscribe()
+    return () => unsubscribe?.()
   }, [meetingId])
 
   // Combine database transcripts and live streamed chunks — deduplicate by ID

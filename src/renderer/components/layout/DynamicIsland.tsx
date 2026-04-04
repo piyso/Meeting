@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react'
+import { motion, AnimatePresence } from 'framer-motion'
 import { ChevronLeft, Square, Loader2, Mic, Monitor, Cloud, Info, Pause, Play } from 'lucide-react'
 import { modKey } from '../../utils/platformShortcut'
 import { IconButton } from '../ui/IconButton'
@@ -32,6 +33,23 @@ const PROCESSING_STEPS = [
   'Finalizing...',
 ]
 
+// ── ATOMIC COMPONENTS FOR HIGH FREQUENCY UPDATES ──
+// By extracting these, we prevent the entire DynamicIsland layout from re-rendering
+// 1-3 times a second simply because the clock ticked or the audio volume changed.
+
+const IslandTimer: React.FC = () => {
+  const { elapsedStr } = useRecordingTimer()
+  return <span className="ui-dynamic-island-rec-time">{elapsedStr}</span>
+}
+
+const IslandAudioMeter: React.FC<{ activeMeetingId: string | null; isRecording: boolean }> = ({
+  activeMeetingId,
+  isRecording,
+}) => {
+  const { currentVolume: audioLevel } = useAudioStatus(activeMeetingId)
+  return <AudioIndicator audioLevel={audioLevel || 0} isRecording={isRecording} />
+}
+
 export const DynamicIsland: React.FC<DynamicIslandProps> = ({
   recordingState,
   syncStatus,
@@ -40,9 +58,8 @@ export const DynamicIsland: React.FC<DynamicIslandProps> = ({
   onPauseRecording,
 }) => {
   const activeMeetingId = useAppStore(s => s.activeMeetingId)
-  const { currentVolume: audioLevel } = useAudioStatus(activeMeetingId)
-
   const isRecording = recordingState === 'recording'
+
   const {
     lastTranscriptLine,
     activeView,
@@ -52,6 +69,7 @@ export const DynamicIsland: React.FC<DynamicIslandProps> = ({
     quotaData,
     entityCount,
     noteCount,
+    focusMode,
   } = useAppStore(
     useShallow(s => ({
       lastTranscriptLine: s.lastTranscriptLine,
@@ -62,16 +80,14 @@ export const DynamicIsland: React.FC<DynamicIslandProps> = ({
       quotaData: s.quotaData,
       entityCount: s.entityCount,
       noteCount: s.noteCount,
+      focusMode: s.focusMode,
     }))
   )
 
-  const { elapsedStr } = useRecordingTimer()
-
-  // ── Hover Expansion (debounced to prevent rapid flips) ──
+  // ── Hover Expansion (Debounced Grace Period) ──
   const [isHovered, setIsHovered] = useState(false)
   const hoverTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
-  // Clean up debounce timers on unmount
   useEffect(() => {
     return () => {
       if (hoverTimerRef.current) clearTimeout(hoverTimerRef.current)
@@ -82,40 +98,31 @@ export const DynamicIsland: React.FC<DynamicIslandProps> = ({
     if (hoverTimerRef.current) clearTimeout(hoverTimerRef.current)
     hoverTimerRef.current = setTimeout(() => setIsHovered(true), 60)
   }
+
   const handleMouseLeave = () => {
     if (hoverTimerRef.current) clearTimeout(hoverTimerRef.current)
-    hoverTimerRef.current = null
-    setIsHovered(false)
+    // 300ms grace period prevents the island from instantly jittering closed
+    // if the mouse accidentally slips off a 1px boundary layer.
+    hoverTimerRef.current = setTimeout(() => setIsHovered(false), 300)
   }
 
   // ── Hold-to-Stop ──
   const [isHolding, setIsHolding] = useState(false)
   const holdTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
-  // ── Audio Warning ──
-  const [audioWarning, setAudioWarning] = useState(false)
-  const silenceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const handlePointerDown = (e: React.PointerEvent) => {
+    if (e.button !== 0) return
+    setIsHolding(true)
+    holdTimerRef.current = setTimeout(() => {
+      onStopRecording?.()
+      setIsHolding(false)
+    }, 1500)
+  }
 
-  useEffect(() => {
-    if (isRecording && audioLevel !== undefined) {
-      if (audioLevel < 0.01) {
-        if (!silenceTimerRef.current) {
-          silenceTimerRef.current = setTimeout(() => setAudioWarning(true), 30000)
-        }
-      } else {
-        if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current)
-        silenceTimerRef.current = null
-        setAudioWarning(false)
-      }
-    } else {
-      setAudioWarning(false)
-      if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current)
-      silenceTimerRef.current = null
-    }
-    return () => {
-      if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current)
-    }
-  }, [isRecording, audioLevel])
+  const handlePointerUp = () => {
+    if (holdTimerRef.current) clearTimeout(holdTimerRef.current)
+    setIsHolding(false)
+  }
 
   // ── Processing Micro-states ──
   const [processingIdx, setProcessingIdx] = useState(0)
@@ -133,25 +140,40 @@ export const DynamicIsland: React.FC<DynamicIslandProps> = ({
     }
   }, [recordingState])
 
-  // Timer now handled by useRecordingTimer hook
+  // IPC Widget sync needs the elapsed string, unfortunately this breaks pure atomic isolation
+  // if we read `useRecordingTimer()` at the top level. We can fetch it statelessly for sync
+  // or accept that IPC sync needs it. To truly isolate, we let IPC sync handle its own timer,
+  // but for now, we will simply not strictly bind it in rendering if possible.
+  // We'll calculate a mock elapsedStr for the IPC based on startTime to avoid subscribing.
+  const recordingStartTime = useAppStore(s => s.recordingStartTime)
+  const recordingTotalPausedMs = useAppStore(s => s.recordingTotalPausedMs)
 
-  // ── Throttled Widget IPC ── (max 1 call per second for same-state, immediate for state changes)
   const lastWidgetUpdate = useRef(0)
   const lastBroadcastState = useRef<string>('')
+
   useEffect(() => {
     const now = Date.now()
     const stateChanged = lastBroadcastState.current !== recordingState
-    // Allow immediate pass-through on recordingState changes (pause/resume/stop)
-    // but throttle updates within the same state (timer ticks)
     if (!stateChanged && now - lastWidgetUpdate.current < 1000) return
     lastWidgetUpdate.current = now
     lastBroadcastState.current = recordingState
+
+    // Pseudo-calculate elapsedStr for widget without forcing React re-render
+    let currentElapsedStr = '00:00:00'
+    if (recordingStartTime && recordingState !== 'idle') {
+      const ms = Date.now() - recordingStartTime - recordingTotalPausedMs
+      const totalSec = Math.floor(ms / 1000)
+      const h = Math.floor(totalSec / 3600)
+      const m = Math.floor((totalSec % 3600) / 60)
+      const s = totalSec % 60
+      currentElapsedStr = `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`
+    }
 
     if (recordingState !== 'idle') {
       window.electronAPI?.widget?.updateState({
         isRecording,
         isPaused: recordingState === 'paused',
-        elapsedTime: elapsedStr,
+        elapsedTime: currentElapsedStr,
         lastTranscriptLine:
           recordingState === 'processing'
             ? 'Processing transcript...'
@@ -164,29 +186,18 @@ export const DynamicIsland: React.FC<DynamicIslandProps> = ({
         entityCount,
         noteCount,
       })
-    } else {
-      window.electronAPI?.widget?.updateState({
-        isRecording: false,
-        isPaused: false,
-        elapsedTime: '00:00:00',
-        lastTranscriptLine: '',
-        audioMode: 'none',
-        syncStatus: 'idle',
-        liveCoachTip: null,
-        entityCount: 0,
-        noteCount: 0,
-      })
     }
   }, [
     recordingState,
     isRecording,
-    elapsedStr,
     lastTranscriptLine,
     audioMode,
     syncStatus,
     liveCoachTip,
     entityCount,
     noteCount,
+    recordingStartTime,
+    recordingTotalPausedMs,
   ])
 
   // Return formatted name for idle state
@@ -209,21 +220,6 @@ export const DynamicIsland: React.FC<DynamicIslandProps> = ({
     }
   }
 
-  const handlePointerDown = (e: React.PointerEvent) => {
-    // Only primary click
-    if (e.button !== 0) return
-    setIsHolding(true)
-    holdTimerRef.current = setTimeout(() => {
-      onStopRecording?.()
-      setIsHolding(false)
-    }, 1500)
-  }
-
-  const handlePointerUp = () => {
-    if (holdTimerRef.current) clearTimeout(holdTimerRef.current)
-    setIsHolding(false)
-  }
-
   const getAudioModeIcon = () => {
     if (audioMode === 'system') return <Monitor size={12} className="ui-di-mode-icon" />
     if (audioMode === 'microphone') return <Mic size={12} className="ui-di-mode-icon" />
@@ -232,198 +228,237 @@ export const DynamicIsland: React.FC<DynamicIslandProps> = ({
     return <Cloud size={12} className="ui-di-mode-icon" />
   }
 
-  // Determine state class
   const morphStateClass = `ui-di-state-${recordingState}`
-  const hoverClass =
-    isHovered &&
-    (recordingState === 'recording' || recordingState === 'paused' || recordingState === 'idle')
-      ? 'ui-di-expanded'
-      : ''
+  // hoverClass (ui-di-expanded) removed — it snapped padding instantly while
+  // FM tried to smooth-animate, causing a 1-frame stutter. Content expansion
+  // is now handled naturally by children width changes + FM layout animation.
 
   const renderCenterContent = () => {
     if (recordingState === 'idle') {
       return (
-        <div className="ui-dynamic-island-idle-content" role="status">
-          <span className="ui-di-view-name">{getViewName()}</span>
-          {/* Always rendered, visibility toggled via CSS — avoids React DOM churn */}
-          <div
-            className="ui-di-hover-panel"
-            style={{
-              opacity: isHovered ? 1 : 0,
-              visibility: isHovered ? 'visible' : 'hidden',
-              maxWidth: isHovered ? '300px' : '0px',
-              transition:
-                'opacity 200ms ease-out, max-width 300ms cubic-bezier(0.25, 1, 0.2, 1.15), visibility 200ms',
-              overflow: 'hidden',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '8px',
-              marginLeft: isHovered ? '8px' : '0',
-              paddingLeft: isHovered ? '8px' : '0',
-              borderLeft: isHovered ? '1px solid rgba(255,255,255,0.06)' : '1px solid transparent',
-              whiteSpace: 'nowrap',
-            }}
-          >
-            <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-[rgba(255,255,255,0.03)] border border-[rgba(255,255,255,0.05)] text-[11px] text-[var(--color-text-secondary)] whitespace-nowrap">
-              <span className="capitalize font-medium text-[var(--color-text-primary)]">
-                {currentTier}
-              </span>
-              <span className="opacity-40">•</span>
-              <span>
-                {quotaData.used}/{quotaData.limit} {currentTier === 'pro' ? '∞' : '☁️'}
-              </span>
-            </div>
-            <SyncStatusBadge />
-            <div className="ui-di-shortcut-hint ml-1">
+        <motion.div layout className="ui-dynamic-island-idle-content" role="status">
+          <motion.span layout="position" className="ui-di-view-name">
+            {getViewName()}
+          </motion.span>
+          <AnimatePresence>
+            {isHovered && (
+              <motion.div
+                layout
+                initial={{ opacity: 0, width: 0, scale: 0.95 }}
+                animate={{ opacity: 1, width: 'auto', scale: 1 }}
+                exit={{ opacity: 0, width: 0, scale: 0.95 }}
+                transition={{ duration: 0.2, ease: 'easeOut' }}
+                className="overflow-hidden flex items-center gap-2 whitespace-nowrap ml-2 pl-2 border-l border-[rgba(255,255,255,0.06)]"
+              >
+                <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-[rgba(255,255,255,0.03)] border border-[rgba(255,255,255,0.05)] text-[11px] text-[var(--color-text-secondary)] whitespace-nowrap">
+                  <span className="capitalize font-medium text-[var(--color-text-primary)]">
+                    {currentTier}
+                  </span>
+                  <span className="opacity-40">•</span>
+                  <span>
+                    {quotaData.used}/{quotaData.limit} {currentTier === 'pro' ? '∞' : '☁️'}
+                  </span>
+                </div>
+                <SyncStatusBadge />
+                <div className="ui-di-shortcut-hint ml-1 pointer-events-none">
+                  <span className="ui-di-mod-key">{modKey}</span> <span>K</span>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+          {!isHovered && (
+            <motion.div layout="position" className="ui-di-shortcut-hint pointer-events-none">
               <span className="ui-di-mod-key">{modKey}</span> <span>K</span>
-            </div>
-          </div>
-          {/* Collapsed shortcut hint — shown when NOT hovered */}
-          <div
-            className="ui-di-shortcut-hint"
-            style={{
-              opacity: isHovered ? 0 : 1,
-              visibility: isHovered ? 'hidden' : 'visible',
-              maxWidth: isHovered ? '0px' : '100px',
-              transition: 'opacity 150ms ease-out, max-width 200ms ease-out, visibility 150ms',
-              overflow: 'hidden',
-            }}
-          >
-            <span className="ui-di-mod-key">{modKey}</span> <span>K</span>
-          </div>
-        </div>
+            </motion.div>
+          )}
+        </motion.div>
       )
     }
 
     if (recordingState === 'starting') {
       return (
-        <div className="ui-dynamic-island-recording" role="status">
+        <motion.div layout className="ui-dynamic-island-recording" role="status">
           <Loader2 size={14} className="animate-spin" style={{ color: 'var(--color-amber)' }} />
-          <span className="ui-dynamic-island-rec-label" style={{ color: 'var(--color-amber)' }}>
+          <motion.span
+            layout="position"
+            className="ui-dynamic-island-rec-label"
+            style={{ color: 'var(--color-amber)' }}
+          >
             Connecting...
-          </span>
-        </div>
+          </motion.span>
+        </motion.div>
       )
     }
 
     if (recordingState === 'recording' || recordingState === 'paused') {
       const isPaused = recordingState === 'paused'
       return (
-        <div className="ui-dynamic-island-recording" role="status">
-          {getAudioModeIcon()}
+        <motion.div layout className="ui-dynamic-island-recording" role="status">
+          <motion.div layout="position" className="flex items-center place-content-center">
+            {getAudioModeIcon()}
+          </motion.div>
 
-          {liveCoachTip ? (
-            <span className="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-[rgba(139,92,246,0.15)] border border-[rgba(139,92,246,0.3)] text-[var(--color-violet)] animate-pulse shadow-[0_0_12px_rgba(139,92,246,0.2)]">
-              <span className="text-[11px] font-medium leading-none">🧠 Coach Active</span>
-            </span>
-          ) : (
-            <>
-              {isPaused ? (
-                <span className="text-[var(--color-amber)] text-[12px] whitespace-nowrap px-1 font-medium tracking-wide">
-                  ⏸ Paused
-                </span>
-              ) : audioWarning ? (
-                <span
-                  className="text-[var(--color-amber)] text-[10px] animate-pulse whitespace-nowrap px-1"
-                  title="No audio detected"
-                >
-                  ⚠️ No audio
-                </span>
-              ) : (
-                <span className="ui-dynamic-island-rec-time">{elapsedStr}</span>
-              )}
-              {!isPaused && <AudioIndicator audioLevel={audioLevel || 0} isRecording={true} />}
-            </>
-          )}
-
-          {isHovered && lastTranscriptLine && !liveCoachTip && (
-            <div className="ui-di-transcript-preview flex items-center gap-2">
-              <span className="truncate">{lastTranscriptLine}</span>
-              <span className="opacity-50 text-[10px] flex-shrink-0 tracking-wider">
-                {entityCount > 0 && `👤${entityCount} `}
-                {noteCount > 0 && `📝${noteCount}`}
+          <motion.div layout="position" className="flex items-center gap-1">
+            {liveCoachTip ? (
+              <span className="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-[rgba(139,92,246,0.15)] border border-[rgba(139,92,246,0.3)] text-[var(--color-violet)] animate-pulse shadow-[0_0_12px_rgba(139,92,246,0.2)]">
+                <span className="text-[11px] font-medium leading-none">🧠 Coach Active</span>
               </span>
-            </div>
-          )}
-          {isHovered && liveCoachTip && (
-            <div className="ui-di-transcript-preview text-[var(--color-violet)] font-medium whitespace-nowrap overflow-hidden text-ellipsis">
-              ✨ {liveCoachTip}
-            </div>
-          )}
-          <button
-            onClick={e => {
-              e.stopPropagation()
-              onPauseRecording?.()
-            }}
-            className="ui-dynamic-island-pause-btn flex items-center justify-center p-1.5 rounded-full bg-[rgba(255,255,255,0.06)] hover:bg-[rgba(255,255,255,0.15)] transition-colors"
-            title={isPaused ? 'Resume (⌘+Shift+P)' : 'Pause (⌘+Shift+P)'}
-            aria-label={isPaused ? 'Resume archiving' : 'Pause archiving'}
-          >
-            {isPaused ? (
-              <Play size={10} fill="currentColor" className="text-[var(--color-text-secondary)]" />
             ) : (
-              <Pause size={10} fill="currentColor" className="text-[var(--color-text-secondary)]" />
+              <>
+                {isPaused ? (
+                  <span className="text-[var(--color-amber)] text-[12px] whitespace-nowrap px-1 font-medium tracking-wide">
+                    ⏸ Paused
+                  </span>
+                ) : (
+                  <IslandTimer />
+                )}
+                {!isPaused && (
+                  <IslandAudioMeter activeMeetingId={activeMeetingId} isRecording={true} />
+                )}
+              </>
             )}
-          </button>
-          <button
-            onClick={() => onStopRecording?.()}
-            onPointerDown={handlePointerDown}
-            onPointerUp={handlePointerUp}
-            onPointerLeave={handlePointerUp}
-            className={`ui-dynamic-island-stop-btn ${isHolding ? 'is-holding' : ''}`}
-            aria-label="Stop archiving"
-          >
-            {isHolding ? (
-              <svg className="ui-di-hold-ring" viewBox="0 0 24 24">
-                <circle cx="12" cy="12" r="10" />
-              </svg>
-            ) : null}
-            <Square size={12} fill="currentColor" className="ui-di-stop-icon" />
-          </button>
-        </div>
+          </motion.div>
+
+          <AnimatePresence>
+            {isHovered && lastTranscriptLine && !liveCoachTip && (
+              <motion.div
+                layout
+                initial={{ opacity: 0, width: 0 }}
+                animate={{ opacity: 1, width: 'auto' }}
+                exit={{ opacity: 0, width: 0 }}
+                transition={{
+                  duration: 0.25,
+                  type: 'spring',
+                  bounce: 0,
+                  stiffness: 300,
+                  damping: 25,
+                }}
+                className="overflow-hidden flex items-center gap-2"
+              >
+                <div className="ui-di-transcript-preview flex items-center gap-2">
+                  <span className="truncate">{lastTranscriptLine}</span>
+                  <span className="opacity-50 text-[10px] flex-shrink-0 tracking-wider">
+                    {entityCount > 0 && `👤${entityCount} `}
+                    {noteCount > 0 && `📝${noteCount}`}
+                  </span>
+                </div>
+              </motion.div>
+            )}
+            {isHovered && liveCoachTip && (
+              <motion.div
+                layout
+                initial={{ opacity: 0, width: 0 }}
+                animate={{ opacity: 1, width: 'auto' }}
+                exit={{ opacity: 0, width: 0 }}
+                className="overflow-hidden"
+              >
+                <div className="ui-di-transcript-preview text-[var(--color-violet)] font-medium whitespace-nowrap overflow-hidden text-ellipsis">
+                  ✨ {liveCoachTip}
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          <motion.div layout="position" className="flex items-center gap-2">
+            <button
+              onClick={e => {
+                e.stopPropagation()
+                onPauseRecording?.()
+              }}
+              className="ui-dynamic-island-pause-btn flex items-center justify-center p-1.5 rounded-full bg-[rgba(255,255,255,0.06)] hover:bg-[rgba(255,255,255,0.15)] transition-colors pointer-events-auto"
+              title={isPaused ? 'Resume (⌘+Shift+P)' : 'Pause (⌘+Shift+P)'}
+            >
+              {isPaused ? (
+                <Play
+                  size={10}
+                  fill="currentColor"
+                  className="text-[var(--color-text-secondary)] pointer-events-none"
+                />
+              ) : (
+                <Pause
+                  size={10}
+                  fill="currentColor"
+                  className="text-[var(--color-text-secondary)] pointer-events-none"
+                />
+              )}
+            </button>
+            <button
+              onClick={() => onStopRecording?.()}
+              onPointerDown={handlePointerDown}
+              onPointerUp={handlePointerUp}
+              onPointerLeave={handlePointerUp}
+              className={`ui-dynamic-island-stop-btn ${isHolding ? 'is-holding' : ''} pointer-events-auto`}
+            >
+              {isHolding ? (
+                <svg className="ui-di-hold-ring pointer-events-none" viewBox="0 0 24 24">
+                  <circle cx="12" cy="12" r="10" />
+                </svg>
+              ) : null}
+              <Square
+                size={12}
+                fill="currentColor"
+                className="ui-di-stop-icon pointer-events-none"
+              />
+            </button>
+          </motion.div>
+        </motion.div>
       )
     }
 
     if (recordingState === 'stopping') {
       return (
-        <div className="ui-dynamic-island-recording" role="status">
+        <motion.div layout className="ui-dynamic-island-recording" role="status">
           <Loader2 size={14} className="animate-spin" style={{ color: 'var(--color-teal)' }} />
           <span className="ui-dynamic-island-rec-label" style={{ color: 'var(--color-teal)' }}>
             Saving...
           </span>
-        </div>
+        </motion.div>
       )
     }
 
     if (recordingState === 'processing') {
       return (
-        <div className="ui-dynamic-island-processing" role="status">
-          <div className="ui-dynamic-island-proc-dot animate-pulse" />
-          <span className="ui-dynamic-island-proc-label">{PROCESSING_STEPS[processingIdx]}</span>
-        </div>
+        <motion.div layout className="ui-dynamic-island-processing" role="status">
+          <div className="ui-dynamic-island-proc-dot animate-pulse pointer-events-none" />
+          <motion.span
+            layout="position"
+            className="ui-dynamic-island-proc-label pointer-events-none"
+          >
+            {PROCESSING_STEPS[processingIdx]}
+          </motion.span>
+        </motion.div>
       )
     }
 
     return null
   }
 
-  // Removed sync dot logic
-
   return (
-    <div
-      className={`ui-dynamic-island surface-glass-premium no-drag ${morphStateClass} ${hoverClass}`}
+    <motion.div
+      layout
+      style={{
+        x: 0,
+        y: 0,
+      }} /* Tell FM that rest position = no offset (centering via CSS margin-inline:auto) */
+      transition={{ type: 'spring', bounce: 0.15, stiffness: 400, damping: 30 }}
+      className={`ui-dynamic-island surface-glass-premium no-drag ${morphStateClass}${focusMode ? ' focus-mode-active' : ''}`}
       role="banner"
-      aria-label="Meeting status bar"
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
     >
       {onBack && (
-        <div className="ui-dynamic-island-left no-drag">
-          <IconButton icon={<ChevronLeft size={18} />} onClick={onBack} size="sm" />
-        </div>
+        <motion.div layout="position" className="ui-dynamic-island-left no-drag">
+          <IconButton
+            icon={<ChevronLeft size={18} className="pointer-events-none" />}
+            onClick={onBack}
+            size="sm"
+          />
+        </motion.div>
       )}
 
-      <div className="ui-dynamic-island-center no-drag">{renderCenterContent()}</div>
-    </div>
+      <motion.div layout className="ui-dynamic-island-center no-drag">
+        {renderCenterContent()}
+      </motion.div>
+    </motion.div>
   )
 }

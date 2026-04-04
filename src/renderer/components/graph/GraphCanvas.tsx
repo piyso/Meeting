@@ -1,7 +1,6 @@
 import React, { useEffect, useRef } from 'react'
 // NOTE: Full d3 import kept because 60+ `d3.x` references in this file.
 // This component IS code-split via React.lazy, so it doesn't affect initial load.
-// TODO: Future optimization — switch to individual d3 submodule imports.
 import * as d3 from 'd3'
 import type { GraphNode, GraphEdge, Contradiction } from '../../../types/ipc'
 

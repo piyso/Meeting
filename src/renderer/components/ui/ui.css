@@ -290,7 +290,9 @@
   padding: var(--space-4) var(--space-8);
   font-size: var(--text-xs);
   color: var(--color-text-primary);
-  white-space: nowrap;
+  white-space: normal;
+  max-width: 250px;
+  text-align: center;
   pointer-events: none;
 
   /* Tahoe Popover Glass */
@@ -302,14 +304,12 @@
   border-radius: var(--radius-md);
 }
 .tooltip-top {
-  bottom: 100%;
+  bottom: calc(100% + 8px);
   left: 50%;
-  transform: translateX(-50%) translateY(-8px);
 }
 .tooltip-bottom {
-  top: 100%;
+  top: calc(100% + 8px);
   left: 50%;
-  transform: translateX(-50%) translateY(8px);
 }
 
 /* Dialog */

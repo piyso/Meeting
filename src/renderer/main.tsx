@@ -6,12 +6,14 @@ import './index.css'
 import { installMockElectronAPI } from './mockElectronAPI'
 
 // ── Mock Data Toggle ──────────────────────────────────────────────
-// Set to true ONLY during local UI development to replace window.electronAPI
-// with mock data. MUST be false for production/staging builds.
-// The preload script's USE_MOCK_DATA flag must match this value.
-const USE_MOCK_DATA = false
+// Controlled via USE_MOCK_DATA in .env file.
+// When USE_MOCK_DATA=true, the preload script skips contextBridge,
+// leaving window.electronAPI undefined. We detect that and install mocks.
+// To switch modes: change USE_MOCK_DATA in .env and restart `npm run electron:dev`.
+const USE_MOCK_DATA = typeof window !== 'undefined' && !window.electronAPI
 
 if (USE_MOCK_DATA) {
+  console.info('[BlueArkive] Mock mode active — using simulated data')
   installMockElectronAPI()
 }
 

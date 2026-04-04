@@ -78,7 +78,7 @@ export function useAudioSession(meetingId: string | null) {
 
         if (!result?.success) {
           setIsCapturing(false)
-          throw new Error(result.error?.message || 'Failed to start capture')
+          throw new Error(result?.error?.message || 'Failed to start capture')
         }
         // Record the start time globally so DynamicIsland timer works
         setRecordingStartTime(Date.now())
@@ -107,7 +107,7 @@ export function useAudioSession(meetingId: string | null) {
 
   const pauseCapture = useCallback(async () => {
     try {
-      await window.electronAPI.audio.pauseCapture?.()
+      await window.electronAPI?.audio?.pauseCapture?.()
     } catch (error) {
       log.error('Error pausing capture:', error)
     }
@@ -115,7 +115,7 @@ export function useAudioSession(meetingId: string | null) {
 
   const resumeCapture = useCallback(async () => {
     try {
-      await window.electronAPI.audio.resumeCapture?.()
+      await window.electronAPI?.audio?.resumeCapture?.()
     } catch (error) {
       log.error('Error resuming capture:', error)
     }

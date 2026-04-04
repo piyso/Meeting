@@ -706,8 +706,11 @@ app.on('window-all-closed', () => {
 })
 
 app.on('will-quit', () => {
-  // Unregister all shortcuts when app is quitting
-  globalShortcut.unregisterAll()
+  // Guard: globalShortcut cannot be used before app is ready.
+  // will-quit can fire before ready if startup fails or process is killed early.
+  if (app.isReady()) {
+    globalShortcut.unregisterAll()
+  }
 })
 
 // Handle .pnotes file open (macOS Finder / double-click)

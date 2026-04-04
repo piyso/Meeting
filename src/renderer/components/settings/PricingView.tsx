@@ -22,6 +22,8 @@ export const PricingView: React.FC<{ onPlanSelect?: (plan: string) => void }> = 
   const [tiers, setTiers] = React.useState<UITier[]>([])
   const [currency, setCurrency] = React.useState<'USD' | 'INR'>('USD')
 
+  const [loadError, setLoadError] = React.useState(false)
+
   React.useEffect(() => {
     // Fetch dynamic tiers from IPC
     window.electronAPI?.billing
@@ -59,14 +61,32 @@ export const PricingView: React.FC<{ onPlanSelect?: (plan: string) => void }> = 
             return { ...t, cta, variant, recommended }
           })
           setTiers(mappedTiers)
+        } else {
+          setLoadError(true)
         }
       })
       .catch(() => {
-        /* error handling */
+        setLoadError(true)
       })
   }, [])
 
   if (tiers.length === 0) {
+    if (loadError) {
+      return (
+        <div className="w-full flex flex-col items-center justify-center gap-4 p-8 text-center">
+          <p className="text-[var(--color-text-secondary)] text-sm">
+            Could not load subscription tiers.
+          </p>
+          <Button
+            variant="secondary"
+            className="bg-white/5 border-white/10 hover:bg-white/10"
+            onClick={() => onPlanSelect?.('Free')}
+          >
+            Continue with Free Tier →
+          </Button>
+        </div>
+      )
+    }
     return (
       <div className="w-full h-full flex items-center justify-center text-[var(--color-text-tertiary)]">
         Loading tiers...

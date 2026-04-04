@@ -107,7 +107,7 @@ export const AudioCaptureWithPermissions: React.FC<AudioCaptureWithPermissionsPr
       if (result?.success) {
         onCaptureStarted()
       } else {
-        throw new Error(result.error?.message || 'Failed to start capture')
+        throw new Error(result?.error?.message || 'Failed to start capture')
       }
     } catch (error) {
       log.error('Error starting capture:', error)

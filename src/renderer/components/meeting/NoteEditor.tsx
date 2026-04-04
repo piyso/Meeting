@@ -6,10 +6,10 @@ import BulletList from '@tiptap/extension-bullet-list'
 import Collaboration from '@tiptap/extension-collaboration'
 import Placeholder from '@tiptap/extension-placeholder'
 import * as Y from 'yjs'
+import { AiExpansionNode } from './extensions/AiExpansionNode'
 
 import { IndexeddbPersistence } from 'y-indexeddb'
 import { useNotes } from '../../hooks/queries/useNotes'
-import { ModelSpinupIndicator } from '../ui/ModelSpinupIndicator'
 
 interface NoteEditorProps {
   meetingId: string
@@ -18,7 +18,6 @@ interface NoteEditorProps {
 export const NoteEditor: React.FC<NoteEditorProps> = ({ meetingId }) => {
   const { data: notes, createNote, updateNote } = useNotes(meetingId)
   const [providerOrDoc, setProviderOrDoc] = useState<Y.Doc | null>(null)
-  const [isAIExpanding, setIsAIExpanding] = useState(false)
   const saveTimeoutRef = React.useRef<NodeJS.Timeout | null>(null)
 
   // Cleanup debounced save on unmount to prevent stale mutations
@@ -43,56 +42,6 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({ meetingId }) => {
     }
   }, [meetingId])
 
-  useEffect(() => {
-    const handleExpand = async () => {
-      if (!providerOrDoc) return
-      // We need the editor instance to exist
-      const e = document.querySelector('.ProseMirror') as HTMLElement | null
-      const currentNoteId = notes?.[0]?.id
-
-      if (!currentNoteId) return // Cannot expand an empty not-yet-saved note right away securely without refactoring
-
-      // Dispatch custom event to let the user know
-      // Note expansion triggered
-      setIsAIExpanding(true)
-
-      try {
-        const res = await window.electronAPI?.note?.expand({
-          noteId: currentNoteId,
-          meetingId,
-          timestamp: Math.floor(Date.now() / 1000),
-          text: e ? e.textContent || '' : '', // Use textContent instead of innerHTML for security
-        })
-        if (res?.success && res.data) {
-          const expansionHtml = `
-            <div class="ai-expansion mt-4 pl-4 border-l-2 border-[var(--color-violet)] bg-[var(--color-violet)]/10 p-3 rounded-r-lg">
-              <strong class="text-[var(--color-violet)] flex items-center gap-2 mb-1">
-                <span class="text-lg">✨</span> AI Expansion
-              </strong>
-              <div class="text-[var(--text-sm)] opacity-90">${res.data.expandedText}</div>
-              <div class="mt-2 text-[var(--text-xs)] text-[var(--color-violet)] opacity-70">
-                <a href="#anchor" data-source-anchor="true">View Source Context</a>
-              </div>
-            </div>
-            <p></p>
-          `
-
-          // To achieve single stroke Ctrl+Z, we dispatch a single transaction
-          // Since we are not in the useEditor scope directly here (or we are, but without editor ref)
-          // it's easier to handle this inside the NoteEditor component where `editor` is available
-          window.dispatchEvent(new CustomEvent('insert-ai-text', { detail: expansionHtml }))
-        }
-      } catch (err) {
-        // Expansion failed silently — user sees no change
-      } finally {
-        setIsAIExpanding(false)
-      }
-    }
-
-    window.addEventListener('trigger-ai-expansion', handleExpand)
-    return () => window.removeEventListener('trigger-ai-expansion', handleExpand)
-  }, [providerOrDoc, notes, meetingId])
-
   // Use refs for values needed in onUpdate callback — avoids unstable deps in useEditor
   const notesRef = React.useRef(notes)
   const createNoteRef = React.useRef(createNote)
@@ -115,6 +64,12 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({ meetingId }) => {
           placeholder: `Start typing your notes... (${modLabel}+Enter to expand via AI)`,
           emptyNodeClass: 'my-custom-is-empty',
         }),
+        AiExpansionNode.configure({
+          getMeetingContext: () => ({
+            meetingId,
+            noteId: notesRef.current?.[0]?.id,
+          }),
+        }),
         ...(providerOrDoc
           ? [
               Collaboration.configure({
@@ -128,15 +83,6 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({ meetingId }) => {
       editorProps: {
         attributes: {
           class: 'ui-note-editor-content sovereign-scrollbar',
-        },
-        handleKeyDown: (_, event) => {
-          // Intercept Command+Enter for AI expansion shell trigger
-          if ((event.metaKey || event.ctrlKey) && event.key === 'Enter') {
-            event.preventDefault()
-            window.dispatchEvent(new CustomEvent('trigger-ai-expansion'))
-            return true
-          }
-          return false
         },
       },
       onUpdate: ({ editor }) => {
@@ -202,22 +148,6 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({ meetingId }) => {
     return () => clearInterval(timer)
   }, []) // No deps — refs are stable
 
-  useEffect(() => {
-    const handleInsert = (e: Event) => {
-      const html = (e as CustomEvent).detail
-      if (editor) {
-        // Wrap in commands.command() for true single-transaction undo
-        // insertContent() may split into multiple undo steps in some Tiptap versions
-        // C9 fix: Use insertContent() which parses HTML into ProseMirror nodes.
-        // Previous code used nodeFromJSON with type:'text' which inserts raw HTML
-        // as visible text instead of rendering it as formatted content.
-        editor.commands.insertContent(html)
-      }
-    }
-    window.addEventListener('insert-ai-text', handleInsert)
-    return () => window.removeEventListener('insert-ai-text', handleInsert)
-  }, [editor])
-
   if (!editor || !providerOrDoc) {
     return <div className="p-4 text-[var(--color-text-tertiary)]">Initializing Note Editor...</div>
   }
@@ -227,11 +157,6 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({ meetingId }) => {
       <div className="ui-note-editor-scroll sovereign-scrollbar">
         <EditorContent editor={editor} className="h-full" />
       </div>
-      {isAIExpanding && (
-        <div className="absolute bottom-4 right-6 z-50">
-          <ModelSpinupIndicator />
-        </div>
-      )}
     </div>
   )
 }

@@ -54,7 +54,7 @@ export const PermissionRequestFlow: React.FC<PermissionRequestFlowProps> = ({
       if (result?.success && result.data) {
         setStatus(result.data.status as PermissionStatus)
       } else {
-        setError(result.error?.message || 'Failed to check permission status')
+        setError(result?.error?.message || 'Failed to check permission status')
         setStatus('unknown')
       }
     } catch (err) {
@@ -75,7 +75,7 @@ export const PermissionRequestFlow: React.FC<PermissionRequestFlowProps> = ({
         // Show message to user
         setStatus('denied') // Will show instructions
       } else {
-        setError(result.error?.message || 'Failed to open System Settings')
+        setError(result?.error?.message || 'Failed to open System Settings')
       }
     } catch (err) {
       log.error('Error opening settings:', err)

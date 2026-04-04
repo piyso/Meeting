@@ -31,6 +31,7 @@
   --color-bg-glass: rgba(255, 255, 255, 0.02);
   --color-bg-glass-hover: rgba(255, 255, 255, 0.04);
   --color-bg-elevated: rgba(18, 18, 20, 0.85); /* Elevated solid background */
+  --color-bg-base: #0a0a0c; /* Solid base for badges/overlays */
   --color-bg-hover: rgba(255, 255, 255, 0.06);
 
   /* Borders & Lights */
@@ -51,9 +52,12 @@
   --color-emerald: #34d399;
   --color-amber: #fbbf24;
   --color-violet: #a78bfa;
+  --color-violet-light: #c4b5fd;
   --color-rose: #fb7185;
   --color-blue: #3b82f6;
   --color-cyan: #06b6d4;
+  --color-sky: #38bdf8;
+  --color-teal: #2dd4bf;
 
   /* Premium Smart Chip Entities */
   --chip-person-bg: rgba(96, 165, 250, 0.08);
@@ -66,7 +70,8 @@
   --chip-action-text: #fda4af;
 
   /* Typography (Apple Tahoe / SF Pro Emulation via Instrument Sans) */
-  --font-heading: 'Instrument Sans', 'SF Pro Display', -apple-system, system-ui, 'Noto Sans', sans-serif;
+  --font-heading:
+    'Instrument Sans', 'SF Pro Display', -apple-system, system-ui, 'Noto Sans', sans-serif;
   --font-body: 'Instrument Sans', 'SF Pro Text', -apple-system, system-ui, 'Noto Sans', sans-serif;
   --font-mono: 'Geist Mono', 'SF Mono', 'JetBrains Mono', monospace;
 
@@ -135,13 +140,13 @@
   --z-base: 0;
   --z-content: 10;
   --z-floating: 20;
-  --z-navigation: 30;      /* Fixed bars, offline banners */
-  --z-island: 40;          /* DynamicIsland must sit above nav */
-  --z-overlay-base: 50;    /* ZenRail, Command Prompters */
-  --z-modal: 100;          /* Full screen modals */
-  --z-popover: 200;        /* Floating menus, tooltips */
-  --z-toast: 300;          /* Toast notifications */
-  --z-splash: 9999;        /* Initial load splash screen */
+  --z-navigation: 30; /* Fixed bars, offline banners */
+  --z-island: 40; /* DynamicIsland must sit above nav */
+  --z-overlay-base: 50; /* ZenRail, Command Prompters */
+  --z-modal: 100; /* Full screen modals */
+  --z-popover: 200; /* Floating menus, tooltips */
+  --z-toast: 300; /* Toast notifications */
+  --z-splash: 9999; /* Initial load splash screen */
 
   /* Timing Functions */
   --ease-spring: cubic-bezier(0.175, 0.885, 0.32, 1.1);
@@ -165,7 +170,9 @@
 
 /* ── Universal Accessibility Overrides (WCAG 2.2 AA) ── */
 @media (prefers-reduced-motion: reduce) {
-  *, *::before, *::after {
+  *,
+  *::before,
+  *::after {
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
@@ -451,6 +458,21 @@ body:has(.calm-landing) {
 .slide-up,
 .animate-slide-up {
   animation: slide-up 400ms var(--ease-spring) both;
+}
+
+/* ── Slide Down Animation (for Banners) ── */
+@keyframes slide-down {
+  from {
+    opacity: 0;
+    transform: translateY(-16px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+.animate-slide-down {
+  animation: slide-down 300ms var(--ease-fluid) both;
 }
 
 /* ── Additional Transitions ── */

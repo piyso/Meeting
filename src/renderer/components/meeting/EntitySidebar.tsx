@@ -39,7 +39,7 @@ export const EntitySidebar: React.FC<EntitySidebarProps> = ({ meetingId, onClose
         if (res?.success && res.data) {
           setEntities(res.data)
         } else {
-          setError(res.error?.message || 'Failed to load entities')
+          setError(res?.error?.message || 'Failed to load entities')
         }
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Unknown error')

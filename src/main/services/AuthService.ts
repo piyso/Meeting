@@ -131,7 +131,9 @@ export class AuthService {
       throw new Error('Invalid email format')
     }
 
-    log.info('Sending password reset email', { email })
+    // #7 fix: Mask email in logs to prevent PII leakage (matches login/register pattern)
+    const maskedEmail = email.replace(/^(.{2})(.*)(@.*)$/, '$1***$3')
+    log.info('Sending password reset email', { email: maskedEmail })
 
     const { error } = await this.supabase.auth.resetPasswordForEmail(email, {
       redirectTo: 'bluearkive://auth/reset-password',
@@ -141,7 +143,7 @@ export class AuthService {
       throw new Error(error.message || 'Failed to send reset email')
     }
 
-    log.info('Password reset email sent', { email })
+    log.info('Password reset email sent', { email: maskedEmail })
   }
 
   /**

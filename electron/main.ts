@@ -4,7 +4,9 @@
 // If a native module fails to load (wrong arch, missing DLL, etc.),
 // this ensures we get diagnostic output instead of a silent crash.
 // ───────────────────────────────────────────────────────────────────
-process.stderr.write(`[BlueArkive] Starting (${process.platform}/${process.arch}, pid=${process.pid})...\n`)
+process.stderr.write(
+  `[BlueArkive] Starting (${process.platform}/${process.arch}, pid=${process.pid})...\n`
+)
 
 process.on('uncaughtException', (err: NodeJS.ErrnoException) => {
   // Silently ignore broken pipe (terminal closed)

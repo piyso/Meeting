@@ -438,7 +438,7 @@ export const OnboardingFlow: React.FC = () => {
             )}
 
             <form
-              className="w-full space-y-4 mb-6"
+              className="w-full space-y-5 mb-8"
               onSubmit={e => {
                 e.preventDefault()
                 handleAuth()
@@ -500,7 +500,7 @@ export const OnboardingFlow: React.FC = () => {
                   type="submit"
                   variant="primary"
                   size="lg"
-                  className="w-full mt-4 bg-white text-slate-950 hover:bg-slate-200 border-none transition-colors"
+                  className="w-full mt-6 h-13 text-[14px] bg-white text-slate-950 hover:bg-slate-200 border-none transition-colors"
                   disabled={authLoading}
                 >
                   {authLoading
@@ -511,7 +511,7 @@ export const OnboardingFlow: React.FC = () => {
                 </Button>
 
                 {/* Divider */}
-                <div className="flex items-center gap-3 my-5">
+                <div className="flex items-center gap-3 my-7">
                   <div className="flex-1 h-px bg-white/10" />
                   <span className="text-xs text-slate-500 tracking-widest uppercase">or</span>
                   <div className="flex-1 h-px bg-white/10" />
@@ -544,7 +544,7 @@ export const OnboardingFlow: React.FC = () => {
                       setAuthError(err instanceof Error ? err.message : 'Google sign-in failed')
                     }
                   }}
-                  className="w-full flex items-center justify-center gap-3 py-3 px-4 rounded-xl border border-white/10 bg-white/5 hover:bg-white/10 text-sm text-slate-300 font-medium transition-all cursor-pointer"
+                  className="w-full flex items-center justify-center gap-3 py-3.5 px-4 rounded-xl border border-white/10 bg-white/5 hover:bg-white/10 text-[14px] text-slate-300 font-medium transition-all cursor-pointer h-13"
                 >
                   <svg width="18" height="18" viewBox="0 0 24 24">
                     <path
@@ -569,8 +569,8 @@ export const OnboardingFlow: React.FC = () => {
               </div>
             </form>
 
-            <div className="flex flex-col items-center pt-6 border-t border-white/10 mt-2 ">
-              <div className="text-xs text-slate-400 tracking-wide">
+            <div className="flex flex-col items-center pt-8 border-t border-white/10 mt-4">
+              <div className="text-[13px] text-slate-400 tracking-wide">
                 {authMode === 'register' ? (
                   <>
                     Already have an account?&nbsp;
@@ -665,40 +665,43 @@ export const OnboardingFlow: React.FC = () => {
         )}
 
         {step === 'recovery-key' && (
-          <div className="w-full max-w-[520px] flex flex-col relative z-10 animate-fade-in">
-            {/* Header with dynamic lock state */}
-            <div className="flex flex-col items-center text-center mb-8">
+          <div className="w-full max-w-[620px] flex flex-col relative z-10 animate-fade-in pt-4">
+            {/* Header — icon + title + subtitle */}
+            <div className="flex flex-col items-center text-center mb-10">
               <div
-                className={`w-16 h-16 rounded-2xl flex items-center justify-center mb-5 transition-all duration-700 ${keySaved ? 'bg-emerald-500/10 border border-emerald-500/30' : 'bg-amber-500/10 border border-amber-500/30'}`}
+                className={`w-14 h-14 rounded-2xl flex items-center justify-center mb-4 transition-all duration-700 ${keySaved ? 'bg-emerald-500/10 border border-emerald-500/20 shadow-[0_0_20px_rgba(16,185,129,0.1)]' : 'bg-amber-500/10 border border-amber-500/20 shadow-[0_0_20px_rgba(245,158,11,0.1)]'}`}
               >
                 {keySaved ? (
-                  <Unlock size={32} className="text-emerald-400 animate-slide-up" />
+                  <Unlock size={26} className="text-emerald-400" />
                 ) : (
-                  <Key size={32} className="text-amber-400 animate-pulse-slow" />
+                  <Key size={26} className="text-amber-400 animate-pulse-slow" />
                 )}
               </div>
-              <h2 className="text-3xl font-heading font-semibold tracking-wide text-white">
+              <h2 className="text-2xl font-heading font-semibold tracking-wide text-white">
                 Your Recovery Key
               </h2>
-              <p className="text-sm text-slate-400 mt-3 max-w-sm leading-relaxed">
-                This is the cryptographic seed to your sovereign data. <br />
-                If you lose this, your data cannot be recovered.
+              <p className="text-[13px] text-slate-500 mt-2 max-w-xs leading-relaxed">
+                The cryptographic seed to your sovereign data.
+                <br />
+                <span className="text-slate-400 font-medium">
+                  Lose this — lose everything.
+                </span>
               </p>
             </div>
 
-            {/* Warning banner */}
-            <div className="flex items-start gap-4 mb-8 px-5 py-4 rounded-xl bg-amber-950/40 border border-amber-500/20 text-amber-200/90 text-[13px] leading-relaxed relative overflow-hidden">
-              <div className="absolute top-0 left-0 w-1 h-full bg-amber-500" />
-              <ShieldAlert size={20} className="shrink-0 text-amber-500 mt-0.5" />
+            {/* Warning stripe */}
+            <div className="flex items-center gap-3 mb-5 px-4 py-3 rounded-lg bg-amber-950/30 border border-amber-500/15 text-amber-200/80 text-[12px] leading-relaxed relative overflow-hidden">
+              <div className="absolute top-0 left-0 w-[3px] h-full bg-gradient-to-b from-amber-400 to-amber-600" />
+              <ShieldAlert size={16} className="shrink-0 text-amber-500 ml-1" />
               <span>
-                We <strong>cannot</strong> recover your data without this key. Never share it with
-                anyone. Our team will never ask for it.
+                We <strong className="text-amber-300">cannot</strong> recover your data without this
+                key. Never share it. Our team will never ask for it.
               </span>
             </div>
 
-            {/* Word grid - Vault style */}
+            {/* Word Grid — Vault container */}
             {recoveryError ? (
-              <div className="flex flex-col items-center gap-4 mb-8 w-full p-8 rounded-2xl bg-rose-950/20 border border-rose-500/20">
+              <div className="flex flex-col items-center gap-4 mb-6 w-full p-8 rounded-2xl bg-rose-950/20 border border-rose-500/20">
                 <ShieldAlert size={36} className="text-rose-400" />
                 <p className="text-rose-300 text-sm text-center leading-relaxed max-w-sm">
                   Recovery key generation failed. Your data cannot be securely protected without a
@@ -725,20 +728,24 @@ export const OnboardingFlow: React.FC = () => {
                 </Button>
               </div>
             ) : (
-              <div className="grid grid-cols-3 gap-3 mb-8 w-full p-5 rounded-2xl bg-[#0a0f1d] border border-white/5 shadow-inner">
-                {recoveryPhrase.map((word, i) => (
-                  <div
-                    key={i}
-                    className="flex items-center gap-2.5 px-3 py-2.5 rounded-lg bg-white/[0.03] border border-white/[0.03] hover:bg-white/[0.06] transition-colors"
-                  >
-                    <span className="text-slate-500 text-[10px] font-mono opacity-60 w-4 shrink-0 select-none">
-                      {(i + 1).toString().padStart(2, '0')}
-                    </span>
-                    <span className="text-slate-200 font-mono text-[14px] font-medium tracking-widest select-all">
-                      {word}
-                    </span>
-                  </div>
-                ))}
+              <div className="relative mb-10 w-full rounded-2xl overflow-hidden">
+                {/* Vault outer glow */}
+                <div className="absolute inset-0 rounded-2xl bg-gradient-to-b from-white/[0.04] to-transparent pointer-events-none" />
+                <div className="grid grid-cols-4 gap-3 p-6 rounded-2xl bg-[#060a14] border border-white/[0.06] shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]">
+                  {recoveryPhrase.map((word, i) => (
+                    <div
+                      key={i}
+                      className="flex items-center gap-3 px-3 py-2.5 rounded-lg bg-white/[0.02] border border-white/[0.04] hover:bg-white/[0.06] hover:border-white/[0.08] transition-all duration-200 group"
+                    >
+                      <span className="text-[11px] font-mono text-slate-600 w-5 shrink-0 select-none tabular-nums group-hover:text-slate-400 transition-colors">
+                        {(i + 1).toString().padStart(2, '0')}
+                      </span>
+                      <span className="text-[14px] font-mono text-slate-300 font-medium tracking-wide select-all group-hover:text-white transition-colors">
+                        {word}
+                      </span>
+                    </div>
+                  ))}
+                </div>
               </div>
             )}
 
@@ -746,25 +753,25 @@ export const OnboardingFlow: React.FC = () => {
             <div className="flex gap-4 w-full mb-6">
               <Button
                 variant="secondary"
-                className={`flex-1 bg-white/5 border-white/10 hover:bg-white/10 gap-2 h-12 transition-all ${
+                className={`flex-1 bg-white/[0.04] border-white/[0.08] hover:bg-white/[0.08] gap-2 h-13 text-[14px] font-medium transition-all ${
                   !keySaved && !recoveryError
-                    ? 'animate-pulse-slow shadow-[0_0_15px_rgba(255,255,255,0.05)]'
+                    ? 'animate-pulse-slow shadow-[0_0_12px_rgba(255,255,255,0.04)]'
                     : ''
                 }`}
                 onClick={handleCopyKey}
                 disabled={recoveryError || recoveryPhrase.length === 0}
               >
                 {keyCopied ? (
-                  '✓ Copied!'
+                  <span className="text-emerald-400">✓ Copied!</span>
                 ) : (
                   <>
-                    <Copy size={16} /> Copy to Clipboard
+                    <Copy size={15} /> Copy to Clipboard
                   </>
                 )}
               </Button>
               <Button
                 variant="secondary"
-                className="flex-1 bg-white/5 border-white/10 hover:bg-white/10 gap-2 h-12"
+                className="flex-1 bg-white/[0.04] border-white/[0.08] hover:bg-white/[0.08] gap-2 h-13 text-[14px] font-medium"
                 onClick={handleDownloadKey}
                 disabled={recoveryError || recoveryPhrase.length === 0}
               >
@@ -775,10 +782,10 @@ export const OnboardingFlow: React.FC = () => {
             <Button
               variant="primary"
               size="lg"
-              className={`w-full border-none transition-all duration-500 h-14 text-base font-medium tracking-wide shadow-xl ${
+              className={`w-full border-none transition-all duration-500 h-14 text-[15px] font-semibold tracking-wide shadow-xl rounded-xl ${
                 keySaved && !recoveryError
-                  ? 'bg-white text-slate-950 hover:bg-slate-200 shadow-[0_0_30px_rgba(255,255,255,0.15)]'
-                  : 'bg-white/5 text-slate-500 cursor-not-allowed opacity-70'
+                  ? 'bg-white text-slate-950 hover:bg-slate-100 shadow-[0_0_30px_rgba(255,255,255,0.12)]'
+                  : 'bg-white/[0.04] text-slate-600 cursor-not-allowed'
               }`}
               disabled={!keySaved || recoveryError}
               onClick={() => setStep('plan-selection')}

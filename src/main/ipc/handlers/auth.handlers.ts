@@ -181,20 +181,8 @@ export function registerAuthHandlers(): void {
   // auth:generateRecoveryKey — Generate a 24-word recovery phrase
   ipcMain.handle('auth:generateRecoveryKey', async () => {
     try {
-      // Security: Verify user is authenticated before generating recovery key
-      const { getAuthService } = await import('../../services/AuthService')
-      const isAuthed = await getAuthService().isAuthenticated()
-      if (!isAuthed) {
-        return {
-          success: false,
-          error: {
-            code: 'NOT_AUTHENTICATED',
-            message: 'You must be signed in to generate a recovery key.',
-            timestamp: Date.now(),
-          },
-        }
-      }
-
+      // Offline-first support: Allow generating a recovery key even if not authenticated.
+      // The key will be used to encrypt local SQLite data.
       const { words: phrase } = RecoveryPhraseService.generateRecoveryPhrase()
 
       // Store in keychain for this session

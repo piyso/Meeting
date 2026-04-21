@@ -7,7 +7,7 @@ import './index.css'
 // In production Electron: window.electronAPI is injected by preload.ts → real backend.
 // In browser dev mode:    window.electronAPI is undefined → mock layer auto-installs.
 // Dynamic import ensures mock code (~110KB) is NEVER bundled into production Electron.
-const IS_ELECTRON = typeof window !== 'undefined' && !!window.electronAPI
+const IS_ELECTRON = typeof navigator !== 'undefined' && navigator.userAgent.toLowerCase().includes('electron')
 
 if (!IS_ELECTRON) {
   // Dynamic import — Vite code-splits this into a separate chunk

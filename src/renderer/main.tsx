@@ -4,18 +4,11 @@ import App from './App'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import './index.css'
 // ── Mock Data Toggle ──────────────────────────────────────────────
-// In production Electron: window.electronAPI is injected by preload.ts → real backend.
-// In browser dev mode:    window.electronAPI is undefined → mock layer auto-installs.
+// In production Electron: preload.ts sets window.electronAPI via contextBridge → real backend.
+// In browser dev mode OR USE_MOCK_DATA=true: window.electronAPI is undefined → mock layer installs.
 // Dynamic import ensures mock code (~110KB) is NEVER bundled into production Electron.
-const IS_ELECTRON = typeof navigator !== 'undefined' && navigator.userAgent.toLowerCase().includes('electron')
-
-if (!IS_ELECTRON) {
-  // Dynamic import — Vite code-splits this into a separate chunk
-  import('./mockElectronAPI').then(({ installMockElectronAPI }) => {
-    console.info('[BlueArkive] Mock mode active — using simulated data')
-    installMockElectronAPI()
-  })
-}
+// NOTE: We check window.electronAPI existence, NOT user-agent. When USE_MOCK_DATA=true,
+// the preload script intentionally skips contextBridge, so we must install mocks even in Electron.
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -32,18 +25,32 @@ const queryClient = new QueryClient({
   },
 })
 
-const rootElement = document.getElementById('root')
-if (!rootElement) {
-  throw new Error('Root element not found')
+async function bootstrap() {
+  // Install mock API if the preload script didn't set window.electronAPI.
+  // This happens in two cases:
+  //   1. Browser dev mode (no Electron at all)
+  //   2. Electron with USE_MOCK_DATA=true (preload skips contextBridge)
+  if (!window.electronAPI) {
+    const { installMockElectronAPI } = await import('./mockElectronAPI')
+    console.info('[BlueArkive] Mock mode active — using simulated data')
+    installMockElectronAPI()
+  }
+
+  const rootElement = document.getElementById('root')
+  if (!rootElement) {
+    throw new Error('Root element not found')
+  }
+
+  ReactDOM.createRoot(rootElement).render(
+    <React.StrictMode>
+      <QueryClientProvider client={queryClient}>
+        <App />
+      </QueryClientProvider>
+    </React.StrictMode>
+  )
 }
 
-ReactDOM.createRoot(rootElement).render(
-  <React.StrictMode>
-    <QueryClientProvider client={queryClient}>
-      <App />
-    </QueryClientProvider>
-  </React.StrictMode>
-)
+bootstrap()
 
 // Defer splash removal until after React has painted — prevents white flash
 // requestIdleCallback runs when the browser is idle after the first paint

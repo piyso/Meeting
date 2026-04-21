@@ -12,16 +12,10 @@ export const SilentPrompter: React.FC<SilentPrompterProps> = ({ suggestion, onDi
   useEffect(() => {
     if (suggestion) {
       setVisible(true)
-      const timer = setTimeout(() => {
-        setVisible(false)
-        setTimeout(onDismiss, 500) // Wait for fade out animation
-      }, 30000) // 30s — long enough for tutorial steps to complete
-      return () => clearTimeout(timer)
     } else {
       setVisible(false)
-      return undefined
     }
-  }, [suggestion, onDismiss])
+  }, [suggestion])
 
   if (!suggestion && !visible) return null
 

@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html>
+<head>
+<style>
+body {
+  background: radial-gradient(circle at center, #2a2a35, #000);
+  height: 200vh;
+  margin: 0;
+  padding: 0;
+  color: white;
+}
+.header {
+  position: sticky;
+  top: 0;
+  padding: 48px 20px 20px;
+  position: relative;
+}
+.header::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0; bottom: -40px;
+  z-index: -1;
+  background: linear-gradient(180deg, rgba(0,0,0,0.8) 40%, rgba(0,0,0,0) 100%);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  -webkit-mask-image: linear-gradient(180deg, black 60%, transparent 100%);
+}
+.content {
+  margin-top: 100px;
+  padding: 20px;
+}
+</style>
+</head>
+<body>
+  <div class="header">
+    <h1>Header Content</h1>
+  </div>
+  <div class="content">
+    <p>Scroll up and down to see the glass effect</p>
+    <br><br><br><br><br><br><br><br><br><br><br><br><p>More content</p>
+  </div>
+</body>
+</html>

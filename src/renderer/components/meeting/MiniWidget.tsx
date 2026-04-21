@@ -179,7 +179,7 @@ export const MiniWidget: React.FC<MiniWidgetProps> = ({
                 onPauseToggle?.()
               }}
               className="w-6 h-6 rounded-md flex items-center justify-center text-[var(--color-text-secondary)] transition-colors widget-nodrag hover:bg-[rgba(255,255,255,0.15)] bg-[rgba(255,255,255,0.06)] outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-violet)] focus-visible:ring-offset-2 focus-visible:ring-offset-black"
-              title={isPaused ? 'Resume Capture (⌘+Shift+P)' : 'Pause Capture (⌘+Shift+P)'}
+              title={isPaused ? `Resume Capture (${modKey}+Shift+P)` : `Pause Capture (${modKey}+Shift+P)`}
               aria-label={isPaused ? 'Resume archiving' : 'Pause archiving'}
             >
               {isPaused ? (
@@ -245,6 +245,7 @@ export const MiniWidget: React.FC<MiniWidgetProps> = ({
           ) : liveCoachTip ? (
             <motion.div
               key="coachtip"
+              layout
               initial={{ opacity: 0, y: 10, scale: 0.95 }}
               animate={{ opacity: 1, y: 0, scale: 1 }}
               exit={{ opacity: 0, scale: 0.95 }}
@@ -255,21 +256,22 @@ export const MiniWidget: React.FC<MiniWidgetProps> = ({
                 size={14}
                 className="text-[var(--color-violet)] flex-shrink-0 animate-pulse"
               />
-              <p className="text-[12px] text-[var(--color-violet-light)] font-medium truncate">
+              <p className="text-[12px] text-[var(--color-violet-light)] font-medium line-clamp-3">
                 {liveCoachTip}
               </p>
             </motion.div>
           ) : (
             <motion.div
               key="transcript"
+              layout
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               transition={springSpec}
-              className="text-[12px] text-[var(--color-text-secondary)] leading-snug line-clamp-2 mt-1 px-0.5 flex flex-col gap-1"
+              className="text-[12px] text-[var(--color-text-secondary)] leading-snug line-clamp-4 mt-1 px-0.5 flex flex-col gap-1"
             >
-              <div className="flex items-center gap-2">
-                <span className="truncate">{lastTranscriptLine || 'Waiting for speech...'}</span>
+              <div className="flex items-start gap-2">
+                <span className="whitespace-normal">{lastTranscriptLine || 'Waiting for speech...'}</span>
               </div>
               <AnimatePresence>
                 {(entityCount > 0 || noteCount > 0) && (

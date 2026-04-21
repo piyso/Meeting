@@ -12,8 +12,6 @@
  */
 
 import crypto from 'crypto'
-import { KeyStorageService } from './KeyStorageService'
-import { EncryptionService } from './EncryptionService'
 
 /**
  * BIP39 English wordlist (2048 words)
@@ -2209,6 +2207,7 @@ export class RecoveryPhraseService {
    * @returns Promise that resolves when stored
    */
   public static async storeRecoveryPhrase(userId: string, phrase: string): Promise<void> {
+    const { KeyStorageService } = await import('./KeyStorageService')
     await KeyStorageService.storeRecoveryPhrase(userId, phrase)
   }
 
@@ -2219,6 +2218,7 @@ export class RecoveryPhraseService {
    * @returns Promise that resolves to recovery phrase or null
    */
   public static async getRecoveryPhrase(userId: string): Promise<string | null> {
+    const { KeyStorageService } = await import('./KeyStorageService')
     return await KeyStorageService.getRecoveryPhrase(userId)
   }
 
@@ -2236,7 +2236,8 @@ export class RecoveryPhraseService {
     // Generate recovery phrase
     const recoveryPhrase = this.generateRecoveryPhrase()
 
-    // Initialize encryption
+    // Initialize encryption (lazy import to avoid eager DB dependency)
+    const { EncryptionService } = await import('./EncryptionService')
     const encryptionData = await EncryptionService.initializeUserEncryption(userId, password)
 
     // Store recovery phrase hash in database
@@ -2270,7 +2271,9 @@ export class RecoveryPhraseService {
     // Derive master key from phrase with a fresh per-user salt
     const { key: masterKey, salt: _salt } = this.deriveKeyFromPhrase(recoveryPhrase)
 
-    // Re-initialize encryption with new password
+    // Re-initialize encryption with new password (lazy imports to avoid eager DB dependency)
+    const { EncryptionService } = await import('./EncryptionService')
+    const { KeyStorageService } = await import('./KeyStorageService')
     await EncryptionService.initializeUserEncryption(userId, newPassword)
 
     // Store new encryption key

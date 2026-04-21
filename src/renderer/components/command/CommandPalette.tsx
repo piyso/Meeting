@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useDeferredValue } from 'react'
+import { motion } from 'framer-motion'
 import { modLabel } from '../../utils/platformShortcut'
 import { createPortal } from 'react-dom'
 import {
@@ -13,6 +14,8 @@ import {
   Brain,
   CalendarDays,
   MessageSquare,
+  Pause,
+  Bookmark,
 } from 'lucide-react'
 import { useAppStore } from '../../store/appStore'
 import { Badge } from '../ui/Badge'
@@ -165,6 +168,30 @@ export const CommandPalette: React.FC = () => {
           toggleCommandPalette()
         },
       },
+      {
+        id: 'a11',
+        type: 'action',
+        icon: <Pause size={16} />,
+        label: 'Pause / Resume Recording',
+        description: 'Toggle pause during an active recording session',
+        shortcut: `${modLabel}+Shift+P`,
+        onSelect: () => {
+          window.dispatchEvent(new CustomEvent('toggle-pause'))
+          toggleCommandPalette()
+        },
+      },
+      {
+        id: 'a12',
+        type: 'action',
+        icon: <Bookmark size={16} />,
+        label: 'Bookmark Moment',
+        description: 'Pin the last 30 seconds as a highlight',
+        shortcut: `${modLabel}+Shift+B`,
+        onSelect: () => {
+          window.dispatchEvent(new CustomEvent('quick-bookmark'))
+          toggleCommandPalette()
+        },
+      },
     ],
     [toggleCommandPalette, toggleFocusMode, navigate]
   )
@@ -298,69 +325,75 @@ export const CommandPalette: React.FC = () => {
           />
         </div>
 
-        <div className="ui-cmd-results">
+        <motion.div layout className="ui-cmd-results">
           {actions.length > 0 && (
-            <div className="ui-cmd-section">
-              <div className="ui-cmd-section-title">ACTIONS</div>
+            <motion.div layout className="ui-cmd-section">
+              <motion.div layout="position" className="ui-cmd-section-title">ACTIONS</motion.div>
               {actions.map((item, i) => {
                 const globalIndex = i
                 return (
-                  <button
+                  <motion.button
+                    layout
                     key={item.id}
                     className={`ui-cmd-item ${selectedIndex === globalIndex ? 'selected' : ''}`}
                     onClick={item.onSelect}
                     onMouseEnter={() => setSelectedIndex(globalIndex)}
+                    transition={{ duration: 0.2, ease: 'easeOut' }}
                   >
-                    <div className="ui-cmd-item-icon">{item.icon}</div>
-                    <div className="ui-cmd-item-text">
-                      <div className="ui-cmd-item-label">{item.label}</div>
+                    <motion.div layout className="ui-cmd-item-icon">{item.icon}</motion.div>
+                    <motion.div layout className="ui-cmd-item-text">
+                      <motion.div layout="position" className="ui-cmd-item-label">{item.label}</motion.div>
                       {item.description && (
-                        <div className="ui-cmd-item-desc">{item.description}</div>
+                        <motion.div layout className="ui-cmd-item-desc">{item.description}</motion.div>
                       )}
-                    </div>
+                    </motion.div>
                     {item.shortcut && (
-                      <Badge
-                        variant="default"
-                        className="ml-auto font-mono tracking-tighter opacity-70"
-                      >
-                        {item.shortcut}
-                      </Badge>
+                      <motion.div layout className="ml-auto flex-shrink-0">
+                        <Badge
+                          variant="default"
+                          className="font-mono tracking-tighter opacity-70"
+                        >
+                          {item.shortcut}
+                        </Badge>
+                      </motion.div>
                     )}
-                  </button>
+                  </motion.button>
                 )
               })}
-            </div>
+            </motion.div>
           )}
 
           {meetings.length > 0 && (
-            <div className="ui-cmd-section">
-              <div className="ui-cmd-section-title">MEETINGS ({meetings.length})</div>
+            <motion.div layout className="ui-cmd-section">
+              <motion.div layout="position" className="ui-cmd-section-title">MEETINGS ({meetings.length})</motion.div>
               {meetings.map((item, i) => {
                 const globalIndex = actions.length + i
                 return (
-                  <button
+                  <motion.button
+                    layout
                     key={item.id}
                     className={`ui-cmd-item ${selectedIndex === globalIndex ? 'selected' : ''}`}
                     onClick={item.onSelect}
                     onMouseEnter={() => setSelectedIndex(globalIndex)}
+                    transition={{ duration: 0.2, ease: 'easeOut' }}
                   >
-                    <div className="ui-cmd-item-icon">{item.icon}</div>
-                    <div className="ui-cmd-item-text">
-                      <div className="ui-cmd-item-label">{item.label}</div>
+                    <motion.div layout className="ui-cmd-item-icon">{item.icon}</motion.div>
+                    <motion.div layout className="ui-cmd-item-text">
+                      <motion.div layout="position" className="ui-cmd-item-label">{item.label}</motion.div>
                       {item.description && (
-                        <div className="ui-cmd-item-desc">{item.description}</div>
+                        <motion.div layout className="ui-cmd-item-desc">{item.description}</motion.div>
                       )}
-                    </div>
-                  </button>
+                    </motion.div>
+                  </motion.button>
                 )
               })}
-            </div>
+            </motion.div>
           )}
 
           {allItems.length === 0 && (
-            <div className="ui-cmd-empty-state">No results found for "{query}"</div>
+            <motion.div layout="position" className="ui-cmd-empty-state">No results found for "{query}"</motion.div>
           )}
-        </div>
+        </motion.div>
       </div>
     </div>,
     document.body

@@ -351,7 +351,8 @@ export const AppLayout: React.FC = () => {
     checkFirstLaunch()
   }, [navigate])
 
-  const meetingId = activeView === 'meeting-detail' ? selectedMeetingId : null
+  const activeMeetingIdForAudio = useAppStore(s => s.activeMeetingId)
+  const meetingId = activeMeetingIdForAudio || (activeView === 'meeting-detail' ? selectedMeetingId : null)
   const {
     startCapture,
     stopCapture: _stopCapture,
@@ -445,6 +446,13 @@ export const AppLayout: React.FC = () => {
     window.addEventListener('toggle-pause', onTogglePause)
     return () => window.removeEventListener('toggle-pause', onTogglePause)
   }, [handlePauseRecording])
+
+  // Wire wall dialog triggers from CustomEvents
+  React.useEffect(() => {
+    const onShowIntelligenceWall = () => setIntelligenceWallOpen(true)
+    window.addEventListener('show-intelligence-wall', onShowIntelligenceWall)
+    return () => window.removeEventListener('show-intelligence-wall', onShowIntelligenceWall)
+  }, [])
 
   // Show minimal loading screen while checking onboarding status
   if (initializing) {

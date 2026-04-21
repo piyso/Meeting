@@ -15,7 +15,7 @@ interface AppState {
   currentTier: string
   quotaData: { used: number; limit: number; remaining: number; exhausted: boolean }
   deviceInfo: { count: number }
-  aiEngineStatus: 'idle' | 'loading' | 'loaded' | 'unloading'
+
 
   // ── Navigation ──
   activeView:
@@ -40,7 +40,7 @@ interface AppState {
   liveCoachTip: string | null
   entityCount: number
   noteCount: number
-  processingStep: string
+
 
   // ── Connectivity ──
   isOnline: boolean
@@ -62,7 +62,7 @@ interface AppState {
     exhausted: boolean
   }) => void
   setDeviceInfo: (info: { count: number }) => void
-  setAIEngineStatus: (status: AppState['aiEngineStatus']) => void
+
 
   navigate: (view: AppState['activeView'], meetingId?: string) => void
   setRecordingState: (state: AppState['recordingState'], mode?: AppState['audioMode']) => void
@@ -73,7 +73,7 @@ interface AppState {
   setLiveCoachTip: (tip: string | null) => void
   setEntityCount: (count: number) => void
   setNoteCount: (count: number) => void
-  setProcessingStep: (step: string) => void
+
   toggleFocusMode: () => void
   toggleCommandPalette: () => void
   toggleGlobalContext: () => void
@@ -90,7 +90,7 @@ export const useAppStore = create<AppState>()(set => ({
   currentTier: 'free',
   quotaData: { used: 0, limit: 10, remaining: 10, exhausted: false },
   deviceInfo: { count: 0 },
-  aiEngineStatus: 'idle',
+
 
   // Navigation
   activeView: 'meeting-list',
@@ -107,7 +107,7 @@ export const useAppStore = create<AppState>()(set => ({
   liveCoachTip: null,
   entityCount: 0,
   noteCount: 0,
-  processingStep: '',
+
 
   // Connectivity
   isOnline: navigator.onLine,
@@ -130,7 +130,7 @@ export const useAppStore = create<AppState>()(set => ({
   setActiveMeetingId: activeMeetingId => set({ activeMeetingId }),
   setQuotaData: quotaData => set({ quotaData }),
   setDeviceInfo: deviceInfo => set({ deviceInfo }),
-  setAIEngineStatus: aiEngineStatus => set({ aiEngineStatus }),
+
 
   navigate: (view, meetingId) =>
     set(s => ({
@@ -152,7 +152,6 @@ export const useAppStore = create<AppState>()(set => ({
       liveCoachTip: recordingState === 'idle' ? null : s.liveCoachTip,
       entityCount: recordingState === 'idle' ? 0 : s.entityCount,
       noteCount: recordingState === 'idle' ? 0 : s.noteCount,
-      processingStep: recordingState === 'idle' ? '' : s.processingStep,
     })),
 
   setRecordingStartTime: recordingStartTime => set({ recordingStartTime }),
@@ -162,7 +161,7 @@ export const useAppStore = create<AppState>()(set => ({
   setLiveCoachTip: liveCoachTip => set({ liveCoachTip }),
   setEntityCount: entityCount => set({ entityCount }),
   setNoteCount: noteCount => set({ noteCount }),
-  setProcessingStep: processingStep => set({ processingStep }),
+
 
   toggleFocusMode: () => set(s => ({ focusMode: !s.focusMode })),
 

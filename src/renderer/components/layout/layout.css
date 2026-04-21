@@ -127,7 +127,8 @@
 .ui-dynamic-island {
   position: fixed;
   top: var(--space-16);
-  height: var(--h-xl);
+  min-height: var(--h-xl);
+  height: max-content;
 
   /* ── Center on the FULL VIEWPORT (Apple Dynamic Island style) ──
      Uses margin-inline:auto instead of transform:translateX(-50%)
@@ -140,14 +141,15 @@
 
   width: max-content;
   min-width: 120px;
-  max-width: 500px;
+  max-width: 600px;
   z-index: var(--z-overlay-base); /* Must be ≥ drag region (50) to receive hover events */
   display: flex;
   align-items: center;
   justify-content: center;
   gap: var(--space-16);
-  padding: 0 var(--space-16);
-  border-radius: var(--radius-full);
+  padding: var(--space-8) var(--space-16);
+  border-radius: 44px;
+  overflow: hidden;
 
   /* Explicit compositor-safe transitions for aesthetics (layout managed by Framer Motion) */
   transition:
@@ -159,8 +161,9 @@
 
   /* Deep premium frost glass for best readability and aesthetics */
   background: linear-gradient(180deg, rgba(20, 20, 24, 0.35) 0%, rgba(10, 10, 12, 0.55) 100%);
-  backdrop-filter: blur(48px) saturate(180%);
-  -webkit-backdrop-filter: blur(48px) saturate(180%);
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  transform: translateZ(0); /* Force hardware compositing to prevent layout lag */
   border: 1px solid var(--color-border-subtle);
   box-shadow:
     0 16px 48px -12px rgba(0, 0, 0, 0.35),
@@ -177,6 +180,44 @@ body[data-platform='win32'] .ui-dynamic-island {
 .ui-di-state-idle {
   background: rgba(14, 14, 18, 0.4);
   border: 1px solid rgba(255, 255, 255, 0.04);
+}
+
+.ui-di-state-starting {
+  background: linear-gradient(180deg, rgba(20, 12, 0, 0.45) 0%, rgba(10, 6, 0, 0.6) 100%);
+  border: 1px solid rgba(245, 158, 11, 0.15);
+  box-shadow:
+    0 16px 48px -12px rgba(0, 0, 0, 0.4),
+    inset 0 1px 0 rgba(255, 255, 255, 0.08);
+}
+
+.ui-di-state-starting::after {
+  content: '';
+  position: absolute;
+  inset: -4px;
+  border-radius: inherit;
+  background: radial-gradient(ellipse at center, rgba(245, 158, 11, 0.08) 0%, transparent 70%);
+  pointer-events: none;
+  animation: glow-pulse 2s ease-in-out infinite;
+  z-index: -1;
+}
+
+.ui-di-state-stopping {
+  background: linear-gradient(180deg, rgba(10, 20, 18, 0.45) 0%, rgba(5, 12, 10, 0.6) 100%);
+  border: 1px solid rgba(20, 184, 166, 0.2);
+  box-shadow:
+    0 16px 48px -12px rgba(0, 0, 0, 0.4),
+    inset 0 1px 0 rgba(255, 255, 255, 0.08);
+}
+
+.ui-di-state-stopping::after {
+  content: '';
+  position: absolute;
+  inset: -4px;
+  border-radius: inherit;
+  background: radial-gradient(ellipse at center, rgba(20, 184, 166, 0.10) 0%, transparent 70%);
+  pointer-events: none;
+  animation: glow-pulse 2s ease-in-out infinite;
+  z-index: -1;
 }
 
 .ui-di-state-recording {
@@ -302,28 +343,11 @@ body[data-platform='win32'] .ui-dynamic-island {
 
 /* ── Hover Content ── */
 .ui-di-transcript-preview {
-  margin-left: 8px;
   font-size: 13px;
   font-weight: 500;
   color: var(--color-text-secondary);
-  max-width: 240px;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  -webkit-mask-image: linear-gradient(to right, black 80%, transparent 100%);
-  mask-image: linear-gradient(to right, black 80%, transparent 100%);
-  animation: slide-right-fade 300ms cubic-bezier(0.25, 1, 0.2, 1.15);
-}
-
-@keyframes slide-right-fade {
-  from {
-    opacity: 0;
-    transform: translateX(-10px);
-  }
-  to {
-    opacity: 1;
-    transform: translateX(0);
-  }
+  white-space: normal;
+  line-height: 1.5;
 }
 
 .ui-dynamic-island-left {
@@ -340,15 +364,6 @@ body[data-platform='win32'] .ui-dynamic-island {
   display: flex;
   align-items: center;
   gap: var(--space-12);
-}
-
-.ui-dynamic-island-right {
-  display: flex;
-  align-items: center;
-}
-
-.ui-dynamic-island-right:empty {
-  display: none;
 }
 
 .ui-dynamic-island-recording {
@@ -373,12 +388,6 @@ body[data-platform='win32'] .ui-dynamic-island {
   color: var(--color-amber); /* Apple system microphone color */
 }
 
-.ui-dynamic-island-rec-dot {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: var(--color-amber);
-}
 .ui-dynamic-island-rec-label {
   font-size: 10px;
   letter-spacing: var(--tracking-wide);
@@ -474,10 +483,6 @@ body[data-platform='win32'] .ui-dynamic-island {
   }
 }
 
-.ui-dynamic-island-right {
-  display: flex;
-  align-items: center;
-}
 /* Processing State */
 .ui-dynamic-island-processing {
   display: flex;

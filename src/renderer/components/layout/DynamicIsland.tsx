@@ -124,6 +124,14 @@ export const DynamicIsland: React.FC<DynamicIslandProps> = ({
     setIsHolding(false)
   }
 
+  // Cleanup hold timer on unmount — prevents double-stop if state transitions
+  // (e.g. via keyboard shortcut) while user is mid-hold
+  useEffect(() => {
+    return () => {
+      if (holdTimerRef.current) clearTimeout(holdTimerRef.current)
+    }
+  }, [])
+
   // ── Processing Micro-states ──
   const [processingIdx, setProcessingIdx] = useState(0)
 
@@ -215,6 +223,8 @@ export const DynamicIsland: React.FC<DynamicIslandProps> = ({
         return 'Ask Meetings'
       case 'settings':
         return 'Settings'
+      case 'pricing':
+        return 'Upgrade'
       default:
         return 'BlueArkive'
     }
@@ -299,65 +309,39 @@ export const DynamicIsland: React.FC<DynamicIslandProps> = ({
           </motion.div>
 
           <motion.div layout="position" className="flex items-center gap-1">
-            {liveCoachTip ? (
-              <span className="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-[rgba(139,92,246,0.15)] border border-[rgba(139,92,246,0.3)] text-[var(--color-violet)] animate-pulse shadow-[0_0_12px_rgba(139,92,246,0.2)]">
-                <span className="text-[11px] font-medium leading-none">🧠 Coach Active</span>
-              </span>
-            ) : (
-              <>
-                {isPaused ? (
-                  <span className="text-[var(--color-amber)] text-[12px] whitespace-nowrap px-1 font-medium tracking-wide">
-                    ⏸ Paused
-                  </span>
-                ) : (
-                  <IslandTimer />
-                )}
-                {!isPaused && (
-                  <IslandAudioMeter activeMeetingId={activeMeetingId} isRecording={true} />
-                )}
-              </>
-            )}
+            <AnimatePresence mode="wait">
+              {liveCoachTip ? (
+                <motion.span
+                  key="coach-active"
+                  initial={{ opacity: 0, scale: 0.8 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0, scale: 0.8 }}
+                  className="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-[rgba(139,92,246,0.15)] border border-[rgba(139,92,246,0.3)] text-[var(--color-violet)] shadow-[0_0_12px_rgba(139,92,246,0.2)]"
+                >
+                  <span className="text-[11px] font-medium leading-none">🧠 Coach Active</span>
+                </motion.span>
+              ) : (
+                <motion.div
+                  key="timer-meter"
+                  initial={{ opacity: 0, scale: 0.8 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0, scale: 0.8 }}
+                  className="flex items-center gap-1"
+                >
+                  {isPaused ? (
+                    <span className="text-[var(--color-amber)] text-[12px] whitespace-nowrap px-1 font-medium tracking-wide">
+                      ⏸ Paused
+                    </span>
+                  ) : (
+                    <IslandTimer />
+                  )}
+                  {!isPaused && (
+                    <IslandAudioMeter activeMeetingId={activeMeetingId} isRecording={true} />
+                  )}
+                </motion.div>
+              )}
+            </AnimatePresence>
           </motion.div>
-
-          <AnimatePresence>
-            {isHovered && lastTranscriptLine && !liveCoachTip && (
-              <motion.div
-                layout
-                initial={{ opacity: 0, width: 0 }}
-                animate={{ opacity: 1, width: 'auto' }}
-                exit={{ opacity: 0, width: 0 }}
-                transition={{
-                  duration: 0.25,
-                  type: 'spring',
-                  bounce: 0,
-                  stiffness: 300,
-                  damping: 25,
-                }}
-                className="overflow-hidden flex items-center gap-2"
-              >
-                <div className="ui-di-transcript-preview flex items-center gap-2">
-                  <span className="truncate">{lastTranscriptLine}</span>
-                  <span className="opacity-50 text-[10px] flex-shrink-0 tracking-wider">
-                    {entityCount > 0 && `👤${entityCount} `}
-                    {noteCount > 0 && `📝${noteCount}`}
-                  </span>
-                </div>
-              </motion.div>
-            )}
-            {isHovered && liveCoachTip && (
-              <motion.div
-                layout
-                initial={{ opacity: 0, width: 0 }}
-                animate={{ opacity: 1, width: 'auto' }}
-                exit={{ opacity: 0, width: 0 }}
-                className="overflow-hidden"
-              >
-                <div className="ui-di-transcript-preview text-[var(--color-violet)] font-medium whitespace-nowrap overflow-hidden text-ellipsis">
-                  ✨ {liveCoachTip}
-                </div>
-              </motion.div>
-            )}
-          </AnimatePresence>
 
           <motion.div layout="position" className="flex items-center gap-2">
             <button
@@ -366,7 +350,7 @@ export const DynamicIsland: React.FC<DynamicIslandProps> = ({
                 onPauseRecording?.()
               }}
               className="ui-dynamic-island-pause-btn flex items-center justify-center p-1.5 rounded-full bg-[rgba(255,255,255,0.06)] hover:bg-[rgba(255,255,255,0.15)] transition-colors pointer-events-auto"
-              title={isPaused ? 'Resume (⌘+Shift+P)' : 'Pause (⌘+Shift+P)'}
+              title={isPaused ? `Resume (${modKey}+Shift+P)` : `Pause (${modKey}+Shift+P)`}
             >
               {isPaused ? (
                 <Play
@@ -401,6 +385,45 @@ export const DynamicIsland: React.FC<DynamicIslandProps> = ({
               />
             </button>
           </motion.div>
+
+          <AnimatePresence mode="popLayout">
+            {isHovered && (lastTranscriptLine || liveCoachTip) && (
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.2 }}
+                className="flex flex-col gap-2 shrink-0 pointer-events-none"
+                style={{ width: 380 }}
+              >
+                {lastTranscriptLine && (
+                  <div className="flex flex-col gap-1 items-start w-full">
+                    <span className="text-[10px] uppercase tracking-widest text-[var(--color-text-tertiary)] font-semibold">Transcript</span>
+                    <div className="ui-di-transcript-preview text-white">{lastTranscriptLine}</div>
+                    {(entityCount > 0 || noteCount > 0) && (
+                      <div className="flex gap-3 opacity-60 text-[10px] tracking-wider mt-1 font-medium">
+                        {entityCount > 0 && <span>👤 {entityCount} ENTITIES</span>}
+                        {noteCount > 0 && <span>📝 {noteCount} NOTES</span>}
+                      </div>
+                    )}
+                  </div>
+                )}
+                
+                {lastTranscriptLine && liveCoachTip && (
+                  <div className="w-full h-px bg-[rgba(255,255,255,0.08)] my-1 rounded-full" />
+                )}
+
+                {liveCoachTip && (
+                  <div className="flex flex-col gap-1 items-start w-full">
+                    <span className="text-[10px] uppercase tracking-widest text-[var(--color-violet)] font-semibold">AI Coach</span>
+                    <div className="ui-di-transcript-preview text-[var(--color-violet-light)]">
+                      ✨ {liveCoachTip}
+                    </div>
+                  </div>
+                )}
+              </motion.div>
+            )}
+          </AnimatePresence>
         </motion.div>
       )
     }

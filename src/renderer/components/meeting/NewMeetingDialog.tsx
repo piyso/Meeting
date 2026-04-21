@@ -50,6 +50,13 @@ export const NewMeetingDialog: React.FC<NewMeetingDialogProps> = ({ open, onClos
           placeholder="Optional — AI suggests after 60s"
           value={title}
           onChange={e => setTitle(e.target.value)}
+          onKeyDown={(e: React.KeyboardEvent) => {
+            if (e.key === 'Enter') {
+              e.preventDefault()
+              onSubmit({ title, template, contextFiles: files })
+              onClose()
+            }
+          }}
           autoFocus
         />
 

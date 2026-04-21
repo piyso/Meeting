@@ -4,6 +4,8 @@ import { useAppStore } from '../store/appStore'
 export function useKeyboardShortcuts() {
   const toggleCommandPalette = useAppStore(s => s.toggleCommandPalette)
   const toggleFocusMode = useAppStore(s => s.toggleFocusMode)
+  const toggleGlobalContext = useAppStore(s => s.toggleGlobalContext)
+  const navigate = useAppStore(s => s.navigate)
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
@@ -27,6 +29,13 @@ export function useKeyboardShortcuts() {
       if (meta && !e.shiftKey && e.key.toLowerCase() === 'n') {
         e.preventDefault()
         window.dispatchEvent(new CustomEvent('open-new-meeting'))
+        return
+      }
+
+      // Cmd+, → Open Settings (standard macOS convention)
+      if (meta && !e.shiftKey && e.key === ',') {
+        e.preventDefault()
+        navigate('settings')
         return
       }
 
@@ -58,21 +67,15 @@ export function useKeyboardShortcuts() {
         return
       }
 
-      // Cmd+\ → Toggle split pane orientation
-      if (meta && e.key === '\\') {
+      // Cmd+Shift+G → Toggle Global Context Bar
+      if (meta && e.shiftKey && (e.key === 'g' || e.key === 'G')) {
         e.preventDefault()
-        window.dispatchEvent(new CustomEvent('toggle-split-orientation'))
+        toggleGlobalContext()
         return
-      }
-
-      // Cmd+J → Collapse/expand notes pane
-      if (meta && !e.shiftKey && e.key.toLowerCase() === 'j') {
-        e.preventDefault()
-        window.dispatchEvent(new CustomEvent('toggle-notes-pane'))
       }
     }
 
     window.addEventListener('keydown', handler)
     return () => window.removeEventListener('keydown', handler)
-  }, [toggleCommandPalette, toggleFocusMode])
+  }, [toggleCommandPalette, toggleFocusMode, toggleGlobalContext, navigate])
 }

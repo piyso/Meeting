@@ -495,7 +495,7 @@ app
         label: 'View',
         submenu: [
           { role: 'reload' },
-          { role: 'forceReload' },
+          // forceReload removed — its Cmd+Shift+R accelerator conflicts with toggle-recording
           { role: 'toggleDevTools' },
           { type: 'separator' },
           { role: 'resetZoom' },

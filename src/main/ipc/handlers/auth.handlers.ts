@@ -14,7 +14,6 @@
 
 import { ipcMain } from 'electron'
 import { Logger } from '../../services/Logger'
-import { RecoveryPhraseService } from '../../services/RecoveryPhraseService'
 
 const log = Logger.create('AuthHandlers')
 
@@ -183,6 +182,7 @@ export function registerAuthHandlers(): void {
     try {
       // Offline-first support: Allow generating a recovery key even if not authenticated.
       // The key will be used to encrypt local SQLite data.
+      const { RecoveryPhraseService } = await import('../../services/RecoveryPhraseService')
       const { words: phrase } = RecoveryPhraseService.generateRecoveryPhrase()
 
       // Store in keychain for this session

@@ -29,10 +29,31 @@
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  padding: 48px 0 var(--space-20);
+  
+  /* Extend header to screen edges by negating container padding */
+  margin-left: calc(-1 * clamp(var(--space-16), 4vw, var(--space-48)));
+  margin-right: calc(-1 * clamp(var(--space-16), 4vw, var(--space-48)));
+  
+  /* Re-apply the padding internally so contents align with list */
+  padding: 48px clamp(var(--space-16), 4vw, var(--space-48)) var(--space-20);
+  
   margin-bottom: var(--space-16);
-  background: linear-gradient(180deg, var(--color-bg-root) 60%, transparent);
+  background: transparent;
   min-width: 0;
+}
+
+.ui-view-meeting-list-header::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  bottom: -48px; /* extend further down for a smoother blur fade */
+  z-index: -1;
+  background: linear-gradient(180deg, rgba(2, 2, 3, 0.95) 40%, rgba(2, 2, 3, 0) 100%);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  mask-image: linear-gradient(180deg, black 50%, transparent 100%);
+  -webkit-mask-image: linear-gradient(180deg, black 50%, transparent 100%);
+  pointer-events: none;
 }
 
 .ui-header-title h1 {
@@ -61,6 +82,9 @@
   text-align: left;
   outline: none;
   overflow: hidden;
+  /* Fix WebKit border-radius clipping bug causing bleed */
+  -webkit-mask-image: -webkit-radial-gradient(white, black);
+  isolation: isolate;
   transition:
     transform 400ms var(--ease-spring),
     box-shadow 400ms var(--ease-spring),
@@ -1516,10 +1540,12 @@
 /* Meeting List Search Input */
 .ui-meeting-search-input {
   width: 13rem;
-  background: rgba(28, 28, 30, 0.8);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  border: 1px solid rgba(255, 255, 255, 0.06);
+  /* Use a translucent inset background that blends seamlessly over the glassy header */
+  background: rgba(0, 0, 0, 0.2);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow:
+    inset 0 1px 3px rgba(0, 0, 0, 0.3),
+    0 1px 0 rgba(255, 255, 255, 0.02);
   border-radius: 10px;
   padding: 7px 12px 7px 32px;
   font-size: 13px;
@@ -1530,24 +1556,26 @@
     background 200ms ease,
     border-color 200ms ease,
     box-shadow 200ms ease;
+  /* Ensure clean compositing without nested blur bugs */
+  transform: translateZ(0);
 }
 
 .ui-meeting-search-input::placeholder {
-  color: #636366;
+  color: rgba(255, 255, 255, 0.4);
   font-weight: 400;
 }
 
 .ui-meeting-search-input:hover {
-  background: rgba(44, 44, 46, 0.9);
-  border-color: rgba(255, 255, 255, 0.08);
+  background: rgba(0, 0, 0, 0.3);
+  border-color: rgba(255, 255, 255, 0.12);
 }
 
 .ui-meeting-search-input:focus {
-  background: rgba(44, 44, 46, 0.95);
+  background: rgba(0, 0, 0, 0.4);
   border-color: rgba(167, 139, 250, 0.4);
   box-shadow:
-    0 0 0 3px rgba(167, 139, 250, 0.12),
-    0 2px 8px rgba(0, 0, 0, 0.2);
+    inset 0 1px 3px rgba(0, 0, 0, 0.4),
+    0 0 0 3px rgba(167, 139, 250, 0.12);
   width: 16rem;
 }
 

@@ -1,5 +1,6 @@
 import React, { useCallback } from 'react'
 import { Square, Pause, Play, Mic, Monitor, Circle, BookmarkPlus } from 'lucide-react'
+import { modKey } from '../../utils/platformShortcut'
 import { useAppStore } from '../../store/appStore'
 import { useRecordingTimer } from '../../hooks/useRecordingTimer'
 
@@ -73,7 +74,7 @@ export const RecordingToolbar: React.FC<RecordingToolbarProps> = ({
         <button
           onClick={onBookmark}
           className="recording-toolbar-btn"
-          title="Bookmark Moment (⌘+Shift+B)"
+          title={`Bookmark Moment (${modKey}+Shift+B)`}
           aria-label="Bookmark Moment"
           disabled={isConnecting}
         >
@@ -83,7 +84,7 @@ export const RecordingToolbar: React.FC<RecordingToolbarProps> = ({
         <button
           onClick={handlePauseToggle}
           className="recording-toolbar-btn recording-toolbar-btn-pause"
-          title={isPaused ? 'Resume recording (⌘+Shift+P)' : 'Pause recording (⌘+Shift+P)'}
+          title={isPaused ? `Resume recording (${modKey}+Shift+P)` : `Pause recording (${modKey}+Shift+P)`}
           aria-label={isPaused ? 'Resume recording' : 'Pause recording'}
           disabled={isConnecting}
         >

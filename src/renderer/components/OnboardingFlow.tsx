@@ -285,7 +285,7 @@ export const OnboardingFlow: React.FC = () => {
     >
       {/* Left Visual Art Panel (Hidden on mobile, and hidden during wide steps) */}
       {step !== 'plan-selection' && step !== 'ghost-meeting' && (
-        <div className="hidden lg:flex w-1/2 h-full bg-slate-950 p-12 flex-col relative overflow-hidden border-r border-white/[0.04]">
+        <div className="hidden lg:flex w-1/2 h-full bg-slate-950 p-8 lg:p-12 flex-col relative overflow-y-auto sovereign-scrollbar border-r border-white/[0.04]">
           <div className="absolute inset-0 with-noise opacity-[0.03] pointer-events-none z-0" />
           <motion.div
             className="absolute inset-0 pointer-events-none z-0 transition-opacity duration-300 opacity-60"
@@ -296,11 +296,7 @@ export const OnboardingFlow: React.FC = () => {
           <div className="absolute top-0 right-0 w-[600px] h-[600px] bg-slate-800/30 blur-[130px] rounded-full pointer-events-none translate-x-1/4 -translate-y-1/4 z-0" />
           <div className="absolute bottom-10 left-0 w-[500px] h-[500px] bg-emerald-500/5 blur-[120px] rounded-full pointer-events-none -translate-x-1/4 translate-y-1/4 z-0" />
 
-          <div className="relative z-10 pb-8">
-            <Logo3DErrorBoundary>
-              <Logo3D />
-            </Logo3DErrorBoundary>
-          </div>
+          {/* Removed Logo3D to clean up visual layout */}
 
           <AnimatePresence mode="wait">
             <motion.div
@@ -309,29 +305,38 @@ export const OnboardingFlow: React.FC = () => {
               animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
               exit={{ opacity: 0, y: -15, filter: 'blur(6px)' }}
               transition={{ duration: 0.4, ease: 'easeOut' }}
-              className="relative z-10 max-w-xl mt-auto mb-auto"
+              className="relative z-10 w-full max-w-xl mt-auto mb-auto mx-auto"
             >
-              <h1 className="text-[2.75rem] leading-[1.15] font-heading font-medium tracking-tight text-white mb-6 drop-shadow-lg">
+              <h1 className="text-4xl lg:text-[2.75rem] leading-[1.15] font-heading font-medium tracking-tight text-white mb-4 lg:mb-6 drop-shadow-lg">
                 {step === 'auth'
                   ? authMode === 'register'
                     ? 'The Sovereign Memory Fabric.'
                     : 'Welcome Back.'
                   : ''}
                 {step === 'setup' ? 'Initializing Core.' : ''}
-                {step === 'recovery-key' ? 'Absolute Sovereignty.' : ''}
+                {step === 'recovery-key' && (
+                  <span className="text-transparent bg-clip-text bg-gradient-to-br from-emerald-300 via-emerald-100 to-amber-200 drop-shadow-[0_0_15px_rgba(16,185,129,0.3)]">
+                    Absolute Sovereignty.
+                  </span>
+                )}
                 {(step as string) === 'plan-selection' ? 'Systems Ready.' : ''}
                 {(step as string) === 'ghost-meeting' ? 'Simulation Mode.' : ''}
               </h1>
-              <p className="text-slate-400 font-serif italic text-xl leading-[1.7] opacity-90">
+              <p className="text-slate-400 font-serif italic text-lg lg:text-xl leading-[1.7] opacity-90">
                 {step === 'auth'
                   ? 'Constructing the autonomous agentic web. Infinite recall, zero dependencies.'
                   : ''}
                 {step === 'setup'
                   ? 'Injecting AI models directly into your secure local environment.'
                   : ''}
-                {step === 'recovery-key'
-                  ? 'You are the only one holding the keys. True ownership of your data.'
-                  : ''}
+                {step === 'recovery-key' && (
+                  <span className="text-slate-300">
+                    You are the only one holding the keys.{' '}
+                    <span className="text-emerald-300/90 not-italic font-sans font-medium tracking-wide">
+                      True ownership of your data.
+                    </span>
+                  </span>
+                )}
                 {(step as string) === 'plan-selection'
                   ? 'Choose the cognitive capacity required for your workflows.'
                   : ''}
@@ -341,68 +346,142 @@ export const OnboardingFlow: React.FC = () => {
               </p>
 
               {step === 'auth' && (
-                <div className="mt-12 grid grid-cols-2 gap-5 pr-8">
-                  <div className="group relative p-6 rounded-2xl bg-white/[0.02] border border-white/[0.05] hover:bg-white/[0.04] hover:shadow-2xl hover:shadow-violet-500/10 transition-all duration-300 overflow-hidden cursor-default">
-                    <div className="absolute inset-0 bg-gradient-to-br from-violet-500/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
-                    <Layers
-                      className="text-violet-400 mb-4 opacity-80 group-hover:opacity-100 group-hover:scale-110 transition-all duration-300"
-                      size={24}
-                    />
-                    <h3 className="text-slate-200 font-medium tracking-wide mb-1.5 text-[15px]">
-                      Cognitive Substrate
-                    </h3>
-                    <p className="text-[13px] text-slate-500 leading-relaxed group-hover:text-slate-400 transition-colors">
+                <div className="mt-8 lg:mt-12 grid grid-cols-2 gap-4 lg:gap-5 pr-4 lg:pr-8 pb-12">
+                  <div className="group relative p-5 lg:p-6 rounded-2xl bg-white/[0.02] border border-white/[0.05] hover:bg-white/[0.04] hover:shadow-2xl hover:shadow-violet-500/10 transition-all duration-300 overflow-hidden cursor-default flex flex-col">
+                    <div className="absolute inset-0 bg-gradient-to-br from-violet-500/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none" />
+                    <div className="relative z-10 flex items-center gap-3.5 mb-3">
+                      <div className="flex items-center justify-center w-10 h-10 rounded-xl bg-violet-500/10 border border-violet-500/20 group-hover:scale-110 group-hover:bg-violet-500/20 transition-all duration-300 shadow-[inset_0_0_15px_rgba(139,92,246,0.1)] shrink-0">
+                        <Layers className="text-violet-400" size={18} />
+                      </div>
+                      <h3 className="text-slate-200 font-semibold tracking-wide text-[14.5px] leading-tight">
+                        Cognitive Substrate
+                      </h3>
+                    </div>
+                    <p className="relative z-10 text-[13px] text-slate-400 leading-relaxed group-hover:text-slate-300 transition-colors mt-auto">
                       100% offline inference with zero external telemetry.
                     </p>
                   </div>
 
-                  <div className="group relative p-6 rounded-2xl bg-white/[0.02] border border-white/[0.05] hover:bg-white/[0.04] hover:shadow-2xl hover:shadow-emerald-500/10 transition-all duration-300 overflow-hidden cursor-default">
-                    <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
-                    <Activity
-                      className="text-emerald-400 mb-4 opacity-80 group-hover:opacity-100 group-hover:scale-110 transition-all duration-300"
-                      size={24}
-                    />
-                    <h3 className="text-slate-200 font-medium tracking-wide mb-1.5 text-[15px]">
-                      Infinite Recall
-                    </h3>
-                    <p className="text-[13px] text-slate-500 leading-relaxed group-hover:text-slate-400 transition-colors">
+                  <div className="group relative p-5 lg:p-6 rounded-2xl bg-white/[0.02] border border-white/[0.05] hover:bg-white/[0.04] hover:shadow-2xl hover:shadow-emerald-500/10 transition-all duration-300 overflow-hidden cursor-default flex flex-col">
+                    <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none" />
+                    <div className="relative z-10 flex items-center gap-3.5 mb-3">
+                      <div className="flex items-center justify-center w-10 h-10 rounded-xl bg-emerald-500/10 border border-emerald-500/20 group-hover:scale-110 group-hover:bg-emerald-500/20 transition-all duration-300 shadow-[inset_0_0_15px_rgba(16,185,129,0.1)] shrink-0">
+                        <Activity className="text-emerald-400" size={18} />
+                      </div>
+                      <h3 className="text-slate-200 font-semibold tracking-wide text-[14.5px] leading-tight">
+                        Infinite Recall
+                      </h3>
+                    </div>
+                    <p className="relative z-10 text-[13px] text-slate-400 leading-relaxed group-hover:text-slate-300 transition-colors mt-auto">
                       Continuous background ingestion and ambient retrieval.
                     </p>
                   </div>
 
-                  <div className="group relative p-6 rounded-2xl bg-white/[0.02] border border-white/[0.05] hover:bg-white/[0.04] hover:shadow-2xl hover:shadow-amber-500/10 transition-all duration-300 overflow-hidden cursor-default">
-                    <div className="absolute inset-0 bg-gradient-to-br from-amber-500/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
-                    <GitMerge
-                      className="text-amber-400 mb-4 opacity-80 group-hover:opacity-100 group-hover:scale-110 transition-all duration-300"
-                      size={24}
-                    />
-                    <h3 className="text-slate-200 font-medium tracking-wide mb-1.5 text-[15px]">
-                      Agentic Action
-                    </h3>
-                    <p className="text-[13px] text-slate-500 leading-relaxed group-hover:text-slate-400 transition-colors">
+                  <div className="group relative p-5 lg:p-6 rounded-2xl bg-white/[0.02] border border-white/[0.05] hover:bg-white/[0.04] hover:shadow-2xl hover:shadow-amber-500/10 transition-all duration-300 overflow-hidden cursor-default flex flex-col">
+                    <div className="absolute inset-0 bg-gradient-to-br from-amber-500/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none" />
+                    <div className="relative z-10 flex items-center gap-3.5 mb-3">
+                      <div className="flex items-center justify-center w-10 h-10 rounded-xl bg-amber-500/10 border border-amber-500/20 group-hover:scale-110 group-hover:bg-amber-500/20 transition-all duration-300 shadow-[inset_0_0_15px_rgba(245,158,11,0.1)] shrink-0">
+                        <GitMerge className="text-amber-400" size={18} />
+                      </div>
+                      <h3 className="text-slate-200 font-semibold tracking-wide text-[14.5px] leading-tight">
+                        Agentic Action
+                      </h3>
+                    </div>
+                    <p className="relative z-10 text-[13px] text-slate-400 leading-relaxed group-hover:text-slate-300 transition-colors mt-auto">
                       Autonomous workflow synthesis executed on-device.
                     </p>
                   </div>
 
-                  <div className="group relative p-6 rounded-2xl bg-white/[0.02] border border-white/[0.05] hover:bg-white/[0.04] hover:shadow-2xl hover:shadow-sky-500/10 transition-all duration-300 overflow-hidden cursor-default">
-                    <div className="absolute inset-0 bg-gradient-to-br from-sky-500/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
-                    <Landmark
-                      className="text-sky-400 mb-4 opacity-80 group-hover:opacity-100 group-hover:scale-110 transition-all duration-300"
-                      size={24}
-                    />
-                    <h3 className="text-slate-200 font-medium tracking-wide mb-1.5 text-[15px]">
-                      Data Sovereignty
-                    </h3>
-                    <p className="text-[13px] text-slate-500 leading-relaxed group-hover:text-slate-400 transition-colors">
+                  <div className="group relative p-5 lg:p-6 rounded-2xl bg-white/[0.02] border border-white/[0.05] hover:bg-white/[0.04] hover:shadow-2xl hover:shadow-sky-500/10 transition-all duration-300 overflow-hidden cursor-default flex flex-col">
+                    <div className="absolute inset-0 bg-gradient-to-br from-sky-500/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none" />
+                    <div className="relative z-10 flex items-center gap-3.5 mb-3">
+                      <div className="flex items-center justify-center w-10 h-10 rounded-xl bg-sky-500/10 border border-sky-500/20 group-hover:scale-110 group-hover:bg-sky-500/20 transition-all duration-300 shadow-[inset_0_0_15px_rgba(14,165,233,0.1)] shrink-0">
+                        <Landmark className="text-sky-400" size={18} />
+                      </div>
+                      <h3 className="text-slate-200 font-semibold tracking-wide text-[14.5px] leading-tight">
+                        Data Sovereignty
+                      </h3>
+                    </div>
+                    <p className="relative z-10 text-[13px] text-slate-400 leading-relaxed group-hover:text-slate-300 transition-colors mt-auto">
                       Cryptographically guaranteed single-tenant architecture.
                     </p>
                   </div>
                 </div>
               )}
+
+              {step === 'recovery-key' && (
+                <div
+                  className="mt-10 lg:mt-12 w-full animate-fade-in pr-6 lg:pr-12"
+                  style={{ animationDelay: '0.2s' }}
+                >
+                  {/* Premium Security Enclave Wrapper */}
+                  <div className="relative p-[1px] rounded-3xl bg-gradient-to-b from-white/[0.12] to-transparent shadow-[0_0_80px_rgba(16,185,129,0.05)] group/enclave">
+                    <div className="absolute inset-0 bg-[#040812] rounded-3xl z-0" />
+                    <div className="absolute inset-0 bg-gradient-to-b from-emerald-500/[0.03] to-amber-500/[0.03] rounded-3xl z-0" />
+
+                    {/* Inner content */}
+                    <div className="relative z-10 p-8 lg:p-10 flex flex-col gap-12">
+                      {/* Item 1 */}
+                      <div className="flex items-start gap-6 relative group">
+                        {/* Connecting line to next item */}
+                        <div className="absolute left-[27px] top-[60px] bottom-[-50px] w-[2px] bg-gradient-to-b from-emerald-500/30 to-amber-500/30 group-hover/enclave:from-emerald-400/50 group-hover/enclave:to-amber-400/50 transition-colors duration-700" />
+
+                        <div className="relative shrink-0">
+                          <div className="absolute inset-0 bg-emerald-500 blur-xl opacity-20 group-hover:opacity-40 transition-opacity duration-500" />
+                          <div className="relative w-14 h-14 rounded-2xl bg-[#060d1a] border border-emerald-500/30 flex items-center justify-center text-emerald-400 shadow-[inset_0_0_20px_rgba(16,185,129,0.1)] group-hover:border-emerald-400/50 transition-colors duration-500">
+                            <Unlock size={22} />
+                          </div>
+                        </div>
+
+                        <div className="pt-0.5">
+                          <div className="flex items-center gap-3 mb-2.5">
+                            <h3 className="text-slate-200 font-semibold tracking-wide text-[16px]">
+                              Zero-Knowledge Architecture
+                            </h3>
+                            <span className="px-2 py-0.5 rounded text-[10px] font-mono font-medium tracking-wider bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 uppercase shadow-[0_0_10px_rgba(16,185,129,0.1)]">
+                              Active
+                            </span>
+                          </div>
+                          <p className="text-[14px] text-slate-400 leading-[1.8] group-hover:text-slate-300 transition-colors">
+                            Your vault is encrypted locally with{' '}
+                            <span className="font-mono text-emerald-300/90 text-[12px] bg-emerald-950/40 px-1.5 py-0.5 rounded border border-emerald-500/20">
+                              XChaCha20-Poly1305
+                            </span>
+                            . The server never sees your raw data.
+                          </p>
+                        </div>
+                      </div>
+
+                      {/* Item 2 */}
+                      <div className="flex items-start gap-6 relative group">
+                        <div className="relative shrink-0">
+                          <div className="absolute inset-0 bg-amber-500 blur-xl opacity-20 group-hover:opacity-40 transition-opacity duration-500" />
+                          <div className="relative w-14 h-14 rounded-2xl bg-[#060d1a] border border-amber-500/30 flex items-center justify-center text-amber-400 shadow-[inset_0_0_20px_rgba(245,158,11,0.1)] group-hover:border-amber-400/50 transition-colors duration-500">
+                            <Key size={22} />
+                          </div>
+                        </div>
+
+                        <div className="pt-0.5">
+                          <div className="flex items-center gap-3 mb-2.5">
+                            <h3 className="text-slate-200 font-semibold tracking-wide text-[16px]">
+                              Non-Custodial Design
+                            </h3>
+                            <span className="px-2 py-0.5 rounded text-[10px] font-mono font-medium tracking-wider bg-amber-500/10 text-amber-400 border border-amber-500/20 uppercase shadow-[0_0_10px_rgba(245,158,11,0.1)]">
+                              Offline
+                            </span>
+                          </div>
+                          <p className="text-[14px] text-slate-400 leading-[1.8] group-hover:text-slate-300 transition-colors">
+                            This cryptographic seed never leaves your device unencrypted. We cannot
+                            reset it or recover it for you.
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
             </motion.div>
           </AnimatePresence>
-
-
         </div>
       )}
 
@@ -477,7 +556,8 @@ export const OnboardingFlow: React.FC = () => {
                     className={`flex items-center gap-3 p-3.5 rounded-xl text-sm font-medium backdrop-blur-xl ${
                       authError.startsWith('✓')
                         ? 'bg-[rgba(16,185,129,0.06)] border border-[rgba(16,185,129,0.3)] text-emerald-300'
-                        : authError.includes('email confirmation') || authError.includes('check your')
+                        : authError.includes('email confirmation') ||
+                            authError.includes('check your')
                           ? 'bg-[rgba(14,165,233,0.06)] border border-[rgba(14,165,233,0.3)] text-sky-300'
                           : 'bg-[rgba(244,63,94,0.06)] border border-[rgba(244,63,94,0.3)] text-rose-300'
                     }`}
@@ -684,33 +764,35 @@ export const OnboardingFlow: React.FC = () => {
                 <p className="text-[13px] text-slate-500 mt-2 max-w-xs leading-relaxed">
                   The cryptographic seed to your sovereign data.
                   <br />
-                  <span className="text-slate-400 font-medium">
-                    Lose this — lose everything.
-                  </span>
+                  <span className="text-slate-400 font-medium">Lose this — lose everything.</span>
                 </p>
               </div>
 
               {/* Warning stripe */}
-              <div className="flex items-center gap-3 mb-5 px-4 py-3 rounded-lg bg-amber-950/30 border border-amber-500/15 text-amber-200/80 text-[12px] leading-relaxed relative overflow-hidden">
-                <div className="absolute top-0 left-0 w-[3px] h-full bg-gradient-to-b from-amber-400 to-amber-600" />
-                <ShieldAlert size={16} className="shrink-0 text-amber-500 ml-1" />
-                <span>
-                  We <strong className="text-amber-300">cannot</strong> recover your data without this
-                  key. Never share it. Our team will never ask for it.
-                </span>
-              </div>
+              {!recoveryError && (
+                <div className="flex items-center gap-3 mb-8 px-5 py-3.5 rounded-xl bg-amber-950/30 border border-amber-500/15 text-amber-200/80 text-[13px] leading-relaxed relative overflow-hidden shadow-lg">
+                  <div className="absolute top-0 left-0 w-[3px] h-full bg-gradient-to-b from-amber-400 to-amber-600" />
+                  <ShieldAlert size={18} className="shrink-0 text-amber-500 ml-1" />
+                  <span>
+                    We <strong className="text-amber-300">cannot</strong> recover your data without
+                    this key. Never share it. Our team will never ask for it.
+                  </span>
+                </div>
+              )}
 
               {/* Word Grid — Vault container */}
               {recoveryError ? (
-                <div className="flex flex-col items-center gap-4 mb-6 w-full p-8 rounded-2xl bg-rose-950/20 border border-rose-500/20">
-                  <ShieldAlert size={36} className="text-rose-400" />
-                  <p className="text-rose-300 text-sm text-center leading-relaxed max-w-sm">
+                <div className="flex flex-col items-center gap-5 mb-10 w-full p-10 rounded-3xl bg-rose-950/20 border border-rose-500/20 shadow-2xl">
+                  <div className="p-4 bg-rose-500/10 rounded-2xl border border-rose-500/20">
+                    <ShieldAlert size={32} className="text-rose-400" />
+                  </div>
+                  <p className="text-rose-300 text-[15px] text-center leading-[1.8] max-w-sm">
                     Recovery key generation failed. Your data cannot be securely protected without a
                     valid key.
                   </p>
                   <Button
                     variant="secondary"
-                    className="bg-white/5 border-white/10 hover:bg-white/10"
+                    className="bg-rose-500/10 border-rose-500/20 hover:bg-rose-500/20 text-rose-300 mt-2 px-8 h-12 rounded-xl transition-colors font-medium tracking-wide"
                     onClick={async () => {
                       setRecoveryError(false)
                       try {
@@ -751,34 +833,38 @@ export const OnboardingFlow: React.FC = () => {
               )}
 
               {/* Action buttons */}
-              <div className="flex gap-4 w-full mb-6">
-                <Button
-                  variant="secondary"
-                  className={`flex-1 bg-white/[0.04] border-white/[0.08] hover:bg-white/[0.08] gap-2 h-13 text-[14px] font-medium transition-all ${
-                    !keySaved && !recoveryError
-                      ? 'animate-pulse-slow shadow-[0_0_12px_rgba(255,255,255,0.04)]'
-                      : ''
-                  }`}
-                  onClick={handleCopyKey}
-                  disabled={recoveryError || recoveryPhrase.length === 0}
-                >
-                  {keyCopied ? (
-                    <span className="text-emerald-400">✓ Copied!</span>
-                  ) : (
-                    <>
-                      <Copy size={15} /> Copy to Clipboard
-                    </>
-                  )}
-                </Button>
-                <Button
-                  variant="secondary"
-                  className="flex-1 bg-white/[0.04] border-white/[0.08] hover:bg-white/[0.08] gap-2 h-13 text-[14px] font-medium"
-                  onClick={handleDownloadKey}
-                  disabled={recoveryError || recoveryPhrase.length === 0}
-                >
-                  <Download size={16} /> Save as Text File
-                </Button>
-              </div>
+              {!recoveryError && (
+                <div className="flex gap-5 w-full mb-8">
+                  <Button
+                    variant="secondary"
+                    className={`flex-1 bg-white/[0.04] border-white/[0.08] hover:bg-white/[0.08] gap-2 h-14 rounded-xl text-[14px] font-medium transition-all ${
+                      !keySaved && !recoveryError
+                        ? 'animate-pulse-slow shadow-[0_0_15px_rgba(255,255,255,0.05)]'
+                        : ''
+                    }`}
+                    onClick={handleCopyKey}
+                    disabled={recoveryError || recoveryPhrase.length === 0}
+                  >
+                    {keyCopied ? (
+                      <span className="text-emerald-400 font-semibold tracking-wide">
+                        ✓ Copied!
+                      </span>
+                    ) : (
+                      <>
+                        <Copy size={16} /> Copy to Clipboard
+                      </>
+                    )}
+                  </Button>
+                  <Button
+                    variant="secondary"
+                    className="flex-1 bg-white/[0.04] border-white/[0.08] hover:bg-white/[0.08] gap-2 h-14 rounded-xl text-[14px] font-medium"
+                    onClick={handleDownloadKey}
+                    disabled={recoveryError || recoveryPhrase.length === 0}
+                  >
+                    <Download size={16} /> Save as Text File
+                  </Button>
+                </div>
+              )}
 
               <Button
                 variant="primary"

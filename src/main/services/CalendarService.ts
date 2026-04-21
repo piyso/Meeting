@@ -160,14 +160,17 @@ export async function syncAppleCalendar(): Promise<number> {
 
     let synced = 0
 
-    const walkDir = (dir: string): string[] => {
+    // M-16 AUDIT: Add depth limit to prevent symlink loops or deeply nested dirs
+    const MAX_WALK_DEPTH = 10
+    const walkDir = (dir: string, depth = 0): string[] => {
+      if (depth > MAX_WALK_DEPTH) return []
       const files: string[] = []
       try {
         const entries = fs.readdirSync(dir, { withFileTypes: true })
         for (const entry of entries) {
           const fullPath = path.join(dir, entry.name)
           if (entry.isDirectory()) {
-            files.push(...walkDir(fullPath))
+            files.push(...walkDir(fullPath, depth + 1))
           } else if (entry.name.endsWith('.ics')) {
             files.push(fullPath)
           }

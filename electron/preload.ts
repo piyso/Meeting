@@ -354,7 +354,8 @@ const electronAPI: ElectronAPI = {
   ipcRenderer: {
     send: (channel: string, data: unknown) => {
       // SECURITY: Only allow specific channels — prevents XSS/extension abuse
-      const ALLOWED_SEND_CHANNELS = ['audio:chunk', 'audio:fallbackUsed']
+      // H-3 AUDIT: Added 'error' so ErrorBoundary crash reports reach main process
+      const ALLOWED_SEND_CHANNELS = ['audio:chunk', 'audio:fallbackUsed', 'error']
       if (ALLOWED_SEND_CHANNELS.includes(channel)) {
         ipcRenderer.send(channel, data)
       } else {
@@ -498,6 +499,8 @@ const electronAPI: ElectronAPI = {
     update: (params: unknown) => ipcRenderer.invoke('actionItem:update', params),
     delete: (params: { id: string }) => ipcRenderer.invoke('actionItem:delete', params),
     extract: (params: { meetingId: string }) => ipcRenderer.invoke('actionItem:extract', params),
+    extractRealTime: (params: { text: string; meetingId: string }) =>
+      ipcRenderer.invoke('actionItem:extractRealTime', params),
     getOverdue: () => ipcRenderer.invoke('actionItem:getOverdue'),
     stats: () => ipcRenderer.invoke('actionItem:stats'),
   },

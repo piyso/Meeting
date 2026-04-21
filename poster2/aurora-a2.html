@@ -1,0 +1,525 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BlueArkive - The Absolute Best (A2)</title>
+    <link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700;800;900&family=Geist+Mono:wght@500;600;700&display=swap" rel="stylesheet">
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        
+        :root {
+            /* Ultra-premium light color palette (Destiny Philosophy) */
+            --canvas: #F8FAFC;
+            --canvas-deep: #F1F5F9;
+            --deep-ink: #050B14;
+            --slate-text: #475569;
+            --muted-text: #94A3B8;
+            
+            /* The Oceanic Spectrum */
+            --sky-blue: #0EA5E9;
+            --ocean-blue: #2563EB;
+            --mint: #10B981;
+            --emerald: #059669;
+            
+            /* Energy & Action */
+            --violet: #8B5CF6;
+            --gold: #F59E0B;
+            --peach: #FB923C;
+            --coral: #F43F5E;
+        }
+
+        @page { size: A2 landscape; margin: 0; }
+
+        body {
+            background-color: #0B1121; /* Outer presentation backdrop */
+            display: flex; justify-content: center; align-items: center;
+            min-height: 100vh; padding: 3rem;
+            font-family: 'Instrument Sans', sans-serif;
+            -webkit-font-smoothing: antialiased;
+            overflow: auto;
+        }
+
+        .poster {
+            width: 594mm; height: 420mm; /* Exact A2 size for printing */
+            background-color: var(--canvas); 
+            position: relative; overflow: hidden;
+            box-shadow: 0 60px 180px rgba(0, 0, 0, 0.4), 0 20px 60px rgba(0, 0, 0, 0.2);
+            -webkit-print-color-adjust: exact; print-color-adjust: exact;
+            
+            /* Presentation entry animation */
+            animation: posterReveal 1.2s cubic-bezier(0.16, 1, 0.3, 1) both;
+            transform-origin: center;
+        }
+
+        /* 🖨️ CRITICAL PRINT STYLES: Flattens 3D/animations so it prints perfectly */
+        @media print {
+            body { background: none; padding: 0; display: block; }
+            .poster { box-shadow: none; animation: none; transform: none !important; }
+            * { animation: none !important; }
+            .master-card { transform: none !important; box-shadow: 0 20px 40px rgba(0,0,0,0.05), inset 0 0 0 1px rgba(0,0,0,0.1) !important; }
+            .pill-badge { transform: none !important; box-shadow: 0 5px 15px rgba(0,0,0,0.1) !important; }
+            .ambient-fluid, .flow-container { display: none !important; } /* Hide complex glow for clean print */
+            .premium-free { filter: none !important; color: var(--gold) !important; -webkit-text-fill-color: var(--gold) !important; }
+        }
+
+        @keyframes posterReveal {
+            from { opacity: 0; transform: scale(0.97) translateY(20px); filter: blur(12px); }
+            to { opacity: 1; transform: scale(1) translateY(0); filter: blur(0); }
+        }
+
+        /* 1. LAYER: Analog Film Grain (High Frequency) */
+        .noise-layer {
+            position: absolute; inset: 0; pointer-events: none; z-index: 100;
+            background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 400 400' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E");
+            opacity: 0.04; mix-blend-mode: color-burn;
+        }
+
+        /* 2. LAYER: Fluid Oceanic Ambient Lighting */
+        .ambient-fluid {
+            position: absolute; inset: -30%; z-index: 1; pointer-events: none;
+            filter: blur(120px); opacity: 0.8;
+            animation: volumeBreathe 20s ease-in-out infinite alternate;
+        }
+        
+        .light-orb { position: absolute; border-radius: 50%; opacity: 0.6; mix-blend-mode: soft-light; animation: orbit 25s linear infinite; }
+        .orb-1 { width: 1400px; height: 1400px; background: radial-gradient(circle, var(--sky-blue), transparent 60%); top: -20%; left: -10%; }
+        .orb-2 { width: 1200px; height: 1200px; background: radial-gradient(circle, var(--mint), transparent 60%); bottom: -20%; right: 10%; animation-direction: reverse; animation-duration: 35s; }
+        .orb-3 { width: 900px; height: 900px; background: radial-gradient(circle, var(--violet), transparent 60%); top: 30%; left: 40%; animation-duration: 40s; opacity: 0.4; }
+
+        @keyframes orbit {
+            0% { transform: rotate(0deg) translateX(150px) rotate(0deg) scale(1); }
+            50% { transform: rotate(180deg) translateX(150px) rotate(-180deg) scale(1.1); }
+            100% { transform: rotate(360deg) translateX(150px) rotate(-360deg) scale(1); }
+        }
+        @keyframes volumeBreathe {
+            0% { transform: scale(1); }
+            100% { transform: scale(1.05); }
+        }
+
+        /* 3. LAYER: Architectural Grid & Network Flow */
+        .flow-container {
+            position: absolute; inset: 0; z-index: 2; pointer-events: none;
+        }
+        .flow-path {
+            fill: none; stroke-linecap: round;
+        }
+        .flow-1 { stroke: url(#grad1); stroke-width: 3px; stroke-dasharray: 20 40; animation: dashMove 30s linear infinite; opacity: 0.4; filter: blur(1px); }
+        .flow-2 { stroke: url(#grad2); stroke-width: 1.5px; stroke-dasharray: 10 30; animation: dashMove 20s linear infinite reverse; opacity: 0.8; }
+        .flow-3 { stroke: var(--ocean-blue); stroke-width: 8px; filter: blur(20px); opacity: 0.15; }
+
+        @keyframes dashMove { to { stroke-dashoffset: -1000; } }
+
+        /* Massive Typography Watermark */
+        .watermark {
+            position: absolute; top: -5%; left: -5%;
+            font-size: 400pt; font-weight: 900; letter-spacing: -0.05em;
+            color: rgba(14, 165, 233, 0.03); /* Extremely faint sky blue */
+            z-index: 2; pointer-events: none;
+            user-select: none;
+        }
+
+        /* 4. LAYER: Layout Blueprint Grid */
+        .poster-grid {
+            position: relative; z-index: 10; width: 100%; height: 100%;
+            display: grid; grid-template-columns: 55% 45%;
+        }
+
+        /* ========= LEFT SIDE: The Emotional Hook ========= */
+        .emotion-zone {
+            padding: 40mm 0 40mm 50mm; display: flex; flex-direction: column; justify-content: flex-start;
+        }
+
+        .brand-header {
+            display: flex; align-items: center; gap: 20px; font-size: 26pt; font-weight: 800; color: var(--deep-ink);
+            letter-spacing: -0.02em; animation: fadeUp 1s ease-out 0.2s both; margin-bottom: auto;
+        }
+        
+        /* The AI Halo Logo */
+        .halo-logo {
+            position: relative; width: 44px; height: 44px;
+            border-radius: 50%; background: var(--deep-ink);
+            display: flex; justify-content: center; align-items: center;
+        }
+        .halo-logo::before {
+            content: ''; position: absolute; inset: -4px; border-radius: 50%;
+            background: conic-gradient(from 0deg, var(--sky-blue), var(--mint), var(--ocean-blue), var(--sky-blue));
+            animation: spin 4s linear infinite; z-index: -1;
+            mask: radial-gradient(transparent 60%, black 65%); -webkit-mask: radial-gradient(transparent 60%, black 65%);
+        }
+        .halo-logo .dot { width: 12px; height: 12px; background: white; border-radius: 50%; box-shadow: 0 0 10px rgba(255,255,255,0.8); }
+        
+        @keyframes spin { 100% { transform: rotate(360deg); } }
+
+        /* The Hero Copy */
+        .hero-group { margin-bottom: 25mm; }
+        
+        .headline-stat {
+            font-size: 96pt; font-weight: 900; letter-spacing: -0.04em; color: var(--deep-ink); line-height: 1.05;
+            animation: fadeUp 1s ease-out 0.4s both;
+        }
+        .headline-stat .number-highlight {
+            color: transparent; position: relative;
+            background: linear-gradient(135deg, var(--ocean-blue), var(--sky-blue));
+            -webkit-background-clip: text; display: inline-block;
+        }
+        .headline-stat .number-highlight::after {
+            content: '392'; position: absolute; left: 0; top: 0; color: transparent;
+            text-shadow: 0 15px 30px rgba(14, 165, 233, 0.4); z-index: -1;
+        }
+
+        .headline-sub {
+            font-size: 38pt; font-weight: 600; color: var(--slate-text); line-height: 1.3;
+            margin-top: 15px; animation: fadeUp 1s ease-out 0.5s both;
+        }
+
+        /* The Ultimate Free Highlight */
+        .value-prop { animation: fadeUp 1s ease-out 0.7s both; }
+        .value-pretext { font-size: 34pt; font-weight: 500; color: var(--slate-text); }
+        
+        .premium-free {
+            font-size: 100pt; font-weight: 900; display: block; margin-top: 25px; line-height: 0.9;
+            background: linear-gradient(to right, #F59E0B, #FB923C, #F43F5E, #F59E0B);
+            background-size: 200% auto; -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+            filter: drop-shadow(0 15px 35px rgba(245, 158, 11, 0.3)); letter-spacing: -0.03em;
+            animation: shineGradient 6s linear infinite; transform-origin: left;
+        }
+
+        @keyframes shineGradient { to { background-position: 200% center; } }
+        
+        .footer-link {
+            position: absolute; bottom: 40mm; left: 50mm; display: flex; align-items: center; gap: 20px;
+            font-family: 'Geist Mono', monospace; font-size: 22pt; font-weight: 700; color: var(--ocean-blue);
+            animation: fadeUp 1s ease-out 0.9s both; cursor: pointer; text-transform: uppercase; letter-spacing: 0.05em;
+        }
+        .footer-link .line { width: 60px; height: 3px; background: currentColor; transition: width 0.4s cubic-bezier(0.16, 1, 0.3, 1); }
+        .footer-link:hover .line { width: 120px; }
+
+
+        /* ========= RIGHT SIDE: The Logic Architecture ========= */
+        .logic-zone {
+            padding: 40mm 50mm 40mm 10mm; display: flex; align-items: center; justify-content: flex-end;
+            perspective: 2000px; /* High perspective for subtle 3D hovering */
+        }
+
+        /* The Destiny-style Glass Component */
+        .master-card {
+            position: relative; width: 100%; height: 90%;
+            background: rgba(255, 255, 255, 0.65);
+            border-radius: 48px; padding: 45mm 35mm;
+            backdrop-filter: blur(80px) saturate(150%); -webkit-backdrop-filter: blur(80px) saturate(150%);
+            box-shadow: 
+                0 60px 150px rgba(5, 11, 20, 0.08),
+                0 20px 50px rgba(14, 165, 233, 0.1),
+                inset 0 0 0 1px rgba(255, 255, 255, 0.9),  /* Crisp white inner border */
+                inset 0 4px 10px rgba(255, 255, 255, 1);   /* Top reflection */
+                
+            display: flex; flex-direction: column; justify-content: space- space-between;
+            transform-style: preserve-3d;
+            transition: transform 0.8s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.8s ease;
+            animation: cardEnter 1.2s cubic-bezier(0.16, 1, 0.3, 1) 0.5s both;
+        }
+
+        .master-card:hover {
+            transform: scale(1.02) rotateX(2deg) rotateY(-3deg) translateY(-10px);
+            box-shadow: 
+                0 80px 180px rgba(5, 11, 20, 0.12),
+                0 30px 80px rgba(14, 165, 233, 0.15),
+                inset 0 0 0 1px rgba(255, 255, 255, 1),
+                inset 0 4px 12px rgba(255, 255, 255, 1);
+        }
+
+        /* 3D Sheen highlighting the glass */
+        .master-card::after {
+            content: ''; position: absolute; inset: 0; border-radius: 48px;
+            background: linear-gradient(135deg, rgba(255,255,255,0.8) 0%, rgba(255,255,255,0) 40%, rgba(255,255,255,0.4) 100%);
+            pointer-events: none; opacity: 0.6; transition: opacity 0.5s; z-index: 10;
+        }
+        .master-card:hover::after { opacity: 1; }
+
+        /* The Microscopic Computation Grid */
+        .micro-grid {
+            position: absolute; inset: 0; border-radius: 48px; z-index: 0;
+            background-image: 
+                linear-gradient(rgba(15, 23, 42, 0.04) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(15, 23, 42, 0.04) 1px, transparent 1px);
+            background-size: 30px 30px;
+            mask-image: radial-gradient(circle at 60% 40%, black 20%, transparent 80%);
+            -webkit-mask-image: radial-gradient(circle at 60% 40%, black 20%, transparent 80%);
+        }
+
+        /* Mac Window Anchors */
+        .mac-controls {
+            position: absolute; top: 30mm; left: 35mm; display: flex; gap: 10px; z-index: 10;
+        }
+        .mac-dot { width: 16px; height: 16px; border-radius: 50%; box-shadow: inset 0 2px 4px rgba(0,0,0,0.1); }
+        .red-dot { background: #FF5F56; } .yellow-dot { background: #FFBD2E; } .green-dot { background: #27C93F; }
+
+        /* Floating Pill Badges (Pop out of the component) */
+        .pill-badge {
+            position: absolute; right: -20px; z-index: 20;
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+            border: 1px solid rgba(15, 23, 42, 0.08); box-shadow: 0 15px 35px rgba(5, 11, 20, 0.1);
+            padding: 12px 24px; border-radius: 100px;
+            font-family: 'Geist Mono', monospace; font-size: 12pt; font-weight: 700; color: var(--deep-ink);
+            display: flex; align-items: center; gap: 10px;
+            transition: transform 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+        .pill-1 { top: 60mm; transform: translateZ(30px); animation: floatPill 6s ease-in-out infinite; }
+        .pill-2 { top: 90mm; transform: translateZ(50px); animation: floatPill 6s ease-in-out infinite 2s; right: -40px; }
+        
+        .pill-icon { width: 8px; height: 8px; border-radius: 50%; background: var(--mint); box-shadow: 0 0 10px var(--mint); }
+        .pill-icon.blue { background: var(--ocean-blue); box-shadow: 0 0 10px var(--ocean-blue); }
+
+        @keyframes floatPill { 0%, 100% { transform: translateY(0) translateZ(30px); } 50% { transform: translateY(-10px) translateZ(30px); } }
+
+        /* Card Internal Layout */
+        .card-content { position: relative; z-index: 10; display: flex; flex-direction: column; height: 100%; justify-content: space-between; }
+        
+        .card-header-text { margin-top: 30mm; }
+        .card-title { font-size: 38pt; font-weight: 700; color: var(--deep-ink); line-height: 1.2; letter-spacing: -0.02em; }
+        .card-subtitle { font-size: 20pt; font-weight: 500; color: var(--slate-text); margin-top: 10px; }
+
+        /* Ultimate Checklist Hierarchy */
+        .premium-check-list { display: flex; flex-direction: column; gap: 30px; margin-top: auto; margin-bottom: auto;}
+        
+        .check-item {
+            display: flex; align-items: center; gap: 28px;
+            transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+        .check-item:hover { transform: translateX(15px); }
+        
+        .check-ring {
+            width: 44px; height: 44px; border-radius: 50%;
+            background: rgba(16, 185, 129, 0.1); border: 2px solid rgba(16, 185, 129, 0.3);
+            display: flex; justify-content: center; align-items: center; flex-shrink: 0;
+            color: var(--mint); box-shadow: 0 0 15px rgba(16, 185, 129, 0.15);
+            transition: all 0.3s ease;
+        }
+        .check-item:hover .check-ring {
+            background: var(--mint); color: white; border-color: var(--mint);
+            box-shadow: 0 0 25px rgba(16, 185, 129, 0.4); transform: scale(1.1);
+        }
+        
+        .check-text { display: flex; flex-direction: column; justify-content: center; }
+        .check-main { font-size: 22pt; font-weight: 700; color: var(--deep-ink); line-height: 1.2; }
+        .check-sub { font-family: 'Geist Mono', monospace; font-size: 14pt; color: var(--slate-text); font-weight: 500; margin-top: 4px; }
+
+        /* High-End Tech CTA */
+        .card-footer { display: flex; flex-direction: column; align-items: flex-start; gap: 20px; }
+        
+        .best-cta {
+            position: relative; overflow: hidden; cursor: pointer;
+            background: var(--deep-ink); color: #fff;
+            padding: 28px 65px; border-radius: 100px;
+            font-size: 24pt; font-weight: 800; letter-spacing: -0.01em; display: inline-flex; align-items: center; gap: 15px;
+            box-shadow: 0 20px 40px rgba(5, 11, 20, 0.25), inset 0 2px 2px rgba(255, 255, 255, 0.15);
+            transition: all 0.5s cubic-bezier(0.16, 1, 0.3, 1); border: none; outline: none;
+        }
+        
+        .best-cta::before {
+            content: ''; position: absolute; inset: 0; border-radius: 100px;
+            box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.1); transition: opacity 0.4s;
+        }
+        /* Animated neon beam over the button */
+        .best-cta::after {
+            content: ''; position: absolute; top: -50%; left: -50%; width: 200%; height: 200%;
+            background: linear-gradient(to right, transparent, rgba(255, 255, 255, 0.3), transparent);
+            transform: rotate(45deg) translateY(-100%); transition: transform 0.8s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+        
+        .best-cta:hover {
+            transform: translateY(-5px) scale(1.02);
+            box-shadow: 0 30px 60px rgba(5, 11, 20, 0.3), 0 0 40px rgba(14, 165, 233, 0.3);
+            background: #000;
+        }
+        .best-cta:hover::after { transform: rotate(45deg) translateY(100%); }
+
+        .cta-icon {
+            font-family: 'Instrument Sans', sans-serif; font-size: 26pt; font-weight: 500;
+            transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+        .best-cta:hover .cta-icon { transform: translateX(8px); }
+
+        .trust-metrics {
+            display: flex; align-items: center; gap: 15px; margin-top: 10px;
+            font-family: 'Geist Mono', monospace; font-size: 15pt; font-weight: 600; color: var(--slate-text);
+        }
+        .live-dot {
+            width: 10px; height: 10px; border-radius: 50%; background: var(--emerald);
+            box-shadow: 0 0 0 0 rgba(5, 150, 105, 0.5); animation: pulseLive 2s infinite;
+        }
+        @keyframes pulseLive { 70% { box-shadow: 0 0 0 15px rgba(5, 150, 105, 0); } 100% { box-shadow: 0 0 0 0 rgba(5, 150, 105, 0); } }
+
+        /* Keyframes */
+        @keyframes fadeUp { from { opacity: 0; transform: translateY(40px); } to { opacity: 1; transform: translateY(0); } }
+        @keyframes cardEnter { from { opacity: 0; transform: translateX(100px) rotateY(-10deg); filter: blur(15px); } to { opacity: 1; transform: translateX(0) rotateY(0deg); filter: blur(0); } }
+        
+    </style>
+</head>
+<body>
+
+    <div class="poster">
+        <!-- Reusable SVG Gradients and paths -->
+        <svg style="width:0; height:0; position:absolute;">
+            <defs>
+                <linearGradient id="grad1" x1="0%" y1="0%" x2="100%" y2="100%">
+                    <stop offset="0%" stop-color="#0EA5E9" />
+                    <stop offset="50%" stop-color="#8B5CF6" />
+                    <stop offset="100%" stop-color="#10B981" />
+                </linearGradient>
+                <linearGradient id="grad2" x1="100%" y1="0%" x2="0%" y2="100%">
+                    <stop offset="0%" stop-color="#2563EB" />
+                    <stop offset="100%" stop-color="#0EA5E9" />
+                </linearGradient>
+            </defs>
+        </svg>
+
+        <!-- Huge Background Elements -->
+        <div class="watermark">392</div>
+        <div class="ambient-fluid">
+            <div class="light-orb orb-1"></div>
+            <div class="light-orb orb-2"></div>
+            <div class="light-orb orb-3"></div>
+        </div>
+
+        <!-- The 3D Networking FlowLines -->
+        <div class="flow-container">
+            <svg width="100%" height="100%" viewBox="0 0 594 420" preserveAspectRatio="none">
+                <!-- Underglow -->
+                <path class="flow-path flow-3" d="M -50,150 C 250,50 350,350 650,250" />
+                <!-- Sharp Data lines -->
+                <path class="flow-path flow-1" d="M -50,150 C 250,50 350,350 650,250" />
+                <path class="flow-path flow-2" d="M -50,200 C 300,150 250,380 650,300" />
+            </svg>
+        </div>
+
+        <!-- Main Layout -->
+        <div class="poster-grid">
+            
+            <!-- LEFT: Emotional & Hero -->
+            <div class="emotion-zone">
+                <div class="brand-header">
+                    <div class="halo-logo">
+                        <div class="dot"></div>
+                    </div>
+                    BlueArkive
+                </div>
+                
+                <div class="hero-group">
+                    <h1 class="headline-stat">
+                        You spend <span class="number-highlight">392</span> hours<br>
+                        a year in meetings.
+                    </h1>
+                    <div class="headline-sub">Remember any of them?</div>
+                </div>
+                
+                <div class="value-prop">
+                    <span class="value-pretext">Every meeting. Every word.</span>
+                    <span class="premium-free">FREE FOREVER.</span>
+                </div>
+                
+                <div class="footer-link">
+                    <div class="line"></div>
+                    BLUEARKIVE.COM
+                </div>
+            </div>
+
+            <!-- RIGHT: Logical proof & Vision UI -->
+            <div class="logic-zone">
+                
+                <div class="master-card">
+                    <!-- Tech background textures -->
+                    <div class="micro-grid"></div>
+                    
+                    <!-- Mac UX Anchors -->
+                    <div class="mac-controls">
+                        <div class="mac-dot red-dot"></div>
+                        <div class="mac-dot yellow-dot"></div>
+                        <div class="mac-dot green-dot"></div>
+                    </div>
+
+                    <!-- 3D Pop Out Badges -->
+                    <div class="pill-badge pill-1">
+                        <div class="pill-icon"></div> 100% Local Inference
+                    </div>
+                    <div class="pill-badge pill-2">
+                        <div class="pill-icon blue"></div> AES-256 Encrypted
+                    </div>
+
+                    <!-- Card Body Strategy -->
+                    <div class="card-content">
+                        
+                        <div class="card-header-text">
+                            <h2 class="card-title">The Private Intelligence Fabric</h2>
+                            <p class="card-subtitle">No bots. No cloud. No paywall.</p>
+                        </div>
+                        
+                        <div class="premium-check-list">
+                            
+                            <div class="check-item">
+                                <div class="check-ring">
+                                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                                </div>
+                                <div class="check-text">
+                                    <span class="check-main">Unlimited free meetings</span>
+                                    <span class="check-sub">Record and search forever</span>
+                                </div>
+                            </div>
+                            
+                            <div class="check-item">
+                                <div class="check-ring">
+                                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                                </div>
+                                <div class="check-text">
+                                    <span class="check-main">Instant AI action items</span>
+                                    <span class="check-sub">Drafted before you hang up</span>
+                                </div>
+                            </div>
+                            
+                            <div class="check-item">
+                                <div class="check-ring">
+                                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                                </div>
+                                <div class="check-text">
+                                    <span class="check-main">Works perfectly offline</span>
+                                    <span class="check-sub">Zero dependence on WiFi</span>
+                                </div>
+                            </div>
+                            
+                            <div class="check-item">
+                                <div class="check-ring">
+                                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                                </div>
+                                <div class="check-text">
+                                    <span class="check-main">Your data, your device</span>
+                                    <span class="check-sub">Never leaves your Mac hardware</span>
+                                </div>
+                            </div>
+
+                        </div>
+                        
+                        <div class="card-footer">
+                            <button class="best-cta">
+                                Get Started — Free <span class="cta-icon">→</span>
+                            </button>
+                            
+                            <div class="trust-metrics">
+                                <div class="live-dot"></div>
+                                Join 1,200+ professionals who switched this month
+                            </div>
+                        </div>
+
+                    </div>
+                </div>
+
+            </div>
+
+        </div>
+
+        <div class="noise-layer"></div>
+    </div>
+
+</body>
+</html>

@@ -18,8 +18,9 @@ export const auditHandlers = {
       const user = await auth.getCurrentUser()
 
       const queryParams: AuditLogQuery = {
-        limit: params.limit || 50,
-        offset: params.offset || 0,
+        // Cap limit to prevent massive result sets
+        limit: Math.min(params.limit || 50, 500),
+        offset: Math.max(params.offset || 0, 0),
         sortOrder: 'desc',
       }
 

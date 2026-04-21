@@ -254,8 +254,9 @@ export function registerMeetingHandlers(): void {
     ): Promise<IPCResponse<PaginatedResponse<Meeting>>> => {
       try {
         const db = getDatabaseService()
-        const limit = params.limit || 50
-        const offset = params.offset || 0
+        // H-6 AUDIT: Cap limit to prevent DB dump via unlimited pagination
+        const limit = Math.min(params.limit || 50, 200)
+        const offset = Math.max(params.offset || 0, 0)
 
         const { meetings, total } = db.listMeetings({
           namespace: params.namespace,

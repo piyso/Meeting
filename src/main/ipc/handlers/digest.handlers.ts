@@ -41,21 +41,29 @@ export function registerDigestHandlers(): void {
             transcriptText.slice(0, 8000) + '\n\n[...transcript truncated for context limit]'
         }
 
-        // Run all 3 AI calls in parallel for ~3× speedup
-        const [summary, actions, decisions] = await Promise.all([
-          generateText(
-            `Summarize this meeting transcript concisely in exactly 3 bullet points. Respond in the same language as the transcript.\n\nTRANSCRIPT:\n${transcriptText}\n\nSUMMARY:`,
-            300
-          ),
-          generateText(
-            `Extract action items from this meeting. Format: "- [ASSIGNEE]: Task description". Respond in the same language as the transcript.\n\nTRANSCRIPT:\n${transcriptText}\n\nACTION ITEMS:`,
-            300
-          ),
-          generateText(
-            `List only the final decisions made in this meeting. Format: "- Decision statement". Respond in the same language as the transcript.\n\nTRANSCRIPT:\n${transcriptText}\n\nDECISIONS:`,
-            300
-          ),
-        ])
+        const summaryPrompt = `Summarize this meeting transcript concisely in exactly 3 bullet points. Respond in the same language as the transcript.\n\nTRANSCRIPT:\n${transcriptText}\n\nSUMMARY:`
+        const actionsPrompt = `Extract action items from this meeting. Format: "- [ASSIGNEE]: Task description". Respond in the same language as the transcript.\n\nTRANSCRIPT:\n${transcriptText}\n\nACTION ITEMS:`
+        const decisionsPrompt = `List only the final decisions made in this meeting. Format: "- Decision statement". Respond in the same language as the transcript.\n\nTRANSCRIPT:\n${transcriptText}\n\nDECISIONS:`
+
+        // OOM prevention: On low-tier (≤8GB RAM), run LLM calls sequentially
+        // to avoid 3× KV-cache memory overhead. On mid/high, run in parallel for speed.
+        const os = await import('os')
+        const totalRAMGB = os.totalmem() / 1024 / 1024 / 1024
+        let summary: string, actions: string, decisions: string
+
+        if (totalRAMGB < 12) {
+          // Sequential on low-tier — prevents OOM
+          summary = await generateText(summaryPrompt, 300)
+          actions = await generateText(actionsPrompt, 300)
+          decisions = await generateText(decisionsPrompt, 300)
+        } else {
+          // Parallel on mid/high-tier — ~3× speedup
+          ;[summary, actions, decisions] = await Promise.all([
+            generateText(summaryPrompt, 300),
+            generateText(actionsPrompt, 300),
+            generateText(decisionsPrompt, 300),
+          ])
+        }
 
         return {
           success: true,

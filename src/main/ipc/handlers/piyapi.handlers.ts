@@ -59,7 +59,11 @@ export function registerPiyapiHandlers(): void {
 
         const { getBackend } = await import('../../services/backend/BackendSingleton')
         const backend = getBackend()
-        const results = await backend.fuzzySearch(params.query, params.namespace, params.limit)
+        const results = await backend.fuzzySearch(
+          params.query.substring(0, 500),
+          params.namespace,
+          Math.min(params.limit || 20, 100)
+        )
 
         return { success: true, data: results }
       } catch (error) {

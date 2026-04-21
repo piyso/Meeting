@@ -659,7 +659,12 @@ function createMockElectronAPI() {
         }
         return ok(null)
       },
-      expand: async (_params: { text: string }) => {
+      expand: async (_params: {
+        noteId: string
+        meetingId: string
+        timestamp: number
+        text: string
+      }) => {
         await new Promise(r => setTimeout(r, MOCK_DELAY_MS * 15)) // Simulate AI processing delay for beautiful UI shimmer
         return ok({
           expandedText: `This point was discussed in the context of improving team velocity. The consensus was to prioritize automation and reduce manual overhead. Key stakeholders expressed strong support for this direction, with a target implementation date of end of quarter.`,

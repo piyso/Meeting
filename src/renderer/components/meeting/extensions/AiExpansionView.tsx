@@ -1,6 +1,9 @@
 import React, { useEffect, useState, useRef } from 'react'
 import { NodeViewWrapper, NodeViewProps } from '@tiptap/react'
 import { Sparkles, Check, X, Loader2, AlertCircle } from 'lucide-react'
+import { rendererLog } from '../../../utils/logger'
+
+const log = rendererLog.create('AiExpansion')
 
 export const AiExpansionView: React.FC<NodeViewProps> = props => {
   const { node, deleteNode, editor, getPos, updateAttributes } = props
@@ -9,6 +12,8 @@ export const AiExpansionView: React.FC<NodeViewProps> = props => {
   const [isGenerating, setIsGenerating] = useState(!expandedText)
   const [hasError, setHasError] = useState(false)
   const hasFetched = useRef(false)
+
+  const [isSlow, setIsSlow] = useState(false)
 
   useEffect(() => {
     // If text already exists (loaded from DB), don't refetch
@@ -20,16 +25,31 @@ export const AiExpansionView: React.FC<NodeViewProps> = props => {
     hasFetched.current = true
     let isMounted = true
 
+    // Show "Taking longer than expected..." after 15s
+    const slowTimer = setTimeout(() => {
+      if (isMounted) setIsSlow(true)
+    }, 15_000)
+
     const attemptExpand = async () => {
       try {
         setIsGenerating(true)
         setHasError(false)
-        const res = await window.electronAPI?.note?.expand({
+        setIsSlow(false)
+
+        // 60s timeout to prevent infinite spinner on slow hardware
+        const AI_TIMEOUT_MS = 60_000
+        const expandPromise = window.electronAPI?.note?.expand({
           noteId: noteId || 'current',
           meetingId: meetingId || 'current',
           timestamp: Math.floor(Date.now() / 1000),
           text: sourceText || '',
         })
+
+        const timeoutPromise = new Promise<never>((_, reject) =>
+          setTimeout(() => reject(new Error('AI expansion timed out after 60s')), AI_TIMEOUT_MS)
+        )
+
+        const res = await Promise.race([expandPromise, timeoutPromise])
 
         if (isMounted && res?.success && res.data) {
           updateAttributes({
@@ -39,27 +59,35 @@ export const AiExpansionView: React.FC<NodeViewProps> = props => {
           setHasError(true)
         }
       } catch (err) {
-        console.error('AI Expansion failed:', err)
+        log.error('AI Expansion failed:', err)
         if (isMounted) setHasError(true)
       } finally {
         if (isMounted) setIsGenerating(false)
+        clearTimeout(slowTimer)
       }
     }
 
     attemptExpand()
     return () => {
       isMounted = false
+      clearTimeout(slowTimer)
     }
   }, [expandedText, sourceText, meetingId, noteId, updateAttributes])
 
   const handleAccept = () => {
     const pos = getPos()
     if (typeof pos === 'number' && expandedText) {
+      // Use explicit text node type to prevent LLM output containing
+      // angle brackets (e.g. "discussed <Project Alpha>") from being
+      // parsed as HTML tags by Tiptap's insertContent.
       editor
         .chain()
         .focus()
         .deleteRange({ from: pos, to: pos + node.nodeSize })
-        .insertContent(expandedText)
+        .insertContent({
+          type: 'paragraph',
+          content: [{ type: 'text', text: expandedText }],
+        })
         .run()
     }
   }
@@ -100,6 +128,11 @@ export const AiExpansionView: React.FC<NodeViewProps> = props => {
             <div className="ui-ai-shimmer-bar" style={{ width: '100%' }} />
             <div className="ui-ai-shimmer-bar" style={{ width: '83%' }} />
             <div className="ui-ai-shimmer-bar" style={{ width: '66%' }} />
+            {isSlow && (
+              <p className="ui-ai-expansion-slow-hint">
+                Taking longer than expected — AI engine may still be loading...
+              </p>
+            )}
           </div>
         )}
       </div>

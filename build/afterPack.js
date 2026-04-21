@@ -297,6 +297,110 @@ exports.default = async function afterPack(context) {
 
   console.log('[afterPack] ✅ Native module rebuild complete')
 
+  // ═══ ONNXRUNTIME-NODE BINARY VERIFICATION ═══
+  // onnxruntime-node uses pre-built platform binaries (no binding.gyp).
+  // These MUST be correctly unpacked from the ASAR archive via asarUnpack.
+  // If they're missing, the app crashes on first recording with:
+  //   "Cannot find module '../bin/napi-v6/win32/x64/onnxruntime_binding.node'"
+  {
+    const appName = context.packager.appInfo.productFilename
+    let unpackedBase
+    if (platform === 'darwin') {
+      unpackedBase = path.join(
+        context.appOutDir, `${appName}.app`,
+        'Contents', 'Resources', 'app.asar.unpacked'
+      )
+    } else {
+      unpackedBase = path.join(context.appOutDir, 'resources', 'app.asar.unpacked')
+    }
+
+    // Map platform/arch to the expected binary directory and required files
+    const onnxPlatformMap = {
+      darwin: {
+        bindingFile: 'onnxruntime_binding.node',
+        companionPatterns: ['libonnxruntime*.dylib'],
+      },
+      win32: {
+        bindingFile: 'onnxruntime_binding.node',
+        companionPatterns: ['onnxruntime.dll', 'DirectML.dll', 'dxcompiler.dll', 'dxil.dll'],
+      },
+      linux: {
+        bindingFile: 'onnxruntime_binding.node',
+        companionPatterns: ['libonnxruntime.so*'],
+      },
+    }
+
+    const onnxConfig = onnxPlatformMap[platform] || onnxPlatformMap.linux
+    const onnxBinDir = path.join(
+      unpackedBase, 'node_modules', 'onnxruntime-node',
+      'bin', 'napi-v6', platform, arch
+    )
+
+    console.log(`[afterPack] 🔍 Verifying onnxruntime-node binaries at: ${onnxBinDir}`)
+
+    if (fs.existsSync(onnxBinDir)) {
+      // Check main .node binding
+      const bindingPath = path.join(onnxBinDir, onnxConfig.bindingFile)
+      if (fs.existsSync(bindingPath)) {
+        const size = fs.statSync(bindingPath).size
+        console.log(`[afterPack] ✅ ${onnxConfig.bindingFile} found (${(size / 1024).toFixed(0)} KB)`)
+      } else {
+        console.error(`[afterPack] ❌ CRITICAL: ${onnxConfig.bindingFile} MISSING from: ${onnxBinDir}`)
+        console.error('[afterPack] ↳ App will crash on first recording/embedding on this platform')
+      }
+
+      // Check companion shared libraries (DLLs on Windows, dylibs on macOS)
+      const dirContents = fs.readdirSync(onnxBinDir)
+      for (const pattern of onnxConfig.companionPatterns) {
+        const isGlob = pattern.includes('*')
+        let found
+        if (isGlob) {
+          const prefix = pattern.replace(/\*.*$/, '')
+          found = dirContents.some(f => f.startsWith(prefix))
+        } else {
+          found = dirContents.includes(pattern)
+        }
+        if (found) {
+          console.log(`[afterPack] ✅ Companion: ${pattern} found`)
+        } else {
+          console.error(`[afterPack] ⚠️ Companion ${pattern} MISSING — onnxruntime may fail to load at runtime`)
+        }
+      }
+
+      console.log(`[afterPack] 📦 onnxruntime-node unpacked files: ${dirContents.join(', ')}`)
+    } else {
+      console.error(`[afterPack] ❌ CRITICAL: onnxruntime-node bin directory NOT FOUND`)
+      console.error(`[afterPack] ↳ Expected: ${onnxBinDir}`)
+      console.error('[afterPack] ↳ Check asarUnpack config in package.json')
+      console.error('[afterPack] ↳ App will crash with "Cannot find module onnxruntime_binding.node"')
+      // List what IS in the unpacked dir for debugging
+      const onnxUnpacked = path.join(unpackedBase, 'node_modules', 'onnxruntime-node')
+      if (fs.existsSync(onnxUnpacked)) {
+        console.log(`[afterPack] ↳ onnxruntime-node unpacked root exists, contents:`)
+        try {
+          const walk = (dir, depth = 0) => {
+            if (depth > 3) return
+            const items = fs.readdirSync(dir)
+            items.forEach(item => {
+              const full = path.join(dir, item)
+              const stat = fs.statSync(full)
+              const indent = '  '.repeat(depth + 1)
+              if (stat.isDirectory()) {
+                console.log(`[afterPack]   ${indent}${item}/`)
+                walk(full, depth + 1)
+              } else {
+                console.log(`[afterPack]   ${indent}${item} (${(stat.size / 1024).toFixed(0)} KB)`)
+              }
+            })
+          }
+          walk(onnxUnpacked)
+        } catch { /* best-effort debug */ }
+      } else {
+        console.error(`[afterPack] ↳ onnxruntime-node NOT FOUND in app.asar.unpacked at all!`)
+      }
+    }
+  }
+
   // ═══ AD-HOC CODE SIGNING (macOS only) ═══
   // Without this, Gatekeeper blocks the app with:
   //   "code has no resources but signature indicates they must be present"

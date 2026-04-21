@@ -23,7 +23,29 @@
  */
 
 import { parentPort } from 'worker_threads'
-import * as ort from 'onnxruntime-node'
+
+// LAZY IMPORT: onnxruntime-node is loaded on first use, NOT at module parse time.
+// This prevents a fatal crash in the main process when the native binary is missing
+// or wrong-arch (e.g., macOS binary shipped in Windows build).
+// Without this guard, the static `import * as ort` causes require() to execute
+// immediately on worker start, which propagates as an uncaught exception to main.
+type OrtModule = typeof import('onnxruntime-node')
+let _ort: OrtModule | null = null
+let _ortLoadError: string | null = null
+
+function getOrt(): OrtModule {
+  if (_ort) return _ort
+  if (_ortLoadError) throw new Error(_ortLoadError)
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    _ort = require('onnxruntime-node') as OrtModule
+    return _ort
+  } catch (err: unknown) {
+    _ortLoadError = `onnxruntime-node failed to load: ${err instanceof Error ? err.message : String(err)}`
+    workerLog.error(_ortLoadError)
+    throw new Error(_ortLoadError)
+  }
+}
 
 /** Structured worker logging */
 const workerLog = {
@@ -66,13 +88,13 @@ type WorkerMessage = AudioChunkMessage | InitMessage | ResetMessage
 class VADWorker {
   private isInitialized: boolean = false
   private confidenceThreshold: number = 0.5
-  private session: ort.InferenceSession | null = null
+  private session: Awaited<ReturnType<OrtModule['InferenceSession']['create']>> | null = null
   private sampleRate: number = 16000
 
   // Silero VAD state tensors (required for stateful processing)
-  private h: ort.Tensor | null = null
-  private c: ort.Tensor | null = null
-  private sr: ort.Tensor | null = null
+  private h: unknown | null = null
+  private c: unknown | null = null
+  private sr: unknown | null = null
 
   constructor() {
     workerLog.info('Initialized')
@@ -91,6 +113,7 @@ class VADWorker {
     workerLog.info(`Initializing with model: ${modelPath}`)
 
     try {
+      const ort = getOrt()
       // Load ONNX model using onnxruntime-node
       this.session = await ort.InferenceSession.create(modelPath, {
         // OPT-1: Use DirectML GPU on Windows for faster VAD
@@ -136,6 +159,7 @@ class VADWorker {
     }
 
     try {
+      const ort = getOrt()
       // Silero VAD expects 512 samples at 16kHz (32ms chunks)
       const expectedLength = 512
 
@@ -156,7 +180,8 @@ class VADWorker {
       const inputTensor = new ort.Tensor('float32', processedAudio, [1, expectedLength])
 
       // Run inference with state tensors
-      const feeds: Record<string, ort.Tensor> = {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const feeds: any = {
         input: inputTensor,
         h: this.h,
         c: this.c,
@@ -209,8 +234,13 @@ class VADWorker {
 
     // Reset state tensors to zeros
     if (this.h && this.c) {
-      this.h = new ort.Tensor('float32', new Float32Array(128).fill(0), [2, 1, 64])
-      this.c = new ort.Tensor('float32', new Float32Array(128).fill(0), [2, 1, 64])
+      try {
+        const ort = getOrt()
+        this.h = new ort.Tensor('float32', new Float32Array(128).fill(0), [2, 1, 64])
+        this.c = new ort.Tensor('float32', new Float32Array(128).fill(0), [2, 1, 64])
+      } catch {
+        workerLog.error('Cannot reset — onnxruntime-node not available')
+      }
     }
   }
 }
@@ -248,13 +278,13 @@ if (parentPort) {
           }
 
           // Send result back to main thread
+          // Note: Audio data is NOT sent back — main thread already has it.
+          // Removing this saves ~60KB/s of structured-clone overhead.
           const response: VADResultMessage = {
             type: 'vadResult',
             hasVoice: result.hasVoice,
             confidence: result.confidence,
             timestamp: message.timestamp,
-            // Only forward audio data if voice is detected
-            data: result.hasVoice ? message.data : undefined,
           }
 
           parentPort?.postMessage(response)

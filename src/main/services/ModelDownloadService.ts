@@ -123,9 +123,11 @@ export class ModelDownloadService {
     if (totalRAM >= 16) {
       // High tier: 16GB+ RAM
       tier = 'high'
-      recommendedASR = 'whisper-turbo'
+      // NOTE: Whisper native binding not yet integrated — always falls back to Moonshine.
+      // Use moonshine-base to avoid downloading 1.5GB model that never runs.
+      recommendedASR = 'moonshine-base'
       recommendedLLM = 'qwen2.5:3b'
-      totalRAMBudget = 4.5 // 1.5GB (Whisper) + 2.2GB (Qwen 3B) + 0.8GB (overhead)
+      totalRAMBudget = 3.3 // 0.3GB (Moonshine) + 2.2GB (Qwen 3B) + 0.8GB (overhead)
     } else if (totalRAM >= 12) {
       // Mid tier: 12GB RAM
       tier = 'mid'
@@ -342,19 +344,45 @@ export class ModelDownloadService {
    */
   private downloadFile(url: string, destPath: string, description: string): Promise<void> {
     return new Promise((resolve, reject) => {
-      const file = fs.createWriteStream(destPath)
-      let downloadedBytes = 0
+      // HTTP Range resume: If partial file exists from a previous failed download, resume from there
+      const partialPath = destPath + '.partial'
+      let existingBytes = 0
+      if (fs.existsSync(partialPath)) {
+        existingBytes = fs.statSync(partialPath).size
+        log.info(
+          `Resuming ${description} download from ${(existingBytes / 1024 / 1024).toFixed(1)}MB`
+        )
+      }
+
+      const file = fs.createWriteStream(partialPath, existingBytes > 0 ? { flags: 'a' } : undefined)
+      let downloadedBytes = existingBytes
       let totalBytes = 0
       let lastProgress = 0
       let settled = false // Prevent double-resolve/reject
-      const STALL_TIMEOUT_MS = 5 * 60 * 1000 // 5 minutes
+      const STALL_TIMEOUT_MS = 2 * 60 * 1000 // 2 minutes (reduced from 5)
+
+      // Rolling stall timer — resets on every data chunk to detect mid-download stalls
+      let stallTimer: ReturnType<typeof setTimeout> | null = null
+      const resetStallTimer = () => {
+        if (stallTimer) clearTimeout(stallTimer)
+        stallTimer = setTimeout(() => {
+          if (!settled) {
+            try {
+              request.abort()
+            } catch {
+              /* ignore */
+            }
+            safeReject(new Error(`Download stalled: ${description} — no data for 2 minutes`))
+          }
+        }, STALL_TIMEOUT_MS)
+      }
 
       const safeReject = (error: Error) => {
         if (settled) return
         settled = true
         if (stallTimer) clearTimeout(stallTimer)
         file.close()
-        if (fs.existsSync(destPath)) fs.unlinkSync(destPath)
+        // Don't delete partial file — allows resume on retry
         this.sendProgress({
           modelName: description,
           percent: 0,
@@ -378,6 +406,10 @@ export class ModelDownloadService {
       try {
         const { net } = require('electron') as typeof import('electron')
         request = net.request({ url, redirect: 'follow' })
+        // Add Range header for resume support
+        if (existingBytes > 0) {
+          request.setHeader('Range', `bytes=${existingBytes}-`)
+        }
       } catch {
         // Fallback to https.get if net module is unavailable (e.g., in tests)
         const fallbackRequest = https.get(url, response => {
@@ -388,6 +420,8 @@ export class ModelDownloadService {
           response.pipe(file)
           file.on('finish', () => {
             file.close()
+            // Move partial to final path
+            fs.renameSync(partialPath, destPath)
             safeResolve()
             resolve()
           })
@@ -397,16 +431,42 @@ export class ModelDownloadService {
       }
 
       request.on('response', response => {
-        if (response.statusCode !== 200) {
+        // 200 = fresh download, 206 = resumed download
+        if (response.statusCode !== 200 && response.statusCode !== 206) {
           safeReject(new Error(`Failed to download: HTTP ${response.statusCode}`))
           return
         }
 
-        totalBytes = parseInt((response.headers['content-length'] as string) || '0', 10)
+        // If server doesn't support Range (returns 200 instead of 206), restart from 0
+        if (existingBytes > 0 && response.statusCode === 200) {
+          downloadedBytes = 0
+          file.close()
+          fs.unlinkSync(partialPath)
+          // Reopen file fresh — Electron's IncomingMessage doesn't support pipe
+          const freshFile = fs.createWriteStream(partialPath)
+          response.on('data', (chunk: Buffer) => freshFile.write(chunk))
+          response.on('end', () => {
+            freshFile.end(() => {
+              fs.renameSync(partialPath, destPath)
+              safeResolve()
+              resolve()
+            })
+          })
+          return
+        }
+
+        const contentLength = parseInt((response.headers['content-length'] as string) || '0', 10)
+        totalBytes = existingBytes + contentLength
+
+        // Start rolling stall timer
+        resetStallTimer()
 
         response.on('data', (chunk: Buffer) => {
           downloadedBytes += chunk.length
           file.write(chunk)
+
+          // Reset stall timer on each data chunk
+          resetStallTimer()
 
           // Update progress every 5%
           if (totalBytes > 0) {
@@ -426,6 +486,14 @@ export class ModelDownloadService {
 
         response.on('end', () => {
           file.end(() => {
+            // Move partial to final path on success
+            try {
+              fs.renameSync(partialPath, destPath)
+            } catch {
+              // If rename fails, copy + delete
+              fs.copyFileSync(partialPath, destPath)
+              fs.unlinkSync(partialPath)
+            }
             const finalMB = (totalBytes > 0 ? totalBytes : downloadedBytes) / 1024 / 1024
             this.sendProgress({
               modelName: description,
@@ -443,14 +511,6 @@ export class ModelDownloadService {
       })
 
       request.on('error', (error: Error) => safeReject(error))
-
-      // Abort if stalled — timer cleaned up by safeReject/safeResolve
-      const stallTimer = setTimeout(() => {
-        if (downloadedBytes === 0 && !settled) {
-          request.abort()
-          safeReject(new Error(`Download stalled: ${description} — no data for 5 minutes`))
-        }
-      }, STALL_TIMEOUT_MS)
 
       request.end()
     })

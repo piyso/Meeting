@@ -166,10 +166,27 @@ export function registerExportHandlers(): void {
   })
 
   // export:deleteAllData — GDPR right to be forgotten (deletes local + requests cloud deletion)
+  // C-3 AUDIT: Authentication required — prevents unauthorized data destruction via XSS or extensions
   ipcMain.handle('export:deleteAllData', async () => {
     try {
+      // C-3 AUDIT FIX: Verify user is authenticated before allowing data destruction.
+      // Without this gate, any renderer JavaScript could permanently destroy ALL user data.
+      const { getAuthService } = await import('../../services/AuthService')
+      const auth = getAuthService()
+      const currentUser = await auth.getCurrentUser()
+      if (!currentUser) {
+        return {
+          success: false,
+          error: {
+            code: 'UNAUTHORIZED',
+            message: 'Authentication required to delete all data.',
+            timestamp: Date.now(),
+          },
+        }
+      }
+
       // GDPR Article 17: Right to erasure applies to ALL tiers.
-      // No tier gate — every user can delete their own data.
+      // No tier gate — every authenticated user can delete their own data.
 
       // Request cloud data deletion
       let cloudDeleted = false

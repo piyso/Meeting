@@ -40,8 +40,7 @@ process.on('uncaughtException', (err: NodeJS.ErrnoException) => {
       `${err.message}\n\n` +
         `Platform: ${process.platform}/${process.arch}\n` +
         `Check crash log at:\n` +
-        `  Windows: %APPDATA%\\BlueArkive\\crash.log\n` +
-        `  macOS: ~/BlueArkive/crash.log\n\n` +
+        `  ${process.platform === 'win32' ? '%APPDATA%\\BlueArkive\\crash.log' : '~/BlueArkive/crash.log'}\n\n` +
         `Stack: ${err.stack?.substring(0, 500) || 'N/A'}`
     )
   } catch {
@@ -94,6 +93,9 @@ let tray: Tray | null = null
 process.on('unhandledRejection', (reason, promise) => {
   log.error('UNHANDLED PROMISE REJECTION:', { reason, promise })
 })
+
+// H-7 AUDIT: Single source of truth for deep-link route validation (was duplicated in two places)
+const DEEP_LINK_ROUTES = ['meeting', 'import', 'settings', 'note'] as const
 
 // ─── Auto-updater (LAZY — loaded 10s after window shows) ───────────────
 function initAutoUpdater() {
@@ -166,7 +168,7 @@ app.on('second-instance', async (_event, argv) => {
       // Security: validate deep-link route against allowlist
       // Note: new URL('bluearkive://meeting/123') parses 'meeting' as hostname,
       // so we must check host+pathname to reconstruct the full route.
-      const ALLOWED_ROUTES = ['meeting', 'import', 'settings', 'note']
+      const ALLOWED_ROUTES: readonly string[] = DEEP_LINK_ROUTES
       try {
         const parsed = new URL(deepLink)
         const route = parsed.host // e.g. 'meeting', 'settings', 'import'
@@ -456,6 +458,66 @@ app
     CrashReporter.addBreadcrumb('lifecycle', 'IPC handlers registered')
     log.info('IPC handlers registered')
 
+    // ─── Application Menu (macOS keyboard shortcuts) ───────────
+    // On macOS, standard shortcuts (Cmd+C/V/X/A/Z) are bound through
+    // the application menu's Edit submenu accelerators. Without this,
+    // ALL keyboard shortcuts break — including copy/paste in text fields.
+    const appMenu = Menu.buildFromTemplate([
+      {
+        label: app.name,
+        submenu: [
+          { role: 'about' },
+          { type: 'separator' },
+          { role: 'services' },
+          { type: 'separator' },
+          { role: 'hide' },
+          { role: 'hideOthers' },
+          { role: 'unhide' },
+          { type: 'separator' },
+          { role: 'quit' },
+        ],
+      },
+      {
+        label: 'Edit',
+        submenu: [
+          { role: 'undo' },
+          { role: 'redo' },
+          { type: 'separator' },
+          { role: 'cut' },
+          { role: 'copy' },
+          { role: 'paste' },
+          { role: 'pasteAndMatchStyle' },
+          { role: 'delete' },
+          { role: 'selectAll' },
+        ],
+      },
+      {
+        label: 'View',
+        submenu: [
+          { role: 'reload' },
+          { role: 'forceReload' },
+          { role: 'toggleDevTools' },
+          { type: 'separator' },
+          { role: 'resetZoom' },
+          { role: 'zoomIn' },
+          { role: 'zoomOut' },
+          { type: 'separator' },
+          { role: 'togglefullscreen' },
+        ],
+      },
+      {
+        label: 'Window',
+        submenu: [
+          { role: 'minimize' },
+          { role: 'zoom' },
+          { type: 'separator' },
+          { role: 'front' },
+        ],
+      },
+    ])
+    Menu.setApplicationMenu(appMenu)
+    log.info('Application menu configured')
+
     // ─── PHASE 2: Create windows ───────────────────────────────
     // IPC is now ready — renderer can safely send calls on mount
     createWindow()
@@ -597,7 +659,7 @@ app
           // Security: validate deep-link route against allowlist
           // Note: new URL('bluearkive://meeting/123') parses 'meeting' as hostname,
           // so we must check host+pathname to reconstruct the full route.
-          const ALLOWED_ROUTES = ['meeting', 'import', 'settings', 'note']
+          const ALLOWED_ROUTES: readonly string[] = DEEP_LINK_ROUTES
           try {
             const parsed = new URL(url)
             const route = parsed.host // e.g. 'meeting', 'settings', 'import'
@@ -639,6 +701,9 @@ app
               "default-src 'self'; " +
                 `${scriptSrc}; ` +
                 "connect-src 'self' https://*.supabase.co wss://*.deepgram.com https://api.deepgram.com https://api.piyapi.cloud https://dl.bluearkive.com; " +
+                // NOTE: style-src requires 'unsafe-inline' because Tiptap/ProseMirror
+                // injects inline styles dynamically for cursor positioning and selection highlights.
+                // This is an acceptable tradeoff since script-src is fully locked down in production.
                 "style-src 'self' 'unsafe-inline'; " +
                 "img-src 'self' data: blob:; " +
                 "font-src 'self'; " +
@@ -730,7 +795,14 @@ app.on('open-file', (event, filePath) => {
 })
 
 // Handle app quit
-app.on('before-quit', async () => {
+// CRITICAL: Electron does NOT await async before-quit handlers.
+// We must use event.preventDefault() to hold the quit, then app.exit() after cleanup.
+let isQuitting = false
+app.on('before-quit', event => {
+  if (isQuitting) return // Prevent re-entrant calls
+  isQuitting = true
+  event.preventDefault() // Hold the quit until cleanup finishes
+
   log.info('Application quitting — starting cleanup...')
 
   // Cleanup tray icon and dock badge (prevent leaked OS resources)
@@ -746,40 +818,85 @@ app.on('before-quit', async () => {
     }
   }
 
-  try {
-    // Stop audio capture and flush any buffered audio
-    try {
-      const pipeline = getAudioPipelineService()
-      if (pipeline.getStatus().isCapturing) {
-        log.info('Flushing audio pipeline before quit...')
-        await pipeline.stopCapture()
+  // Run all async cleanup with a hard 5s deadline
+  const CLEANUP_TIMEOUT_MS = 5_000
+  const cleanupTasks: Promise<void>[] = []
+
+  // Stop audio capture and flush any buffered audio
+  cleanupTasks.push(
+    (async () => {
+      try {
+        const pipeline = getAudioPipelineService()
+        if (pipeline.getStatus().isCapturing) {
+          log.info('Flushing audio pipeline before quit...')
+          await pipeline.stopCapture()
+        }
+      } catch (e) {
+        log.debug(
+          'AudioPipelineService cleanup skipped:',
+          e instanceof Error ? e.message : String(e)
+        )
       }
-    } catch (e) {
-      log.debug('AudioPipelineService cleanup skipped:', e instanceof Error ? e.message : String(e))
-    }
+    })()
+  )
 
-    // Terminate ASR worker thread
+  // Terminate ASR worker thread
+  cleanupTasks.push(
+    (async () => {
+      try {
+        await getASRService().terminate()
+      } catch (e) {
+        log.debug('ASRService cleanup skipped:', e instanceof Error ? e.message : String(e))
+      }
+    })()
+  )
+
+  // Unload ONNX models + dispose GPU sessions to free VRAM
+  cleanupTasks.push(
+    (async () => {
+      try {
+        await getModelManager().forceUnload()
+      } catch (e) {
+        log.debug('ModelManager cleanup skipped:', e instanceof Error ? e.message : String(e))
+      }
+    })()
+  )
+
+  // H-9 AUDIT: Release ONNX embedding session to free GPU/DirectML memory
+  cleanupTasks.push(
+    (async () => {
+      try {
+        const { getLocalEmbeddingService } =
+          await import('../src/main/services/LocalEmbeddingService')
+        await getLocalEmbeddingService().dispose()
+        log.debug('LocalEmbeddingService disposed')
+      } catch (e) {
+        log.debug(
+          'LocalEmbeddingService cleanup skipped:',
+          e instanceof Error ? e.message : String(e)
+        )
+      }
+    })()
+  )
+
+  // Race cleanup against hard timeout to prevent infinite hang
+  Promise.race([
+    Promise.allSettled(cleanupTasks),
+    new Promise<void>(resolve => setTimeout(resolve, CLEANUP_TIMEOUT_MS)),
+  ]).finally(() => {
+    // Synchronous cleanup (always runs)
     try {
-      await getASRService().terminate()
-    } catch (e) {
-      log.debug('ASRService cleanup skipped:', e instanceof Error ? e.message : String(e))
+      cleanupIPC()
+    } catch {
+      /* ignore */
     }
-
-    // #37: Unload ONNX models + dispose GPU sessions to free VRAM
     try {
-      await getModelManager().forceUnload()
-    } catch (e) {
-      log.debug('ModelManager cleanup skipped:', e instanceof Error ? e.message : String(e))
+      closeDatabase()
+    } catch {
+      /* ignore */
     }
 
-    // Cleanup IPC handlers
-    cleanupIPC()
-
-    // Close database connection (single close — connection.ts manages the singleton)
-    closeDatabase()
-  } catch (error) {
-    log.error('Error during cleanup:', error)
-  }
-
-  log.info('Cleanup complete — goodbye')
+    log.info('Cleanup complete — goodbye')
+    app.exit(0) // Force exit after cleanup
+  })
 })

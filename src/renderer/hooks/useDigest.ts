@@ -57,12 +57,47 @@ export function useDigest(meetingId: string | null, skip = false) {
     }
   }, [meetingId])
 
-  // Auto-generate on mount (when meeting stops and this hook is used)
+  // H-10 AUDIT: Track mounted state to prevent setState on unmounted component.
+  // If the user navigates away during digest generation, the async IPC call
+  // completes and tries to call setDigest/setError on an unmounted component.
   useEffect(() => {
+    let isMounted = true
     if (meetingId && !skip) {
-      generate()
+      ;(async () => {
+        setIsGenerating(true)
+        setError(null)
+        try {
+          const result = await window.electronAPI?.digest?.generate?.({
+            meetingId,
+          })
+          if (!isMounted) return
+          if (result?.success && result.data) {
+            const raw = result.data as unknown as Record<string, unknown>
+            setDigest({
+              summary: typeof raw.summary === 'string' ? raw.summary : undefined,
+              actionItems:
+                typeof raw.actionItems === 'string'
+                  ? raw.actionItems
+                  : typeof raw.action_items === 'string'
+                    ? raw.action_items
+                    : undefined,
+              decisions: typeof raw.decisions === 'string' ? raw.decisions : undefined,
+              generatedAt: extractTimestamp(raw.generatedAt) ?? extractTimestamp(raw.generated_at),
+            })
+          } else {
+            setError(result?.error?.message || 'Failed to generate digest')
+          }
+        } catch (err) {
+          if (isMounted) setError((err as Error).message)
+        } finally {
+          if (isMounted) setIsGenerating(false)
+        }
+      })()
     }
-  }, [meetingId, generate, skip])
+    return () => {
+      isMounted = false
+    }
+  }, [meetingId, skip])
 
   return { digest, isGenerating, error, regenerate: generate }
 }

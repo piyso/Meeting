@@ -40,49 +40,31 @@ export const RecoveryKeySettings: React.FC<RecoveryKeySettingsProps> = ({ userId
     setError('')
     setIsVerifying(true)
 
-    // In production, this would verify the password and retrieve the recovery phrase
-    const timer = setTimeout(() => {
+    try {
       if (password.length < 8) {
         setError('Invalid password')
         setIsVerifying(false)
         return
       }
 
-      // Mock recovery phrase
-      const mockPhrase = [
-        'abandon',
-        'ability',
-        'able',
-        'about',
-        'above',
-        'absent',
-        'absorb',
-        'abstract',
-        'absurd',
-        'abuse',
-        'access',
-        'accident',
-        'account',
-        'accuse',
-        'achieve',
-        'acid',
-        'acoustic',
-        'acquire',
-        'across',
-        'act',
-        'action',
-        'actor',
-        'actress',
-        'actual',
-      ]
+      const res = await window.electronAPI?.auth?.generateRecoveryKey()
 
-      setRecoveryPhrase(mockPhrase)
+      if (!res?.success || !res.data?.phrase) {
+        setError(res?.error?.message || 'Failed to generate recovery key')
+        setIsVerifying(false)
+        return
+      }
+
+      setRecoveryPhrase(res.data.phrase)
       setShowRecoveryKey(true)
       setShowPasswordPrompt(false)
       setPassword('')
+    } catch (err) {
+      log.error('Recovery key generation failed:', err)
+      setError('An unexpected error occurred. Please try again.')
+    } finally {
       setIsVerifying(false)
-    }, 1000)
-    timerRefs.current.push(timer)
+    }
   }
 
   const handleCopyToClipboard = async () => {
@@ -131,22 +113,21 @@ export const RecoveryKeySettings: React.FC<RecoveryKeySettingsProps> = ({ userId
   return (
     <div className="w-full h-full flex flex-col pt-4">
       {!showPasswordPrompt && !showRecoveryKey && (
-        <div className="w-full max-w-[600px] surface-glass-premium p-8 rounded-[var(--radius-xl)] border border-[var(--color-border-subtle)] flex flex-col animate-slide-up shadow-2xl">
-          <div className="flex items-center gap-3 mb-6">
-            <Key size={28} className="text-[var(--color-text-primary)]" />
+        <div className="w-full max-w-[600px] surface-glass-premium p-5 rounded-[var(--radius-xl)] border border-[var(--color-border-subtle)] flex flex-col animate-slide-up shadow-2xl">
+          <div className="flex items-center gap-3 mb-3">
+            <Key size={22} className="text-[var(--color-text-primary)] flex-shrink-0" />
             <div>
-              <h3 className="text-xl font-semibold tracking-wide text-[var(--color-text-primary)]">
+              <h3 className="text-base font-semibold tracking-wide text-[var(--color-text-primary)]">
                 Recovery Key
               </h3>
-              <p className="text-sm text-[var(--color-text-secondary)] mt-1">
-                Your recovery key is a 24-word phrase used to recover your account if you forget
-                your password.
+              <p className="text-xs text-[var(--color-text-secondary)] mt-0.5 leading-snug">
+                A 24-word phrase to recover your account if you forget your password.
               </p>
             </div>
           </div>
 
-          <div className="flex items-center gap-3 mb-8 p-3 rounded-lg bg-[rgba(251,191,36,0.1)] border border-[var(--color-amber)]/20 text-[var(--color-amber)] text-sm">
-            <span className="text-lg">⚠️</span>
+          <div className="flex items-center gap-2.5 mb-4 px-3 py-2 rounded-lg bg-[rgba(251,191,36,0.08)] border border-[var(--color-amber)]/15 text-[var(--color-amber)] text-xs leading-snug">
+            <span className="text-sm">⚠️</span>
             <span>
               Keep your recovery key safe. Anyone with access to it can recover your account.
             </span>

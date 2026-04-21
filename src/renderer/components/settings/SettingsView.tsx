@@ -133,9 +133,12 @@ export const SettingsView: React.FC = () => {
 
   // Load all settings from DB on mount
   useEffect(() => {
+    let isMounted = true
+
     const loadSettings = async () => {
       try {
         const res = await window.electronAPI?.settings?.getAll()
+        if (!isMounted) return
         if (res?.success && res.data) {
           setSettings(
             prev =>
@@ -149,6 +152,7 @@ export const SettingsView: React.FC = () => {
       // Model status — check via detectHardwareTier which is available
       try {
         const tierRes = await window.electronAPI?.model?.detectHardwareTier()
+        if (!isMounted) return
         if (tierRes?.success && tierRes.data) {
           setModelStatus('Ready')
           const tierData = tierRes.data as unknown as Record<string, unknown>
@@ -161,13 +165,14 @@ export const SettingsView: React.FC = () => {
         }
       } catch (err) {
         log.warn('Failed to detect hardware tier:', err)
-        setModelStatus('Unavailable')
+        if (isMounted) setModelStatus('Unavailable')
       }
 
       // Load user info and billing status
       try {
         const userRes = await window.electronAPI?.auth?.getCurrentUser()
         const billingRes = await window.electronAPI?.billing?.getStatus()
+        if (!isMounted) return
 
         if (userRes?.success && userRes.data) {
           setUserInfo({
@@ -180,13 +185,14 @@ export const SettingsView: React.FC = () => {
         log.warn('Not logged in or auth unavailable:', err)
       }
 
-      setLoading(false)
+      if (isMounted) setLoading(false)
     }
 
     // Load meeting counts for Data Locality Report
     const loadMeetingCounts = async () => {
       try {
         const res = await window.electronAPI?.meeting?.list({ limit: 100 })
+        if (!isMounted) return
         if (res?.success && res.data) {
           const meetings = (res.data as { items: Array<{ synced_at?: number }> }).items || []
           setLocalMeetingCount(meetings.length)
@@ -199,6 +205,10 @@ export const SettingsView: React.FC = () => {
 
     loadSettings()
     loadMeetingCounts()
+
+    return () => {
+      isMounted = false
+    }
   }, [])
 
   // Use a ref for settings to avoid recreating the callback on every setting change

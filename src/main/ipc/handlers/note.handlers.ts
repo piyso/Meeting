@@ -255,11 +255,14 @@ EXPANDED NOTE:`
         },
       }
     } catch (error) {
+      log.error('note:expand failed:', error)
       return {
         success: false,
         error: {
           code: 'NOTE_EXPAND_FAILED',
-          message: 'AI expansion unavailable — AI engine may still be loading. Please try again.',
+          message:
+            (error instanceof Error ? error.message : null) ||
+            'AI expansion unavailable — AI engine may still be loading. Please try again.',
           timestamp: Date.now(),
         },
       }

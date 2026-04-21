@@ -44,7 +44,11 @@ export function registerGraphHandlers(): void {
       }
 
       // Online — fetch from PiyAPI
-      const graph = await backend.getGraph(params?.namespace || 'meetings', params?.maxHops || 2)
+      // M-17 AUDIT: Cap maxHops to prevent expensive deep traversals
+      const graph = await backend.getGraph(
+        params?.namespace || 'meetings',
+        Math.min(params?.maxHops || 2, 5)
+      )
       return {
         success: true,
         data: {
@@ -169,11 +173,14 @@ export function registerGraphHandlers(): void {
       }
 
       try {
-        const result = await backend.traverseGraph(params.nodeId, params.maxDepth || 2)
+        const result = await backend.traverseGraph(params.nodeId, Math.min(params.maxDepth || 2, 5))
         return { success: true, data: result }
       } catch {
         // Fallback: use getGraph with higher maxHops
-        const graph = await backend.getGraph(params.namespace || 'meetings', params.maxDepth || 3)
+        const graph = await backend.getGraph(
+          params.namespace || 'meetings',
+          Math.min(params.maxDepth || 3, 5)
+        )
         return { success: true, data: graph }
       }
     } catch (err) {
@@ -222,9 +229,9 @@ export function registerGraphHandlers(): void {
 
       if (typeof backend.searchGraph === 'function') {
         const results = await backend.searchGraph(
-          params.query,
+          params.query.substring(0, 500),
           params.namespace || 'meetings',
-          params.limit || 20
+          Math.min(params.limit || 20, 100)
         )
         return { success: true, data: { results } }
       }

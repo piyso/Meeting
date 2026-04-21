@@ -139,6 +139,51 @@ export class EncryptionService {
   }
 
   /**
+   * C-1 AUDIT: Check if a derived key is cached and not expired.
+   * Used by SyncManager to verify encryption is ready after password zeroing.
+   */
+  public static hasCachedKey(): boolean {
+    return !!(this.keyCache && Date.now() < this.keyCache.expiresAt)
+  }
+
+  /**
+   * C-1 AUDIT: Encrypt using the cached derived key (no password required).
+   * The key must have been pre-warmed via deriveKey() during SyncManager.initialize().
+   * Falls back to deriveKey with stored salt if cache expired.
+   *
+   * @param plaintext - Data to encrypt
+   * @param userId - User ID to look up stored salt
+   * @returns Encrypted payload
+   * @throws Error if no cached key and no stored salt
+   */
+  public static async encryptWithCachedKey(
+    plaintext: string,
+    _userId: string
+  ): Promise<EncryptedPayload> {
+    // Use cached key if available
+    if (this.keyCache && Date.now() < this.keyCache.expiresAt) {
+      const iv = this.generateIV()
+      const cipher = crypto.createCipheriv(this.CIPHER_ALGORITHM, this.keyCache.key, iv)
+      let ciphertext = cipher.update(plaintext, 'utf8', 'base64')
+      ciphertext += cipher.final('base64')
+      const authTag = cipher.getAuthTag()
+
+      return {
+        ciphertext,
+        iv: iv.toString('base64'),
+        salt: this.keyCache.salt.toString('base64'),
+        authTag: authTag.toString('base64'),
+        algorithm: 'aes-256-gcm',
+      }
+    }
+
+    // Cache expired — cannot re-derive without password
+    throw new Error(
+      'Encryption key cache expired. User must re-authenticate to refresh encryption key.'
+    )
+  }
+
+  /**
    * Encrypt data using AES-256-GCM
    *
    * @param plaintext - Data to encrypt

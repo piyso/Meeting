@@ -138,8 +138,22 @@ export class BackgroundEmbeddingQueue {
       }
     } catch (err) {
       log.error('Embedding queue batch failed:', err)
-      // Re-queue items on batch-level failure
-      this.queue.unshift(...batch)
+      // M-6 AUDIT: Only re-queue if items haven't exceeded retry limit.
+      // Prevents infinite loop when embedding service has a systematic failure.
+      const MAX_BATCH_RETRIES = 3
+      const retryable = batch.filter(item => {
+        const retries = ((item as unknown as { _retries?: number })._retries ?? 0) + 1
+        ;(item as unknown as { _retries: number })._retries = retries
+        return retries <= MAX_BATCH_RETRIES
+      })
+      if (retryable.length > 0) {
+        this.queue.unshift(...retryable)
+      }
+      if (retryable.length < batch.length) {
+        log.warn(
+          `Dropped ${batch.length - retryable.length} items after ${MAX_BATCH_RETRIES} retries`
+        )
+      }
     } finally {
       this.isProcessing = false
     }

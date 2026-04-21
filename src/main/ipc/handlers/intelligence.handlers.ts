@@ -142,6 +142,9 @@ export function registerIntelligenceHandlers(): void {
       }
 
       const mode = params.promptMode || 'title'
+      // M-19 AUDIT: Truncate context to prevent OOM on local 3B model (~4K token limit).
+      // 8000 chars ≈ 2000 tokens, leaving room for prompt template + response.
+      const context = params.recentContext.substring(0, 8000)
 
       // ── Cloud path for question/action/decision modes (Starter+) ──
       if (mode !== 'title') {
@@ -163,9 +166,9 @@ export function registerIntelligenceHandlers(): void {
 
               if (health.status === 'healthy') {
                 const cloudPrompts: Record<string, string> = {
-                  question: `Based on this meeting discussion, suggest ONE insightful follow-up question that hasn't been addressed yet:\n\n${params.recentContext}\n\nSUGGESTED QUESTION:`,
-                  action: `Identify action items from this discussion. Format each on a new line as "- [Person]: [Task]". If none, say "No action items yet.":\n\n${params.recentContext}\n\nACTION ITEMS:`,
-                  decision: `Summarize decisions made in this discussion in one sentence. If none found, say "No decisions yet.":\n\n${params.recentContext}\n\nDECISION:`,
+                  question: `Based on this meeting discussion, suggest ONE insightful follow-up question that hasn't been addressed yet:\n\n${context}\n\nSUGGESTED QUESTION:`,
+                  action: `Identify action items from this discussion. Format each on a new line as "- [Person]: [Task]". If none, say "No action items yet.":\n\n${context}\n\nACTION ITEMS:`,
+                  decision: `Summarize decisions made in this discussion in one sentence. If none found, say "No decisions yet.":\n\n${context}\n\nDECISION:`,
                 }
 
                 const prompt = cloudPrompts[mode]
@@ -195,22 +198,22 @@ export function registerIntelligenceHandlers(): void {
 
       const prompts: Record<string, { text: string; maxTokens: number; temperature: number }> = {
         title: {
-          text: `Suggest a concise meeting title in the same language as the discussion content (3-6 words). Do NOT translate — use the same language as the transcript.\n\n${params.recentContext}\n\nMEETING TITLE:`,
+          text: `Suggest a concise meeting title in the same language as the discussion content (3-6 words). Do NOT translate — use the same language as the transcript.\n\n${context}\n\nMEETING TITLE:`,
           maxTokens: 20,
           temperature: 0.3,
         },
         question: {
-          text: `Based on this meeting discussion, suggest ONE insightful follow-up question that hasn't been addressed yet. Respond in the same language as the discussion content.\n\n${params.recentContext}\n\nSUGGESTED QUESTION:`,
+          text: `Based on this meeting discussion, suggest ONE insightful follow-up question that hasn't been addressed yet. Respond in the same language as the discussion content.\n\n${context}\n\nSUGGESTED QUESTION:`,
           maxTokens: 60,
           temperature: 0.5,
         },
         action: {
-          text: `Identify any action items from this discussion. Format each as "- [Person]: [Task]". If none, say "No action items yet.":\n\n${params.recentContext}\n\nACTION ITEMS:`,
+          text: `Identify any action items from this discussion. Format each as "- [Person]: [Task]". If none, say "No action items yet.":\n\n${context}\n\nACTION ITEMS:`,
           maxTokens: 80,
           temperature: 0.2,
         },
         decision: {
-          text: `Summarize any decisions that were made in this discussion in one sentence. If none, say "No decisions yet.":\n\n${params.recentContext}\n\nDECISION:`,
+          text: `Summarize any decisions that were made in this discussion in one sentence. If none, say "No decisions yet.":\n\n${context}\n\nDECISION:`,
           maxTokens: 60,
           temperature: 0.2,
         },
@@ -343,7 +346,8 @@ export function registerIntelligenceHandlers(): void {
         ? `You are a helpful meeting assistant. Answer the user's question based ONLY on the provided meeting transcript excerpts. Be concise and cite which meeting the information comes from. If the answer is not in the context, clearly say so. IMPORTANT: Respond in the same language as the user's question.
 
 MEETING CONTEXT:
-${params.context}
+// M-20 AUDIT: Truncate meeting context to prevent OOM
+${params.context.substring(0, 12000)}
 
 USER QUESTION: ${params.question}
 

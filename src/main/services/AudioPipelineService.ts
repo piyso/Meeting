@@ -391,7 +391,9 @@ export class AudioPipelineService extends EventEmitter {
       if (this.pendingChunkProcess) {
         this.pendingChunkProcess = false
         if (this.currentBuffer && this.writeOffset > 0) {
-          this.processAccumulatedChunk()
+          this.processAccumulatedChunk().catch(err =>
+            log.error('Pending chunk processing failed:', err)
+          )
         }
       }
     }

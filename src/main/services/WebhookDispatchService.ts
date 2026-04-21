@@ -204,11 +204,13 @@ function scheduleRetry(
   log.debug(`Webhook delivery ${deliveryId} failed, retry ${retryCount + 1} in ${delaySec}s`)
 
   // Schedule retry
-  setTimeout(() => {
+  // M-12 AUDIT: .unref() prevents pending retry timers from blocking shutdown
+  const retryTimer = setTimeout(() => {
     sendWebhookRequest(url, payload, signature, eventType, deliveryId, retryCount + 1).catch(() => {
       // Already handled in sendWebhookRequest
     })
   }, delaySec * 1000)
+  retryTimer.unref()
 }
 
 /**

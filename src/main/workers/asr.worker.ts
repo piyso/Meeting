@@ -12,7 +12,27 @@ import { parentPort } from 'worker_threads'
 import * as path from 'path'
 import * as fs from 'fs'
 import * as os from 'os'
-import * as ort from 'onnxruntime-node'
+
+// LAZY IMPORT: onnxruntime-node is loaded on first use, NOT at module parse time.
+// This prevents a fatal crash in the main process when the native binary is missing
+// or wrong-arch (e.g., macOS binary shipped in Windows build).
+type OrtModule = typeof import('onnxruntime-node')
+let _ort: OrtModule | null = null
+let _ortLoadError: string | null = null
+
+function getOrt(): OrtModule {
+  if (_ort) return _ort
+  if (_ortLoadError) throw new Error(_ortLoadError)
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    _ort = require('onnxruntime-node') as OrtModule
+    return _ort
+  } catch (err: unknown) {
+    _ortLoadError = `onnxruntime-node failed to load: ${err instanceof Error ? err.message : String(err)}`
+    workerLog.error(_ortLoadError)
+    throw new Error(_ortLoadError)
+  }
+}
 
 // Type definitions
 interface ASRWorkerMessage {
@@ -57,9 +77,12 @@ let resolvedModelsDir: string = ''
 let currentLanguage: string = 'en' // Language for transcription
 
 // Model instances (will be loaded dynamically)
-let whisperSession: ort.InferenceSession | null = null
-let moonshineSession: ort.InferenceSession | null = null
-let moonshinePreprocessor: ort.InferenceSession | null = null
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+let whisperSession: any | null = null
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+let moonshineSession: any | null = null
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+let moonshinePreprocessor: any | null = null
 
 /**
  * Detect hardware tier based on available RAM
@@ -203,7 +226,7 @@ async function loadMoonshineBase(): Promise<void> {
 
     // Load preprocessor model
     workerLog.info('Loading preprocessor...')
-    moonshinePreprocessor = await ort.InferenceSession.create(paths[1] || '', {
+    moonshinePreprocessor = await getOrt().InferenceSession.create(paths[1] || '', {
       // OPT-1: Use DirectML GPU on Windows for faster ASR
       executionProviders: process.platform === 'win32' ? ['dml', 'cpu'] : ['cpu'],
       graphOptimizationLevel: 'all',
@@ -211,7 +234,7 @@ async function loadMoonshineBase(): Promise<void> {
 
     // Load main model
     workerLog.info('Loading main model...')
-    moonshineSession = await ort.InferenceSession.create(paths[0] || '', {
+    moonshineSession = await getOrt().InferenceSession.create(paths[0] || '', {
       executionProviders: process.platform === 'win32' ? ['dml', 'cpu'] : ['cpu'],
       graphOptimizationLevel: 'all',
     })
@@ -269,7 +292,7 @@ async function transcribeWithMoonshine(audioBuffer: Float32Array): Promise<Trans
     const preprocessed = await preprocessAudio(audioBuffer)
 
     // Run inference
-    const inputTensor = new ort.Tensor('float32', preprocessed, [1, preprocessed.length])
+    const inputTensor = new (getOrt().Tensor)('float32', preprocessed, [1, preprocessed.length])
     const feeds = { audio: inputTensor }
     const results = await moonshineSession.run(feeds)
 
@@ -309,7 +332,7 @@ async function preprocessAudio(audioBuffer: Float32Array): Promise<Float32Array>
   }
 
   // Create input tensor
-  const inputTensor = new ort.Tensor('float32', audioBuffer, [1, audioBuffer.length])
+  const inputTensor = new (getOrt().Tensor)('float32', audioBuffer, [1, audioBuffer.length])
   const feeds = { audio: inputTensor }
 
   // Run preprocessing

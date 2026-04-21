@@ -208,11 +208,15 @@ ${batch.map((s, idx) => `${idx}: ${s.text}`).join('\n')}
 
 JSON:`
 
-      const response = await modelManager.generate({
-        prompt,
-        temperature: 0.1,
-        maxTokens: 512,
-      })
+      // M-11 AUDIT: 30s timeout prevents indefinite hang on slow/stuck LLM
+      const response = await Promise.race([
+        modelManager.generate({
+          prompt,
+          temperature: 0.1,
+          maxTokens: 512,
+        }),
+        new Promise<null>(resolve => setTimeout(() => resolve(null), 30_000)),
+      ])
 
       if (!response) continue
 
@@ -268,13 +272,17 @@ async function analyzeWithCloudAI(
 
     const text = segments.map(s => `[${s.speaker_name || 'Speaker'}]: ${s.text}`).join('\n')
 
-    const answer = await backend.ask(
-      `Analyze sentiment per speaker turn. Return JSON array: [{"index": 0, "score": -1.0 to 1.0, "label": "positive"|"neutral"|"negative"}]
+    // M-11 AUDIT: 30s timeout prevents indefinite hang on cloud API
+    const answer = await Promise.race([
+      backend.ask(
+        `Analyze sentiment per speaker turn. Return JSON array: [{"index": 0, "score": -1.0 to 1.0, "label": "positive"|"neutral"|"negative"}]
 
 ${text.substring(0, 6000)}
 
 JSON:`
-    )
+      ),
+      new Promise<null>(resolve => setTimeout(() => resolve(null), 30_000)),
+    ])
 
     if (!answer?.answer) return []
 

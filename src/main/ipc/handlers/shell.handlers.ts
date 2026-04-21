@@ -24,7 +24,8 @@ export function registerShellHandlers(): void {
 
       await shell.openExternal(url)
 
-      log.info('Opened external URL:', url)
+      // Log only hostname — URL may contain sensitive tokens/email in query params
+      log.info('Opened external URL:', new URL(url).hostname)
 
       return {
         success: true,

@@ -70,7 +70,23 @@ export function registerWebhookHandlers(): void {
 
         // Validate URL
         try {
-          new URL(params.url)
+          const parsed = new URL(params.url)
+          // H-1 AUDIT: Enforce HTTPS to prevent webhook secrets leaking over plaintext HTTP.
+          // Localhost is exempted for local development/testing.
+          if (
+            parsed.protocol !== 'https:' &&
+            !parsed.hostname.startsWith('localhost') &&
+            !parsed.hostname.startsWith('127.0.0.1')
+          ) {
+            return {
+              success: false,
+              error: {
+                code: 'HTTPS_REQUIRED',
+                message: 'Webhook URL must use HTTPS. Only localhost URLs are allowed over HTTP.',
+                timestamp: Date.now(),
+              },
+            }
+          }
         } catch {
           return {
             success: false,

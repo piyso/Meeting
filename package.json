@@ -391,8 +391,12 @@
     "asar": true,
     "asarUnpack": [
       "**/*.node",
+      "**/*.dll",
+      "**/*.dylib",
+      "**/*.so",
+      "**/*.so.*",
       "**/node-llama-cpp/**",
-      "**/onnxruntime-node/**"
+      "**/onnxruntime-node/**/*"
     ]
   },
   "repository": {

@@ -15,7 +15,8 @@ const log = Logger.create('Search')
  */
 function sanitizeFtsQuery(raw: string): string {
   // Remove FTS5 special characters that could cause syntax errors
-  const cleaned = raw.replace(/["*(){}[\]^~]/g, '').trim()
+  // H-5 AUDIT: Added backslash (\\) and pipe (|) which also break FTS5 queries
+  const cleaned = raw.replace(/["*(){}[\]^~\\|]/g, '').trim()
   if (!cleaned) return '""'
   // Wrap in double quotes to treat as literal phrase
   return `"${cleaned}"`

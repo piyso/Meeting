@@ -19,6 +19,7 @@ import {
   Landmark,
 } from 'lucide-react'
 import { Logo3D } from './ui/Logo3D'
+import { Logo } from './ui/Logo'
 
 import { rendererLog } from '../utils/logger'
 const log = rendererLog.create('Onboarding')
@@ -284,7 +285,7 @@ export const OnboardingFlow: React.FC = () => {
     >
       {/* Left Visual Art Panel (Hidden on mobile, and hidden during wide steps) */}
       {step !== 'plan-selection' && step !== 'ghost-meeting' && (
-        <div className="hidden lg:flex w-1/2 h-full bg-slate-950 p-12 flex-col justify-between relative overflow-hidden border-r border-white/[0.04]">
+        <div className="hidden lg:flex w-1/2 h-full bg-slate-950 p-12 flex-col relative overflow-hidden border-r border-white/[0.04]">
           <div className="absolute inset-0 with-noise opacity-[0.03] pointer-events-none z-0" />
           <motion.div
             className="absolute inset-0 pointer-events-none z-0 transition-opacity duration-300 opacity-60"
@@ -401,12 +402,7 @@ export const OnboardingFlow: React.FC = () => {
             </motion.div>
           </AnimatePresence>
 
-          <div className="relative z-10 pt-10 mt-auto">
-            <div className="flex items-center gap-3 text-[11px] font-mono tracking-[0.2em] text-slate-500 uppercase bg-black/20 w-max px-4 py-2 rounded-full border border-white/5 backdrop-blur-md">
-              <div className="w-2 h-2 rounded-full bg-emerald-500/80 animate-pulse shadow-[0_0_8px_rgba(16,185,129,0.5)]" />
-              All processing happens locally.
-            </div>
-          </div>
+
         </div>
       )}
 
@@ -431,7 +427,10 @@ export const OnboardingFlow: React.FC = () => {
             </div>
 
             {!authLoading && (
-              <div className="hidden lg:block mb-8 ">
+              <div className="hidden lg:flex lg:flex-col lg:items-center mb-8">
+                <div className="mb-5">
+                  <Logo size="lg" />
+                </div>
                 <h2 className="text-2xl font-semibold tracking-wide text-white">
                   {authMode === 'register' ? 'Create Account' : 'Sign In'}
                 </h2>

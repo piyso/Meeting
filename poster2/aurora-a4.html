@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BlueArkive - Light Glass Interface (A4)</title>
+    <link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700;800;900&family=Geist+Mono:wght@500;600;700&display=swap" rel="stylesheet">
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        
+        :root {
+            --canvas: #F8FAFC;
+            --deep-ink: #050B14;
+            --slate-text: #475569;
+            --muted-text: #94A3B8;
+            
+            --sky-blue: #0EA5E9;
+            --ocean-blue: #2563EB;
+            --mint: #10B981;
+            --emerald: #059669;
+            
+            --violet: #8B5CF6;
+            --gold: #F59E0B;
+            --peach: #FB923C;
+            --coral: #F43F5E;
+        }
+
+        @page { size: A4 portrait; margin: 0; }
+
+        body {
+            background-color: #0B1121;
+            display: flex; justify-content: center; align-items: center;
+            min-height: 100vh; padding: 3rem;
+            font-family: 'Instrument Sans', sans-serif;
+            -webkit-font-smoothing: antialiased;
+            overflow: auto;
+        }
+
+        .poster {
+            width: 210mm; height: 297mm; /* Exact A4 size */
+            background-color: var(--canvas); 
+            position: relative; overflow: hidden;
+            box-shadow: 0 30px 80px rgba(0, 0, 0, 0.4), 0 10px 30px rgba(0, 0, 0, 0.2);
+            -webkit-print-color-adjust: exact; print-color-adjust: exact;
+            
+            animation: posterReveal 1.2s cubic-bezier(0.16, 1, 0.3, 1) both;
+            transform-origin: center;
+            padding: 15mm; /* Adds margin around the glass card */
+        }
+
+        /* 🖨️ CRITICAL PRINT STYLES */
+        @media print {
+            body { background: none; padding: 0; display: block; }
+            .poster { box-shadow: none; animation: none; transform: none !important; }
+            * { animation: none !important; }
+            .master-card { transform: none !important; box-shadow: 0 10px 20px rgba(0,0,0,0.05), inset 0 0 0 1px rgba(0,0,0,0.1) !important; filter: none !important;}
+            .pill-badge { transform: none !important; box-shadow: 0 5px 15px rgba(0,0,0,0.1) !important; }
+            .ambient-fluid, .flow-container { display: none !important; }
+            .highlight { filter: none !important; color: var(--gold) !important; -webkit-text-fill-color: var(--gold) !important; }
+        }
+
+        @keyframes posterReveal {
+            from { opacity: 0; transform: scale(0.97) translateY(20px); filter: blur(12px); }
+            to { opacity: 1; transform: scale(1) translateY(0); filter: blur(0); }
+        }
+
+        .noise-layer {
+            position: absolute; inset: 0; pointer-events: none; z-index: 100;
+            background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 400 400' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E");
+            opacity: 0.04; mix-blend-mode: color-burn;
+        }
+
+        .ambient-fluid {
+            position: absolute; inset: -30%; z-index: 1; pointer-events: none;
+            filter: blur(80px); opacity: 0.6;
+            animation: volumeBreathe 20s ease-in-out infinite alternate;
+        }
+        
+        .light-orb { position: absolute; border-radius: 50%; opacity: 0.6; mix-blend-mode: soft-light; animation: orbit 25s linear infinite; }
+        .orb-1 { width: 600px; height: 600px; background: radial-gradient(circle, var(--sky-blue), transparent 60%); top: -10%; left: -10%; }
+        .orb-2 { width: 500px; height: 500px; background: radial-gradient(circle, var(--mint), transparent 60%); bottom: -10%; right: 10%; animation-direction: reverse; animation-duration: 35s; }
+
+        @keyframes orbit {
+            0% { transform: rotate(0deg) translateX(50px) rotate(0deg) scale(1); }
+            50% { transform: rotate(180deg) translateX(50px) rotate(-180deg) scale(1.1); }
+            100% { transform: rotate(360deg) translateX(50px) rotate(-360deg) scale(1); }
+        }
+        @keyframes volumeBreathe { 0% { transform: scale(1); } 100% { transform: scale(1.05); } }
+
+        /* The Destiny-style Vertical Glass Component */
+        .master-card {
+            position: relative; width: 100%; height: 100%; z-index: 10;
+            background: rgba(255, 255, 255, 0.65);
+            border-radius: 20px; padding: 20mm;
+            backdrop-filter: blur(60px) saturate(150%); -webkit-backdrop-filter: blur(60px) saturate(150%);
+            box-shadow: 0 40px 100px rgba(5, 11, 20, 0.08), 0 15px 35px rgba(14, 165, 233, 0.1), inset 0 0 0 1px rgba(255, 255, 255, 0.9), inset 0 3px 8px rgba(255, 255, 255, 1);
+            display: flex; flex-direction: column;
+            transform-style: preserve-3d;
+            transition: transform 0.8s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.8s ease; animation: cardEnter 1.2s cubic-bezier(0.16, 1, 0.3, 1) 0.5s both;
+        }
+
+        .master-card:hover {
+            transform: scale(1.01) rotateX(1deg) rotateY(-1deg) translateY(-5px);
+            box-shadow: 0 60px 140px rgba(5, 11, 20, 0.1), 0 20px 60px rgba(14, 165, 233, 0.12), inset 0 0 0 1px rgba(255, 255, 255, 1), inset 0 4px 10px rgba(255, 255, 255, 1);
+        }
+
+        .master-card::after {
+            content: ''; position: absolute; inset: 0; border-radius: 20px;
+            background: linear-gradient(135deg, rgba(255,255,255,0.8) 0%, rgba(255,255,255,0) 40%, rgba(255,255,255,0.4) 100%);
+            pointer-events: none; opacity: 0.8; z-index: 10;
+        }
+
+        .mac-controls { position: absolute; top: 12mm; left: 12mm; display: flex; gap: 6px; z-index: 10; }
+        .mac-dot { width: 10px; height: 10px; border-radius: 50%; box-shadow: inset 0 2px 4px rgba(0,0,0,0.1); }
+        .red-dot { background: #FF5F56; } .yellow-dot { background: #FFBD2E; } .green-dot { background: #27C93F; }
+
+        /* F-Pattern Layout Alignment within Card */
+        
+        .brand-header {
+            display: flex; align-items: center; gap: 10px; font-size: 16pt; font-weight: 800; color: var(--deep-ink);
+            letter-spacing: -0.02em; margin-bottom: 25mm; z-index: 20; position: relative;
+        }
+        
+        .halo-logo { position: relative; width: 24px; height: 24px; border-radius: 50%; background: var(--deep-ink); display: flex; justify-content: center; align-items: center; }
+        .halo-logo::before {
+            content: ''; position: absolute; inset: -2px; border-radius: 50%;
+            background: conic-gradient(from 0deg, var(--sky-blue), var(--mint), var(--ocean-blue), var(--sky-blue));
+            animation: spin 4s linear infinite; z-index: -1; mask: radial-gradient(transparent 60%, black 65%); -webkit-mask: radial-gradient(transparent 60%, black 65%);
+        }
+        .halo-logo .dot { width: 6px; height: 6px; background: white; border-radius: 50%; box-shadow: 0 0 6px rgba(255,255,255,0.8); }
+
+        .hero-headline { font-size: 36pt; font-weight: 800; line-height: 1.05; letter-spacing: -0.03em; margin-bottom: 15mm; color: var(--deep-ink); position: relative; z-index: 20;}
+        .highlight {
+            background: linear-gradient(to right, #F59E0B, #FB923C, #F43F5E);
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent; font-weight: 900;
+        }
+
+        .sub-headline { font-size: 16pt; font-weight: 500; line-height: 1.4; color: var(--slate-text); margin-bottom: 22mm; position: relative; z-index: 20;}
+
+        /* Inner Glass Pane for Features */
+        .features-pane {
+            background: rgba(255, 255, 255, 0.4); border-radius: 16px; padding: 15mm; margin-bottom: 25mm;
+            border: 1px solid rgba(255,255,255,0.8); box-shadow: inset 0 2px 10px rgba(255,255,255,0.6), 0 10px 25px rgba(0,0,0,0.03);
+            position: relative; z-index: 20;
+        }
+
+        .premium-check-list { display: flex; flex-direction: column; gap: 15px; }
+        .check-item { display: flex; align-items: center; gap: 15px; }
+        .check-ring {
+            width: 24px; height: 24px; border-radius: 50%; background: rgba(16, 185, 129, 0.1); border: 2px solid rgba(16, 185, 129, 0.3);
+            display: flex; justify-content: center; align-items: center; flex-shrink: 0; color: var(--mint); box-shadow: 0 0 8px rgba(16, 185, 129, 0.15);
+        }
+        .check-main { font-size: 14pt; font-weight: 700; color: var(--deep-ink); line-height: 1.2; }
+
+        /* Comparison Table */
+        .comparison-table { width: 100%; border-collapse: collapse; font-family: 'Geist Mono', monospace; font-size: 11pt; margin-bottom: auto; position: relative; z-index: 20;}
+        .comparison-table th { padding-bottom: 6mm; text-align: left; font-family: 'Instrument Sans', sans-serif; font-weight: 800; font-size: 14pt; border-bottom: 2px solid rgba(0,0,0,0.1); color: var(--deep-ink);}
+        .comparison-table th.brand-col { color: var(--ocean-blue); font-size: 16pt;}
+        .comparison-table td { padding: 5mm 0; border-bottom: 1px solid rgba(0,0,0,0.05); color: var(--slate-text); }
+        .comparison-table td.label-col { font-weight: 600; color: var(--deep-ink); font-family: 'Instrument Sans', sans-serif; font-size: 13pt;}
+        .comparison-table td.brand-col { color: var(--deep-ink); font-weight: 700; font-family: 'Instrument Sans', sans-serif; font-size: 13pt;}
+
+        .card-footer { display: flex; align-items: baseline; justify-content: space-between; position: relative; z-index: 20; padding-top: 10mm;}
+        .website-link { font-size: 18pt; font-weight: 800; color: var(--peach); letter-spacing: -0.01em; text-transform: uppercase;}
+        .trust-metrics { display: flex; align-items: center; gap: 8px; font-family: 'Geist Mono', monospace; font-size: 9pt; font-weight: 600; color: var(--slate-text); }
+        .live-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--emerald); animation: pulseLive 2s infinite; }
+
+        @keyframes cardEnter { from { opacity: 0; transform: translateY(40px); filter: blur(10px); } to { opacity: 1; transform: translateY(0); filter: blur(0); } }
+    </style>
+</head>
+<body>
+
+    <div class="poster">
+        
+        <div class="ambient-fluid">
+            <div class="light-orb orb-1"></div>
+            <div class="light-orb orb-2"></div>
+        </div>
+
+        <div class="master-card">
+            <div class="mac-controls"><div class="mac-dot red-dot"></div><div class="mac-dot yellow-dot"></div><div class="mac-dot green-dot"></div></div>
+            
+            <div class="brand-header"><div class="halo-logo"><div class="dot"></div></div>BlueArkive</div>
+            
+            <h1 class="hero-headline">You had 6 meetings today.<br>Can you remember what was decided in <span class="highlight">the second one?</span></h1>
+            
+            <div class="sub-headline">BlueArkive listens to every meeting and writes the notes for you. Action items, summaries, and follow-up drafts — ready before you even hang up.</div>
+            
+            <div class="features-pane">
+                <div class="premium-check-list">
+                    <div class="check-item"><div class="check-ring"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg></div><span class="check-main">Unlimited free meetings</span></div>
+                    <div class="check-item"><div class="check-ring"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg></div><span class="check-main">No AI bots. Entirely invisible to others.</span></div>
+                    <div class="check-item"><div class="check-ring"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg></div><span class="check-main">Works perfectly offline</span></div>
+                    <div class="check-item"><div class="check-ring"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg></div><span class="check-main">Your data never leaves your computer</span></div>
+                </div>
+            </div>
+
+            <table class="comparison-table">
+                <thead><tr><th></th><th>Typical Tools</th><th class="brand-col">BlueArkive</th></tr></thead>
+                <tbody>
+                    <tr><td class="label-col">Free tier</td><td>300 min/mo</td><td class="brand-col">Unlimited. Forever.</td></tr>
+                    <tr><td class="label-col">Yearly cost</td><td style="text-decoration: line-through; text-decoration-color: var(--coral);">Over $200/yr</td><td class="brand-col" style="color: var(--peach);">$0</td></tr>
+                    <tr><td class="label-col">Bot joins?</td><td>Yes</td><td class="brand-col">Never</td></tr>
+                    <tr><td class="label-col">Offline mode</td><td>No</td><td class="brand-col">Yes</td></tr>
+                    <tr><td class="label-col">Your Data</td><td>Their servers</td><td class="brand-col">Your device</td></tr>
+                </tbody>
+            </table>
+            
+            <div class="card-footer">
+                <div class="website-link">BLUEARKIVE.COM</div>
+                <div class="trust-metrics"><div class="live-dot"></div>Join 1,200+ professionals this month</div>
+            </div>
+        </div>
+
+        <div class="noise-layer"></div>
+    </div>
+
+</body>
+</html>

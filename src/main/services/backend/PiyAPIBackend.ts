@@ -69,6 +69,25 @@ export class PiyAPIBackend implements IBackendProvider {
     }
   }
 
+  // ════════════════════════════════════════════════════════════════
+  //  C-4 AUDIT: Timeout-guarded fetch for all API calls
+  //  Prevents indefinite hangs during network partitions.
+  //  healthCheck already uses its own 5s AbortController.
+  // ════════════════════════════════════════════════════════════════
+  private async fetchWithTimeout(
+    url: string,
+    init: RequestInit = {},
+    timeoutMs: number = 15_000
+  ): Promise<Response> {
+    const controller = new AbortController()
+    const timer = setTimeout(() => controller.abort(), timeoutMs)
+    try {
+      return await fetch(url, { ...init, signal: controller.signal })
+    } finally {
+      clearTimeout(timer)
+    }
+  }
+
   /**
    * Check if backend is using Edge Function proxy mode
    */
@@ -102,7 +121,7 @@ export class PiyAPIBackend implements IBackendProvider {
       )
     }
 
-    const response = await fetch(`${this.baseUrl}/auth/login`, {
+    const response = await this.fetchWithTimeout(`${this.baseUrl}/auth/login`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ email, password }),
@@ -143,7 +162,7 @@ export class PiyAPIBackend implements IBackendProvider {
       throw new Error('Token refresh is handled by AuthService in proxy mode.')
     }
 
-    const response = await fetch(`${this.baseUrl}/auth/refresh`, {
+    const response = await this.fetchWithTimeout(`${this.baseUrl}/auth/refresh`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ refresh_token: refreshToken }),
@@ -184,7 +203,7 @@ export class PiyAPIBackend implements IBackendProvider {
     // Only call PiyAPI logout in direct mode
     if (!this.proxyMode) {
       try {
-        await fetch(`${this.baseUrl}/auth/logout`, {
+        await this.fetchWithTimeout(`${this.baseUrl}/auth/logout`, {
           method: 'POST',
           headers: {
             Authorization: `Bearer ${this.accessToken}`,
@@ -214,7 +233,7 @@ export class PiyAPIBackend implements IBackendProvider {
   public async createMemory(memory: Memory): Promise<Memory> {
     await this.ensureAuthenticated()
 
-    const response = await fetch(`${this.baseUrl}/memories`, {
+    const response = await this.fetchWithTimeout(`${this.baseUrl}/memories`, {
       method: 'POST',
       headers: {
         Authorization: `Bearer ${this.accessToken}`,
@@ -240,7 +259,7 @@ export class PiyAPIBackend implements IBackendProvider {
     await this.ensureAuthenticated()
 
     // Try batch endpoint first
-    const response = await fetch(`${this.baseUrl}/memories/batch`, {
+    const response = await this.fetchWithTimeout(`${this.baseUrl}/memories/batch`, {
       method: 'POST',
       headers: {
         Authorization: `Bearer ${this.accessToken}`,
@@ -273,7 +292,7 @@ export class PiyAPIBackend implements IBackendProvider {
   public async updateMemory(id: string, updates: Partial<Memory>): Promise<Memory> {
     await this.ensureAuthenticated()
 
-    const response = await fetch(`${this.baseUrl}/memories/${id}`, {
+    const response = await this.fetchWithTimeout(`${this.baseUrl}/memories/${id}`, {
       method: 'PATCH',
       headers: {
         Authorization: `Bearer ${this.accessToken}`,
@@ -297,7 +316,7 @@ export class PiyAPIBackend implements IBackendProvider {
   public async deleteMemory(id: string): Promise<void> {
     await this.ensureAuthenticated()
 
-    const response = await fetch(`${this.baseUrl}/memories/${id}`, {
+    const response = await this.fetchWithTimeout(`${this.baseUrl}/memories/${id}`, {
       method: 'DELETE',
       headers: {
         Authorization: `Bearer ${this.accessToken}`,
@@ -326,7 +345,7 @@ export class PiyAPIBackend implements IBackendProvider {
       offset: offset.toString(),
     })
 
-    const response = await fetch(`${this.baseUrl}/memories?${params}`, {
+    const response = await this.fetchWithTimeout(`${this.baseUrl}/memories?${params}`, {
       method: 'GET',
       headers: {
         Authorization: `Bearer ${this.accessToken}`,
@@ -357,7 +376,7 @@ export class PiyAPIBackend implements IBackendProvider {
       body.namespace = namespace
     }
 
-    const response = await fetch(`${this.baseUrl}/search/semantic`, {
+    const response = await this.fetchWithTimeout(`${this.baseUrl}/search/semantic`, {
       method: 'POST',
       headers: {
         Authorization: `Bearer ${this.accessToken}`,
@@ -390,7 +409,7 @@ export class PiyAPIBackend implements IBackendProvider {
       body.namespace = namespace
     }
 
-    const response = await fetch(`${this.baseUrl}/search/hybrid`, {
+    const response = await this.fetchWithTimeout(`${this.baseUrl}/search/hybrid`, {
       method: 'POST',
       headers: {
         Authorization: `Bearer ${this.accessToken}`,
@@ -419,7 +438,7 @@ export class PiyAPIBackend implements IBackendProvider {
       body.namespace = namespace
     }
 
-    const response = await fetch(`${this.baseUrl}/ask`, {
+    const response = await this.fetchWithTimeout(`${this.baseUrl}/ask`, {
       method: 'POST',
       headers: {
         Authorization: `Bearer ${this.accessToken}`,
@@ -448,7 +467,7 @@ export class PiyAPIBackend implements IBackendProvider {
       max_hops: maxHops.toString(),
     })
 
-    const response = await fetch(`${this.baseUrl}/graph?${params}`, {
+    const response = await this.fetchWithTimeout(`${this.baseUrl}/graph?${params}`, {
       method: 'GET',
       headers: {
         Authorization: `Bearer ${this.accessToken}`,
@@ -476,7 +495,7 @@ export class PiyAPIBackend implements IBackendProvider {
     })
 
     // Live-verified: /graph/traverse returns 404. /graph?memory_id= returns 200
-    const response = await fetch(`${this.baseUrl}/graph?${params}`, {
+    const response = await this.fetchWithTimeout(`${this.baseUrl}/graph?${params}`, {
       method: 'GET',
       headers: {
         Authorization: `Bearer ${this.accessToken}`,
@@ -516,7 +535,7 @@ export class PiyAPIBackend implements IBackendProvider {
         ? this.baseUrl.replace(/\/piyapi-proxy$/, '')
         : this.baseUrl.replace(/\/api\/v1$/, '/health')
 
-      const response = await fetch(healthUrl, {
+      const response = await this.fetchWithTimeout(healthUrl, {
         method: 'GET',
         signal: controller.signal,
         headers: this.accessToken ? { Authorization: `Bearer ${this.accessToken}` } : {},
@@ -576,7 +595,7 @@ export class PiyAPIBackend implements IBackendProvider {
       const body: Record<string, unknown> = { query, limit, threshold: 0.3 }
       if (namespace) body.namespace = namespace
 
-      const response = await fetch(`${this.baseUrl}/search/fuzzy`, {
+      const response = await this.fetchWithTimeout(`${this.baseUrl}/search/fuzzy`, {
         method: 'POST',
         headers: {
           Authorization: `Bearer ${this.accessToken}`,
@@ -601,7 +620,7 @@ export class PiyAPIBackend implements IBackendProvider {
   public async feedbackPositive(memoryIds: string[]): Promise<boolean> {
     try {
       await this.ensureAuthenticated()
-      const response = await fetch(`${this.baseUrl}/feedback/positive`, {
+      const response = await this.fetchWithTimeout(`${this.baseUrl}/feedback/positive`, {
         method: 'POST',
         headers: {
           Authorization: `Bearer ${this.accessToken}`,
@@ -622,7 +641,7 @@ export class PiyAPIBackend implements IBackendProvider {
   public async feedbackNegative(memoryIds: string[]): Promise<boolean> {
     try {
       await this.ensureAuthenticated()
-      const response = await fetch(`${this.baseUrl}/feedback/negative`, {
+      const response = await this.fetchWithTimeout(`${this.baseUrl}/feedback/negative`, {
         method: 'POST',
         headers: {
           Authorization: `Bearer ${this.accessToken}`,
@@ -653,7 +672,7 @@ export class PiyAPIBackend implements IBackendProvider {
       const body: Record<string, unknown> = { content }
       if (memoryId) body.memory_id = memoryId
 
-      const response = await fetch(`${this.baseUrl}/kg/ingest`, {
+      const response = await this.fetchWithTimeout(`${this.baseUrl}/kg/ingest`, {
         method: 'POST',
         headers: {
           Authorization: `Bearer ${this.accessToken}`,
@@ -686,7 +705,7 @@ export class PiyAPIBackend implements IBackendProvider {
       }
       if (namespace) body.namespace = namespace
 
-      const response = await fetch(`${this.baseUrl}/memories/deduplicate`, {
+      const response = await this.fetchWithTimeout(`${this.baseUrl}/memories/deduplicate`, {
         method: 'POST',
         headers: {
           Authorization: `Bearer ${this.accessToken}`,
@@ -712,7 +731,7 @@ export class PiyAPIBackend implements IBackendProvider {
   public async checkPhi(text: string): Promise<{ risk_level: string; entities: unknown[] } | null> {
     try {
       await this.ensureAuthenticated()
-      const response = await fetch(`${this.baseUrl}/compliance/phi`, {
+      const response = await this.fetchWithTimeout(`${this.baseUrl}/compliance/phi`, {
         method: 'POST',
         headers: {
           Authorization: `Bearer ${this.accessToken}`,
@@ -738,7 +757,7 @@ export class PiyAPIBackend implements IBackendProvider {
   ): Promise<{ download_url: string } | null> {
     try {
       await this.ensureAuthenticated()
-      const response = await fetch(`${this.baseUrl}/export?type=${type}`, {
+      const response = await this.fetchWithTimeout(`${this.baseUrl}/export?type=${type}`, {
         method: 'GET',
         headers: {
           Authorization: `Bearer ${this.accessToken}`,
@@ -775,7 +794,7 @@ export class PiyAPIBackend implements IBackendProvider {
       await this.ensureAuthenticated()
 
       // Step 1: Ingest content into KG (triggers server-side entity extraction)
-      const ingestResponse = await fetch(`${this.baseUrl}/kg/ingest`, {
+      const ingestResponse = await this.fetchWithTimeout(`${this.baseUrl}/kg/ingest`, {
         method: 'POST',
         headers: {
           Authorization: `Bearer ${this.accessToken}`,
@@ -793,7 +812,7 @@ export class PiyAPIBackend implements IBackendProvider {
 
       // Step 2: Fetch the recently extracted entities from KG
       try {
-        const entitiesResponse = await fetch(
+        const entitiesResponse = await this.fetchWithTimeout(
           `${this.baseUrl}/kg/entities?limit=${Math.min(extractedCount + 5, 50)}`,
           {
             headers: {
@@ -843,7 +862,7 @@ export class PiyAPIBackend implements IBackendProvider {
 
       // Try bulk endpoint first (in case PiyAPI adds it)
       try {
-        const response = await fetch(`${this.baseUrl}/data/delete-all`, {
+        const response = await this.fetchWithTimeout(`${this.baseUrl}/data/delete-all`, {
           method: 'DELETE',
           headers: { Authorization: `Bearer ${this.accessToken}` },
         })
@@ -864,16 +883,29 @@ export class PiyAPIBackend implements IBackendProvider {
 
       for (const ns of namespaces) {
         try {
-          const memories = await this.getMemories(ns, 100, 0)
-          for (const mem of memories) {
-            if (mem.id) {
-              try {
-                await this.deleteMemory(mem.id)
-                totalDeleted++
-              } catch (e) {
-                log.debug(`GDPR: Failed to delete memory ${mem.id}:`, (e as Error).message)
+          // M-18 AUDIT: Paginate to delete ALL memories, not just the first 100.
+          // GDPR Article 17 requires complete erasure — partial deletion is non-compliant.
+          const MAX_PAGES = 50 // Safety cap: 50 pages × 100 = 5000 memories max per namespace
+          let page = 0
+          let hasMore = true
+          while (hasMore && page < MAX_PAGES) {
+            const memories = await this.getMemories(ns, 100, 0) // Always offset 0 — items shift down
+            if (memories.length === 0) {
+              hasMore = false
+              break
+            }
+            for (const mem of memories) {
+              if (mem.id) {
+                try {
+                  await this.deleteMemory(mem.id)
+                  totalDeleted++
+                } catch (e) {
+                  log.debug(`GDPR: Failed to delete memory ${mem.id}:`, (e as Error).message)
+                }
               }
             }
+            page++
+            if (memories.length < 100) hasMore = false
           }
         } catch (e) {
           log.debug(`GDPR: Namespace ${ns} cleanup skipped:`, (e as Error).message)
@@ -901,7 +933,7 @@ export class PiyAPIBackend implements IBackendProvider {
   ): Promise<Array<{ id: string; label: string; type: string; score: number }>> {
     try {
       await this.ensureAuthenticated()
-      const response = await fetch(`${this.baseUrl}/graph/search`, {
+      const response = await this.fetchWithTimeout(`${this.baseUrl}/graph/search`, {
         method: 'POST',
         headers: {
           Authorization: `Bearer ${this.accessToken}`,
@@ -930,7 +962,7 @@ export class PiyAPIBackend implements IBackendProvider {
   }> {
     try {
       await this.ensureAuthenticated()
-      const response = await fetch(
+      const response = await this.fetchWithTimeout(
         `${this.baseUrl}/graph/stats?namespace=${encodeURIComponent(namespace)}`,
         {
           headers: {
@@ -996,7 +1028,7 @@ export class PiyAPIBackend implements IBackendProvider {
   }): Promise<{ context_session_id: string; expires_at: number } | null> {
     try {
       await this.ensureAuthenticated()
-      const response = await fetch(`${this.baseUrl}/context/sessions`, {
+      const response = await this.fetchWithTimeout(`${this.baseUrl}/context/sessions`, {
         method: 'POST',
         headers: {
           Authorization: `Bearer ${this.accessToken}`,
@@ -1027,7 +1059,7 @@ export class PiyAPIBackend implements IBackendProvider {
     try {
       await this.ensureAuthenticated()
       // P4-1 FIX: encodeURIComponent for sessionId to prevent injection
-      const response = await fetch(
+      const response = await this.fetchWithTimeout(
         `${this.baseUrl}/context/retrieve?session_id=${encodeURIComponent(sessionId)}&query=${encodeURIComponent(query)}`,
         {
           headers: {

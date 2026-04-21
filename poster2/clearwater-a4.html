@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BlueArkive - Clear Water Handout (A4)</title>
+    <link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;700;800;900&family=Geist+Mono:wght@500;700&display=swap" rel="stylesheet">
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        
+        :root { --canvas: #F8FAFC; --deep-ink: #0F172A; --slate: #64748B; --sky-blue: #38BDF8; --mint: #34D399; }
+        @page { size: A4 portrait; margin: 0; }
+
+        body {
+            width: 210mm; height: 297mm; background-color: var(--canvas); color: var(--deep-ink);
+            font-family: 'Instrument Sans', sans-serif; padding: 25mm 20mm;
+            -webkit-print-color-adjust: exact; print-color-adjust: exact;
+            display: flex; flex-direction: column; align-items: flex-start;
+        }
+
+        .logo { font-size: 16pt; font-weight: 800; letter-spacing: -0.02em; margin-bottom: 25mm; display: flex; align-items: center; gap: 8px; }
+        .logo-mark { width: 16px; height: 16px; border-radius: 50%; background-color: var(--deep-ink); }
+
+        .hook { font-size: 30pt; font-weight: 800; line-height: 1.05; letter-spacing: -0.03em; margin-bottom: 20mm; width: 100%; text-align: left; }
+        
+        .promise { font-size: 12pt; color: var(--slate); line-height: 1.5; margin-bottom: 15mm; width: 90%; font-weight: 400; text-align: left; }
+        
+        .trojan-horse { font-size: 11pt; line-height: 1.5; margin-bottom: 20mm; width: 95%; text-align: left; }
+        .trojan-horse strong { font-weight: 700; display: block; margin-bottom: 4px; font-size: 12pt; color: var(--deep-ink); }
+
+        .proof { list-style: none; font-family: 'Geist Mono', monospace; font-size: 9pt; line-height: 2.2; margin-bottom: 20mm; width: 100%; }
+        .proof li { display: flex; align-items: center; gap: 10px; }
+        .proof li::before { content: '✓'; color: var(--mint); font-weight: bold; font-size: 12pt; font-family: 'Instrument Sans', sans-serif;}
+
+        .compare-table { width: 100%; border-collapse: collapse; margin-bottom: auto; font-family: 'Instrument Sans', sans-serif; font-size: 10pt; }
+        .compare-table th { text-align: left; padding: 4mm 0; border-bottom: 2px solid #E2E8F0; color: var(--slate); font-weight: 700; font-size: 9pt; text-transform: uppercase; letter-spacing: 0.03em; }
+        .compare-table td { text-align: left; padding: 5mm 0; border-bottom: 1px solid #E2E8F0; font-weight: 500; }
+        .col-competitor { color: var(--slate); }
+        .col-bluearkive { font-weight: 800; color: var(--deep-ink); }
+
+        .footer { width: 100%; font-size: 14pt; font-weight: 800; display: flex; justify-content: space-between; align-items: flex-end; }
+        .social-proof { font-family: 'Geist Mono', monospace; font-size: 9pt; color: var(--slate); margin-top: 6px; font-weight: 500; }
+        
+        .qr-placeholder { width: 25mm; height: 25mm; background: #E2E8F0; border-radius: 4px; display: flex; align-items: center; justify-content: center; font-size: 8pt; color: var(--slate); font-weight: 700;}
+    </style>
+</head>
+<body>
+    <div class="logo"><div class="logo-mark"></div>BlueArkive</div>
+    
+    <div class="hook">You had 6 meetings today.<br>Can you remember what was decided in the second one?</div>
+    
+    <div class="promise">BlueArkive listens to every meeting and writes the notes for you. Action items, summaries, follow-up drafts — ready before you hang up.</div>
+    
+    <div class="trojan-horse">
+        <strong>Why it's free:</strong>
+        <span style="color: var(--slate)">Other tools process your audio on expensive cloud servers (over $200/yr). BlueArkive runs entirely on your Mac. Our costs are zero. Your limits are zero.</span>
+    </div>
+
+    <ul class="proof">
+        <li>Unlimited meetings — free forever</li>
+        <li>No AI bots on your calls</li>
+        <li>Works without internet</li>
+        <li>Auto action items & follow-up emails</li>
+        <li>Search across 100s of meetings</li>
+        <li>Your data never leaves your device</li>
+    </ul>
+
+    <table class="compare-table">
+        <tr><th></th><th class="col-competitor">Typical Tools</th><th class="col-bluearkive">BlueArkive</th></tr>
+        <tr><td style="font-weight: 700">Free tier</td><td class="col-competitor">300 min/mo</td><td class="col-bluearkive">Unlimited. Forever.</td></tr>
+        <tr><td style="font-weight: 700">Yearly cost</td><td class="col-competitor">Over $200</td><td class="col-bluearkive">$0</td></tr>
+        <tr><td style="font-weight: 700">Bot?</td><td class="col-competitor">Yes</td><td class="col-bluearkive">Never</td></tr>
+        <tr><td style="font-weight: 700">Offline?</td><td class="col-competitor">No</td><td class="col-bluearkive">Yes</td></tr>
+        <tr><td style="font-weight: 700">Data</td><td class="col-competitor">Their servers</td><td class="col-bluearkive">Your device</td></tr>
+    </table>
+
+    <div class="footer">
+        <div>
+            bluearkive.com
+            <div class="social-proof">"Join 1,200+ professionals"</div>
+        </div>
+        <div class="qr-placeholder">QR Code</div>
+    </div>
+</body>
+</html>

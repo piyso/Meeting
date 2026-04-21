@@ -468,7 +468,8 @@ export class AuthService {
     this.scheduleRefresh(result.tokens.expiresIn)
     this.startSessionTimer()
 
-    log.info('Google OAuth login successful', { email: result.user.email })
+    const maskedEmail = result.user.email.replace(/^(.{2})(.*)(@.*)$/, '$1***$3')
+    log.info('Google OAuth login successful', { email: maskedEmail })
     return result
   }
 

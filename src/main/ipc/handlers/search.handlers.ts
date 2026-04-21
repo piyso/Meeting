@@ -15,8 +15,9 @@ export function registerSearchHandlers(): void {
           error: { code: 'INVALID_PARAMS', message: 'query is required', timestamp: Date.now() },
         }
       }
-      const results = searchAll(params.query, {
-        limit: params.limit || 20,
+      // M-14 AUDIT: Cap limit to prevent large result set abuse
+      const results = searchAll(params.query.substring(0, 500), {
+        limit: Math.min(params.limit || 20, 100),
       })
       return { success: true, data: results }
     } catch (error) {
@@ -119,6 +120,7 @@ export function registerSearchHandlers(): void {
       const searchResults = await embeddingService.search(
         params.query,
         documents,
+        // M-14 AUDIT: Cap semantic search limit
         params.limit || 10
       )
 

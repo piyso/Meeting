@@ -145,35 +145,33 @@ export class ModelManager {
     // Wait for any in-progress unload to complete before loading
     if (this.isUnloading && this.unloadPromise) {
       const TIMEOUT = 10_000
+      let timeoutId: ReturnType<typeof setTimeout> | undefined
       try {
         await Promise.race([
           this.unloadPromise,
-          new Promise<void>((_, reject) =>
-            setTimeout(() => {
+          new Promise<void>((_, reject) => {
+            timeoutId = setTimeout(() => {
               this.isUnloading = false // Force-clear stuck flag
               reject(new Error('Timed out waiting for model unload'))
             }, TIMEOUT)
-          ),
-        ])
+          }),
+        ]).finally(() => {
+          if (timeoutId) clearTimeout(timeoutId)
+        })
       } catch (err) {
         this.log.warn((err as Error).message)
       }
     }
 
-    if (this.llmLoaded && _context) {
-      this.resetUnloadTimer()
+    // TOCTOU fix: Check isLoading FIRST — prevents concurrent callers
+    // from both passing the llmLoaded check and entering the load path
+    if (this.isLoading && this.loadPromise) {
+      await this.loadPromise
       return
     }
 
-    if (this.isLoading && this.loadPromise) {
-      // Wait for current load to finish (with 30s timeout)
-      const TIMEOUT = 30_000
-      await Promise.race([
-        this.loadPromise,
-        new Promise<void>((_, reject) =>
-          setTimeout(() => reject(new Error('Timed out waiting for model load')), TIMEOUT)
-        ),
-      ])
+    if (this.llmLoaded && _context) {
+      this.resetUnloadTimer()
       return
     }
 
@@ -310,7 +308,8 @@ export class ModelManager {
    * Clean up idle sessions from the pool
    */
   private scheduleSessionCleanup(): void {
-    setTimeout(() => {
+    // M-4 AUDIT: .unref() prevents this timer from blocking clean process exit
+    const timer = setTimeout(() => {
       const now = Date.now()
       for (const [key, entry] of this.sessionPool) {
         if (now - entry.lastUsed > this.SESSION_IDLE_MS) {
@@ -328,6 +327,7 @@ export class ModelManager {
         this.scheduleSessionCleanup()
       }
     }, this.SESSION_IDLE_MS)
+    timer.unref()
   }
 
   /**

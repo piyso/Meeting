@@ -64,6 +64,39 @@ export function registerSettingsHandlers(): void {
   })
 
   // settings:update — Set a single key-value pair
+  // C-5 AUDIT: Key allowlist prevents XSS/extension abuse of internal settings
+  const ALLOWED_SETTINGS_KEYS = new Set([
+    // User preferences
+    'transcription_language',
+    'theme',
+    'autoSaveInterval',
+    'sidebarCollapsed',
+    'defaultNamespace',
+    'showTimestamps',
+    'showSpeakerLabels',
+    'notify_action_items',
+    'notify_sentiment_alerts',
+    'auto_generate_digest',
+    // Feature flags (prefixed)
+    'feature:phi_detection',
+    'feature:sentiment_analysis',
+    'feature:knowledge_graph',
+    'feature:webhooks',
+    'feature:ai_expansion',
+    'feature:calendar_sync',
+    // Security/privacy
+    'phiDetectionEnabled',
+    'maskPHIBeforeSync',
+    // Cloud transcription
+    'cloud_transcription_enabled',
+    'deepgram_language',
+    // Webhook/integration
+    'webhook_enabled',
+    // Calendar
+    'calendar_sync_enabled',
+    'calendar_sync_interval',
+  ])
+
   ipcMain.handle('settings:update', async (_, params) => {
     try {
       if (!params?.key || params?.value === undefined) {
@@ -76,6 +109,19 @@ export function registerSettingsHandlers(): void {
           },
         }
       }
+
+      // C-5 AUDIT FIX: Reject unknown keys to prevent config manipulation
+      if (!ALLOWED_SETTINGS_KEYS.has(params.key)) {
+        return {
+          success: false,
+          error: {
+            code: 'INVALID_KEY',
+            message: `Setting key '${params.key}' is not in the allowed keys list.`,
+            timestamp: Date.now(),
+          },
+        }
+      }
+
       const db = getDatabase()
       const now = Math.floor(Date.now() / 1000)
       db.prepare('INSERT OR REPLACE INTO settings (key, value, updated_at) VALUES (?, ?, ?)').run(

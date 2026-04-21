@@ -103,9 +103,10 @@ export type EmbeddingStatus = 'pending' | 'processing' | 'ready' | 'failed'
 export class SyncManager {
   private backend: PiyAPIBackend
   private userId: string | null = null
-  // #2 fix: Password is stored only until encryption is initialized,
-  // then nulled. EncryptionService caches the derived key internally.
-  private password: string | null = null
+  // C-1 AUDIT: Raw password is NOT stored as a class field.
+  // It's received in initialize(), used for PBKDF2 key derivation, then discarded.
+  // Flag to track that encryption was successfully initialized
+  private encryptionReady: boolean = false
   private syncInterval: NodeJS.Timeout | null = null
   private isSyncing: boolean = false
   private retryPending: boolean = false
@@ -125,10 +126,20 @@ export class SyncManager {
    */
   public async initialize(userId: string, password: string): Promise<void> {
     this.userId = userId
-    this.password = password
 
     // Initialize encryption for user if not already done
     await EncryptionService.initializeUserEncryption(userId, password)
+
+    // Pre-warm the PBKDF2 key cache so encryptWithCachedKey() works without raw password.
+    // deriveKey() populates EncryptionService.keyCache with 5-min TTL.
+    const userSalt = EncryptionService.getUserSalt(userId)
+    if (userSalt) {
+      await EncryptionService.deriveKey(password, userSalt)
+    }
+
+    // C-1 AUDIT: password parameter goes out of scope here — never stored on `this`.
+    // EncryptionService.keyCache holds the derived key for subsequent encrypt() calls.
+    this.encryptionReady = true
 
     // Load access token from keychain
     const accessToken = await KeyStorageService.getAccessToken(userId)
@@ -145,14 +156,8 @@ export class SyncManager {
       this.cachedPlanTier = 'free'
     }
 
-    this.log.info(`Initialized for user: ${userId}`)
-
-    // #2 fix: Null out raw password after encryption is initialized.
-    // EncryptionService caches the derived key internally for subsequent encrypt() calls.
-    // This prevents the raw password from being exposed in memory dumps.
-    // NOTE: We keep password for encrypt() calls that need it — EncryptionService
-    // currently requires it. When EncryptionService is refactored to accept
-    // a pre-derived key, we can null this out entirely.
+    // C-2 AUDIT FIX: Truncate userId in logs to prevent PII in crash logs/Sentry
+    this.log.info(`Initialized for user: ${userId.substring(0, 8)}…`)
   }
 
   /**
@@ -252,7 +257,7 @@ export class SyncManager {
       return { success: true, syncedCount: 0, failedCount: 0, errors: [] }
     }
 
-    if (!this.userId || !this.password) {
+    if (!this.userId || !this.encryptionReady) {
       this.log.debug('Not initialized, skipping sync')
       return { success: false, syncedCount: 0, failedCount: 0, errors: ['Not initialized'] }
     }
@@ -349,9 +354,11 @@ export class SyncManager {
             }
 
             // Task 30.4: Encrypt payload before upload
-            const encryptedPayload = await EncryptionService.encrypt(
+            // C-1 AUDIT: Use encryptWithCachedKey — password was zeroed after init.
+            // EncryptionService.keyCache was pre-warmed during initialize().
+            const encryptedPayload = await EncryptionService.encryptWithCachedKey(
               JSON.stringify(chunkPayload),
-              this.password ?? ''
+              this.userId ?? ''
             )
 
             // Convert to Memory format for PiyAPI

@@ -209,14 +209,23 @@ ${batch.map((s, idx) => `${idx}: ${s.text}`).join('\n')}
 JSON:`
 
       // M-11 AUDIT: 30s timeout prevents indefinite hang on slow/stuck LLM
-      const response = await Promise.race([
-        modelManager.generate({
-          prompt,
-          temperature: 0.1,
-          maxTokens: 512,
-        }),
-        new Promise<null>(resolve => setTimeout(() => resolve(null), 30_000)),
-      ])
+      // P2-8 FIX: Track timeout to prevent timer leak when generate() resolves first
+      let llmTimeoutId: ReturnType<typeof setTimeout> | undefined
+      let response: string | null = null
+      try {
+        response = await Promise.race([
+          modelManager.generate({
+            prompt,
+            temperature: 0.1,
+            maxTokens: 512,
+          }, 'sentiment'),
+          new Promise<null>(resolve => {
+            llmTimeoutId = setTimeout(() => resolve(null), 30_000)
+          }),
+        ])
+      } finally {
+        if (llmTimeoutId) clearTimeout(llmTimeoutId)
+      }
 
       if (!response) continue
 
@@ -273,16 +282,25 @@ async function analyzeWithCloudAI(
     const text = segments.map(s => `[${s.speaker_name || 'Speaker'}]: ${s.text}`).join('\n')
 
     // M-11 AUDIT: 30s timeout prevents indefinite hang on cloud API
-    const answer = await Promise.race([
-      backend.ask(
-        `Analyze sentiment per speaker turn. Return JSON array: [{"index": 0, "score": -1.0 to 1.0, "label": "positive"|"neutral"|"negative"}]
+    // P2-8 FIX: Track timeout to prevent timer leak when ask() resolves first
+    let cloudTimeoutId: ReturnType<typeof setTimeout> | undefined
+    let answer: { answer?: string } | null = null
+    try {
+      answer = await Promise.race([
+        backend.ask(
+          `Analyze sentiment per speaker turn. Return JSON array: [{"index": 0, "score": -1.0 to 1.0, "label": "positive"|"neutral"|"negative"}]
 
 ${text.substring(0, 6000)}
 
 JSON:`
-      ),
-      new Promise<null>(resolve => setTimeout(() => resolve(null), 30_000)),
-    ])
+        ),
+        new Promise<null>(resolve => {
+          cloudTimeoutId = setTimeout(() => resolve(null), 30_000)
+        }),
+      ])
+    } finally {
+      if (cloudTimeoutId) clearTimeout(cloudTimeoutId)
+    }
 
     if (!answer?.answer) return []
 

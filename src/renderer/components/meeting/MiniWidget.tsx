@@ -179,7 +179,11 @@ export const MiniWidget: React.FC<MiniWidgetProps> = ({
                 onPauseToggle?.()
               }}
               className="w-6 h-6 rounded-md flex items-center justify-center text-[var(--color-text-secondary)] transition-colors widget-nodrag hover:bg-[rgba(255,255,255,0.15)] bg-[rgba(255,255,255,0.06)] outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-violet)] focus-visible:ring-offset-2 focus-visible:ring-offset-black"
-              title={isPaused ? `Resume Capture (${modKey}+Shift+P)` : `Pause Capture (${modKey}+Shift+P)`}
+              title={
+                isPaused
+                  ? `Resume Capture (${modKey}+Shift+P)`
+                  : `Pause Capture (${modKey}+Shift+P)`
+              }
               aria-label={isPaused ? 'Resume archiving' : 'Pause archiving'}
             >
               {isPaused ? (
@@ -271,7 +275,9 @@ export const MiniWidget: React.FC<MiniWidgetProps> = ({
               className="text-[12px] text-[var(--color-text-secondary)] leading-snug line-clamp-4 mt-1 px-0.5 flex flex-col gap-1"
             >
               <div className="flex items-start gap-2">
-                <span className="whitespace-normal">{lastTranscriptLine || 'Waiting for speech...'}</span>
+                <span className="whitespace-normal">
+                  {lastTranscriptLine || 'Waiting for speech...'}
+                </span>
               </div>
               <AnimatePresence>
                 {(entityCount > 0 || noteCount > 0) && (

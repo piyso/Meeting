@@ -56,10 +56,19 @@ export class ModelManager {
   private loadPromise: Promise<void> | null = null
   private loadResolve: (() => void) | null = null
 
+  // Generation mutex — serializes all generate() calls to prevent deadlock.
+  // node-llama-cpp LlamaChatSession.prompt() is NOT reentrant: calling prompt()
+  // on ANY session while a previous prompt() is running on the same context
+  // causes the second call to hang forever (internal context sequence lock).
+  // This queue ensures only one inference runs at a time.
+  private generateQueue: Promise<string> = Promise.resolve('')
+
   // Session pool — reuse sessions per use-case to avoid create/dispose overhead
+  // P2-3 FIX: Cap pool size to prevent unbounded GPU memory accumulation
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   private sessionPool: Map<string, { session: any; lastUsed: number }> = new Map()
   private readonly SESSION_IDLE_MS = 60_000 // Dispose idle sessions after 60s
+  private readonly MAX_SESSIONS = 5 // P2-3: Prevent unbounded GPU memory growth
 
   /** Idle timeout varies by tier: 8GB=30s (aggressive), 12GB=60s, 16GB+=120s (warm) */
   private getIdleTimeout(): number {
@@ -244,6 +253,24 @@ export class ModelManager {
    * @param sessionKey - Optional session key for pooling (e.g., 'askMeetings', 'digest')
    */
   async generate(options: GenerateOptions, sessionKey?: string): Promise<string> {
+    // Serialize all generation calls through the mutex queue.
+    // This prevents deadlock when two features (e.g., note:expand and
+    // intelligence:askMeetings) call generate() concurrently — the second
+    // caller awaits the first to finish instead of deadlocking on the
+    // shared LlamaContext's internal sequence lock.
+    const result = this.generateQueue.then(
+      () => this._doGenerate(options, sessionKey),
+      () => this._doGenerate(options, sessionKey) // Also chain on rejection
+    )
+    // Update queue head (whether this call succeeds or fails, next caller proceeds)
+    this.generateQueue = result.catch(() => '')
+    return result
+  }
+
+  /**
+   * Internal generation — called serialized through the mutex queue.
+   */
+  private async _doGenerate(options: GenerateOptions, sessionKey?: string): Promise<string> {
     await this.ensureLLMLoaded()
     this.resetUnloadTimer()
 
@@ -262,6 +289,24 @@ export class ModelManager {
         session = cached.session
         cached.lastUsed = Date.now()
       } else {
+        // P2-3 FIX: Evict LRU session if pool is at capacity
+        if (this.sessionPool.size >= this.MAX_SESSIONS) {
+          let oldestKey = ''
+          let oldestTime = Infinity
+          for (const [k, v] of this.sessionPool) {
+            if (v.lastUsed < oldestTime) {
+              oldestTime = v.lastUsed
+              oldestKey = k
+            }
+          }
+          if (oldestKey) {
+            try {
+              this.sessionPool.get(oldestKey)?.session?.dispose?.()
+            } catch { /* ignore dispose errors */ }
+            this.sessionPool.delete(oldestKey)
+          }
+        }
+
         session = new llamaModule.LlamaChatSession({
           contextSequence: _context.getSequence(),
         })
@@ -288,16 +333,15 @@ export class ModelManager {
       return (response ?? fullResponse).trim()
     } catch (error) {
       // Session is broken — remove from pool so next call creates fresh one
-      if (sessionKey) {
-        const cached = this.sessionPool.get(sessionKey)
-        if (cached) {
-          try {
-            cached.session.dispose()
-          } catch {
-            /* ignore */
-          }
-          this.sessionPool.delete(sessionKey)
+      const poolKey = sessionKey || '_default'
+      const cached = this.sessionPool.get(poolKey)
+      if (cached) {
+        try {
+          cached.session.dispose()
+        } catch {
+          /* ignore */
         }
+        this.sessionPool.delete(poolKey)
       }
       this.log.error('AI generation failed', error)
       throw error

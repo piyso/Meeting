@@ -86,8 +86,15 @@ export default function MeetingDetailView() {
 
   // Wire latest transcript line to global store for DynamicIsland / Widget
   const setLastTranscriptLine = useAppStore(s => s.setLastTranscriptLine)
+  // P1-5 FIX: Throttle updates to prevent excessive Zustand re-renders.
+  // During active recording, transcripts arrive at ~50-100/min. Without throttling,
+  // every subscriber to lastTranscriptLine re-renders on each segment.
+  const lastUpdateRef = useRef(0)
   useEffect(() => {
     if ((recordingState === 'recording' || recordingState === 'paused') && transcripts.length > 0) {
+      const now = Date.now()
+      if (now - lastUpdateRef.current < 500) return // Throttle: max 2 updates/sec
+      lastUpdateRef.current = now
       const last = transcripts[transcripts.length - 1] as { speaker_name?: string; text: string }
       const speaker = last.speaker_name || 'Speaker'
       setLastTranscriptLine(`${speaker}: ${last.text}`)

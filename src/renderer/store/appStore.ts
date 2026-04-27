@@ -16,7 +16,6 @@ interface AppState {
   quotaData: { used: number; limit: number; remaining: number; exhausted: boolean }
   deviceInfo: { count: number }
 
-
   // ── Navigation ──
   activeView:
     | 'meeting-list'
@@ -41,7 +40,6 @@ interface AppState {
   entityCount: number
   noteCount: number
 
-
   // ── Connectivity ──
   isOnline: boolean
   syncStatus: 'idle' | 'syncing' | 'error'
@@ -62,7 +60,6 @@ interface AppState {
     exhausted: boolean
   }) => void
   setDeviceInfo: (info: { count: number }) => void
-
 
   navigate: (view: AppState['activeView'], meetingId?: string) => void
   setRecordingState: (state: AppState['recordingState'], mode?: AppState['audioMode']) => void
@@ -85,12 +82,14 @@ interface AppState {
   setLastSyncTimestamp: (timestamp: number | null) => void
 }
 
+// P2-6 FIX: Track auto-dismiss timers so they can be cleared on manual removal
+const _toastTimers = new Map<string, ReturnType<typeof setTimeout>>()
+
 export const useAppStore = create<AppState>()(set => ({
   // Global System State
   currentTier: 'free',
   quotaData: { used: 0, limit: 10, remaining: 10, exhausted: false },
   deviceInfo: { count: 0 },
-
 
   // Navigation
   activeView: 'meeting-list',
@@ -107,7 +106,6 @@ export const useAppStore = create<AppState>()(set => ({
   liveCoachTip: null,
   entityCount: 0,
   noteCount: 0,
-
 
   // Connectivity
   isOnline: navigator.onLine,
@@ -130,7 +128,6 @@ export const useAppStore = create<AppState>()(set => ({
   setActiveMeetingId: activeMeetingId => set({ activeMeetingId }),
   setQuotaData: quotaData => set({ quotaData }),
   setDeviceInfo: deviceInfo => set({ deviceInfo }),
-
 
   navigate: (view, meetingId) =>
     set(s => ({
@@ -162,7 +159,6 @@ export const useAppStore = create<AppState>()(set => ({
   setEntityCount: entityCount => set({ entityCount }),
   setNoteCount: noteCount => set({ noteCount }),
 
-
   toggleFocusMode: () => set(s => ({ focusMode: !s.focusMode })),
 
   toggleCommandPalette: () => set(s => ({ commandPaletteOpen: !s.commandPaletteOpen })),
@@ -172,14 +168,29 @@ export const useAppStore = create<AppState>()(set => ({
   addToast: toast => {
     const id = crypto.randomUUID()
     const duration = toast.duration ?? 5000
-    set(s => ({ toasts: [...s.toasts, { ...toast, id, duration }] }))
-    // Auto-dismiss — outside setter to avoid side effects in reducer
-    setTimeout(() => {
+    // P2-6 FIX: Cap toast count to prevent spam from rapid IPC errors
+    set(s => {
+      const toasts = [...s.toasts, { ...toast, id, duration }]
+      // Keep only latest 5 toasts to prevent UI overflow
+      return { toasts: toasts.slice(-5) }
+    })
+    // Auto-dismiss — track timer for cleanup in removeToast
+    const timer = setTimeout(() => {
       useAppStore.getState().removeToast(id)
     }, duration)
+    // Store timer for cleanup (P2-6: prevents orphaned timers)
+    _toastTimers.set(id, timer)
   },
 
-  removeToast: id => set(s => ({ toasts: s.toasts.filter(t => t.id !== id) })),
+  removeToast: id => {
+    // P2-6 FIX: Clear auto-dismiss timer to prevent double-dismiss
+    const timer = _toastTimers.get(id)
+    if (timer) {
+      clearTimeout(timer)
+      _toastTimers.delete(id)
+    }
+    set(s => ({ toasts: s.toasts.filter(t => t.id !== id) }))
+  },
 
   setIsOnline: isOnline => set({ isOnline }),
   setSyncStatus: syncStatus => set({ syncStatus }),

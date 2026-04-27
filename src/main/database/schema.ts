@@ -5,7 +5,7 @@
  * Includes tables, indexes, FTS5 full-text search, and triggers.
  */
 
-export const SCHEMA_VERSION = 4
+export const SCHEMA_VERSION = 5
 
 /**
  * Core table schemas
@@ -41,6 +41,7 @@ CREATE TABLE IF NOT EXISTS transcripts (
   speaker_name TEXT,
   words TEXT,
   embedding TEXT,
+  embedding_blob BLOB,
   created_at INTEGER DEFAULT (strftime('%s', 'now')),
   synced_at INTEGER DEFAULT 0,
   FOREIGN KEY (meeting_id) REFERENCES meetings(id) ON DELETE CASCADE
@@ -272,6 +273,7 @@ CREATE INDEX IF NOT EXISTS idx_meetings_namespace ON meetings(namespace);
 CREATE INDEX IF NOT EXISTS idx_transcripts_meeting ON transcripts(meeting_id);
 CREATE INDEX IF NOT EXISTS idx_transcripts_time ON transcripts(meeting_id, start_time);
 CREATE INDEX IF NOT EXISTS idx_transcripts_embedding ON transcripts(id) WHERE embedding IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_transcripts_embedding_blob ON transcripts(id) WHERE embedding_blob IS NOT NULL;
 
 -- Notes indexes
 CREATE INDEX IF NOT EXISTS idx_notes_meeting ON notes(meeting_id);

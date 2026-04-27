@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BlueArkive - A2 Master Poster</title>
+    <link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;700;800;900&family=Geist+Mono:wght@500&display=swap" rel="stylesheet">
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        
+        :root {
+            --electric-blue: #38BDF8;
+            --neon-violet: #A855F7;
+            --neon-mint: #34D399;
+            --sunset-peach: #FBBF24;
+            --glass-bg: rgba(15, 23, 42, 0.45);
+            --glass-border: rgba(255, 255, 255, 0.12);
+        }
+
+        @page { size: A2 landscape; margin: 0; }
+
+        body {
+            width: 594mm; height: 420mm;
+            background-color: #050A15;
+            background-image: url('bg-master.png');
+            background-size: cover;
+            background-position: center;
+            color: #FFFFFF;
+            font-family: 'Instrument Sans', sans-serif;
+            position: relative; overflow: hidden;
+            -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important;
+        }
+
+        .ambient-overlay {
+            position: absolute; inset: 0;
+            background: linear-gradient(90deg, rgba(5,10,21,0.95) 0%, rgba(5,10,21,0.6) 40%, transparent 100%);
+            z-index: 1; pointer-events: none;
+        }
+
+        .layout-grid {
+            position: relative; z-index: 10;
+            display: grid; grid-template-columns: 55% 45%;
+            width: 100%; height: 100%;
+        }
+
+        /* LEFT SIDE - EMOTION & HOOK */
+        .emotion-zone {
+            padding: 40mm 0 40mm 40mm;
+            display: flex; flex-direction: column; justify-content: space-between;
+        }
+
+        .logo { font-size: 24pt; font-weight: 800; letter-spacing: -0.02em; display: flex; align-items: center; gap: 14px; text-shadow: 0 4px 12px rgba(0,0,0,0.5); }
+        .logo-mark { width: 32px; height: 32px; border-radius: 50%; background: linear-gradient(135deg, var(--electric-blue), var(--neon-violet)); box-shadow: 0 0 25px rgba(56,189,248,0.6); }
+
+        .hero-block { margin-top: -20mm; }
+        .hero-headline { font-size: 82pt; font-weight: 800; line-height: 1.05; letter-spacing: -0.03em; margin-bottom: 25px; text-shadow: 0 10px 30px rgba(0,0,0,0.9); }
+        .sub-headline { font-size: 28pt; font-weight: 400; line-height: 1.4; color: rgba(255,255,255,0.9); max-width: 90%; text-shadow: 0 5px 15px rgba(0,0,0,0.8); }
+
+        .website-link { font-size: 32pt; font-weight: 700; color: #FFFFFF; font-family: 'Geist Mono', monospace; letter-spacing: -0.02em; text-shadow: 0 4px 12px rgba(0,0,0,0.5); }
+
+        /* RIGHT SIDE - LOGIC & GLASS PANEL */
+        .logic-zone {
+            padding: 40mm 40mm 40mm 20mm;
+            display: flex; flex-direction: column; justify-content: center;
+        }
+
+        .glass-panel {
+            background: var(--glass-bg);
+            backdrop-filter: blur(30px); -webkit-backdrop-filter: blur(30px);
+            border: 1px solid var(--glass-border); border-radius: 30px;
+            padding: 30mm;
+            box-shadow: 0 30px 80px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.2);
+            display: flex; flex-direction: column; height: 100%;
+        }
+
+        .why-free-title { font-size: 64pt; font-weight: 900; color: var(--sunset-peach); margin-bottom: 10px; line-height: 1; letter-spacing: -0.04em; text-shadow: 0 0 40px rgba(251, 191, 36, 0.3);}
+        .why-free-text { font-size: 20pt; font-weight: 400; line-height: 1.5; color: rgba(255,255,255,0.85); margin-bottom: 25mm;}
+
+        .checklist { list-style: none; font-family: 'Geist Mono', monospace; font-size: 16pt; font-weight: 500; letter-spacing: 0.03em; line-height: 2; color: rgba(255,255,255,0.9); margin-bottom: 25mm;}
+        .checklist li { display: flex; align-items: center; gap: 18px; margin-bottom: 8mm;}
+        .checklist li::before { content: '✓'; color: var(--neon-mint); font-family: 'Instrument Sans', sans-serif; font-weight: 900; font-size: 24pt; text-shadow: 0 0 15px rgba(52,211,153,0.5); }
+
+        .comparison-table { width: 100%; border-collapse: collapse; font-family: 'Geist Mono', monospace; font-size: 16pt; margin-top: auto;}
+        .comparison-table th { padding-bottom: 12mm; text-align: left; font-family: 'Instrument Sans', sans-serif; font-weight: 800; font-size: 22pt; border-bottom: 2px solid rgba(255,255,255,0.1); color: rgba(255,255,255,0.9); }
+        .comparison-table th.brand-col { color: var(--electric-blue); text-shadow: 0 0 20px rgba(56,189,248,0.5);}
+        .comparison-table td { padding: 8mm 0; border-bottom: 1px solid rgba(255,255,255,0.05); color: rgba(255,255,255,0.6); }
+        .comparison-table td.brand-col { color: #FFFFFF; font-weight: 700; font-family: 'Instrument Sans', sans-serif; font-size: 20pt;}
+
+        /* PRINT STYLES - Flattens the glass for professional output */
+        @media print {
+            .ambient-overlay { display: none; }
+            .glass-panel { background: rgba(10, 15, 30, 0.9); filter: none !important; backdrop-filter: none !important; box-shadow: none; border: 2px solid rgba(255,255,255,0.2);}
+            .logo-mark, .comparison-table th.brand-col, .checklist li::before { text-shadow: none !important; box-shadow: none !important; }
+            .hero-headline, .sub-headline { text-shadow: none !important; }
+        }
+
+    </style>
+</head>
+<body>
+    <div class="ambient-overlay"></div>
+    <div class="layout-grid">
+        <div class="emotion-zone">
+            <div class="logo"><div class="logo-mark"></div>BlueArkive</div>
+            
+            <div class="hero-block">
+                <h1 class="hero-headline">You spend 392 hours<br>a year in meetings.<br>Remember any of them?</h1>
+                <div class="sub-headline">BlueArkive listens to every meeting and writes the notes for you. Action items, summaries, and follow-up drafts — ready before you hang up.</div>
+            </div>
+            
+            <div class="website-link">bluearkive.com</div>
+        </div>
+
+        <div class="logic-zone">
+            <div class="glass-panel">
+                <div class="why-free-title">FREE FOREVER.</div>
+                <div class="why-free-text">Other tools process audio on expensive cloud servers (costing $200/yr). BlueArkive runs entirely on your Mac. Our costs are zero. Your limits are zero.</div>
+                
+                <ul class="checklist">
+                    <li>Unlimited meetings</li>
+                    <li>No AI bots joining your calls</li>
+                    <li>Works perfectly without internet</li>
+                    <li>Your data never leaves your device</li>
+                </ul>
+
+                <table class="comparison-table">
+                    <thead>
+                        <tr><th></th><th>Typical Tools</th><th class="brand-col">BlueArkive</th></tr>
+                    </thead>
+                    <tbody>
+                        <tr><td style="font-weight: 600; color: #FFFFFF;">Yearly cost</td><td style="font-weight: 600; color: rgba(255,255,255,0.8);">Over $200/yr</td><td class="brand-col">$0</td></tr>
+                        <tr><td style="font-weight: 600; color: #FFFFFF;">Bot joins?</td><td>Yes</td><td class="brand-col">Never</td></tr>
+                        <tr><td style="font-weight: 600; color: #FFFFFF;">Your Data</td><td>Their servers</td><td class="brand-col">Your device</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

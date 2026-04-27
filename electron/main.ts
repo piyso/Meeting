@@ -507,12 +507,7 @@ app
       },
       {
         label: 'Window',
-        submenu: [
-          { role: 'minimize' },
-          { role: 'zoom' },
-          { type: 'separator' },
-          { role: 'front' },
-        ],
+        submenu: [{ role: 'minimize' }, { role: 'zoom' }, { type: 'separator' }, { role: 'front' }],
       },
     ])
     Menu.setApplicationMenu(appMenu)

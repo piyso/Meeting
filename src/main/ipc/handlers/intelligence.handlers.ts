@@ -222,11 +222,14 @@ export function registerIntelligenceHandlers(): void {
       const promptConfig = mode in prompts ? prompts[mode] : prompts['title']
       if (!promptConfig) throw new Error(`Unknown prompt mode: ${mode}`)
 
-      const suggestion = await modelManager.generate({
-        prompt: promptConfig.text,
-        temperature: promptConfig.temperature,
-        maxTokens: promptConfig.maxTokens,
-      })
+      const suggestion = await modelManager.generate(
+        {
+          prompt: promptConfig.text,
+          temperature: promptConfig.temperature,
+          maxTokens: promptConfig.maxTokens,
+        },
+        'meetingSuggestion'
+      )
 
       return { success: true, data: { suggestion: suggestion.trim(), mode, source: 'local' } }
     } catch (error) {
@@ -356,22 +359,25 @@ ANSWER:`
 
 ANSWER:`
 
-      const result = await modelManager.generate({
-        prompt: systemPrompt,
-        temperature: 0.4,
-        maxTokens: 300,
-        onToken: (accumulatedText: string) => {
-          // Stream each token to the renderer in real-time
-          try {
-            event.sender.send('intelligence:streamToken', {
-              token: accumulatedText,
-              fullText: accumulatedText,
-            })
-          } catch {
-            // Sender may be destroyed if window closed during generation
-          }
+      const result = await modelManager.generate(
+        {
+          prompt: systemPrompt,
+          temperature: 0.4,
+          maxTokens: 300,
+          onToken: (accumulatedText: string) => {
+            // Stream each token to the renderer in real-time
+            try {
+              event.sender.send('intelligence:streamToken', {
+                token: accumulatedText,
+                fullText: accumulatedText,
+              })
+            } catch {
+              // Sender may be destroyed if window closed during generation
+            }
+          },
         },
-      })
+        'askMeetings'
+      )
 
       return {
         success: true,

@@ -65,20 +65,12 @@ export class DeviceManager {
 
   /**
    * Get device limits by plan tier
+   * P3-7 FIX: Import from TierMappingService (SSOT) instead of hardcoding
    */
   private getDeviceLimit(planTier: string): number {
-    switch (planTier) {
-      case 'free':
-        return 1
-      case 'starter':
-        return 2
-      case 'pro':
-      case 'team':
-      case 'enterprise':
-        return Infinity
-      default:
-        return 1
-    }
+    const { getTierLimits, isUnlimited } = require('./TierMappingService')
+    const limits = getTierLimits(planTier)
+    return isUnlimited(limits.deviceLimit) ? Infinity : limits.deviceLimit
   }
 
   /**

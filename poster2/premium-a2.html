@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BlueArkive - Premium A2</title>
+    <link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700;800;900&family=Geist+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+    <style>
+        /* ============================================================
+           BlueArkive A2 — True Premium Minimalism (Stripe/Linear Grade)
+           Zero AI effects. Mathematical grids, micro-shadows, typography.
+           ============================================================ */
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        
+        :root {
+            --canvas: #FAFAFA;
+            --canvas-deep: #F3F4F6;
+            --ink-core: #09090B;
+            --ink-muted: #52525B;
+            --ink-faint: #A1A1AA;
+            
+            /* Premium Accent Gradient (Sky to Indigo to Violet) */
+            --accent-gradient: linear-gradient(135deg, #0284C7 0%, #4F46E5 50%, #7C3AED 100%);
+            --accent-solid: #4F46E5;
+            
+            /* Structural Shadows */
+            --shadow-subtle: 0 2px 8px rgba(0,0,0,0.04);
+            --shadow-elevated: 0 12px 32px rgba(0,0,0,0.06), 0 2px 4px rgba(0,0,0,0.02);
+            --border-subtle: 1px solid rgba(0,0,0,0.06);
+            --border-highlight: inset 0 1px 0 rgba(255,255,255,1);
+        }
+
+        @page { size: A2 landscape; margin: 0; }
+
+        body {
+            background-color: #E4E4E7;
+            display: flex; justify-content: center; align-items: center;
+            min-height: 100vh; padding: 3rem;
+            font-family: 'Instrument Sans', -apple-system, sans-serif;
+            -webkit-font-smoothing: antialiased; text-rendering: optimizeLegibility;
+        }
+
+        .poster {
+            width: 594mm; height: 420mm; /* Exact A2 */
+            position: relative; overflow: hidden;
+            background-color: var(--canvas);
+            box-shadow: 0 40px 100px rgba(0,0,0,0.15);
+            -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important;
+            
+            /* Architectural Grid Overlay (Very faint background structure) */
+            background-image: 
+                linear-gradient(rgba(0,0,0,0.02) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(0,0,0,0.02) 1px, transparent 1px);
+            background-size: 8mm 8mm;
+        }
+
+        @media print {
+            body { padding: 0; background: none; }
+            .poster { box-shadow: none; border: none; }
+        }
+
+        /* ─── THE STRUCTURAL GRID ─── */
+        .layout-grid {
+            position: absolute; inset: 20mm;
+            display: grid; grid-template-columns: 1fr 1fr; gap: 20mm;
+        }
+
+        /* ─── LEFT: TYPOGRAPHICAL HERO ─── */
+        .hero-zone {
+            display: flex; flex-direction: column; justify-content: space-between;
+            padding: 10mm 0;
+        }
+
+        .brand-header {
+            display: flex; align-items: center; gap: 12px;
+            font-size: 16pt; font-weight: 700; color: var(--ink-core);
+            letter-spacing: -0.01em;
+        }
+        .brand-mark {
+            width: 24px; height: 24px; background: var(--accent-gradient);
+            border-radius: 4px; box-shadow: inset 0 0 0 1px rgba(0,0,0,0.1);
+        }
+
+        .hero-copy { margin-top: 30mm; }
+        
+        .headline {
+            font-size: 72pt; font-weight: 800; line-height: 1.05; letter-spacing: -0.04em;
+            color: var(--ink-core); margin-bottom: 25px;
+        }
+        .headline-accent {
+            background: var(--accent-gradient);
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+        }
+        
+        .sub-headline {
+            font-size: 26pt; font-weight: 500; line-height: 1.4; color: var(--ink-muted);
+            letter-spacing: -0.01em; max-width: 90%;
+        }
+
+        .price-lockup {
+            margin-top: 30mm; margin-bottom: auto;
+        }
+        .price-label {
+            font-family: 'Geist Mono', monospace; font-size: 14pt; font-weight: 600;
+            color: var(--ink-faint); text-transform: uppercase; letter-spacing: 0.08em;
+            margin-bottom: 8px; display: block;
+        }
+        .price-hero {
+            font-size: 64pt; font-weight: 900; letter-spacing: -0.04em; line-height: 1;
+            color: var(--ink-core);
+        }
+
+        .footer-url {
+            font-family: 'Geist Mono', monospace; font-size: 18pt; font-weight: 600;
+            color: var(--ink-muted); letter-spacing: 0.02em; display: flex; align-items: center; gap: 15px;
+        }
+        .footer-url::before { content: ''; display: block; width: 40px; height: 2px; background: var(--ink-muted); }
+
+        /* ─── RIGHT: BENTO GRID ARCHITECTURE ─── */
+        .bento-zone {
+            display: grid; grid-template-rows: auto auto 1fr; gap: 15mm;
+            padding: 10mm 0; height: 100%;
+        }
+
+        .bento-card {
+            background: #FFFFFF; border-radius: 24px; padding: 30mm;
+            border: var(--border-subtle); box-shadow: var(--shadow-elevated), var(--border-highlight);
+            display: flex; flex-direction: column; position: relative; overflow: hidden;
+        }
+
+        /* Top Feature Card */
+        .card-top { flex: 0 0 auto; padding: 25mm 30mm;}
+        .card-title {
+            font-size: 28pt; font-weight: 700; color: var(--ink-core); letter-spacing: -0.02em; margin-bottom: 12px;
+        }
+        .card-desc {
+            font-size: 18pt; font-weight: 400; color: var(--ink-muted); line-height: 1.5; max-width: 90%;
+        }
+
+        /* Specs Grid */
+        .specs-grid {
+            display: grid; grid-template-columns: 1fr 1fr; gap: 20mm 15mm;
+            margin-top: 25mm;
+        }
+        .spec-item { display: flex; flex-direction: column; gap: 8px; border-left: 2px solid var(--canvas-deep); padding-left: 15px;}
+        .spec-label {
+            font-family: 'Geist Mono', monospace; font-size: 12pt; font-weight: 600; color: var(--ink-faint); text-transform: uppercase; letter-spacing: 0.05em;
+        }
+        .spec-value {
+            font-size: 18pt; font-weight: 600; color: var(--ink-core); letter-spacing: -0.01em;
+        }
+
+        /* Bottom Action Card */
+        .card-bottom {
+            background: var(--ink-core); color: #FFFFFF; border: none; padding: 25mm 30mm;
+            display: flex; flex-direction: row; align-items: center; justify-content: space-between;
+            box-shadow: var(--shadow-elevated); margin-top: auto;
+        }
+        .action-text {
+            font-size: 24pt; font-weight: 600; letter-spacing: -0.02em; line-height: 1.3;
+        }
+        .action-text span { color: var(--ink-faint); font-weight: 400; }
+        
+        .cta-button {
+            background: #FFFFFF; color: var(--ink-core); padding: 20px 40px; border-radius: 100px;
+            font-size: 18pt; font-weight: 700; letter-spacing: -0.01em; display: flex; align-items: center; gap: 12px;
+        }
+        
+    </style>
+</head>
+<body>
+    <div class="poster">
+        <div class="layout-grid">
+            
+            <div class="hero-zone">
+                <div class="brand-header"><div class="brand-mark"></div>BlueArkive</div>
+                
+                <div class="hero-copy">
+                    <h1 class="headline">You spend 392 hours<br>a year in meetings.</h1>
+                    <p class="sub-headline">The private intelligence fabric that records,<br>transcribes, and drafts action items.</p>
+                </div>
+                
+                <div class="price-lockup">
+                    <span class="price-label">Cost Architecture</span>
+                    <div class="price-hero headline-accent">FREE FOREVER.</div>
+                </div>
+                
+                <div class="footer-url">bluearkive.com</div>
+            </div>
+
+            <div class="bento-zone">
+                
+                <div class="bento-card card-top">
+                    <h2 class="card-title">100% Local Inference.</h2>
+                    <p class="card-desc">Unlike cloud alternatives, BlueArkive runs entirely on your Mac hardware. Your audio is never uploaded to a server.</p>
+                    
+                    <div class="specs-grid">
+                        <div class="spec-item"><span class="spec-label">Network Dependency</span><span class="spec-value">Zero (Offline)</span></div>
+                        <div class="spec-item"><span class="spec-label">Meeting Bots</span><span class="spec-value">Invisible Capture</span></div>
+                        <div class="spec-item"><span class="spec-label">Security Protocol</span><span class="spec-value">On-Device AES-256</span></div>
+                        <div class="spec-item"><span class="spec-label">Storage Limits</span><span class="spec-value">Unlimited</span></div>
+                    </div>
+                </div>
+
+                <div class="bento-card card-bottom">
+                    <div class="action-text">Join 1,200+ professionals<br><span>who switched this month.</span></div>
+                    <div class="cta-button">Get Started <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg></div>
+                </div>
+
+            </div>
+            
+        </div>
+    </div>
+</body>
+</html>

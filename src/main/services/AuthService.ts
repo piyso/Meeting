@@ -236,6 +236,24 @@ export class AuthService {
       log.debug('resetBackend on logout failed (non-critical):', resetErr)
     }
 
+    // P2-9 FIX: Clear CloudAccessManager cache so re-login gets fresh tier gates.
+    // Without this, stale cached status persists for up to 60s after logout.
+    try {
+      const { getCloudAccessManager } = await import('./CloudAccessManager')
+      getCloudAccessManager().clearCache()
+    } catch {
+      // Non-critical
+    }
+
+    // P4-8 FIX: Reset ConflictResolver singleton to prevent wrong device ID
+    // tagging if a different user logs in on the same app session.
+    try {
+      const { resetConflictResolver } = await import('./ConflictResolver')
+      resetConflictResolver()
+    } catch {
+      // ConflictResolver may not have been initialized — safe to skip
+    }
+
     log.info('Logout complete')
   }
 

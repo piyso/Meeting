@@ -16,15 +16,12 @@ interface PricingFeature {
 
 const features: PricingFeature[] = [
   { name: 'Connected Devices', free: '1 Device', starter: '2 Devices', pro: 'Unlimited' },
-  { name: 'Cloud AI Intelligence', free: false, starter: '50 Queries/mo', pro: 'Unlimited' },
-  { name: 'Secure Cloud Sync', free: false, starter: true, pro: true },
-  { name: 'Meeting Transcript Limit', free: '5k Chars', starter: '15k Chars', pro: '50k Chars' },
+  { name: 'Processing Engine', free: 'Local Only', starter: 'Cloud Sync', pro: 'Cloud Sync' },
+  { name: 'AI Intelligence', free: false, starter: '50 Queries/mo', pro: 'Unlimited' },
+  { name: 'Transcription Quality', free: 'Basic', starter: 'Enhanced', pro: 'Pro Limitless' },
+  { name: 'Speaker Diarization', free: false, starter: false, pro: true },
+  { name: 'Weekly AI Digests', free: false, starter: false, pro: true },
   { name: 'Knowledge Graph', free: 'Read-only', starter: 'Read-only', pro: 'Interactive' },
-  { name: 'Speaker Diarization', free: false, starter: '2 Speakers', pro: 'Unlimited' },
-  { name: 'Weekly AI Digests', free: false, starter: true, pro: true },
-  { name: 'Action Item Extraction', free: false, starter: true, pro: true },
-  { name: 'Multi-lingual Support', free: false, starter: true, pro: true },
-  { name: 'Webhook Integrations', free: false, starter: false, pro: true },
   { name: 'Priority Support', free: false, starter: false, pro: true },
 ]
 

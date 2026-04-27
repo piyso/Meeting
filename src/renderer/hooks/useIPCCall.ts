@@ -108,8 +108,18 @@ export function useIPCCall<T>(
               duration: toastDuration,
             })
           }
+        } else if (isAuthError && !silent) {
+          // P3-2 FIX: Show a non-intrusive warning for auth errors instead
+          // of silently swallowing them. Users need to know when their session
+          // expires during a meeting recording.
+          addToast({
+            type: 'warning',
+            title: 'Authentication Required',
+            message: 'Some features require sign-in. Please re-authenticate.',
+            duration: 8000,
+          })
         } else if (!silent && errorMessage !== null && !isAuthError) {
-          // Suppress auth polling errors
+          // Other errors — show error toast
           addToast({
             type: 'error',
             title: errorMessage ?? 'Operation Failed',

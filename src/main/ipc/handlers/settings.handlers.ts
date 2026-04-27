@@ -95,6 +95,8 @@ export function registerSettingsHandlers(): void {
     // Calendar
     'calendar_sync_enabled',
     'calendar_sync_interval',
+    // System state (written by onboarding flow)
+    'onboarding_completed',
   ])
 
   ipcMain.handle('settings:update', async (_, params) => {

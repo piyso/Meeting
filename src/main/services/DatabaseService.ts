@@ -157,10 +157,27 @@ export class DatabaseService {
           return false
         }
       })
-      // C10 fix: When tags are applied, the SQL total is wrong because tag
-      // filtering happens client-side. Use the filtered count as total so
-      // hasMore is computed correctly.
-      filteredTotal = filteredMeetings.length
+      // P1-3 FIX: Count ALL tag-matching meetings (not just current page) so
+      // pagination hasMore is computed correctly. Without this, the UI stops
+      // after page 1 even when more tag-matching meetings exist on later pages.
+      try {
+        const allMeetings = db
+          .prepare(
+            `SELECT tags FROM meetings ${whereClause} ORDER BY start_time DESC`
+          )
+          .all(...values) as Array<{ tags: string | null }>
+        filteredTotal = allMeetings.filter(m => {
+          if (!m.tags) return false
+          try {
+            const meetingTags = JSON.parse(m.tags) as string[]
+            return params.tags?.some(t => meetingTags.includes(t)) ?? false
+          } catch {
+            return false
+          }
+        }).length
+      } catch {
+        filteredTotal = filteredMeetings.length
+      }
     }
 
     return { meetings: filteredMeetings, total: filteredTotal }

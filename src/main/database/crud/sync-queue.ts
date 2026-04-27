@@ -8,7 +8,19 @@ import type { SyncQueueItem, CreateSyncQueueInput, OperationType } from '../../.
 /**
  * Allowed table names for sync operations (SQL injection protection)
  */
-const ALLOWED_TABLES = ['meetings', 'transcripts', 'notes', 'entities', 'audio_highlights']
+const ALLOWED_TABLES = [
+  'meetings',
+  'transcripts',
+  'notes',
+  'entities',
+  'audio_highlights',
+  // P1-7 FIX: Must match SyncManager.ALLOWED_TABLES — these 4 were missing,
+  // causing validateTableName() to throw if CRUD files enqueued sync events.
+  'action_items',
+  'sentiment_scores',
+  'calendar_events',
+  'webhooks',
+]
 
 /**
  * Validate table name against whitelist

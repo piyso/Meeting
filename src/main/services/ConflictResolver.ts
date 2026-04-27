@@ -384,3 +384,11 @@ export function getConflictResolver(deviceId?: string): ConflictResolver {
   }
   return instance
 }
+
+/** P4-8 FIX: Reset singleton on logout to prevent wrong device ID in vector clocks */
+export function resetConflictResolver(): void {
+  if (instance) {
+    instance.cleanup()
+  }
+  instance = null
+}

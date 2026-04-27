@@ -560,7 +560,10 @@ export class PiyAPIBackend implements IBackendProvider {
       }
 
       this._healthCache = result
-      this._healthCacheExpiry = Date.now() + this.HEALTH_CACHE_TTL
+      // P4-3 FIX: Asymmetric cache TTL — short for failures, long for success.
+      // When backend goes down, 5s TTL allows fast recovery detection.
+      const ttl = result.status === 'healthy' ? this.HEALTH_CACHE_TTL : 5_000
+      this._healthCacheExpiry = Date.now() + ttl
       return result
     } catch (error: unknown) {
       const latency = Date.now() - start
@@ -570,7 +573,8 @@ export class PiyAPIBackend implements IBackendProvider {
         message: error instanceof Error ? error.message : 'Backend unreachable',
       }
       this._healthCache = result
-      this._healthCacheExpiry = Date.now() + this.HEALTH_CACHE_TTL
+      // P4-3 FIX: 5s cache for down state — allow rapid retry
+      this._healthCacheExpiry = Date.now() + 5_000
       return result
     } finally {
       clearTimeout(timeout)

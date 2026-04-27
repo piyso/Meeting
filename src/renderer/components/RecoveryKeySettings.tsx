@@ -111,9 +111,9 @@ export const RecoveryKeySettings: React.FC<RecoveryKeySettingsProps> = ({ userId
   }
 
   return (
-    <div className="w-full h-full flex flex-col pt-4">
+    <div className="w-full h-full flex flex-col">
       {!showPasswordPrompt && !showRecoveryKey && (
-        <div className="w-full max-w-[600px] surface-glass-premium p-5 rounded-[var(--radius-xl)] border border-[var(--color-border-subtle)] flex flex-col animate-slide-up shadow-2xl">
+        <div className="w-full max-w-[600px] surface-glass-premium p-6 rounded-[var(--radius-xl)] border border-[var(--color-border-subtle)] flex flex-col animate-slide-up shadow-sm">
           <div className="flex items-center gap-3 mb-3">
             <Key size={22} className="text-[var(--color-text-primary)] flex-shrink-0" />
             <div>
@@ -140,8 +140,8 @@ export const RecoveryKeySettings: React.FC<RecoveryKeySettingsProps> = ({ userId
       )}
 
       {showPasswordPrompt && (
-        <div className="w-full max-w-[480px] surface-glass-premium p-8 rounded-[var(--radius-xl)] border border-[var(--color-border-subtle)] flex flex-col animate-slide-up shadow-2xl">
-          <h3 className="text-xl font-semibold tracking-wide text-[var(--color-text-primary)] mb-2">
+        <div className="w-full max-w-[480px] surface-glass-premium p-8 rounded-[var(--radius-xl)] border border-[var(--color-border-subtle)] flex flex-col animate-slide-up shadow-sm mt-2">
+          <h3 className="text-lg font-semibold tracking-wide text-[var(--color-text-primary)] mb-2">
             Confirm Your Password
           </h3>
           <p className="text-sm text-[var(--color-text-secondary)] mb-6">
@@ -191,7 +191,7 @@ export const RecoveryKeySettings: React.FC<RecoveryKeySettingsProps> = ({ userId
       )}
 
       {showRecoveryKey && recoveryPhrase.length > 0 && (
-        <div className="w-full max-w-[600px] surface-glass-premium p-8 rounded-[var(--radius-xl)] border border-[var(--color-border-subtle)] flex flex-col animate-slide-up shadow-2xl">
+        <div className="w-full max-w-[600px] surface-glass-premium p-8 rounded-[var(--radius-xl)] border border-[var(--color-border-subtle)] flex flex-col animate-slide-up shadow-sm mt-2">
           <div className="flex justify-between items-center mb-6">
             <div className="flex items-center gap-3">
               <Key size={28} className="text-[var(--color-amber)]" />

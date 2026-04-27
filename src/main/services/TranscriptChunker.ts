@@ -45,13 +45,11 @@ export interface ChunkingResult {
 }
 
 export class TranscriptChunker {
-  // Plan limits (characters) — must match TierMappingService.transcriptSize
-  private readonly PLAN_LIMITS: Record<PlanTier, number> = {
-    free: 5000,
-    starter: 15000,
-    pro: 50000,
-    team: 100000,
-    enterprise: 100000,
+  // P3-8 FIX: Import limits from TierMappingService (SSOT) instead of hardcoding.
+  // Any pricing change in TierMappingService now automatically propagates here.
+  private getPlanLimit(tier: PlanTier): number {
+    const { getTierLimits } = require('./TierMappingService')
+    return getTierLimits(tier).transcriptSize
   }
 
   // Safety buffer (10% below limit)
@@ -64,7 +62,7 @@ export class TranscriptChunker {
    * Get effective limit for a plan tier (with safety buffer)
    */
   getEffectiveLimit(tier: PlanTier): number {
-    const rawLimit = this.PLAN_LIMITS[tier]
+    const rawLimit = this.getPlanLimit(tier)
     return Math.floor(rawLimit * this.SAFETY_BUFFER)
   }
 
@@ -72,7 +70,7 @@ export class TranscriptChunker {
    * Get warning threshold for a plan tier
    */
   getWarningThreshold(tier: PlanTier): number {
-    const rawLimit = this.PLAN_LIMITS[tier]
+    const rawLimit = this.getPlanLimit(tier)
     return Math.floor(rawLimit * this.WARNING_THRESHOLD)
   }
 
@@ -106,8 +104,8 @@ export class TranscriptChunker {
       // Check if warning should be shown
       let warningMessage: string | undefined
       if (totalSize > warningThreshold) {
-        const percentage = Math.round((totalSize / this.PLAN_LIMITS[tier]) * 100)
-        warningMessage = `Meeting size approaching ${tier.toUpperCase()} tier limit (${totalSize} / ${this.PLAN_LIMITS[tier]} chars, ${percentage}%)`
+        const percentage = Math.round((totalSize / this.getPlanLimit(tier)) * 100)
+        warningMessage = `Meeting size approaching ${tier.toUpperCase()} tier limit (${totalSize} / ${this.getPlanLimit(tier)} chars, ${percentage}%)`
       }
 
       return {
@@ -234,7 +232,7 @@ export class TranscriptChunker {
       if (result.warningMessage) {
         return result.warningMessage
       }
-      return `Meeting size: ${result.totalSize} / ${this.PLAN_LIMITS[tier]} chars`
+      return `Meeting size: ${result.totalSize} / ${this.getPlanLimit(tier)} chars`
     }
 
     return `Meeting split into ${result.chunkCount} chunks (${result.totalSize} chars total)`
@@ -246,9 +244,9 @@ export class TranscriptChunker {
   async getUpgradePromptMessage(tier: PlanTier): Promise<string> {
     try {
       const { getUpgradeMessage } = await import('./TierMappingService')
-      return getUpgradeMessage(tier) || `Current limit: ${this.PLAN_LIMITS[tier]} chars`
+      return getUpgradeMessage(tier) || `Current limit: ${this.getPlanLimit(tier)} chars`
     } catch {
-      return `Current limit: ${this.PLAN_LIMITS[tier]} chars`
+      return `Current limit: ${this.getPlanLimit(tier)} chars`
     }
   }
 
@@ -275,15 +273,21 @@ export class TranscriptChunker {
    * Get plan tier limits for display
    */
   getPlanLimits(): Record<PlanTier, number> {
-    return { ...this.PLAN_LIMITS }
+    const tiers: PlanTier[] = ['free', 'starter', 'pro', 'team', 'enterprise']
+    const limits: Partial<Record<PlanTier, number>> = {}
+    for (const tier of tiers) {
+      limits[tier] = this.getPlanLimit(tier)
+    }
+    return limits as Record<PlanTier, number>
   }
 
   /**
    * Get effective limits (with safety buffer) for display
    */
   getEffectiveLimits(): Record<PlanTier, number> {
+    const tiers: PlanTier[] = ['free', 'starter', 'pro', 'team', 'enterprise']
     const limits: Partial<Record<PlanTier, number>> = {}
-    for (const tier of Object.keys(this.PLAN_LIMITS) as PlanTier[]) {
+    for (const tier of tiers) {
       limits[tier] = this.getEffectiveLimit(tier)
     }
     return limits as Record<PlanTier, number>

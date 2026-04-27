@@ -331,7 +331,7 @@ export const AppLayout: React.FC = () => {
     }
   }, [executeBookmark])
 
-  // First-launch detection: check if onboarding is completed
+  // First-launch detection: check if onboarding is completed AND user is authenticated
   React.useEffect(() => {
     const checkFirstLaunch = async () => {
       try {
@@ -339,7 +339,19 @@ export const AppLayout: React.FC = () => {
           key: 'onboarding_completed',
         } as { key: string })
         if (!result?.success || !result?.data) {
+          // Never onboarded — show onboarding
           navigate('onboarding')
+        } else {
+          // Onboarding completed — but is the user still authenticated?
+          try {
+            const authResult = await window.electronAPI?.auth?.isAuthenticated?.()
+            if (!authResult?.success || !authResult?.data?.authenticated) {
+              // Session expired or user logged out — require re-login
+              navigate('onboarding')
+            }
+          } catch {
+            // Auth check failed (e.g., Supabase not configured) — allow through in offline mode
+          }
         }
       } catch {
         // If settings API fails (e.g., DB not ready), default to showing onboarding
@@ -352,7 +364,8 @@ export const AppLayout: React.FC = () => {
   }, [navigate])
 
   const activeMeetingIdForAudio = useAppStore(s => s.activeMeetingId)
-  const meetingId = activeMeetingIdForAudio || (activeView === 'meeting-detail' ? selectedMeetingId : null)
+  const meetingId =
+    activeMeetingIdForAudio || (activeView === 'meeting-detail' ? selectedMeetingId : null)
   const {
     startCapture,
     stopCapture: _stopCapture,

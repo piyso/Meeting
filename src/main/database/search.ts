@@ -316,6 +316,9 @@ export function rebuildSearchIndexes(): void {
   // Rebuild entities index
   db.exec("INSERT INTO entities_fts(entities_fts) VALUES('rebuild')")
 
+  // P3-6 FIX: Rebuild action items index (was missing — stale after VACUUM/crash)
+  db.exec("INSERT INTO action_items_fts(action_items_fts) VALUES('rebuild')")
+
   log.info('FTS5 indexes rebuilt successfully')
 }
 
@@ -336,6 +339,9 @@ export function optimizeSearchIndexes(): void {
 
   // Optimize entities index
   db.exec("INSERT INTO entities_fts(entities_fts) VALUES('optimize')")
+
+  // Optimize action items index
+  db.exec("INSERT INTO action_items_fts(action_items_fts) VALUES('optimize')")
 
   log.info('FTS5 indexes optimized successfully')
 }

@@ -283,7 +283,7 @@ export const SettingsView: React.FC = () => {
       icon: <Mic size={20} className="text-[var(--color-violet)]" />,
       content: (
         <>
-          <div className="flex flex-wrap items-center justify-between gap-2 min-h-[40px]">
+          <div className="flex flex-wrap items-center justify-between gap-4 p-4 min-h-[56px] hover:bg-[rgba(255,255,255,0.02)] transition-colors">
             <span className="text-[var(--text-sm)] text-[var(--color-text-secondary)]">
               Audio source
             </span>
@@ -298,7 +298,7 @@ export const SettingsView: React.FC = () => {
               />
             </div>
           </div>
-          <div className="flex flex-wrap items-center justify-between gap-2 min-h-[40px]">
+          <div className="flex flex-wrap items-center justify-between gap-4 p-4 min-h-[56px] hover:bg-[rgba(255,255,255,0.02)] transition-colors">
             <span className="text-[var(--text-sm)] text-[var(--color-text-secondary)]">
               Fallback to microphone
             </span>
@@ -307,7 +307,7 @@ export const SettingsView: React.FC = () => {
               onChange={e => updateSetting('audioFallbackEnabled', e.target.checked)}
             />
           </div>
-          <div className="flex flex-wrap items-center justify-between gap-2 min-h-[40px]">
+          <div className="flex flex-wrap items-center justify-between gap-4 p-4 min-h-[56px] hover:bg-[rgba(255,255,255,0.02)] transition-colors">
             <span className="text-[var(--text-sm)] text-[var(--color-text-secondary)]">
               Keep audio files
             </span>
@@ -325,7 +325,7 @@ export const SettingsView: React.FC = () => {
       icon: <Type size={20} className="text-[var(--color-teal)]" />,
       content: (
         <>
-          <div className="flex flex-wrap items-center justify-between gap-2 min-h-[40px]">
+          <div className="flex flex-wrap items-center justify-between gap-4 p-4 min-h-[56px] hover:bg-[rgba(255,255,255,0.02)] transition-colors">
             <span className="text-[var(--text-sm)] text-[var(--color-text-secondary)]">
               Hardware tier
             </span>
@@ -333,13 +333,13 @@ export const SettingsView: React.FC = () => {
               {tierDisplay}
             </Badge>
           </div>
-          <div className="flex flex-wrap items-center justify-between gap-2 min-h-[40px]">
+          <div className="flex flex-wrap items-center justify-between gap-4 p-4 min-h-[56px] hover:bg-[rgba(255,255,255,0.02)] transition-colors">
             <span className="text-[var(--text-sm)] text-[var(--color-text-secondary)]">
               AI models
             </span>
             <Badge variant={modelStatus === 'Ready' ? 'success' : 'outline'}>{modelStatus}</Badge>
           </div>
-          <div className="flex flex-wrap items-center justify-between gap-2 min-h-[40px]">
+          <div className="flex flex-wrap items-center justify-between gap-4 p-4 min-h-[56px] hover:bg-[rgba(255,255,255,0.02)] transition-colors">
             <span className="text-[var(--text-sm)] text-[var(--color-text-secondary)]">
               Cloud transcription
               {currentTier === 'free' && (
@@ -355,7 +355,7 @@ export const SettingsView: React.FC = () => {
               onChange={e => updateSetting('useCloudTranscription', e.target.checked)}
             />
           </div>
-          <div className="flex flex-wrap items-center justify-between gap-2 min-h-[40px]">
+          <div className="flex flex-wrap items-center justify-between gap-4 p-4 min-h-[56px] hover:bg-[rgba(255,255,255,0.02)] transition-colors">
             <span className="text-[var(--text-sm)] text-[var(--color-text-secondary)]">
               Transcription language
             </span>
@@ -395,7 +395,7 @@ export const SettingsView: React.FC = () => {
       icon: <Brain size={20} className="text-[var(--color-sky)]" />,
       content: (
         <>
-          <div className="flex flex-wrap items-center justify-between gap-2 min-h-[40px]">
+          <div className="flex flex-wrap items-center justify-between gap-4 p-4 min-h-[56px] hover:bg-[rgba(255,255,255,0.02)] transition-colors">
             <span className="text-[var(--text-sm)] text-[var(--color-text-secondary)]">
               Auto-expand notes
               {currentTier === 'free' && (
@@ -411,7 +411,7 @@ export const SettingsView: React.FC = () => {
               onChange={e => updateSetting('autoExpandNotes', e.target.checked)}
             />
           </div>
-          <div className="flex flex-wrap items-center justify-between gap-2 min-h-[40px]">
+          <div className="flex flex-wrap items-center justify-between gap-4 p-4 min-h-[56px] hover:bg-[rgba(255,255,255,0.02)] transition-colors">
             <span className="text-[var(--text-sm)] text-[var(--color-text-secondary)]">
               Intelligence engine
             </span>
@@ -426,7 +426,7 @@ export const SettingsView: React.FC = () => {
               />
             </div>
           </div>
-          <div className="flex flex-wrap items-center justify-between gap-2 min-h-[40px]">
+          <div className="flex flex-wrap items-center justify-between gap-4 p-4 min-h-[56px] hover:bg-[rgba(255,255,255,0.02)] transition-colors">
             <span className="text-[var(--text-sm)] text-[var(--color-text-secondary)]">
               Show smart chips
             </span>
@@ -444,40 +444,40 @@ export const SettingsView: React.FC = () => {
       icon: <Shield size={20} className="text-[var(--color-amber)]" />,
       content: (
         <>
-          <div className="flex flex-col gap-4 mb-6">
-            <div className="surface-glass-premium p-4 rounded-[var(--radius-lg)] border border-[var(--color-border-subtle)]">
-              <h3 className="text-[var(--text-sm)] font-semibold text-[var(--color-text-primary)] mb-3">
+          <div className="flex flex-col">
+            <div className="p-6 bg-[rgba(0,0,0,0.15)] border-b border-[var(--color-border-subtle)]">
+              <h3 className="text-sm font-semibold text-[var(--color-text-primary)] mb-4">
                 Data Locality Report
               </h3>
-              <div className="space-y-2">
+              <div className="space-y-4">
                 <div className="flex justify-between items-center text-[var(--text-sm)]">
                   <span className="text-[var(--color-text-secondary)]">Local meetings</span>
-                  <span className="font-mono text-[var(--color-text-primary)]">
+                  <span className="font-mono font-medium text-[var(--color-text-primary)]">
                     {localMeetingCount}
                   </span>
                 </div>
                 <div className="flex justify-between items-center text-[var(--text-sm)]">
                   <span className="text-[var(--color-text-secondary)]">Synced (Encrypted)</span>
-                  <span className="font-mono text-[var(--color-text-primary)]">
+                  <span className="font-mono font-medium text-[var(--color-text-primary)]">
                     {syncedMeetingCount}
                   </span>
                 </div>
                 <div className="flex justify-between items-center text-[var(--text-sm)]">
                   <span className="text-[var(--color-text-secondary)]">Data to 3rd parties</span>
-                  <span className="font-mono text-[var(--color-emerald)]">0 bytes</span>
+                  <span className="font-mono font-medium text-[var(--color-emerald)]">0 bytes</span>
                 </div>
               </div>
             </div>
 
-            <div className="flex flex-col gap-2">
-              <div className="flex items-center justify-between h-[40px] px-2">
-                <span className="text-[var(--text-sm)] text-[var(--color-text-secondary)]">
+            <div className="flex flex-col divide-y divide-[var(--color-border-subtle)]">
+              <div className="flex items-center justify-between p-4 min-h-[56px] hover:bg-[rgba(255,255,255,0.02)] transition-colors">
+                <span className="text-[var(--text-sm)] text-[var(--color-text-primary)] font-medium">
                   Audio processed on-device
                 </span>
                 <Badge variant="success">✅ Verified</Badge>
               </div>
-              <div className="flex items-center justify-between h-[40px] px-2">
-                <span className="text-[var(--text-sm)] text-[var(--color-text-secondary)]">
+              <div className="flex items-center justify-between p-4 min-h-[56px] hover:bg-[rgba(255,255,255,0.02)] transition-colors">
+                <span className="text-[var(--text-sm)] text-[var(--color-text-primary)] font-medium">
                   End-to-end encryption (AES-256-GCM)
                 </span>
                 <Toggle
@@ -485,8 +485,8 @@ export const SettingsView: React.FC = () => {
                   onChange={e => updateSetting('encryptionEnabled', e.target.checked)}
                 />
               </div>
-              <div className="flex items-center justify-between h-[40px] px-2">
-                <span className="text-[var(--text-sm)] text-[var(--color-text-secondary)]">
+              <div className="flex items-center justify-between p-4 min-h-[56px] hover:bg-[rgba(255,255,255,0.02)] transition-colors">
+                <span className="text-[var(--text-sm)] text-[var(--color-text-primary)] font-medium">
                   PHI auto-redaction
                 </span>
                 <Toggle
@@ -494,8 +494,8 @@ export const SettingsView: React.FC = () => {
                   onChange={e => updateSetting('phiDetectionEnabled', e.target.checked)}
                 />
               </div>
-              <div className="flex items-center justify-between h-[40px] px-2">
-                <span className="text-[var(--text-sm)] text-[var(--color-text-secondary)]">
+              <div className="flex items-center justify-between p-4 min-h-[56px] hover:bg-[rgba(255,255,255,0.02)] transition-colors">
+                <span className="text-[var(--text-sm)] text-[var(--color-text-primary)] font-medium">
                   Mask PHI before sync
                 </span>
                 <Toggle
@@ -503,8 +503,8 @@ export const SettingsView: React.FC = () => {
                   onChange={e => updateSetting('maskPHIBeforeSync', e.target.checked)}
                 />
               </div>
-              <div className="flex items-center justify-between h-[40px] px-2">
-                <span className="text-[var(--text-sm)] text-[var(--color-text-secondary)]">
+              <div className="flex items-center justify-between p-4 min-h-[56px] hover:bg-[rgba(255,255,255,0.02)] transition-colors">
+                <span className="text-[var(--text-sm)] text-[var(--color-text-primary)] font-medium">
                   Immutable Audit logging
                 </span>
                 <Toggle
@@ -512,8 +512,8 @@ export const SettingsView: React.FC = () => {
                   onChange={e => updateSetting('auditLoggingEnabled', e.target.checked)}
                 />
               </div>
-              <div className="flex items-center justify-between h-[40px] px-2">
-                <span className="text-[var(--text-sm)] text-[var(--color-text-secondary)]">
+              <div className="flex items-center justify-between p-4 min-h-[56px] hover:bg-[rgba(255,255,255,0.02)] transition-colors">
+                <span className="text-[var(--text-sm)] text-[var(--color-text-primary)] font-medium">
                   Cloud Sync (E2EE)
                   {currentTier === 'free' && (
                     <Lock
@@ -539,7 +539,7 @@ export const SettingsView: React.FC = () => {
       icon: <HardDrive size={20} className="text-[var(--color-text-secondary)]" />,
       content: (
         <>
-          <div className="flex flex-wrap items-center justify-between gap-2 min-h-[40px]">
+          <div className="flex flex-wrap items-center justify-between gap-4 p-4 min-h-[56px] hover:bg-[rgba(255,255,255,0.02)] transition-colors">
             <span className="text-[var(--text-sm)] text-[var(--color-text-secondary)]">
               Max disk usage
             </span>
@@ -557,7 +557,7 @@ export const SettingsView: React.FC = () => {
               />
             </div>
           </div>
-          <div className="flex flex-wrap items-center justify-between gap-2 min-h-[40px]">
+          <div className="flex flex-wrap items-center justify-between gap-4 p-4 min-h-[56px] hover:bg-[rgba(255,255,255,0.02)] transition-colors">
             <span className="text-[var(--text-sm)] text-[var(--color-text-secondary)]">
               Auto-delete old meetings
             </span>
@@ -567,7 +567,7 @@ export const SettingsView: React.FC = () => {
             />
           </div>
           {settings.autoDeleteOldMeetings && (
-            <div className="flex flex-wrap items-center justify-between gap-2 min-h-[40px]">
+            <div className="flex flex-wrap items-center justify-between gap-4 p-4 min-h-[56px] hover:bg-[rgba(255,255,255,0.02)] transition-colors">
               <span className="text-[var(--text-sm)] text-[var(--color-text-secondary)]">
                 Delete after
               </span>
@@ -594,30 +594,35 @@ export const SettingsView: React.FC = () => {
       title: 'Automations',
       icon: <Webhook size={20} className="text-[var(--color-violet)]" />,
       content: <WebhookSettingsView />,
+      isCustomLayout: true,
     },
     {
       id: 'devices',
       title: 'Devices',
       icon: <Monitor size={20} className="text-[var(--color-indigo)]" />,
       content: <DeviceManagement />,
+      isCustomLayout: true,
     },
     {
       id: 'ai-usage',
       title: 'AI Usage',
-      icon: <Activity size={20} className="text-[var(--color-sky)]" />,
+      icon: <Activity size={20} className="text-[var(--color-rose)]" />,
       content: <AIUsageMeter />,
+      isCustomLayout: true,
     },
     {
       id: 'audit-logs',
       title: 'Audit Logs',
-      icon: <Database size={20} className="text-[var(--color-amber)]" />,
+      icon: <Database size={20} className="text-[var(--color-slate)]" />,
       content: <AuditLogViewer />,
+      isCustomLayout: true,
     },
     {
-      id: 'diagnostics',
+      id: 'system-health',
       title: 'System Health',
-      icon: <Activity size={20} className="text-[var(--color-sky)]" />,
+      icon: <Activity size={20} className="text-[var(--color-emerald)]" />,
       content: <HealthDashboard />,
+      isCustomLayout: true,
     },
     {
       id: 'account',
@@ -725,22 +730,6 @@ export const SettingsView: React.FC = () => {
                 </div>
               </div>
 
-              <div className="pt-6 border-t border-[var(--color-border-subtle)]">
-                {currentTier !== 'enterprise' && (
-                  <UpgradePrompt
-                    feature="cloudSync"
-                    featureLabel={
-                      currentTier === 'free' ? 'Cloud Sync & AI Features' : 'Premium Tier Expansion'
-                    }
-                    currentTier={currentTier}
-                    requiredTier={currentTier === 'free' ? 'starter' : 'pro'}
-                    onUpgrade={() => {
-                      openUpgrade(currentTier === 'free' ? 'starter' : 'pro')
-                    }}
-                  />
-                )}
-                <RecoveryKeySettings userId={userInfo.email} />
-              </div>
             </div>
           ) : (
             <div className="flex items-center justify-between h-[40px]">
@@ -835,14 +824,40 @@ export const SettingsView: React.FC = () => {
     <div className="max-w-[640px] mx-auto space-y-[var(--space-32)] pb-[var(--space-32)] animate-fade-in">
       {sections.map(sec => (
         <section key={sec.id} className="animate-slide-up" style={{ animationFillMode: 'both' }}>
-          <div className="flex items-center gap-3 mb-[var(--space-12)]">
+          <div className="flex items-center gap-3 mb-[var(--space-16)] px-2">
             {sec.icon}
             <h2 className="text-[var(--text-lg)] font-semibold tracking-tight">{sec.title}</h2>
           </div>
-          <div className="h-[1px] w-full bg-[var(--color-border-subtle)] mb-[var(--space-12)]" />
-          <div className="space-y-1">{sec.content}</div>
+          {sec.isCustomLayout ? (
+            sec.content
+          ) : (
+            <div className="surface-glass-premium border border-[var(--color-border-subtle)] rounded-2xl overflow-hidden shadow-sm">
+              <div className="flex flex-col divide-y divide-[var(--color-border-subtle)]">
+                {sec.content}
+              </div>
+            </div>
+          )}
         </section>
       ))}
+
+      {userInfo && (
+        <section className="animate-slide-up space-y-4" style={{ animationFillMode: 'both' }}>
+          {currentTier !== 'enterprise' && (
+            <UpgradePrompt
+              feature="cloudSync"
+              featureLabel={
+                currentTier === 'free' ? 'Cloud Sync & AI Features' : 'Premium Tier Expansion'
+              }
+              currentTier={currentTier}
+              requiredTier={currentTier === 'free' ? 'starter' : 'pro'}
+              onUpgrade={() => {
+                openUpgrade(currentTier === 'free' ? 'starter' : 'pro')
+              }}
+            />
+          )}
+          <RecoveryKeySettings userId={userInfo.email} />
+        </section>
+      )}
 
       <div className="text-center text-[var(--text-xs)] text-[var(--color-text-tertiary)] pt-[var(--space-16)] font-mono tracking-wide opacity-80">
         BlueArkive · Phase 0 · Sovereign Memory Fabric

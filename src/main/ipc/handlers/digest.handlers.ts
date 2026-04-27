@@ -535,11 +535,14 @@ async function generateText(prompt: string, maxTokens: number = 300): Promise<st
     }
     const modelManager = _modelManagerMod.getModelManager()
 
-    return await modelManager.generate({
-      prompt,
-      temperature: 0.2,
-      maxTokens,
-    })
+    return await modelManager.generate(
+      {
+        prompt,
+        temperature: 0.2,
+        maxTokens,
+      },
+      'digest'
+    )
   } catch (err) {
     log.debug('AI generation failed', err)
     return '⚠️ AI unavailable — engine may still be loading'

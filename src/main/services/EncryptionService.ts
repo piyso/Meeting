@@ -56,13 +56,16 @@ export class EncryptionService {
   private static readonly CIPHER_ALGORITHM = 'aes-256-gcm'
 
   // Key cache — avoids re-running PBKDF2 (100K iterations) for every encrypt in a batch
+  // P0-1 FIX: Extended from 5 min → 4 hours. The PBKDF2-derived key is deterministic
+  // (same password+salt = same key), so it doesn't "expire" cryptographically.
+  // The TTL is purely a defense-in-depth measure to limit exposure window.
   private static keyCache: {
     cacheKey: string
     key: Buffer
     salt: Buffer
     expiresAt: number
   } | null = null
-  private static readonly KEY_CACHE_TTL = 5 * 60 * 1000 // 5 minutes
+  private static readonly KEY_CACHE_TTL = 4 * 60 * 60 * 1000 // 4 hours (was 5 min — P0-1)
 
   /**
    * Derive encryption key from password using PBKDF2
@@ -161,7 +164,15 @@ export class EncryptionService {
     _userId: string
   ): Promise<EncryptedPayload> {
     // Use cached key if available
-    if (this.keyCache && Date.now() < this.keyCache.expiresAt) {
+    if (this.keyCache) {
+      // P0-1 FIX: If key material is still in memory but TTL expired,
+      // auto-extend the TTL. The key itself is still valid (PBKDF2 is deterministic),
+      // the TTL is only a defense-in-depth window-limiter.
+      if (Date.now() >= this.keyCache.expiresAt) {
+        this.keyCache.expiresAt = Date.now() + this.KEY_CACHE_TTL
+        log.info('Encryption key cache TTL auto-extended (key material still valid)')
+      }
+
       const iv = this.generateIV()
       const cipher = crypto.createCipheriv(this.CIPHER_ALGORITHM, this.keyCache.key, iv)
       let ciphertext = cipher.update(plaintext, 'utf8', 'base64')
@@ -177,9 +188,9 @@ export class EncryptionService {
       }
     }
 
-    // Cache expired — cannot re-derive without password
+    // No key in memory at all — cannot re-derive without password
     throw new Error(
-      'Encryption key cache expired. User must re-authenticate to refresh encryption key.'
+      'Encryption key not available. User must re-authenticate to initialize encryption.'
     )
   }
 

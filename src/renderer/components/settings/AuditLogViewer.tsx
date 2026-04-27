@@ -125,10 +125,10 @@ export const AuditLogViewer: React.FC = () => {
             <table className="w-full text-left">
               <thead className="bg-[#1a1a1a] sticky top-0 border-b border-[var(--color-border-subtle)] shadow-sm">
                 <tr>
-                  <th className="font-medium text-[var(--color-text-secondary)] p-3">Time</th>
-                  <th className="font-medium text-[var(--color-text-secondary)] p-3">Operation</th>
-                  <th className="font-medium text-[var(--color-text-secondary)] p-3">Resource</th>
-                  <th className="font-medium text-[var(--color-text-secondary)] p-3 hidden sm:table-cell">
+                  <th className="font-medium text-[var(--color-text-secondary)] px-5 py-4">Time</th>
+                  <th className="font-medium text-[var(--color-text-secondary)] px-5 py-4">Operation</th>
+                  <th className="font-medium text-[var(--color-text-secondary)] px-5 py-4">Resource</th>
+                  <th className="font-medium text-[var(--color-text-secondary)] px-5 py-4 hidden sm:table-cell">
                     Client Info
                   </th>
                 </tr>
@@ -139,7 +139,7 @@ export const AuditLogViewer: React.FC = () => {
                     key={log.id || i}
                     className="border-b border-[var(--color-border-subtle)] last:border-0 hover:bg-[#262626] transition-colors"
                   >
-                    <td className="p-3 text-[var(--color-text-tertiary)] whitespace-nowrap">
+                    <td className="px-5 py-4 text-[var(--color-text-tertiary)] whitespace-nowrap">
                       {new Date(log.timestamp).toLocaleString(undefined, {
                         month: 'short',
                         day: 'numeric',
@@ -147,10 +147,10 @@ export const AuditLogViewer: React.FC = () => {
                         minute: '2-digit',
                       })}
                     </td>
-                    <td className="p-3 font-mono">
+                    <td className="px-5 py-4 font-mono">
                       <span className={getOperationColor(log.operation)}>{log.operation}</span>
                     </td>
-                    <td className="p-3">
+                    <td className="px-5 py-4">
                       <div className="text-[var(--color-text-primary)]">{log.table}</div>
                       {log.recordId && (
                         <div
@@ -161,7 +161,7 @@ export const AuditLogViewer: React.FC = () => {
                         </div>
                       )}
                     </td>
-                    <td className="p-3 hidden sm:table-cell">
+                    <td className="px-5 py-4 hidden sm:table-cell">
                       <div className="text-[var(--color-text-secondary)]">
                         {log.ipAddress || 'Unknown IP'}
                       </div>

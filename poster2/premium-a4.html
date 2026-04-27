@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BlueArkive - Premium A4</title>
+    <link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700;800;900&family=Geist+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        
+        :root {
+            --canvas: #FAFAFA;
+            --canvas-deep: #F3F4F6;
+            --ink-core: #09090B;
+            --ink-muted: #52525B;
+            --ink-faint: #A1A1AA;
+            
+            --accent-gradient: linear-gradient(135deg, #0284C7 0%, #4F46E5 50%, #7C3AED 100%);
+            
+            --shadow-subtle: 0 2px 8px rgba(0,0,0,0.04);
+            --shadow-elevated: 0 8px 24px rgba(0,0,0,0.06), 0 2px 4px rgba(0,0,0,0.02);
+            --border-subtle: 1px solid rgba(0,0,0,0.06);
+            --border-highlight: inset 0 1px 0 rgba(255,255,255,1);
+        }
+
+        @page { size: A4 portrait; margin: 0; }
+
+        body {
+            background-color: #E4E4E7;
+            display: flex; justify-content: center; align-items: center;
+            min-height: 100vh; padding: 3rem;
+            font-family: 'Instrument Sans', -apple-system, sans-serif;
+            -webkit-font-smoothing: antialiased; text-rendering: optimizeLegibility;
+        }
+
+        .poster {
+            width: 210mm; height: 297mm; /* Exact A4 */
+            position: relative; overflow: hidden;
+            background-color: var(--canvas);
+            box-shadow: 0 20px 60px rgba(0,0,0,0.15);
+            -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important;
+            
+            background-image: 
+                linear-gradient(rgba(0,0,0,0.02) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(0,0,0,0.02) 1px, transparent 1px);
+            background-size: 5mm 5mm;
+        }
+
+        @media print {
+            body { padding: 0; background: none; }
+            .poster { box-shadow: none; border: none; }
+        }
+
+        .layout-grid {
+            position: absolute; inset: 15mm 12mm;
+            display: flex; flex-direction: column; justify-content: space-between;
+        }
+
+        /* ─── TOP: TYPOGRAPHICAL HERO ─── */
+        .hero-zone {
+            display: flex; flex-direction: column;
+        }
+
+        .brand-header {
+            display: flex; align-items: center; justify-content: space-between;
+            font-size: 11pt; font-weight: 700; color: var(--ink-core); letter-spacing: -0.01em;
+            margin-bottom: 25mm;
+        }
+        .brand-lockup { display: flex; align-items: center; gap: 8px; }
+        .brand-mark {
+            width: 14px; height: 14px; background: var(--accent-gradient);
+            border-radius: 3px; box-shadow: inset 0 0 0 1px rgba(0,0,0,0.1);
+        }
+        .brand-url { font-family: 'Geist Mono', monospace; font-size: 9pt; color: var(--ink-faint); text-transform: uppercase;}
+
+        .headline {
+            font-size: 34pt; font-weight: 800; line-height: 1.05; letter-spacing: -0.03em;
+            color: var(--ink-core); margin-bottom: 12px;
+        }
+        
+        .sub-headline {
+            font-size: 15pt; font-weight: 500; line-height: 1.4; color: var(--ink-muted);
+            letter-spacing: -0.01em; max-width: 95%; margin-bottom: 25mm;
+        }
+
+        /* ─── MID: VERTICAL BENTO ─── */
+        .bento-zone {
+            display: flex; flex-direction: column; gap: 8mm;
+        }
+
+        .bento-card {
+            background: #FFFFFF; border-radius: 16px; padding: 15mm;
+            border: var(--border-subtle); box-shadow: var(--shadow-elevated), var(--border-highlight);
+        }
+
+        .card-top {
+            display: flex; flex-direction: column; gap: 15mm;
+        }
+
+        .price-lockup { display: flex; flex-direction: column;}
+        .price-label {
+            font-family: 'Geist Mono', monospace; font-size: 9pt; font-weight: 600;
+            color: var(--ink-faint); text-transform: uppercase; letter-spacing: 0.08em;
+            margin-bottom: 6px;
+        }
+        .price-hero {
+            font-size: 38pt; font-weight: 900; letter-spacing: -0.04em; line-height: 1;
+            background: var(--accent-gradient); -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+        }
+
+        .specs-grid {
+            display: grid; grid-template-columns: 1fr 1fr; gap: 10mm;
+        }
+        .spec-item { display: flex; flex-direction: column; gap: 4px; border-left: 2px solid var(--canvas-deep); padding-left: 10px;}
+        .spec-label {
+            font-family: 'Geist Mono', monospace; font-size: 8pt; font-weight: 600; color: var(--ink-faint); text-transform: uppercase; letter-spacing: 0.05em;
+        }
+        .spec-value {
+            font-size: 11pt; font-weight: 600; color: var(--ink-core); letter-spacing: -0.01em;
+        }
+
+        .comparison-table { width: 100%; border-collapse: collapse; font-family: 'Instrument Sans', sans-serif;}
+        .comparison-table th { text-align: left; padding: 0 0 6px 0; border-bottom: 1px solid var(--canvas-deep); font-size: 9pt; color: var(--ink-muted); font-weight: 600; text-transform: uppercase; letter-spacing: 0.03em;}
+        .comparison-table th.brand-col { color: var(--accent-solid); }
+        .comparison-table td { padding: 8px 0; border-bottom: 1px solid var(--canvas-deep); font-size: 11pt; }
+        .comparison-table td.label-col { font-weight: 600; color: var(--ink-muted); }
+        .comparison-table td.comp-col { color: var(--ink-muted); }
+        .comparison-table td.brand-col { font-weight: 700; color: var(--ink-core); }
+        .comparison-table tr:last-child td { border-bottom: none; padding-bottom: 0; }
+
+        /* Bottom Action Card */
+        .card-bottom {
+            background: var(--ink-core); color: #FFFFFF; border: none; padding: 15mm;
+            display: flex; flex-direction: column; align-items: flex-start; justify-content: space-between; gap: 15mm;
+            box-shadow: var(--shadow-elevated); margin-top: auto;
+        }
+        .action-text {
+            font-size: 16pt; font-weight: 600; letter-spacing: -0.02em; line-height: 1.3;
+        }
+        .action-text span { color: var(--ink-faint); font-weight: 400; display: block; margin-top: 4px;}
+        
+        .cta-button {
+            background: #FFFFFF; color: var(--ink-core); padding: 12px 24px; border-radius: 100px;
+            font-size: 12pt; font-weight: 700; letter-spacing: -0.01em; display: flex; align-items: center; justify-content: center; gap: 8px; width: 100%;
+        }
+        
+    </style>
+</head>
+<body>
+    <div class="poster">
+        <div class="layout-grid">
+            
+            <div class="hero-zone">
+                <div class="brand-header">
+                    <div class="brand-lockup"><div class="brand-mark"></div>BlueArkive</div>
+                    <div class="brand-url">bluearkive.com</div>
+                </div>
+                
+                <h1 class="headline">You had 6 meetings today.<br>Remember what was decided in the second one?</h1>
+                <p class="sub-headline">The private intelligence fabric that records, transcribes, and drafts action items. Ready before you hang up.</p>
+            </div>
+
+            <div class="bento-zone">
+                
+                <div class="bento-card card-top">
+                    <div class="price-lockup">
+                        <span class="price-label">Cost Architecture</span>
+                        <div class="price-hero">FREE FOREVER.</div>
+                    </div>
+                    
+                    <div class="specs-grid">
+                        <div class="spec-item"><span class="spec-label">Processing</span><span class="spec-value">100% Local Inference</span></div>
+                        <div class="spec-item"><span class="spec-label">Network</span><span class="spec-value">Zero (Offline)</span></div>
+                        <div class="spec-item"><span class="spec-label">Meeting Bots</span><span class="spec-value">Invisible Capture</span></div>
+                        <div class="spec-item"><span class="spec-label">Security</span><span class="spec-value">On-Device AES-256</span></div>
+                    </div>
+                </div>
+
+                <div class="bento-card">
+                    <table class="comparison-table">
+                        <thead><tr><th></th><th>Cloud Tools</th><th class="brand-col">BlueArkive</th></tr></thead>
+                        <tbody>
+                            <tr><td class="label-col">Free tier</td><td class="comp-col">300 min/mo</td><td class="brand-col">Unlimited.</td></tr>
+                            <tr><td class="label-col">Yearly cost</td><td class="comp-col" style="text-decoration: line-through;">Over $200</td><td class="brand-col" style="color: var(--accent-solid);">$0</td></tr>
+                            <tr><td class="label-col">Bot joins?</td><td class="comp-col">Yes</td><td class="brand-col">Never</td></tr>
+                            <tr><td class="label-col">Your Data</td><td class="comp-col">Their servers</td><td class="brand-col">Your device</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="bento-card card-bottom">
+                    <div class="action-text">Join 1,200+ professionals<br><span>who switched this month.</span></div>
+                    <div class="cta-button">Get Started <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="5" y1="12" x2="19" y2="12"></line><polyline points="12 5 19 12 12 19"></polyline></svg></div>
+                </div>
+
+            </div>
+            
+        </div>
+    </div>
+</body>
+</html>

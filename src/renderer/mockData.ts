@@ -854,7 +854,7 @@ export const MOCK_SETTINGS: AppSettings = {
   phiDetectionEnabled: true,
   maskPHIBeforeSync: true,
   auditLoggingEnabled: true,
-  onboarding_completed: true,
+  onboarding_completed: false,
 }
 
 // ============================================================================

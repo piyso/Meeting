@@ -1,0 +1,37 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+model User {
+  id        String    @id @default(cuid())
+  email     String    @unique
+  name      String?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  meetings  Meeting[]
+}
+
+model Meeting {
+  id          String       @id @default(cuid())
+  title       String
+  date        DateTime     @default(now())
+  transcript  String?
+  userId      String
+  user        User         @relation(fields: [userId], references: [id])
+  actionItems ActionItem[]
+}
+
+model ActionItem {
+  id        String   @id @default(cuid())
+  task      String
+  completed Boolean  @default(false)
+  meetingId String
+  meeting   Meeting  @relation(fields: [meetingId], references: [id])
+}

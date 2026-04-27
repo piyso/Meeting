@@ -101,7 +101,16 @@ export type EmbeddingStatus = 'pending' | 'processing' | 'ready' | 'failed'
  * Sync Manager Class
  */
 export class SyncManager {
-  private backend: PiyAPIBackend
+  // P1-2 FIX: Use lazy getter via BackendSingleton instead of storing a direct
+  // reference. When resetBackend() is called on logout, a stored reference goes
+  // stale (token cleared) while the 30-second retry timer may still fire.
+  private _backendOverride: PiyAPIBackend | null = null
+  private get backend(): PiyAPIBackend {
+    if (this._backendOverride) return this._backendOverride
+    // Dynamic import would create circular deps, so import at top-level
+    const { getBackend } = require('./backend/BackendSingleton')
+    return getBackend() as PiyAPIBackend
+  }
   private userId: string | null = null
   // C-1 AUDIT: Raw password is NOT stored as a class field.
   // It's received in initialize(), used for PBKDF2 key derivation, then discarded.
@@ -115,7 +124,7 @@ export class SyncManager {
   private log = Logger.create('SyncManager')
 
   constructor(backend?: PiyAPIBackend) {
-    this.backend = backend || new PiyAPIBackend()
+    this._backendOverride = backend || null
   }
 
   /**
@@ -659,12 +668,18 @@ export class SyncManager {
 
     // #5 fix: Defense-in-depth — use a map of prepared statements
     // instead of string interpolation, even though ALLOWED_TABLES guards the input
+    // P1-1 FIX: Added action_items, sentiment_scores, calendar_events, webhooks
+    // which were missing — records from these tables were re-synced every 30s cycle
     const tableUpdateSQL: Record<string, string> = {
       meetings: 'UPDATE meetings SET synced_at = ? WHERE id = ?',
       transcripts: 'UPDATE transcripts SET synced_at = ? WHERE id = ?',
       notes: 'UPDATE notes SET synced_at = ? WHERE id = ?',
       entities: 'UPDATE entities SET synced_at = ? WHERE id = ?',
       audio_highlights: 'UPDATE audio_highlights SET synced_at = ? WHERE id = ?',
+      action_items: 'UPDATE action_items SET synced_at = ? WHERE id = ?',
+      sentiment_scores: 'UPDATE sentiment_scores SET synced_at = ? WHERE id = ?',
+      calendar_events: 'UPDATE calendar_events SET synced_at = ? WHERE id = ?',
+      webhooks: 'UPDATE webhooks SET synced_at = ? WHERE id = ?',
     }
 
     const sql = tableUpdateSQL[table]

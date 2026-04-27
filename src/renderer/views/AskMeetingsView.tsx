@@ -8,7 +8,7 @@
 
 import React, { useState, useRef, useEffect, useCallback } from 'react'
 import { useAppStore } from '../store/appStore'
-import { ChevronLeft, Send, Trash2 } from 'lucide-react'
+import { ChevronLeft, Send, Trash2, Square } from 'lucide-react'
 import { IconButton } from '../components/ui/IconButton'
 import { AISourceBadge } from '../components/ui/AISourceBadge'
 import { ProTeaseOverlay } from '../components/ui/ProTeaseOverlay'
@@ -214,6 +214,17 @@ export default function AskMeetingsView() {
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLTextAreaElement>(null)
 
+  // Abort ref — tracks whether the current request should be discarded.
+  // Set to true on cancel or unmount so stale IPC responses don't update state.
+  const abortRef = useRef(false)
+
+  // Cleanup: abort any in-flight request on unmount
+  useEffect(() => {
+    return () => {
+      abortRef.current = true
+    }
+  }, [])
+
   // On mount, load user and their history
   useEffect(() => {
     let mounted = true
@@ -296,6 +307,24 @@ export default function AskMeetingsView() {
     }
   }, [])
 
+  // Cancel a stuck/in-flight request
+  const handleCancel = useCallback(() => {
+    abortRef.current = true
+    setIsLoading(false)
+    // Mark the latest streaming message as cancelled
+    setMessages(prev =>
+      prev.map(msg =>
+        msg.isStreaming
+          ? {
+              ...msg,
+              content: msg.content || '_Request cancelled._',
+              isStreaming: false,
+            }
+          : msg
+      )
+    )
+  }, [])
+
   const handleSubmit = useCallback(
     async (e?: React.FormEvent | string) => {
       let query = input.trim()
@@ -305,6 +334,9 @@ export default function AskMeetingsView() {
         e.preventDefault()
       }
       if (!query || isLoading) return
+
+      // Reset abort flag for this new request
+      abortRef.current = false
 
       // Add user message
       const userMsg: ChatMessage = {
@@ -337,6 +369,9 @@ export default function AskMeetingsView() {
           limit: 5,
         })
 
+        // Abort check: if cancelled during search, bail out
+        if (abortRef.current) return
+
         let sources: ChatMessage['sources'] = []
         let contextText = ''
 
@@ -364,10 +399,29 @@ export default function AskMeetingsView() {
         }
 
         // Step 2: Use dedicated askMeetings handler with streaming
-        const intelligenceResult = await window.electronAPI?.intelligence?.askMeetings({
+        // 60s timeout to prevent infinite hang if backend deadlocks
+        const AI_TIMEOUT_MS = 60_000
+        const askPromise = window.electronAPI?.intelligence?.askMeetings({
           question: query,
           context: contextText,
         })
+        // P1-6 FIX: Track timeout timer so we can clear it after Promise.race settles.
+        // Without this, the setTimeout fires into an already-resolved promise, causing
+        // an unhandled promise rejection in the renderer process.
+        let timeoutTimer: ReturnType<typeof setTimeout> | undefined
+        const timeoutPromise = new Promise<never>((_, reject) => {
+          timeoutTimer = setTimeout(() => reject(new Error('AI response timed out after 60s. The AI engine may be busy — please try again.')), AI_TIMEOUT_MS)
+        })
+
+        let intelligenceResult: Awaited<typeof askPromise>
+        try {
+          intelligenceResult = await Promise.race([askPromise, timeoutPromise])
+        } finally {
+          if (timeoutTimer) clearTimeout(timeoutTimer)
+        }
+
+        // Abort check: if cancelled during AI generation, discard result
+        if (abortRef.current) return
 
         // Final answer (streaming would have already updated content in real-time)
         const answer =
@@ -382,6 +436,8 @@ export default function AskMeetingsView() {
           )
         )
       } catch (error) {
+        // Don't update state if aborted
+        if (abortRef.current) return
         setMessages(prev =>
           prev.map(msg =>
             msg.id === assistantId
@@ -394,7 +450,9 @@ export default function AskMeetingsView() {
           )
         )
       } finally {
-        setIsLoading(false)
+        if (!abortRef.current) {
+          setIsLoading(false)
+        }
       }
     },
     [input, isLoading]
@@ -587,32 +645,22 @@ export default function AskMeetingsView() {
             disabled={isLoading}
             id="ask-meetings-textarea"
           />
-          <IconButton
-            icon={
-              isLoading ? (
-                <svg
-                  width="18"
-                  height="18"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  className="animate-spin"
-                >
-                  <circle cx="12" cy="12" r="10"></circle>
-                  <path d="M12 2a10 10 0 0 1 10 10"></path>
-                </svg>
-              ) : (
-                <Send size={18} />
-              )
-            }
-            onClick={() => handleSubmit()}
-            disabled={!input.trim() || isLoading}
-            className="ask-meetings-send"
-            tooltip="Send Message"
-          />
+          {isLoading ? (
+            <IconButton
+              icon={<Square size={16} fill="currentColor" />}
+              onClick={handleCancel}
+              className="ask-meetings-send"
+              tooltip="Stop Generating"
+            />
+          ) : (
+            <IconButton
+              icon={<Send size={18} />}
+              onClick={() => handleSubmit()}
+              disabled={!input.trim()}
+              className="ask-meetings-send"
+              tooltip="Send Message"
+            />
+          )}
         </form>
       </div>
     </div>

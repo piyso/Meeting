@@ -193,7 +193,25 @@ export class ASRService extends EventEmitter {
     const id = this.requestId++
 
     return new Promise((resolve, reject) => {
-      this.pendingRequests.set(id, { resolve, reject })
+      // P2-7 FIX: Track timeout so it can be cleared when the worker responds.
+      // Without this, 100+ orphaned timers accumulate during high-throughput recording.
+      const timeoutId = setTimeout(() => {
+        if (this.pendingRequests.has(id)) {
+          this.pendingRequests.delete(id)
+          reject(new Error('Transcription timeout'))
+        }
+      }, 30000)
+
+      this.pendingRequests.set(id, {
+        resolve: (value) => {
+          clearTimeout(timeoutId)
+          resolve(value)
+        },
+        reject: (reason) => {
+          clearTimeout(timeoutId)
+          reject(reason)
+        },
+      })
 
       this.sendMessage({
         type: 'transcribe',
@@ -202,14 +220,6 @@ export class ASRService extends EventEmitter {
           audioBuffer: audioBuffer.buffer,
         },
       })
-
-      // Timeout after 30 seconds
-      setTimeout(() => {
-        if (this.pendingRequests.has(id)) {
-          this.pendingRequests.delete(id)
-          reject(new Error('Transcription timeout'))
-        }
-      }, 30000)
     })
   }
 

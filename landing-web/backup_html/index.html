@@ -1,0 +1,363 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>BlueArkive — The Sovereign Memory Fabric</title>
+  <meta name="description" content="Private AI meeting notes that run 100% locally on your machine. No bots. No cloud. No fees. Free forever.">
+  <link rel="stylesheet" href="styles.css">
+  <!-- Lucide Icons CDN -->
+  <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+</head>
+<body>
+
+<!-- VIDEO BACKGROUND -->
+<video class="video-bg" autoplay muted loop playsinline>
+  <source src="https://d8j0ntlcm91z4.cloudfront.net/user_38xzZboKViGWJOttwIXH07lWA1P/hf_20260315_073750_51473149-4350-4920-ae24-c8214286f323.mp4" type="video/mp4">
+</video>
+<div class="video-overlay"></div>
+
+<!-- NAV -->
+<nav class="hero-nav" id="main-nav">
+  <a href="#" class="nav-logo">
+    <svg viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <rect x="2" y="2" width="28" height="28" rx="6" stroke="white" stroke-width="1.5" fill="none"/>
+      <path d="M10 16h12M16 10v12M10 10l12 12M22 10L10 22" stroke="white" stroke-width="1" opacity="0.5"/>
+      <circle cx="16" cy="16" r="3" stroke="white" stroke-width="1.5" fill="none"/>
+    </svg>
+    BlueArkive
+  </a>
+  <div class="nav-links">
+    <a href="#features">Architecture</a>
+    <a href="#trust">Security</a>
+    <a href="#pricing">Nodes</a>
+    <a href="#download" class="nav-cta liquid-glass-strong">Initialize Core</a>
+  </div>
+  <button class="menu-btn liquid-glass" style="display:none; padding:0.5rem; border-radius:0.5rem; border:none; color:white; cursor:pointer; background:transparent;">
+    <i data-lucide="menu" style="width:20px;height:20px"></i>
+  </button>
+</nav>
+
+<!-- HERO -->
+<section class="hero content-layer" id="hero">
+  <div class="hero-inner liquid-glass-strong">
+    <div class="hero-badge liquid-glass reveal">
+      <span class="dot"></span>
+      v0.3.3 CORE ONLINE
+    </div>
+
+    <h1 class="reveal">Your meetings.<br><em>Perfectly remembered.</em></h1>
+    <p class="section-label reveal" style="margin-bottom:0.5rem; font-size:0.8125rem; letter-spacing:0.08em;">The Sovereign Memory Fabric.</p>
+    <p class="hero-sub reveal">Private AI meeting notes that run 100% locally on your machine. No creepy bots joining your calls. No cloud servers. No monthly fees.</p>
+
+    <div class="hero-actions reveal">
+      <a href="#download" class="btn-primary liquid-glass-strong">
+        <span class="icon-circle"><i data-lucide="download" style="width:14px;height:14px"></i></span>
+        Download Free
+      </a>
+      <a href="#features" class="btn-secondary">
+        See How It Works
+        <i data-lucide="arrow-right" style="width:16px;height:16px"></i>
+      </a>
+    </div>
+
+    <div class="hero-trust reveal">
+      <i data-lucide="check-circle" style="width:14px;height:14px"></i>
+      <span style="color:rgba(255,255,255,0.6)">macOS · Apple Silicon & Intel</span>
+    </div>
+
+    <p class="reveal" style="margin-top:0.75rem; font-size:0.6875rem; color:rgba(255,255,255,0.35); letter-spacing:0.05em;">✓ FREE FOREVER: Zero cost. Zero cloud. Local processing.</p>
+
+    <div class="hero-stats reveal">
+      <div class="stat-pill liquid-glass">
+        <strong data-count="2873">0</strong>&nbsp;meetings recorded this week by the community
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ENGINE DEMO -->
+<section class="section-pad content-layer reveal" id="engine">
+  <p class="section-label">BlueArkive Inference Engine</p>
+  <h2 class="section-title">You type:</h2>
+
+  <div class="engine-demo liquid-glass-strong">
+    <div class="engine-input liquid-glass">
+      <p class="engine-text" data-text="sarah will finalize graphql payload... blocker is devops staging lambda... target shifted to friday eod"></p>
+      <div class="shortcut">Press <kbd>⌘</kbd>+<kbd>Enter</kbd></div>
+    </div>
+    <div class="engine-stats">
+      <div class="engine-stat liquid-glass">
+        <span class="val">0 Bytes</span>
+        <span class="label">Sent to the cloud</span>
+      </div>
+      <div class="engine-stat liquid-glass">
+        <span class="val">AES-256</span>
+        <span class="label">Military-grade encryption</span>
+      </div>
+      <div class="engine-stat liquid-glass">
+        <span class="val">51.8x</span>
+        <span class="label">Faster than cloud APIs</span>
+      </div>
+      <div class="engine-stat liquid-glass">
+        <span class="val">100%</span>
+        <span class="label">Offline uptime guarantee</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ROLE-BASED -->
+<section class="section-pad content-layer role-section reveal" id="roles">
+  <p class="section-label">Built for how you work.</p>
+  <h2 class="section-title">BlueArkive adapts its inference engine<br>to your role, extracting exactly<br>what you need <em>without being asked.</em></h2>
+
+  <div class="role-tabs">
+    <button class="role-tab liquid-glass-strong active" data-role="founders">Founders</button>
+    <button class="role-tab liquid-glass" data-role="engineers">Engineers</button>
+    <button class="role-tab liquid-glass" data-role="sales">Sales</button>
+    <button class="role-tab liquid-glass" data-role="product">Product</button>
+  </div>
+
+  <div class="role-card liquid-glass-strong active" data-role="founders">
+    <h4>Automatically Extracts</h4>
+    <h3>Investor Commitments & Hiring Actions</h3>
+    <p class="desc">BlueArkive listens to your pitch and automatically organizes "soft yesses", stated check sizes, and follow-up materials requested by partners.</p>
+    <pre class="liquid-glass">+ Investor: Sequoia (Partner Meeting)
+  - Expressed interest: $2M allocation
+  - Action: Send updated ARR projection model by EOD</pre>
+  </div>
+  <div class="role-card liquid-glass-strong" data-role="engineers">
+    <h4>Automatically Extracts</h4>
+    <h3>Architecture Decisions & Jira Tickets</h3>
+    <p class="desc">Never write another ticket. BlueArkive converts standups into actionable engineering tasks, documenting PR blockers and API payload changes.</p>
+    <pre class="liquid-glass">+ Epic: Migration to GraphQL
+  - Decision: Use Apollo Federation (approved by Sarah)
+  - Blocker: Staging DB credentials taking too long</pre>
+  </div>
+  <div class="role-card liquid-glass-strong" data-role="sales">
+    <h4>Automatically Extracts</h4>
+    <h3>BANT Qualification & Objections</h3>
+    <p class="desc">BlueArkive listens to discovery calls and fills out Budget, Authority, Need, and Timeline directly, logging specific competitor mentions.</p>
+    <pre class="liquid-glass">+ Lead: Acme Corp (Enterprise)
+  - Budget: $150k approved in Q3
+  - Objection: Security review turnaround time</pre>
+  </div>
+  <div class="role-card liquid-glass-strong" data-role="product">
+    <h4>Automatically Extracts</h4>
+    <h3>User Friction & Feature Requests</h3>
+    <p class="desc">Turn user interviews into a structured database. BlueArkive flags emotional friction points and maps feature requests to existing epics.</p>
+    <pre class="liquid-glass">+ Interview: Beta User 042
+  - Friction: Onboarding tooltips feel overwhelming
+  - Request: Ability to export metrics to CSV (High Priority)</pre>
+  </div>
+</section>
+
+<!-- SOVEREIGNTY BANNER -->
+<section class="section-pad content-layer reveal" style="text-align:center">
+  <h2 class="section-title">Your ideas <em>belong to you.</em></h2>
+  <p class="section-desc centered">Stop handing your company's deepest strategies over to greedy cloud AI companies.</p>
+</section>
+
+<!-- FEATURES -->
+<section class="section-pad content-layer" id="features">
+  <div class="features-grid">
+
+    <div class="feature-card liquid-glass reveal">
+      <div class="icon-wrap"><i data-lucide="eye-off" style="width:22px;height:22px"></i></div>
+      <h3>Your Invisible Scribe</h3>
+      <h2>Focus on the conversation.</h2>
+      <p>Records your Zoom, Google Meet, or Teams calls silently in the background. No creepy bots joining your meetings. No complicated setup. It just works.</p>
+      <ul>
+        <li>Works instantly with all meeting apps</li>
+        <li>Transcribes everything as it happens</li>
+        <li>Zero lag, completely free forever</li>
+      </ul>
+      <p class="tip">💡 Try this: Join a meeting. It automatically starts preserving context.</p>
+    </div>
+
+    <div class="feature-card liquid-glass reveal">
+      <div class="icon-wrap"><i data-lucide="pen-line" style="width:22px;height:22px"></i></div>
+      <h3>Your Decision Timeline</h3>
+      <h2>Jot a thought. Write a chapter.</h2>
+      <p>Type a rough bullet like "follow up on budget". Press ⌘+Enter. BlueArkive reads the transcript and instantly expands your shorthand into a perfect summary.</p>
+      <ul>
+        <li>Natural language expansion</li>
+        <li>Auto-assigns action items</li>
+        <li>Context-aware formatting</li>
+      </ul>
+      <p class="tip">💡 Try this: Document an "Action Item" and watch it auto-assign.</p>
+    </div>
+
+    <div class="feature-card liquid-glass reveal">
+      <div class="icon-wrap"><i data-lucide="search" style="width:22px;height:22px"></i></div>
+      <h3>Semantic Magic</h3>
+      <h2>Find anything instantly.</h2>
+      <p>Press ⌘+K anywhere to search your entire history by meaning, not just exact keywords. Ask "what was the marketing budget?" — we'll find the exact moment.</p>
+      <ul>
+        <li>Meaning-based, not keyword-based</li>
+        <li>Cross-meeting search</li>
+        <li>Instant results</li>
+      </ul>
+      <p class="tip">💡 Try this: Search "pipeline blockers from yesterday".</p>
+    </div>
+
+    <div class="feature-card liquid-glass reveal">
+      <div class="icon-wrap"><i data-lucide="cpu" style="width:22px;height:22px"></i></div>
+      <h3>Sovereign Foundation</h3>
+      <h2>Your hardware. Your intelligence.</h2>
+      <p>BlueArkive runs beautifully on Mac, Windows, and Linux. Because it uses your own computer, the entire product is completely free — forever.</p>
+      <div class="platform-grid" style="margin-top:1.25rem">
+        <div class="platform-card liquid-glass">
+          <h3>macOS</h3>
+          <p>Apple Silicon & Intel</p>
+        </div>
+        <div class="platform-card liquid-glass">
+          <h3>Windows</h3>
+          <p>x64 Installer & Portable</p>
+        </div>
+        <div class="platform-card liquid-glass">
+          <h3>Linux</h3>
+          <p>AppImage, .deb, .rpm</p>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</section>
+
+<!-- TRUST -->
+<section class="section-pad content-layer reveal" id="trust" style="text-align:center">
+  <p class="section-label">Sovereignty over your context.</p>
+  <h2 class="section-title">While typical AI tools require uploading<br>your meetings to their servers, our intelligence<br>lives <em>entirely on your machine.</em></h2>
+  <p class="section-desc centered" style="margin-bottom:2rem">The Trust Test</p>
+
+  <div style="max-width:800px; margin:0 auto; border-radius:var(--radius-xl); overflow:hidden" class="liquid-glass-strong">
+    <table class="trust-table">
+      <thead>
+        <tr><th></th><th>BlueArkive (Safe)</th><th>Cloud Note-Takers (Risky)</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>Data Locality</td><td class="safe">🔒 100% Local Processing</td><td class="risky">☁️ Sent to company servers</td></tr>
+        <tr><td>Training Opt-out</td><td class="safe">🛡️ Zero data harvesting</td><td class="risky">📉 Default opt-in</td></tr>
+        <tr><td>Meeting Presence</td><td class="safe">👻 Invisible background app</td><td class="risky">🤖 Annoying bot joins call</td></tr>
+        <tr><td>Internet Requirement</td><td class="safe">✈️ Works offline natively</td><td class="risky">❌ Fails without Wi-Fi</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p style="margin-top:1.5rem"><a href="#" style="color:rgba(255,255,255,0.5); font-size:0.8125rem; text-decoration:underline; text-underline-offset:3px;">Read the Security Whitepaper →</a></p>
+</section>
+
+<!-- PRICING -->
+<section class="section-pad content-layer pricing-section reveal" id="pricing">
+  <p class="section-label">Claim your sovereign node.</p>
+  <h2 class="section-title">To ensure optimal performance and gather quality feedback,<br>the 100% free Personal Sanctuary tier is strictly<br>limited to our first <em>10,000 active users.</em></h2>
+
+  <div class="pricing-card liquid-glass-strong" style="margin-top:2rem">
+    <p style="font-size:0.75rem; letter-spacing:0.1em; text-transform:uppercase; color:rgba(255,255,255,0.4); margin-bottom:0.5rem;">Personal Sanctuary (Early Adopter)</p>
+    <p class="old-price">$11</p>
+    <p class="price">$0</p>
+    <p class="price-note">Free for now. Free forever.</p>
+
+    <ul>
+      <li><i data-lucide="check" style="width:16px;height:16px"></i> Unlimited private meeting notes</li>
+      <li><i data-lucide="check" style="width:16px;height:16px"></i> Floating "focus" widget</li>
+      <li><i data-lucide="check" style="width:16px;height:16px"></i> Smart thought expansion</li>
+      <li><i data-lucide="check" style="width:16px;height:16px"></i> Magic meeting search</li>
+      <li><i data-lucide="check" style="width:16px;height:16px"></i> Military-grade security AES-256</li>
+      <li><i data-lucide="check" style="width:16px;height:16px"></i> Works completely offline</li>
+    </ul>
+
+    <a href="#download" class="btn-primary liquid-glass-strong" style="width:100%;justify-content:center">
+      Download Free
+    </a>
+  </div>
+</section>
+
+<!-- DOWNLOAD -->
+<section class="section-pad content-layer download-section reveal" id="download">
+  <h2 class="section-title" style="text-align:center">Download <em>BlueArkive.</em></h2>
+  <p class="section-desc centered">Free. Private. No account needed. Yours forever.</p>
+  <p style="text-align:center; font-size:0.8125rem; color:rgba(255,255,255,0.4); margin-top:0.75rem;">💡 Your first meeting is 30 seconds away. Download, record a 2-minute test, and see the magic.</p>
+
+  <div class="download-card liquid-glass-strong">
+    <button class="download-btn liquid-glass-strong" style="width:100%; justify-content:center">
+      <i data-lucide="arrow-down-circle" style="width:20px;height:20px"></i>
+      Download for macOS
+    </button>
+    <p class="download-meta">Apple Silicon · arm64 · 188 MB</p>
+    <p class="download-alt"><a href="#">Download for Intel Mac instead (x64)</a></p>
+    <p class="download-alt">Also available for: <a href="#">Windows</a> <a href="#">Linux</a></p>
+  </div>
+
+  <!-- SETUP -->
+  <p style="text-align:center; margin-top:3rem; font-size:0.8125rem; color:rgba(255,255,255,0.4);">After downloading — three easy steps:</p>
+  <p style="text-align:center; font-size:0.75rem; color:rgba(255,255,255,0.3);">Because BlueArkive is free and independent, Apple shows a security warning. This quick unlock takes 30 seconds.</p>
+
+  <div class="setup-steps">
+    <div class="setup-step liquid-glass">
+      <div class="step-num">1</div>
+      <h4>Drag to Applications</h4>
+      <p>Open the .dmg file and drag BlueArkive into Applications.</p>
+    </div>
+    <div class="setup-step liquid-glass">
+      <div class="step-num">2</div>
+      <h4>Open Terminal</h4>
+      <p>Press ⌘ Space, type Terminal, press Enter.</p>
+    </div>
+    <div class="setup-step liquid-glass">
+      <div class="step-num">3</div>
+      <h4>Paste & press Enter</h4>
+      <p>Paste the command below and type your Mac password when asked.</p>
+    </div>
+  </div>
+
+  <div class="terminal-block liquid-glass" style="margin-top:1.5rem">
+    <span><span style="color:rgba(255,255,255,0.3)">$</span> sudo xattr -cr /Applications/BlueArkive.app</span>
+    <button class="copy-btn">Copy</button>
+  </div>
+  <p style="text-align:center; margin-top:1rem; font-size:0.8125rem; color:rgba(255,255,255,0.5);">That's it! Double-click BlueArkive from Applications — it opens perfectly, forever.</p>
+</section>
+
+<!-- FOOTER -->
+<footer class="content-layer">
+  <div class="footer-inner">
+    <div class="footer-brand">
+      <a href="#" class="nav-logo" style="font-size:1.25rem">
+        <svg viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg" style="width:24px;height:24px">
+          <rect x="2" y="2" width="28" height="28" rx="6" stroke="white" stroke-width="1.5" fill="none"/>
+          <circle cx="16" cy="16" r="3" stroke="white" stroke-width="1.5" fill="none"/>
+        </svg>
+        BlueArkive
+      </a>
+      <p>The sovereign memory fabric.</p>
+    </div>
+    <div class="footer-cols">
+      <div class="footer-col">
+        <h4>Product</h4>
+        <a href="#features">Capabilities</a>
+        <a href="#pricing">Pricing</a>
+        <a href="#download">Download</a>
+      </div>
+      <div class="footer-col">
+        <h4>Trust</h4>
+        <a href="#trust">Architecture & Security</a>
+        <a href="#">Privacy Policy</a>
+        <a href="#">Terms of Service</a>
+      </div>
+    </div>
+  </div>
+  <div class="footer-bottom">
+    <div class="footer-badges">
+      <span class="footer-badge liquid-glass">AES-256 Encryption</span>
+      <span class="footer-badge liquid-glass">100% Offline</span>
+      <span class="footer-badge liquid-glass">No Account Required</span>
+    </div>
+    <p class="footer-copy">© 2026. All rights reserved.</p>
+  </div>
+</footer>
+
+<script src="app.js"></script>
+<script>lucide.createIcons();</script>
+</body>
+</html>

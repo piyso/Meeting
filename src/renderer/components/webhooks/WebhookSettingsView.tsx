@@ -1,6 +1,6 @@
 import React, { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Webhook, Trash2, Save, AlertCircle } from 'lucide-react'
+import { Webhook, Trash2, Save, AlertCircle, ChevronDown, ChevronUp } from 'lucide-react'
 import { Button } from '../ui/Button'
 import { useWebhooks } from '../../hooks/queries/useWebhooks'
 
@@ -9,6 +9,7 @@ export const WebhookSettingsView: React.FC = () => {
 
   const [isAdding, setIsAdding] = useState(false)
   const [newUrl, setNewUrl] = useState('')
+  const [expandedId, setExpandedId] = useState<string | null>(null)
 
   const availableEvents = [
     { id: 'meeting.started', label: 'Meeting Started' },
@@ -129,7 +130,15 @@ export const WebhookSettingsView: React.FC = () => {
                 </div>
               </div>
 
-              <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setExpandedId(expandedId === webhook.id ? null : webhook.id)}
+                  className="p-2 hover:bg-glass rounded-lg text-secondary hover:text-white transition-colors flex items-center gap-1"
+                >
+                  <span className="text-xs">{expandedId === webhook.id ? 'Close' : 'Edit'}</span>
+                  {expandedId === webhook.id ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+                </button>
+                <div className="w-[1px] h-4 bg-border-subtle mx-1" />
                 <button
                   onClick={() => toggleWebhook(webhook.id, webhook.is_active)}
                   className="p-2 hover:bg-glass rounded-lg text-secondary hover:text-white transition-colors"
@@ -145,11 +154,19 @@ export const WebhookSettingsView: React.FC = () => {
               </div>
             </div>
 
-            <div className="bg-black/50 p-4 rounded-xl border border-border-inset">
-              <h5 className="text-xs font-semibold text-secondary uppercase tracking-widest mb-3">
-                Subscribed Events
-              </h5>
-              <div className="flex flex-wrap gap-2">
+            <AnimatePresence>
+              {expandedId === webhook.id && (
+                <motion.div
+                  initial={{ height: 0, opacity: 0 }}
+                  animate={{ height: 'auto', opacity: 1 }}
+                  exit={{ height: 0, opacity: 0 }}
+                  className="overflow-hidden"
+                >
+                  <div className="bg-black/50 p-4 rounded-xl border border-border-inset mt-2">
+                    <h5 className="text-xs font-semibold text-secondary uppercase tracking-widest mb-3">
+                      Subscribed Events
+                    </h5>
+              <div className="flex flex-wrap gap-3">
                 {availableEvents.map(event => {
                   let parsed: string[] = []
                   try {
@@ -161,10 +178,21 @@ export const WebhookSettingsView: React.FC = () => {
                   return (
                     <button
                       key={event.id}
-                      className={`text-[11px] font-medium px-2.5 py-1 rounded-md border transition-colors ${
+                      onClick={() => {
+                        const newEvents = isSubscribed
+                          ? parsed.filter(id => id !== event.id)
+                          : [...parsed, event.id]
+                        saveWebhook.mutate({
+                          id: webhook.id,
+                          url: webhook.url,
+                          events: newEvents,
+                          is_active: webhook.is_active,
+                        })
+                      }}
+                      className={`text-xs font-medium px-3 py-1.5 rounded-md border transition-all cursor-pointer ${
                         isSubscribed
-                          ? 'bg-violet/10 border-violet/30 text-violet'
-                          : 'bg-glass border-transparent text-tertiary hover:text-secondary'
+                          ? 'bg-violet/20 border-violet/50 text-[#d8b4fe] shadow-[0_0_10px_rgba(139,92,246,0.15)]'
+                          : 'bg-white/10 border-white/20 text-slate-300 hover:bg-white/15 hover:text-white'
                       }`}
                     >
                       {event.label}
@@ -172,7 +200,10 @@ export const WebhookSettingsView: React.FC = () => {
                   )
                 })}
               </div>
-            </div>
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
           </motion.div>
         ))}
       </AnimatePresence>

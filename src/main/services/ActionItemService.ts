@@ -121,7 +121,7 @@ Action items (JSON array):`
       prompt,
       temperature: 0.2,
       maxTokens: 1024,
-    })
+    }, 'actionItems')
 
     if (!response) return []
 

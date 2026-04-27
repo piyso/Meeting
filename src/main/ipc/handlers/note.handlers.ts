@@ -234,14 +234,17 @@ INSTRUCTIONS:
 
 EXPANDED NOTE:`
 
-      const expandedText = await modelManager.generate({
-        prompt,
-        temperature: 0.1,
-        topP: 0.9,
-        topK: 40,
-        maxTokens: 100,
-        stop: ['\n\n', 'USER'],
-      })
+      const expandedText = await modelManager.generate(
+        {
+          prompt,
+          temperature: 0.1,
+          topP: 0.9,
+          topK: 40,
+          maxTokens: 100,
+          stop: ['\n\n', 'USER'],
+        },
+        'noteExpand'
+      )
       const inferenceTime = Date.now() - localStartTime
       return {
         success: true,
@@ -312,11 +315,14 @@ EXPANDED NOTE:`
 
           const prompt = `You are an executive assistant helping write meeting notes. Respond in the same language as the context and user's note.\n\nCONTEXT:\n${context.contextText}\n\nUSER'S BRIEF NOTE:\n${(note as { original_text?: string }).original_text ?? ''}\n\nINSTRUCTIONS:\n1. Expand into 1-2 professional sentences\n2. Include specific details from context\n3. Third person, max 50 words\n4. Do not fabricate information\n5. Use the same language as the transcript context\n\nEXPANDED NOTE:`
 
-          const expandedText = await modelManager.generate({
-            prompt,
-            temperature: 0.1,
-            maxTokens: 100,
-          })
+          const expandedText = await modelManager.generate(
+            {
+              prompt,
+              temperature: 0.1,
+              maxTokens: 100,
+            },
+            'noteExpand'
+          )
 
           // Persist expanded text to DB — without this, augmented_text stays NULL
           if (expandedText) {

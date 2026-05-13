@@ -161,7 +161,8 @@ export default function Home() {
         >
           <div className="hero-badge liquid-glass">
             <span className="dot" />
-            v0.3.4 CORE ONLINE
+            v0.3.5 CORE ONLINE
+            <span style={{ marginLeft: "8px", padding: "2px 8px", borderRadius: "4px", background: "rgba(99, 102, 241, 0.4)", border: "1px solid rgba(99, 102, 241, 0.6)", fontSize: "0.625rem", fontWeight: 700, letterSpacing: "0.12em", color: "#a5b4fc" }}>BETA</span>
           </div>
 
           <h1>
@@ -179,7 +180,7 @@ export default function Home() {
           </p>
 
           <div className="hero-actions">
-            <a href="https://dl.bluearkive.com/BlueArkive-0.3.4-mac-arm64.dmg" className="btn-primary liquid-glass-strong">
+            <a href="https://dl.bluearkive.com/BlueArkive-0.3.5-beta-mac-arm64.dmg" className="btn-primary liquid-glass-strong">
               <span className="icon-circle">
                 <Download style={{ width: 14, height: 14 }} />
               </span>
@@ -198,6 +199,9 @@ export default function Home() {
 
           <p style={{ marginTop: "0.75rem", fontSize: "0.6875rem", color: "rgba(255,255,255,0.35)", letterSpacing: "0.05em" }}>
             ✓ FREE FOREVER: Zero cost. Zero cloud. Local processing.
+          </p>
+          <p style={{ marginTop: "0.5rem", fontSize: "0.6875rem", color: "rgba(99, 102, 241, 0.7)", letterSpacing: "0.05em" }}>
+            🧪 v0.3.5 Beta — Production-hardened. 11 forensic fixes. Help us shape the future.
           </p>
 
 
@@ -531,7 +535,7 @@ export default function Home() {
               ))}
             </ul>
 
-            <a href="https://dl.bluearkive.com/BlueArkive-0.3.4-mac-arm64.dmg" className="btn-primary liquid-glass-strong" style={{ width: "100%", justifyContent: "center" }}>
+            <a href="https://dl.bluearkive.com/BlueArkive-0.3.5-beta-mac-arm64.dmg" className="btn-primary liquid-glass-strong" style={{ width: "100%", justifyContent: "center" }}>
               Download Free
             </a>
           </div>
@@ -550,13 +554,13 @@ export default function Home() {
           </p>
 
           <div className="download-card liquid-glass-strong">
-            <a href="https://dl.bluearkive.com/BlueArkive-0.3.4-mac-arm64.dmg" className="download-btn liquid-glass-strong" style={{ width: "100%", justifyContent: "center", textDecoration: "none" }}>
+            <a href="https://dl.bluearkive.com/BlueArkive-0.3.5-beta-mac-arm64.dmg" className="download-btn liquid-glass-strong" style={{ width: "100%", justifyContent: "center", textDecoration: "none" }}>
               <ArrowDownCircle style={{ width: 20, height: 20 }} />
               Download for macOS
             </a>
             <p className="download-meta">Apple Silicon · arm64 · 188 MB</p>
             <p className="download-alt">
-              <a href="https://dl.bluearkive.com/BlueArkive-0.3.4-mac-x64.dmg">Download for Intel Mac instead (x64)</a>
+              <a href="https://dl.bluearkive.com/BlueArkive-0.3.5-beta-mac-x64.dmg">Download for Intel Mac instead (x64)</a>
             </p>
             <p className="download-alt">
               Also available soon for: <span style={{ color: "rgba(255,255,255,0.6)" }}>Windows</span> &amp; <span style={{ color: "rgba(255,255,255,0.6)" }}>Linux</span>

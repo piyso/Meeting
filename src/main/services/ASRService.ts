@@ -207,11 +207,11 @@ export class ASRService extends EventEmitter {
       }, 30000)
 
       this.pendingRequests.set(id, {
-        resolve: (value) => {
+        resolve: value => {
           clearTimeout(timeoutId)
           resolve(value)
         },
-        reject: (reason) => {
+        reject: reason => {
           clearTimeout(timeoutId)
           reject(reason)
         },

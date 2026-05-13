@@ -328,7 +328,9 @@ export const CommandPalette: React.FC = () => {
         <motion.div layout className="ui-cmd-results">
           {actions.length > 0 && (
             <motion.div layout className="ui-cmd-section">
-              <motion.div layout="position" className="ui-cmd-section-title">ACTIONS</motion.div>
+              <motion.div layout="position" className="ui-cmd-section-title">
+                ACTIONS
+              </motion.div>
               {actions.map((item, i) => {
                 const globalIndex = i
                 return (
@@ -340,19 +342,22 @@ export const CommandPalette: React.FC = () => {
                     onMouseEnter={() => setSelectedIndex(globalIndex)}
                     transition={{ duration: 0.2, ease: 'easeOut' }}
                   >
-                    <motion.div layout className="ui-cmd-item-icon">{item.icon}</motion.div>
+                    <motion.div layout className="ui-cmd-item-icon">
+                      {item.icon}
+                    </motion.div>
                     <motion.div layout className="ui-cmd-item-text">
-                      <motion.div layout="position" className="ui-cmd-item-label">{item.label}</motion.div>
+                      <motion.div layout="position" className="ui-cmd-item-label">
+                        {item.label}
+                      </motion.div>
                       {item.description && (
-                        <motion.div layout className="ui-cmd-item-desc">{item.description}</motion.div>
+                        <motion.div layout className="ui-cmd-item-desc">
+                          {item.description}
+                        </motion.div>
                       )}
                     </motion.div>
                     {item.shortcut && (
                       <motion.div layout className="ml-auto flex-shrink-0">
-                        <Badge
-                          variant="default"
-                          className="font-mono tracking-tighter opacity-70"
-                        >
+                        <Badge variant="default" className="font-mono tracking-tighter opacity-70">
                           {item.shortcut}
                         </Badge>
                       </motion.div>
@@ -365,7 +370,9 @@ export const CommandPalette: React.FC = () => {
 
           {meetings.length > 0 && (
             <motion.div layout className="ui-cmd-section">
-              <motion.div layout="position" className="ui-cmd-section-title">MEETINGS ({meetings.length})</motion.div>
+              <motion.div layout="position" className="ui-cmd-section-title">
+                MEETINGS ({meetings.length})
+              </motion.div>
               {meetings.map((item, i) => {
                 const globalIndex = actions.length + i
                 return (
@@ -377,11 +384,17 @@ export const CommandPalette: React.FC = () => {
                     onMouseEnter={() => setSelectedIndex(globalIndex)}
                     transition={{ duration: 0.2, ease: 'easeOut' }}
                   >
-                    <motion.div layout className="ui-cmd-item-icon">{item.icon}</motion.div>
+                    <motion.div layout className="ui-cmd-item-icon">
+                      {item.icon}
+                    </motion.div>
                     <motion.div layout className="ui-cmd-item-text">
-                      <motion.div layout="position" className="ui-cmd-item-label">{item.label}</motion.div>
+                      <motion.div layout="position" className="ui-cmd-item-label">
+                        {item.label}
+                      </motion.div>
                       {item.description && (
-                        <motion.div layout className="ui-cmd-item-desc">{item.description}</motion.div>
+                        <motion.div layout className="ui-cmd-item-desc">
+                          {item.description}
+                        </motion.div>
                       )}
                     </motion.div>
                   </motion.button>
@@ -391,7 +404,9 @@ export const CommandPalette: React.FC = () => {
           )}
 
           {allItems.length === 0 && (
-            <motion.div layout="position" className="ui-cmd-empty-state">No results found for "{query}"</motion.div>
+            <motion.div layout="position" className="ui-cmd-empty-state">
+              No results found for "{query}"
+            </motion.div>
           )}
         </motion.div>
       </div>

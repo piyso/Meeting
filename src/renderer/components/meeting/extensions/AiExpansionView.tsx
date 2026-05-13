@@ -50,7 +50,10 @@ export const AiExpansionView: React.FC<NodeViewProps> = props => {
         })
 
         const timeoutPromise = new Promise<never>((_, reject) => {
-          aiTimeoutTimer = setTimeout(() => reject(new Error('AI expansion timed out after 60s')), AI_TIMEOUT_MS)
+          aiTimeoutTimer = setTimeout(
+            () => reject(new Error('AI expansion timed out after 60s')),
+            AI_TIMEOUT_MS
+          )
         })
 
         let res: Awaited<typeof expandPromise>

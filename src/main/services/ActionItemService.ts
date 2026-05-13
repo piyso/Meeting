@@ -117,11 +117,14 @@ ${transcriptText.substring(0, 4000)}
 
 Action items (JSON array):`
 
-    const response = await modelManager.generate({
-      prompt,
-      temperature: 0.2,
-      maxTokens: 1024,
-    }, 'actionItems')
+    const response = await modelManager.generate(
+      {
+        prompt,
+        temperature: 0.2,
+        maxTokens: 1024,
+      },
+      'actionItems'
+    )
 
     if (!response) return []
 

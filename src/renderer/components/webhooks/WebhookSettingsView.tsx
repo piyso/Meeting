@@ -166,40 +166,40 @@ export const WebhookSettingsView: React.FC = () => {
                     <h5 className="text-xs font-semibold text-secondary uppercase tracking-widest mb-3">
                       Subscribed Events
                     </h5>
-              <div className="flex flex-wrap gap-3">
-                {availableEvents.map(event => {
-                  let parsed: string[] = []
-                  try {
-                    parsed = JSON.parse(webhook.events || '[]')
-                  } catch {
-                    // Ignore parse error
-                  }
-                  const isSubscribed = parsed.includes(event.id)
-                  return (
-                    <button
-                      key={event.id}
-                      onClick={() => {
-                        const newEvents = isSubscribed
-                          ? parsed.filter(id => id !== event.id)
-                          : [...parsed, event.id]
-                        saveWebhook.mutate({
-                          id: webhook.id,
-                          url: webhook.url,
-                          events: newEvents,
-                          is_active: webhook.is_active,
-                        })
-                      }}
-                      className={`text-xs font-medium px-3 py-1.5 rounded-md border transition-all cursor-pointer ${
-                        isSubscribed
-                          ? 'bg-violet/20 border-violet/50 text-[#d8b4fe] shadow-[0_0_10px_rgba(139,92,246,0.15)]'
-                          : 'bg-white/10 border-white/20 text-slate-300 hover:bg-white/15 hover:text-white'
-                      }`}
-                    >
-                      {event.label}
-                    </button>
-                  )
-                })}
-              </div>
+                    <div className="flex flex-wrap gap-3">
+                      {availableEvents.map(event => {
+                        let parsed: string[] = []
+                        try {
+                          parsed = JSON.parse(webhook.events || '[]')
+                        } catch {
+                          // Ignore parse error
+                        }
+                        const isSubscribed = parsed.includes(event.id)
+                        return (
+                          <button
+                            key={event.id}
+                            onClick={() => {
+                              const newEvents = isSubscribed
+                                ? parsed.filter(id => id !== event.id)
+                                : [...parsed, event.id]
+                              saveWebhook.mutate({
+                                id: webhook.id,
+                                url: webhook.url,
+                                events: newEvents,
+                                is_active: webhook.is_active,
+                              })
+                            }}
+                            className={`text-xs font-medium px-3 py-1.5 rounded-md border transition-all cursor-pointer ${
+                              isSubscribed
+                                ? 'bg-violet/20 border-violet/50 text-[#d8b4fe] shadow-[0_0_10px_rgba(139,92,246,0.15)]'
+                                : 'bg-white/10 border-white/20 text-slate-300 hover:bg-white/15 hover:text-white'
+                            }`}
+                          >
+                            {event.label}
+                          </button>
+                        )
+                      })}
+                    </div>
                   </div>
                 </motion.div>
               )}

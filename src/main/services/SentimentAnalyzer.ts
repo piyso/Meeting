@@ -214,11 +214,14 @@ JSON:`
       let response: string | null = null
       try {
         response = await Promise.race([
-          modelManager.generate({
-            prompt,
-            temperature: 0.1,
-            maxTokens: 512,
-          }, 'sentiment'),
+          modelManager.generate(
+            {
+              prompt,
+              temperature: 0.1,
+              maxTokens: 512,
+            },
+            'sentiment'
+          ),
           new Promise<null>(resolve => {
             llmTimeoutId = setTimeout(() => resolve(null), 30_000)
           }),

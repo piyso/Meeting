@@ -84,17 +84,30 @@ export function setupIPC(): void {
   // P4-7 FIX: Register 'error' channel listener for ErrorBoundary crash reports.
   // ErrorBoundary.tsx sends crash data via ipcRenderer.send('error', {...}),
   // but no handler existed — crash reports were silently dropped.
-  ipcMain.on('error', (_event, data: { source?: string; message?: string; stack?: string; componentStack?: string }) => {
-    log.error(`[RendererCrash] source=${data.source || 'unknown'} message=${data.message || 'none'}`)
-    if (data.stack) {
-      log.error(`[RendererCrash] Stack: ${data.stack.substring(0, 500)}`)
+  ipcMain.on(
+    'error',
+    (
+      _event,
+      data: { source?: string; message?: string; stack?: string; componentStack?: string }
+    ) => {
+      log.error(
+        `[RendererCrash] source=${data.source || 'unknown'} message=${data.message || 'none'}`
+      )
+      if (data.stack) {
+        log.error(`[RendererCrash] Stack: ${data.stack.substring(0, 500)}`)
+      }
+      // Forward to diagnostic logger if available
+      try {
+        const { getDiagnosticLogger } = require('../services/DiagnosticLogger')
+        getDiagnosticLogger().logError(`Renderer crash: ${data.message}`, {
+          source: data.source,
+          stack: data.stack?.substring(0, 1000),
+        })
+      } catch {
+        /* diagnostic logger may not be initialized */
+      }
     }
-    // Forward to diagnostic logger if available
-    try {
-      const { getDiagnosticLogger } = require('../services/DiagnosticLogger')
-      getDiagnosticLogger().logError(`Renderer crash: ${data.message}`, { source: data.source, stack: data.stack?.substring(0, 1000) })
-    } catch { /* diagnostic logger may not be initialized */ }
-  })
+  )
 }
 
 /**

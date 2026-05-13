@@ -226,9 +226,7 @@ export class LocalEmbeddingService {
    */
   async embedBatch(texts: string[]): Promise<EmbeddingResult[]> {
     // Process all texts concurrently — ONNX sessions are thread-safe
-    const settled = await Promise.allSettled(
-      texts.map(text => this.embed(text))
-    )
+    const settled = await Promise.allSettled(texts.map(text => this.embed(text)))
 
     return settled
       .filter((r): r is PromiseFulfilledResult<EmbeddingResult> => r.status === 'fulfilled')

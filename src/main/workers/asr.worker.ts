@@ -24,7 +24,6 @@ function getOrt(): OrtModule {
   if (_ort) return _ort
   if (_ortLoadError) throw new Error(_ortLoadError)
   try {
-    // eslint-disable-next-line @typescript-eslint/no-var-requires
     _ort = require('onnxruntime-node') as OrtModule
     return _ort
   } catch (err: unknown) {

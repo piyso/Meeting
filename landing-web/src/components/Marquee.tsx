@@ -1,32 +1,38 @@
-"use client";
+'use client'
 
-import { motion } from "framer-motion";
-import { useEffect, useState } from "react";
+import { motion } from 'framer-motion'
+import { useState, useEffect } from 'react'
 
 const quotes = [
   "It's like having a brilliant intern who never misses anything.",
-  "I can finally use an AI tool without my IT team screaming at me.",
-  "I kept waiting for the paywall. It never came.",
+  'I can finally use an AI tool without my IT team screaming at me.',
+  'I kept waiting for the paywall. It never came.',
   "It doesn't destroy my MacBook Air battery.",
   "I asked 'What did we decide?' and it pulled answers from three meetings ago.",
-  "The 0 cloud uploads gives me total peace of mind.",
-];
+  'The 0 cloud uploads gives me total peace of mind.',
+]
 
 export function VocMarquee() {
-  const [mounted, setMounted] = useState(false);
-  useEffect(() => setMounted(true), []);
+  const [mounted, setMounted] = useState(false)
 
-  if (!mounted) return null;
+  useEffect(() => {
+    setMounted(true)
+  }, [])
+
+  if (!mounted) return null
 
   return (
-    <div className="voc-marquee-section" style={{ overflow: 'hidden', padding: '4rem 0', position: 'relative', zIndex: 10 }}>
+    <div
+      className="voc-marquee-section"
+      style={{ overflow: 'hidden', padding: '4rem 0', position: 'relative', zIndex: 10 }}
+    >
       <div className="voc-marquee-track" style={{ display: 'flex', whiteSpace: 'nowrap' }}>
         <motion.div
           initial={{ x: 0 }}
-          animate={{ x: "-50%" }}
+          animate={{ x: '-50%' }}
           transition={{
             repeat: Infinity,
-            ease: "linear",
+            ease: 'linear',
             duration: 40,
           }}
           style={{ display: 'flex', gap: '2rem', paddingRight: '2rem' }}
@@ -47,11 +53,11 @@ export function VocMarquee() {
                 flexShrink: 0,
               }}
             >
-              "{quote}"
+              &quot;{quote}&quot;
             </div>
           ))}
         </motion.div>
       </div>
     </div>
-  );
+  )
 }

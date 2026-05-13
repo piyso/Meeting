@@ -729,7 +729,6 @@ export const SettingsView: React.FC = () => {
                   </Button>
                 </div>
               </div>
-
             </div>
           ) : (
             <div className="flex items-center justify-between h-[40px]">

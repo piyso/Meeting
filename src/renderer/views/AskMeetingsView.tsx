@@ -428,7 +428,15 @@ export default function AskMeetingsView() {
         // an unhandled promise rejection in the renderer process.
         let timeoutTimer: ReturnType<typeof setTimeout> | undefined
         const timeoutPromise = new Promise<never>((_, reject) => {
-          timeoutTimer = setTimeout(() => reject(new Error('AI response timed out after 60s. The AI engine may be busy — please try again.')), AI_TIMEOUT_MS)
+          timeoutTimer = setTimeout(
+            () =>
+              reject(
+                new Error(
+                  'AI response timed out after 60s. The AI engine may be busy — please try again.'
+                )
+              ),
+            AI_TIMEOUT_MS
+          )
         })
 
         let intelligenceResult: Awaited<typeof askPromise>

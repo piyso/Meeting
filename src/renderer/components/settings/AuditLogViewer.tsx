@@ -126,8 +126,12 @@ export const AuditLogViewer: React.FC = () => {
               <thead className="bg-[#1a1a1a] sticky top-0 border-b border-[var(--color-border-subtle)] shadow-sm">
                 <tr>
                   <th className="font-medium text-[var(--color-text-secondary)] px-5 py-4">Time</th>
-                  <th className="font-medium text-[var(--color-text-secondary)] px-5 py-4">Operation</th>
-                  <th className="font-medium text-[var(--color-text-secondary)] px-5 py-4">Resource</th>
+                  <th className="font-medium text-[var(--color-text-secondary)] px-5 py-4">
+                    Operation
+                  </th>
+                  <th className="font-medium text-[var(--color-text-secondary)] px-5 py-4">
+                    Resource
+                  </th>
                   <th className="font-medium text-[var(--color-text-secondary)] px-5 py-4 hidden sm:table-cell">
                     Client Info
                   </th>

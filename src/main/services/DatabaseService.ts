@@ -162,9 +162,7 @@ export class DatabaseService {
       // after page 1 even when more tag-matching meetings exist on later pages.
       try {
         const allMeetings = db
-          .prepare(
-            `SELECT tags FROM meetings ${whereClause} ORDER BY start_time DESC`
-          )
+          .prepare(`SELECT tags FROM meetings ${whereClause} ORDER BY start_time DESC`)
           .all(...values) as Array<{ tags: string | null }>
         filteredTotal = allMeetings.filter(m => {
           if (!m.tags) return false

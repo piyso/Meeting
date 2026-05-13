@@ -84,7 +84,11 @@ export const RecordingToolbar: React.FC<RecordingToolbarProps> = ({
         <button
           onClick={handlePauseToggle}
           className="recording-toolbar-btn recording-toolbar-btn-pause"
-          title={isPaused ? `Resume recording (${modKey}+Shift+P)` : `Pause recording (${modKey}+Shift+P)`}
+          title={
+            isPaused
+              ? `Resume recording (${modKey}+Shift+P)`
+              : `Pause recording (${modKey}+Shift+P)`
+          }
           aria-label={isPaused ? 'Resume recording' : 'Pause recording'}
           disabled={isConnecting}
         >

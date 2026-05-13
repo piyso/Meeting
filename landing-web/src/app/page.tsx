@@ -7,6 +7,7 @@ import {
   EyeOff, PenLine, Search, Cpu, Check, ArrowDownCircle, X
 } from "lucide-react";
 import { Logo3D } from "../components/Logo3D";
+import { VocMarquee } from "../components/Marquee";
 import Image from "next/image";
 
 /* ─── animation variants ─── */
@@ -113,7 +114,7 @@ export default function Home() {
 
       {/* ═══ NAV ═══ */}
       <nav className={`hero-nav ${scrolled ? "scrolled" : ""}`} id="main-nav">
-        <a href="#" className="nav-logo">
+        <a href="#hero" className="nav-logo">
           <Image src="/logo.svg" alt="BlueArkive Logo" width={32} height={32} />
           BlueArkive
         </a>
@@ -125,12 +126,30 @@ export default function Home() {
         </div>
         <button
           className="menu-btn liquid-glass"
-          style={{ display: "none", padding: "0.5rem", borderRadius: "0.5rem", border: "none", color: "white", cursor: "pointer", background: "transparent" }}
+          style={{ padding: "0.5rem", borderRadius: "0.5rem", border: "none", color: "white", cursor: "pointer", background: "transparent" }}
           onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
         >
           {mobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
         </button>
       </nav>
+
+      {/* ═══ MOBILE MENU ═══ */}
+      <AnimatePresence>
+        {mobileMenuOpen && (
+          <motion.div
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -20 }}
+            transition={{ duration: 0.2 }}
+            className="mobile-menu liquid-glass-strong"
+          >
+            <a href="#features" onClick={() => setMobileMenuOpen(false)}>Architecture</a>
+            <a href="#trust" onClick={() => setMobileMenuOpen(false)}>Security</a>
+            <a href="#pricing" onClick={() => setMobileMenuOpen(false)}>Nodes</a>
+            <a href="#download" onClick={() => setMobileMenuOpen(false)}>Initialize Core</a>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* ═══ HERO ═══ */}
       <section className="hero content-layer" id="hero">
@@ -142,7 +161,7 @@ export default function Home() {
         >
           <div className="hero-badge liquid-glass">
             <span className="dot" />
-            v0.3.3 CORE ONLINE
+            v0.3.4 CORE ONLINE
           </div>
 
           <h1>
@@ -160,7 +179,7 @@ export default function Home() {
           </p>
 
           <div className="hero-actions">
-            <a href="#download" className="btn-primary liquid-glass-strong">
+            <a href="https://dl.bluearkive.com/BlueArkive-0.3.4-mac-arm64.dmg" className="btn-primary liquid-glass-strong">
               <span className="icon-circle">
                 <Download style={{ width: 14, height: 14 }} />
               </span>
@@ -295,6 +314,9 @@ export default function Home() {
           </p>
         </motion.div>
       </section>
+
+      {/* ═══ SOCIAL PROOF ═══ */}
+      <VocMarquee />
 
       {/* ═══ FEATURES ═══ */}
       <section className="section-pad content-layer" id="features">
@@ -509,7 +531,7 @@ export default function Home() {
               ))}
             </ul>
 
-            <a href="#download" className="btn-primary liquid-glass-strong" style={{ width: "100%", justifyContent: "center" }}>
+            <a href="https://dl.bluearkive.com/BlueArkive-0.3.4-mac-arm64.dmg" className="btn-primary liquid-glass-strong" style={{ width: "100%", justifyContent: "center" }}>
               Download Free
             </a>
           </div>
@@ -528,13 +550,13 @@ export default function Home() {
           </p>
 
           <div className="download-card liquid-glass-strong">
-            <button className="download-btn liquid-glass-strong" style={{ width: "100%", justifyContent: "center" }}>
+            <a href="https://dl.bluearkive.com/BlueArkive-0.3.4-mac-arm64.dmg" className="download-btn liquid-glass-strong" style={{ width: "100%", justifyContent: "center", textDecoration: "none" }}>
               <ArrowDownCircle style={{ width: 20, height: 20 }} />
               Download for macOS
-            </button>
+            </a>
             <p className="download-meta">Apple Silicon · arm64 · 188 MB</p>
             <p className="download-alt">
-              <a href="#">Download for Intel Mac instead (x64)</a>
+              <a href="https://dl.bluearkive.com/BlueArkive-0.3.4-mac-x64.dmg">Download for Intel Mac instead (x64)</a>
             </p>
             <p className="download-alt">
               Also available soon for: <span style={{ color: "rgba(255,255,255,0.6)" }}>Windows</span> &amp; <span style={{ color: "rgba(255,255,255,0.6)" }}>Linux</span>
@@ -581,7 +603,7 @@ export default function Home() {
       <footer className="content-layer">
         <div className="footer-inner">
           <div className="footer-brand">
-            <a href="#" className="nav-logo" style={{ fontSize: "1.25rem" }}>
+            <a href="#hero" className="nav-logo" style={{ fontSize: "1.25rem" }}>
               <Image src="/logo.svg" alt="BlueArkive Logo" width={24} height={24} />
               BlueArkive
             </a>
@@ -597,8 +619,8 @@ export default function Home() {
             <div className="footer-col">
               <h4>Trust</h4>
               <a href="#trust">Architecture &amp; Security</a>
-              <a href="#">Privacy Policy</a>
-              <a href="#">Terms of Service</a>
+              <a href="https://github.com/piyso/Meeting/blob/main/SECURITY.md" target="_blank" rel="noopener noreferrer">Privacy Policy</a>
+              <a href="https://github.com/piyso/Meeting/blob/main/LICENSE.md" target="_blank" rel="noopener noreferrer">Terms of Service</a>
             </div>
           </div>
         </div>
@@ -608,7 +630,7 @@ export default function Home() {
             <span className="footer-badge liquid-glass">100% Offline</span>
             <span className="footer-badge liquid-glass">No Account Required</span>
           </div>
-          <p className="footer-copy">© 2026. All rights reserved.</p>
+          <p className="footer-copy">© 2026 BlueArkive. All rights reserved.</p>
         </div>
       </footer>
     </main>

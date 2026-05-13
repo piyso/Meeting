@@ -65,6 +65,10 @@ export class ASRService extends EventEmitter {
 
   constructor() {
     super()
+    // C-8 FIX: Concurrent initialize() calls each add .once('ready'/'error') listeners.
+    // Node's default max is 10 — this suppresses false "memory leak" warnings.
+    // All listeners are .once() so they auto-clean after firing.
+    this.setMaxListeners(20)
   }
 
   /**

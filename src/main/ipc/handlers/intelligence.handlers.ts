@@ -5,6 +5,11 @@ import { Logger } from '../../services/Logger'
 
 const log = Logger.create('IntelligenceHandlers')
 
+// P1-2 FIX: Active AbortController for the in-flight askMeetings request.
+// Allows the renderer to cancel a stuck or unwanted generation mid-stream
+// via the intelligence:cancelAsk IPC channel.
+let activeAskController: AbortController | null = null
+
 export function registerIntelligenceHandlers(): void {
   // intelligence:getHardwareTier — Detect hardware capabilities
   ipcMain.handle('intelligence:getHardwareTier', async () => {
@@ -258,6 +263,14 @@ export function registerIntelligenceHandlers(): void {
         }
       }
 
+      // P1-2 FIX: Create a new AbortController per request.
+      // If a previous request is still running, abort it first.
+      if (activeAskController) {
+        activeAskController.abort()
+      }
+      activeAskController = new AbortController()
+      const { signal } = activeAskController
+
       // ── Check cloud availability + quota ──
       const { getCloudAccessManager } = await import('../../services/CloudAccessManager')
       const cam = getCloudAccessManager()
@@ -364,8 +377,11 @@ ANSWER:`
           prompt: systemPrompt,
           temperature: 0.4,
           maxTokens: 300,
+          // P1-2 FIX: Pass abort signal so inference stops mid-token on cancel
+          signal,
           onToken: (accumulatedText: string) => {
-            // Stream each token to the renderer in real-time
+            // Don't stream to destroyed senders or aborted requests
+            if (signal.aborted) return
             try {
               event.sender.send('intelligence:streamToken', {
                 token: accumulatedText,
@@ -388,6 +404,18 @@ ANSWER:`
         },
       }
     } catch (error) {
+      // P1-2: AbortError is expected when user cancels — don't log as error
+      if ((error as Error).name === 'AbortError') {
+        log.debug('Ask meetings cancelled by user')
+        return {
+          success: true,
+          data: {
+            answer: '',
+            source: 'cancelled',
+            quotaRemaining: 0,
+          },
+        }
+      }
       log.debug('Ask meetings failed', error)
       return {
         success: false,
@@ -397,6 +425,21 @@ ANSWER:`
           timestamp: Date.now(),
         },
       }
+    } finally {
+      activeAskController = null
     }
+  })
+
+  // P1-2 FIX: intelligence:cancelAsk — Abort the active askMeetings request.
+  // Called by the renderer when the user clicks Cancel or navigates away.
+  // Triggers the AbortController which interrupts ModelManager.generate()
+  // via the signal check in onTextChunk, freeing GPU resources immediately.
+  ipcMain.handle('intelligence:cancelAsk', async () => {
+    if (activeAskController) {
+      activeAskController.abort()
+      activeAskController = null
+      log.debug('Active askMeetings generation cancelled via IPC')
+    }
+    return { success: true, data: undefined }
   })
 }

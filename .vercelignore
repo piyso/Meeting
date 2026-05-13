@@ -1,0 +1,16 @@
+node_modules
+.git
+release
+resources/models
+dist
+out
+*.dmg
+*.exe
+*.AppImage
+*.deb
+*.rpm
+*.onnx
+*.bin
+/src
+/build
+electron-builder.yml

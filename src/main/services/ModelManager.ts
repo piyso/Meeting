@@ -34,6 +34,11 @@ export interface GenerateOptions {
   stop?: string[]
   /** If provided, called with partial text as tokens stream */
   onToken?: (partial: string) => void
+  /**
+   * P1-2 FIX: If provided, the generation will be aborted when this signal
+   * fires. Checked in the onTextChunk callback to stop inference mid-stream.
+   */
+  signal?: AbortSignal
 }
 
 // Lazy-loaded node-llama-cpp types (ESM module loaded via dynamic import)
@@ -69,6 +74,10 @@ export class ModelManager {
   private sessionPool: Map<string, { session: any; lastUsed: number }> = new Map()
   private readonly SESSION_IDLE_MS = 60_000 // Dispose idle sessions after 60s
   private readonly MAX_SESSIONS = 5 // P2-3: Prevent unbounded GPU memory growth
+
+  // P1-10 FIX: Single cleanup timer — prevents O(n²) timer stacking when
+  // multiple sessions are created in quick succession.
+  private cleanupTimerId: ReturnType<typeof setTimeout> | null = null
 
   /** Idle timeout varies by tier: 8GB=30s (aggressive), 12GB=60s, 16GB+=120s (warm) */
   private getIdleTimeout(): number {
@@ -302,7 +311,9 @@ export class ModelManager {
           if (oldestKey) {
             try {
               this.sessionPool.get(oldestKey)?.session?.dispose?.()
-            } catch { /* ignore dispose errors */ }
+            } catch {
+              /* ignore dispose errors */
+            }
             this.sessionPool.delete(oldestKey)
           }
         }
@@ -325,6 +336,12 @@ export class ModelManager {
         topK: options.topK ?? 40,
         customStopTriggers: options.stop,
         onTextChunk: (text: string) => {
+          // P1-2 FIX: Check abort signal on every token to stop inference
+          // mid-stream when user cancels. Without this, cancelled requests
+          // continue burning GPU cycles until maxTokens is exhausted.
+          if (options.signal?.aborted) {
+            throw new DOMException('Generation aborted', 'AbortError')
+          }
           fullResponse += text
           options.onToken?.(fullResponse)
         },
@@ -349,11 +366,17 @@ export class ModelManager {
   }
 
   /**
-   * Clean up idle sessions from the pool
+   * Clean up idle sessions from the pool.
+   * P1-10 FIX: Uses a single tracked timer. Previously, every new session
+   * spawned an independent setTimeout → O(n²) callbacks over time.
    */
   private scheduleSessionCleanup(): void {
+    // Already have a cleanup timer pending — don't stack another
+    if (this.cleanupTimerId) return
+
     // M-4 AUDIT: .unref() prevents this timer from blocking clean process exit
-    const timer = setTimeout(() => {
+    this.cleanupTimerId = setTimeout(() => {
+      this.cleanupTimerId = null
       const now = Date.now()
       for (const [key, entry] of this.sessionPool) {
         if (now - entry.lastUsed > this.SESSION_IDLE_MS) {
@@ -371,7 +394,7 @@ export class ModelManager {
         this.scheduleSessionCleanup()
       }
     }, this.SESSION_IDLE_MS)
-    timer.unref()
+    this.cleanupTimerId.unref()
   }
 
   /**
@@ -441,7 +464,18 @@ export class ModelManager {
     } catch (err) {
       this.log.debug('AI unload skipped', err)
     } finally {
+      // P1-11 FIX: Always reset state, even on partial unload failure.
+      // Without this, a failed dispose() leaves llmLoaded=true while
+      // _model/_context are in an undefined state → zombie engine.
+      this.llmLoaded = false
+      _context = null
+      _model = null
       this.isUnloading = false
+      // P1-10 FIX: Clear session cleanup timer on unload
+      if (this.cleanupTimerId) {
+        clearTimeout(this.cleanupTimerId)
+        this.cleanupTimerId = null
+      }
       if (this.unloadResolve) {
         this.unloadResolve()
         this.unloadResolve = null

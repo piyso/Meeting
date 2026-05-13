@@ -663,6 +663,9 @@ export class AuthService {
     this.refreshTimer = setTimeout(() => {
       this.refreshToken().catch(err => log.warn('Scheduled refresh failed', err))
     }, refreshMs)
+    // P3-7 FIX: .unref() prevents this timer from blocking clean process exit
+    // if stopSessionTimer()/logout() is not called before shutdown (e.g., force-kill)
+    if (this.refreshTimer.unref) this.refreshTimer.unref()
 
     log.debug(`Token refresh scheduled in ${Math.round(refreshMs / 1000)}s`)
   }
@@ -730,6 +733,8 @@ export class AuthService {
         }
       }
     }, 60_000) // Check every 60 seconds
+    // P3-7 FIX: .unref() prevents session timer from blocking clean process exit
+    if (this.sessionTimer.unref) this.sessionTimer.unref()
 
     log.info(`Session timeout enabled: ${Math.round(timeoutMs / 60000)} min`)
   }

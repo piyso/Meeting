@@ -890,7 +890,7 @@ export const MOCK_DEVICES = [
     device_name: 'MacBook Pro M2',
     hostname: 'Piyushs-MacBook-Pro',
     platform: 'darwin-arm64',
-    app_version: '0.3.3',
+    app_version: '0.3.4',
     is_active: 1,
     last_active_at: new Date(now - 5 * 60000).toISOString(),
   },
@@ -899,7 +899,7 @@ export const MOCK_DEVICES = [
     device_name: 'iPhone 15 Pro',
     hostname: 'Piyushs-iPhone',
     platform: 'ios',
-    app_version: '0.3.3',
+    app_version: '0.3.4',
     is_active: 1,
     last_active_at: new Date(now - 2 * hour).toISOString(),
   },
@@ -910,7 +910,7 @@ export const MOCK_CURRENT_DEVICE = {
   deviceName: 'MacBook Pro M2',
   platform: 'darwin-arm64',
   hostname: 'Piyushs-MacBook-Pro',
-  appVersion: '0.3.3',
+  appVersion: '0.3.4',
 }
 
 // ============================================================================
@@ -1002,7 +1002,7 @@ export const MOCK_AUDIT_LOGS = [
     table: 'meetings',
     recordId: 'meet-001',
     ipAddress: '192.168.1.42',
-    userAgent: 'BlueArkive/0.3.3 macOS',
+    userAgent: 'BlueArkive/0.3.4 macOS',
   },
   {
     id: 'aud-2',
@@ -1011,7 +1011,7 @@ export const MOCK_AUDIT_LOGS = [
     table: 'notes',
     recordId: 'note-meet-001-0',
     ipAddress: '192.168.1.42',
-    userAgent: 'BlueArkive/0.3.3 macOS',
+    userAgent: 'BlueArkive/0.3.4 macOS',
   },
   {
     id: 'aud-3',
@@ -1020,7 +1020,7 @@ export const MOCK_AUDIT_LOGS = [
     table: 'transcripts',
     recordId: 'txn-meet-001-000',
     ipAddress: '192.168.1.42',
-    userAgent: 'BlueArkive/0.3.3 macOS',
+    userAgent: 'BlueArkive/0.3.4 macOS',
   },
   {
     id: 'aud-4',
@@ -1029,7 +1029,7 @@ export const MOCK_AUDIT_LOGS = [
     table: 'auth',
     recordId: 'usr-mock-001',
     ipAddress: '203.0.113.1',
-    userAgent: 'BlueArkive/0.3.3 macOS',
+    userAgent: 'BlueArkive/0.3.4 macOS',
   },
   {
     id: 'aud-5',
@@ -1038,7 +1038,7 @@ export const MOCK_AUDIT_LOGS = [
     table: 'settings',
     recordId: 'settings-global',
     ipAddress: '192.168.1.42',
-    userAgent: 'BlueArkive/0.3.3 macOS',
+    userAgent: 'BlueArkive/0.3.4 macOS',
   },
   {
     id: 'aud-6',
@@ -1047,7 +1047,7 @@ export const MOCK_AUDIT_LOGS = [
     table: 'meetings',
     recordId: 'meet-002',
     ipAddress: '192.168.1.42',
-    userAgent: 'BlueArkive/0.3.3 macOS',
+    userAgent: 'BlueArkive/0.3.4 macOS',
   },
   {
     id: 'aud-7',
@@ -1056,7 +1056,7 @@ export const MOCK_AUDIT_LOGS = [
     table: 'transcripts',
     recordId: 'txn-old-001',
     ipAddress: '192.168.1.42',
-    userAgent: 'BlueArkive/0.3.3 macOS',
+    userAgent: 'BlueArkive/0.3.4 macOS',
   },
   {
     id: 'aud-8',
@@ -1065,7 +1065,7 @@ export const MOCK_AUDIT_LOGS = [
     table: 'entities',
     recordId: 'ent-meet-002-0',
     ipAddress: '192.168.1.42',
-    userAgent: 'BlueArkive/0.3.3 macOS',
+    userAgent: 'BlueArkive/0.3.4 macOS',
   },
   {
     id: 'aud-9',
@@ -1074,7 +1074,7 @@ export const MOCK_AUDIT_LOGS = [
     table: 'devices',
     recordId: 'dev-iphone-001',
     ipAddress: '10.0.0.5',
-    userAgent: 'BlueArkive/0.3.3 iOS',
+    userAgent: 'BlueArkive/0.3.4 iOS',
   },
   {
     id: 'aud-10',
@@ -1083,7 +1083,7 @@ export const MOCK_AUDIT_LOGS = [
     table: 'meetings',
     recordId: 'meet-004',
     ipAddress: '192.168.1.42',
-    userAgent: 'BlueArkive/0.3.3 macOS',
+    userAgent: 'BlueArkive/0.3.4 macOS',
   },
   {
     id: 'aud-11',
@@ -1092,7 +1092,7 @@ export const MOCK_AUDIT_LOGS = [
     table: 'notes',
     recordId: 'note-meet-004-1',
     ipAddress: '192.168.1.42',
-    userAgent: 'BlueArkive/0.3.3 macOS',
+    userAgent: 'BlueArkive/0.3.4 macOS',
   },
   {
     id: 'aud-12',
@@ -1101,7 +1101,7 @@ export const MOCK_AUDIT_LOGS = [
     table: 'meetings',
     recordId: 'meet-008',
     ipAddress: '192.168.1.42',
-    userAgent: 'BlueArkive/0.3.3 macOS',
+    userAgent: 'BlueArkive/0.3.4 macOS',
   },
   {
     id: 'aud-13',
@@ -1110,7 +1110,7 @@ export const MOCK_AUDIT_LOGS = [
     table: 'meetings',
     recordId: 'meet-009',
     ipAddress: '192.168.1.42',
-    userAgent: 'BlueArkive/0.3.3 macOS',
+    userAgent: 'BlueArkive/0.3.4 macOS',
   },
   {
     id: 'aud-14',
@@ -1119,7 +1119,7 @@ export const MOCK_AUDIT_LOGS = [
     table: 'auth',
     recordId: 'usr-mock-001',
     ipAddress: '203.0.113.50',
-    userAgent: 'BlueArkive/0.3.3 macOS',
+    userAgent: 'BlueArkive/0.3.4 macOS',
   },
   {
     id: 'aud-15',
@@ -1128,7 +1128,7 @@ export const MOCK_AUDIT_LOGS = [
     table: 'devices',
     recordId: 'dev-old-laptop',
     ipAddress: '192.168.1.42',
-    userAgent: 'BlueArkive/0.3.3 macOS',
+    userAgent: 'BlueArkive/0.3.4 macOS',
   },
 ]
 

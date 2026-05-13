@@ -78,7 +78,11 @@ interface ResetMessage {
   type: 'reset'
 }
 
-type WorkerMessage = AudioChunkMessage | InitMessage | ResetMessage
+interface UnloadMessage {
+  type: 'unload'
+}
+
+type WorkerMessage = AudioChunkMessage | InitMessage | ResetMessage | UnloadMessage
 
 /**
  * VAD Worker
@@ -243,6 +247,30 @@ class VADWorker {
       }
     }
   }
+
+  /**
+   * Dispose VAD model and release native resources.
+   * C-4 FIX: Without this, the ONNX InferenceSession leaks native GPU/CPU
+   * memory when the worker thread is terminated. On Windows with DirectML,
+   * this can lock the GPU adapter until process exit.
+   */
+  public async dispose(): Promise<void> {
+    workerLog.info('Disposing VAD model...')
+    try {
+      if (this.session) {
+        await this.session.release()
+      }
+    } catch (err) {
+      workerLog.error('Session release failed:', err)
+    } finally {
+      this.session = null
+      this.h = null
+      this.c = null
+      this.sr = null
+      this.isInitialized = false
+      workerLog.info('✅ VAD model disposed')
+    }
+  }
 }
 
 // Create VAD worker instance
@@ -295,6 +323,15 @@ if (parentPort) {
           vadWorker.reset()
           parentPort?.postMessage({
             type: 'resetComplete',
+          })
+          break
+        }
+
+        // C-4 FIX: Handle unload message to release ONNX session before termination
+        case 'unload': {
+          await vadWorker.dispose()
+          parentPort?.postMessage({
+            type: 'unloaded',
           })
           break
         }

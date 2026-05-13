@@ -187,11 +187,14 @@ export class SyncManager {
     })
 
     // Then sync every 30 seconds
+    // C-6 FIX: .unref() prevents this timer from blocking clean process exit
+    // if stopAutoSync() is not called before shutdown (e.g., force-kill)
     this.syncInterval = setInterval(() => {
       this.syncPendingEvents().catch(error => {
         this.log.error('Auto-sync failed:', error)
       })
     }, 30000)
+    this.syncInterval.unref()
   }
 
   /**

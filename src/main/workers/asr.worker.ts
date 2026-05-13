@@ -362,7 +362,11 @@ function decodeTokens(tokens: Float32Array): string {
       }
     }
   }
-  return decoded.join('').trim() || 'Transcribed text from Moonshine Base model'
+  // C-3 FIX: Return empty string instead of fabricating fake transcript text.
+  // The previous fallback string 'Transcribed text from Moonshine Base model' was
+  // stored in the database as real speech with confidence=0.88, creating phantom transcripts.
+  // The caller (transcribeWithMoonshine) handles empty results appropriately.
+  return decoded.join('').trim()
 }
 
 /**
@@ -377,20 +381,10 @@ async function unloadModel(): Promise<void> {
 
     if (moonshineSession) {
       await moonshineSession.release()
-      moonshineSession = null
     }
 
     if (moonshinePreprocessor) {
       await moonshinePreprocessor.release()
-      moonshinePreprocessor = null
-    }
-
-    modelLoaded = false
-    currentModel = null
-
-    // Force garbage collection if available
-    if (global.gc) {
-      global.gc()
     }
 
     workerLog.info('✅ Model unloaded')
@@ -404,6 +398,19 @@ async function unloadModel(): Promise<void> {
       type: 'error',
       error: `Failed to unload model: ${error instanceof Error ? error.message : String(error)}`,
     })
+  } finally {
+    // C-2 FIX: Always reset state, even on partial release failure.
+    // Without this, a failed .release() leaves modelLoaded=true while
+    // the session objects are in an undefined state → zombie worker.
+    moonshineSession = null
+    moonshinePreprocessor = null
+    modelLoaded = false
+    currentModel = null
+
+    // Force garbage collection if available
+    if (global.gc) {
+      global.gc()
+    }
   }
 }
 

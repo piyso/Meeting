@@ -171,6 +171,8 @@ const electronAPI: ElectronAPI = {
     unloadModels: () => ipcRenderer.invoke('intelligence:unloadModels'),
     meetingSuggestion: params => ipcRenderer.invoke('intelligence:meetingSuggestion', params),
     askMeetings: params => ipcRenderer.invoke('intelligence:askMeetings', params),
+    // P1-2 FIX: Cancel an active askMeetings generation to free GPU resources
+    cancelAsk: () => ipcRenderer.invoke('intelligence:cancelAsk'),
   },
 
   // ============================================================================

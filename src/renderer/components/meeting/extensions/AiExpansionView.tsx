@@ -30,6 +30,10 @@ export const AiExpansionView: React.FC<NodeViewProps> = props => {
       if (isMounted) setIsSlow(true)
     }, 15_000)
 
+    // P1-8 FIX: Track timeout ID so we can clear it on unmount.
+    // Without this, the 60s reject() fires into void → unhandled rejection.
+    let aiTimeoutTimer: ReturnType<typeof setTimeout> | undefined
+
     const attemptExpand = async () => {
       try {
         setIsGenerating(true)
@@ -45,11 +49,17 @@ export const AiExpansionView: React.FC<NodeViewProps> = props => {
           text: sourceText || '',
         })
 
-        const timeoutPromise = new Promise<never>((_, reject) =>
-          setTimeout(() => reject(new Error('AI expansion timed out after 60s')), AI_TIMEOUT_MS)
-        )
+        const timeoutPromise = new Promise<never>((_, reject) => {
+          aiTimeoutTimer = setTimeout(() => reject(new Error('AI expansion timed out after 60s')), AI_TIMEOUT_MS)
+        })
 
-        const res = await Promise.race([expandPromise, timeoutPromise])
+        let res: Awaited<typeof expandPromise>
+        try {
+          res = await Promise.race([expandPromise, timeoutPromise])
+        } finally {
+          // Always clear timeout after race settles
+          if (aiTimeoutTimer) clearTimeout(aiTimeoutTimer)
+        }
 
         if (isMounted && res?.success && res.data) {
           updateAttributes({
@@ -71,6 +81,8 @@ export const AiExpansionView: React.FC<NodeViewProps> = props => {
     return () => {
       isMounted = false
       clearTimeout(slowTimer)
+      // P1-8 FIX: Clear timeout promise if component unmounts mid-generation
+      if (aiTimeoutTimer) clearTimeout(aiTimeoutTimer)
     }
   }, [expandedText, sourceText, meetingId, noteId, updateAttributes])
 

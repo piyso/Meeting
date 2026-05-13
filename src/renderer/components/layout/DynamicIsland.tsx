@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react'
+import React, { useState, useEffect, useRef, useCallback } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { ChevronLeft, Square, Loader2, Mic, Monitor, Cloud, Info, Pause, Play } from 'lucide-react'
 import { modKey } from '../../utils/platformShortcut'
@@ -148,29 +148,21 @@ export const DynamicIsland: React.FC<DynamicIslandProps> = ({
     }
   }, [recordingState])
 
-  // IPC Widget sync needs the elapsed string, unfortunately this breaks pure atomic isolation
-  // if we read `useRecordingTimer()` at the top level. We can fetch it statelessly for sync
-  // or accept that IPC sync needs it. To truly isolate, we let IPC sync handle its own timer,
-  // but for now, we will simply not strictly bind it in rendering if possible.
-  // We'll calculate a mock elapsedStr for the IPC based on startTime to avoid subscribing.
+  // IPC Widget sync — broadcasts recording state to the widget process.
+  // P1-1 FIX: Previously, the widget timer only updated when React deps changed
+  // (e.g., transcript line arrived), causing 30s+ drift during quiet sections.
+  // Now uses a dedicated 1-second setInterval for continuous timer sync.
   const recordingStartTime = useAppStore(s => s.recordingStartTime)
   const recordingTotalPausedMs = useAppStore(s => s.recordingTotalPausedMs)
 
-  const lastWidgetUpdate = useRef(0)
-  const lastBroadcastState = useRef<string>('')
+  const widgetTimerRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
-  useEffect(() => {
-    const now = Date.now()
-    const stateChanged = lastBroadcastState.current !== recordingState
-    if (!stateChanged && now - lastWidgetUpdate.current < 1000) return
-    lastWidgetUpdate.current = now
-    lastBroadcastState.current = recordingState
-
-    // Pseudo-calculate elapsedStr for widget without forcing React re-render
+  // Helper: compute elapsed time and broadcast widget state
+  const broadcastWidgetState = useCallback(() => {
     let currentElapsedStr = '00:00:00'
     if (recordingStartTime && recordingState !== 'idle') {
       const ms = Date.now() - recordingStartTime - recordingTotalPausedMs
-      const totalSec = Math.floor(ms / 1000)
+      const totalSec = Math.max(0, Math.floor(ms / 1000))
       const h = Math.floor(totalSec / 3600)
       const m = Math.floor((totalSec % 3600) / 60)
       const s = totalSec % 60
@@ -182,6 +174,11 @@ export const DynamicIsland: React.FC<DynamicIslandProps> = ({
         isRecording,
         isPaused: recordingState === 'paused',
         elapsedTime: currentElapsedStr,
+        // P1-7 FIX: Include Phase 1 raw timestamps so the widget can do
+        // its own local timer computation for sub-second accuracy.
+        recordingStartTime,
+        recordingTotalPausedMs,
+        meetingId: activeMeetingId,
         lastTranscriptLine:
           recordingState === 'processing'
             ? 'Processing transcript...'
@@ -198,15 +195,42 @@ export const DynamicIsland: React.FC<DynamicIslandProps> = ({
   }, [
     recordingState,
     isRecording,
+    recordingStartTime,
+    recordingTotalPausedMs,
+    activeMeetingId,
     lastTranscriptLine,
     audioMode,
     syncStatus,
     liveCoachTip,
     entityCount,
     noteCount,
-    recordingStartTime,
-    recordingTotalPausedMs,
   ])
+
+  // Broadcast immediately on state changes
+  useEffect(() => {
+    broadcastWidgetState()
+  }, [broadcastWidgetState])
+
+  // P1-1 FIX: Dedicated 1-second interval for continuous timer sync during recording
+  useEffect(() => {
+    if (recordingState === 'recording' || recordingState === 'paused') {
+      // Start 1s interval — widget always shows accurate elapsed time
+      widgetTimerRef.current = setInterval(broadcastWidgetState, 1000)
+      return () => {
+        if (widgetTimerRef.current) {
+          clearInterval(widgetTimerRef.current)
+          widgetTimerRef.current = null
+        }
+      }
+    } else {
+      // Not recording — clear any active interval
+      if (widgetTimerRef.current) {
+        clearInterval(widgetTimerRef.current)
+        widgetTimerRef.current = null
+      }
+      return undefined
+    }
+  }, [recordingState, broadcastWidgetState])
 
   // Return formatted name for idle state
   const getViewName = () => {
@@ -371,6 +395,10 @@ export const DynamicIsland: React.FC<DynamicIslandProps> = ({
               onPointerDown={handlePointerDown}
               onPointerUp={handlePointerUp}
               onPointerLeave={handlePointerUp}
+              // P1-17 FIX: If a system dialog interrupts the long-press
+              // (e.g., notification popup), pointerUp never fires — the hold
+              // ring animation gets stuck. pointerCancel handles this case.
+              onPointerCancel={handlePointerUp}
               className={`ui-dynamic-island-stop-btn ${isHolding ? 'is-holding' : ''} pointer-events-auto`}
             >
               {isHolding ? (
@@ -398,7 +426,9 @@ export const DynamicIsland: React.FC<DynamicIslandProps> = ({
               >
                 {lastTranscriptLine && (
                   <div className="flex flex-col gap-1 items-start w-full">
-                    <span className="text-[10px] uppercase tracking-widest text-[var(--color-text-tertiary)] font-semibold">Transcript</span>
+                    <span className="text-[10px] uppercase tracking-widest text-[var(--color-text-tertiary)] font-semibold">
+                      Transcript
+                    </span>
                     <div className="ui-di-transcript-preview text-white">{lastTranscriptLine}</div>
                     {(entityCount > 0 || noteCount > 0) && (
                       <div className="flex gap-3 opacity-60 text-[10px] tracking-wider mt-1 font-medium">
@@ -408,14 +438,15 @@ export const DynamicIsland: React.FC<DynamicIslandProps> = ({
                     )}
                   </div>
                 )}
-                
                 {lastTranscriptLine && liveCoachTip && (
                   <div className="w-full h-px bg-[rgba(255,255,255,0.08)] my-1 rounded-full" />
                 )}
 
                 {liveCoachTip && (
                   <div className="flex flex-col gap-1 items-start w-full">
-                    <span className="text-[10px] uppercase tracking-widest text-[var(--color-violet)] font-semibold">AI Coach</span>
+                    <span className="text-[10px] uppercase tracking-widest text-[var(--color-violet)] font-semibold">
+                      AI Coach
+                    </span>
                     <div className="ui-di-transcript-preview text-[var(--color-violet-light)]">
                       ✨ {liveCoachTip}
                     </div>

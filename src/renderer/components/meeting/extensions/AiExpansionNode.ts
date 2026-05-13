@@ -125,16 +125,29 @@ export const AiExpansionNode = Node.create<AiExpansionOptions>({
         const { state } = this.editor
         const { selection } = state
 
-        // Extract exact text of the current block
+        // P1-5 FIX: Extract text from multi-block selections, not just the
+        // block where the cursor starts. Previously, selecting across 3
+        // paragraphs only sent paragraph 1 to the AI — silently discarding
+        // the rest. Now we use selection.content() for cross-block extraction,
+        // and fall back to single-block for cursor-only (empty selection).
+        let sourceText: string
         const { $from } = selection
-        const blockNode = $from.node($from.depth)
-        const sourceText = blockNode.textContent.trim()
+
+        if (!selection.empty) {
+          // Multi-block: extract all selected text with newlines between blocks
+          const slice = selection.content()
+          sourceText = slice.content.textBetween(0, slice.content.size, '\n').trim()
+        } else {
+          // Cursor in single block — use current block's full text
+          const blockNode = $from.node($from.depth)
+          sourceText = blockNode.textContent.trim()
+        }
 
         if (!sourceText) return false
 
         const context = this.options.getMeetingContext()
 
-        // BUG FIX: Use `tr.insert` at the END of the current block
+        // Use `tr.insert` at the END of the current block
         // instead of `insertContent` at cursor, which would destroy
         // any selected text. We compute the position right after the
         // current top-level block and insert there.

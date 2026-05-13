@@ -20,13 +20,19 @@ export function useSilentPrompter(
   const modeIndexRef = useRef(0)
   const dismissTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
-  // Stable ref for transcripts — avoids useCallback/useEffect dependency churn
+  // Stable refs — avoids useCallback/useEffect dependency churn
   const transcriptsRef = useRef(transcripts)
   transcriptsRef.current = transcripts
+  // P1-13 FIX: Track isRecording via ref so the interval callback can
+  // check it without being in the useCallback dependency array.
+  const isRecordingRef = useRef(isRecording)
+  isRecordingRef.current = isRecording
 
   const generateSuggestion = useCallback(async () => {
     const currentTranscripts = transcriptsRef.current
-    if (!meetingId || currentTranscripts.length === 0) return
+    // P1-13 FIX: Guard against race where interval fires just as isRecording
+    // transitions to false. Without this, a suggestion fires after recording stops.
+    if (!meetingId || !isRecordingRef.current || currentTranscripts.length === 0) return
 
     // Get last 5 minutes of transcript
     const now =
@@ -39,7 +45,7 @@ export function useSilentPrompter(
       .map(t => t.text)
       .join(' ')
 
-    if (recentText.length < 50) return // Not enough context
+    if (recentText.trim().length < 50) return // Not enough context
 
     // Rotate through prompt modes
     const currentMode = PROMPT_MODES[modeIndexRef.current % PROMPT_MODES.length]
@@ -48,7 +54,10 @@ export function useSilentPrompter(
     try {
       const result = await window.electronAPI?.intelligence?.meetingSuggestion?.({
         meetingId,
-        recentContext: recentText.slice(0, 1000),
+        // P1-4 FIX: Slice from END to capture the most recent context.
+        // Previously .slice(0, 1000) sent the oldest chars of the 5-min window,
+        // causing the AI coach to generate suggestions based on stale discussion.
+        recentContext: recentText.slice(-1000),
         promptMode: currentMode,
       })
 

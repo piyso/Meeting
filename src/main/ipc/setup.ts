@@ -49,7 +49,7 @@ import { registerWebhookHandlers } from './handlers/webhook.handlers'
 export function setupIPC(): void {
   log.info('Setting up IPC handlers...')
 
-  // Register all 24 handler modules
+  // Register all 28 handler modules
   registerMeetingHandlers()
   registerAudioHandlers()
   registerModelHandlers()

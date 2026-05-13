@@ -135,45 +135,67 @@ function initializeSchema(database: Database.Database): void {
   if (version < SCHEMA_VERSION) {
     log.info(`Applying schema version ${SCHEMA_VERSION} (current: ${version})...`)
 
-    // Execute schema initialization (CREATE IF NOT EXISTS is idempotent)
-    database.exec(INITIALIZE_SCHEMA)
+    // P1-9 FIX: Wrap migrations in a transaction so a mid-migration crash
+    // (e.g., after adding embedding_blob but before version insert) doesn't
+    // leave the schema in a half-upgraded state with no version bump.
+    // On next launch, the retry would try ALTER TABLE again → error.
+    const migrate = database.transaction(() => {
+      // Execute schema initialization (CREATE IF NOT EXISTS is idempotent)
+      database.exec(INITIALIZE_SCHEMA)
 
-    // ── Migration: v4 → v5 ──
-    // P0-2 FIX: Add embedding_blob BLOB column for local semantic embeddings.
-    // TranscriptService and BackgroundEmbeddingQueue write Float32Array BLOBs here.
-    if (version < 5) {
-      try {
-        const hasCol = database
-          .prepare("SELECT COUNT(*) as cnt FROM pragma_table_info('transcripts') WHERE name='embedding_blob'")
-          .get() as { cnt: number }
-        if (!hasCol || hasCol.cnt === 0) {
-          database.exec('ALTER TABLE transcripts ADD COLUMN embedding_blob BLOB')
-          log.info('Migration v5: Added embedding_blob column to transcripts')
-        }
-      } catch (e) {
-        log.debug('Migration v5 embedding_blob skipped:', e instanceof Error ? e.message : String(e))
-      }
-
-      // Add synced_at columns to tables that were missing them
-      const tablesNeedingSyncedAt = ['action_items', 'sentiment_scores', 'calendar_events', 'webhooks']
-      for (const table of tablesNeedingSyncedAt) {
+      // ── Migration: v4 → v5 ──
+      // P0-2 FIX: Add embedding_blob BLOB column for local semantic embeddings.
+      // TranscriptService and BackgroundEmbeddingQueue write Float32Array BLOBs here.
+      if (version < 5) {
         try {
           const hasCol = database
-            .prepare(`SELECT COUNT(*) as cnt FROM pragma_table_info('${table}') WHERE name='synced_at'`)
+            .prepare(
+              "SELECT COUNT(*) as cnt FROM pragma_table_info('transcripts') WHERE name='embedding_blob'"
+            )
             .get() as { cnt: number }
           if (!hasCol || hasCol.cnt === 0) {
-            database.exec(`ALTER TABLE ${table} ADD COLUMN synced_at INTEGER DEFAULT 0`)
-            log.info(`Migration v5: Added synced_at column to ${table}`)
+            database.exec('ALTER TABLE transcripts ADD COLUMN embedding_blob BLOB')
+            log.info('Migration v5: Added embedding_blob column to transcripts')
           }
         } catch (e) {
-          log.debug(`Migration v5 ${table}.synced_at skipped:`, e instanceof Error ? e.message : String(e))
+          log.debug(
+            'Migration v5 embedding_blob skipped:',
+            e instanceof Error ? e.message : String(e)
+          )
+        }
+
+        // Add synced_at columns to tables that were missing them
+        const tablesNeedingSyncedAt = [
+          'action_items',
+          'sentiment_scores',
+          'calendar_events',
+          'webhooks',
+        ]
+        for (const table of tablesNeedingSyncedAt) {
+          try {
+            const hasCol = database
+              .prepare(
+                `SELECT COUNT(*) as cnt FROM pragma_table_info('${table}') WHERE name='synced_at'`
+              )
+              .get() as { cnt: number }
+            if (!hasCol || hasCol.cnt === 0) {
+              database.exec(`ALTER TABLE ${table} ADD COLUMN synced_at INTEGER DEFAULT 0`)
+              log.info(`Migration v5: Added synced_at column to ${table}`)
+            }
+          } catch (e) {
+            log.debug(
+              `Migration v5 ${table}.synced_at skipped:`,
+              e instanceof Error ? e.message : String(e)
+            )
+          }
         }
       }
-    }
 
-    // Update schema version
-    database.prepare('INSERT INTO schema_version (version) VALUES (?)').run(SCHEMA_VERSION)
+      // Update schema version
+      database.prepare('INSERT INTO schema_version (version) VALUES (?)').run(SCHEMA_VERSION)
+    })
 
+    migrate()
     log.info(`Schema version ${SCHEMA_VERSION} applied successfully`)
   } else {
     log.info(`Schema is up to date (version ${version})`)

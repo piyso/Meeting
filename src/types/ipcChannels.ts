@@ -95,6 +95,8 @@ export const IPC_CHANNELS = {
     unloadModels: 'intelligence:unloadModels',
     meetingSuggestion: 'intelligence:meetingSuggestion',
     askMeetings: 'intelligence:askMeetings',
+    // P1-2 FIX: Cancel active AI generation to free GPU resources
+    cancelAsk: 'intelligence:cancelAsk',
     streamToken: 'intelligence:streamToken',
   },
 

@@ -868,6 +868,8 @@ export interface ElectronAPI {
       question: string
       context: string
     }) => Promise<IPCResponse<{ answer: string }>>
+    // P1-2 FIX: Cancel active AI generation to free GPU resources
+    cancelAsk: () => Promise<IPCResponse<void>>
   }
 
   // Model operations
@@ -955,6 +957,10 @@ export interface ElectronAPI {
       isRecording: boolean
       isPaused?: boolean
       elapsedTime: string
+      // P1-7 FIX: Raw timestamps for widget-side sub-second timer computation
+      recordingStartTime?: number | null
+      recordingTotalPausedMs?: number
+      meetingId?: string | null
       lastTranscriptLine: string
       audioMode?: 'system' | 'microphone' | 'none'
       syncStatus?: 'idle' | 'syncing' | 'error'

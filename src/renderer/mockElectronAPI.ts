@@ -931,7 +931,7 @@ function createMockElectronAPI() {
         delayed({
           isInstalled: true,
           isRunning: true,
-          version: '0.3.3',
+          version: '0.3.4',
           models: ['qwen2.5:3b'],
           downloadUrl: undefined,
         }),
@@ -1304,7 +1304,7 @@ function createMockElectronAPI() {
             Platform: 'macOS 15.3 (darwin/arm64)',
             Electron: '33.4.11',
             Node: 'v20.18.3',
-            'App Version': '0.3.3',
+            'App Version': '0.3.4',
             Memory: '16 GB',
             CPUs: '10 cores',
           },

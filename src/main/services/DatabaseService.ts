@@ -382,7 +382,8 @@ export class DatabaseService {
       | { value: string }
       | undefined
 
-    return result?.value || null
+    // P3-8 FIX: Use ?? instead of || so empty-string settings aren't coerced to null
+    return result?.value ?? null
   }
 
   /**

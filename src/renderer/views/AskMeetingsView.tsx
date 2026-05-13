@@ -218,10 +218,17 @@ export default function AskMeetingsView() {
   // Set to true on cancel or unmount so stale IPC responses don't update state.
   const abortRef = useRef(false)
 
+  // P1-14 FIX: Track active request ID to prevent stream cross-contamination.
+  // Without this, tokens from a cancelled request leak into the next request's
+  // streaming message because the listener only checks `isStreaming`.
+  const activeRequestIdRef = useRef<string | null>(null)
+
   // Cleanup: abort any in-flight request on unmount
   useEffect(() => {
     return () => {
       abortRef.current = true
+      // P1-2 FIX: Cancel backend generation on unmount to free GPU
+      window.electronAPI?.intelligence?.cancelAsk?.()
     }
   }, [])
 
@@ -291,14 +298,18 @@ export default function AskMeetingsView() {
     if (!streamListener) return
 
     const cleanup = streamListener((data: { token: string; fullText: string }) => {
+      // P1-14 FIX: Only accept tokens for the currently active request.
+      // Without this, cancelling request A and immediately sending request B
+      // causes leftover tokens from A to inject into B's streaming message.
+      const currentRequestId = activeRequestIdRef.current
+      if (!currentRequestId) return
+
       setMessages(prev => {
-        const last = prev[prev.length - 1]
-        if (last?.isStreaming) {
-          return prev.map((msg, i) =>
-            i === prev.length - 1 ? { ...msg, content: data.fullText } : msg
-          )
-        }
-        return prev
+        const target = prev.find(m => m.id === currentRequestId && m.isStreaming)
+        if (!target) return prev
+        return prev.map(msg =>
+          msg.id === currentRequestId ? { ...msg, content: data.fullText } : msg
+        )
       })
     })
 
@@ -310,7 +321,11 @@ export default function AskMeetingsView() {
   // Cancel a stuck/in-flight request
   const handleCancel = useCallback(() => {
     abortRef.current = true
+    activeRequestIdRef.current = null
     setIsLoading(false)
+    // P1-2 FIX: Actually cancel the backend generation, not just UI cosmetics.
+    // Without this, the GPU continues inference until maxTokens is exhausted.
+    window.electronAPI?.intelligence?.cancelAsk?.()
     // Mark the latest streaming message as cancelled
     setMessages(prev =>
       prev.map(msg =>
@@ -351,6 +366,9 @@ export default function AskMeetingsView() {
 
       // Add streaming placeholder
       const assistantId = `assistant-${Date.now()}`
+      // P1-14 FIX: Track the active request ID so the stream listener
+      // only injects tokens for this specific request.
+      activeRequestIdRef.current = assistantId
       setMessages(prev => [
         ...prev,
         {

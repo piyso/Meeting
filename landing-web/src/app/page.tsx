@@ -17,6 +17,7 @@ import {
 } from 'lucide-react'
 import { Logo3D } from '../components/Logo3D'
 import { VocMarquee } from '../components/Marquee'
+import { MembershipApplication } from '../components/MembershipApplication'
 import Image from 'next/image'
 
 /* ─── animation variants ─── */
@@ -771,6 +772,9 @@ export default function Home() {
           </div>
         </motion.div>
       </section>
+
+      {/* ═══ ENTERPRISE APPLICATION ═══ */}
+      <MembershipApplication />
 
       {/* ═══ DOWNLOAD ═══ */}
       <section className="section-pad content-layer download-section" id="download">

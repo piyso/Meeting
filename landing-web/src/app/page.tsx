@@ -254,7 +254,7 @@ export default function Home() {
 
           <div className="hero-actions">
             <a
-              href="https://dl.bluearkive.com/BlueArkive-0.3.3-mac-arm64.dmg"
+              href="https://dl.bluearkive.com/BlueArkive-0.3.5-beta-mac-arm64.dmg"
               className="btn-primary liquid-glass-strong"
             >
               <span className="icon-circle">
@@ -762,7 +762,7 @@ export default function Home() {
             </ul>
 
             <a
-              href="https://dl.bluearkive.com/BlueArkive-0.3.3-mac-arm64.dmg"
+              href="https://dl.bluearkive.com/BlueArkive-0.3.5-beta-mac-arm64.dmg"
               className="btn-primary liquid-glass-strong"
               style={{ width: '100%', justifyContent: 'center' }}
             >
@@ -798,7 +798,7 @@ export default function Home() {
 
           <div className="download-card liquid-glass-strong">
             <a
-              href="https://dl.bluearkive.com/BlueArkive-0.3.3-mac-arm64.dmg"
+              href="https://dl.bluearkive.com/BlueArkive-0.3.5-beta-mac-arm64.dmg"
               className="download-btn liquid-glass-strong"
               style={{ width: '100%', justifyContent: 'center', textDecoration: 'none' }}
             >
@@ -807,7 +807,7 @@ export default function Home() {
             </a>
             <p className="download-meta">Apple Silicon · arm64 · 188 MB</p>
             <p className="download-alt">
-              <a href="https://dl.bluearkive.com/BlueArkive-0.3.3-mac-x64.dmg">
+              <a href="https://dl.bluearkive.com/BlueArkive-0.3.5-beta-mac-x64.dmg">
                 Download for Intel Mac instead (x64)
               </a>
             </p>

@@ -61,7 +61,7 @@ async function sendViaResend(data: IntakeData): Promise<boolean> {
       'Content-Type': 'application/json',
     },
     body: JSON.stringify({
-      from: 'BlueArkive Intake <intake@bluearkive.com>',
+      from: 'BlueArkive Intake <onboarding@resend.dev>',
       to: ['bluearkive@outlook.com'],
       reply_to: data.email,
       subject: `[Intake] New ${data.type === 'access' ? 'Access Request' : 'Demo Request'} from ${data.fullName}`,

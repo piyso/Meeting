@@ -487,7 +487,7 @@ export default function Home() {
                         <strong style={{ color: "white" }}>Encrypted At Rest:</strong> All contexts are stored in an AES-256 encrypted SQLite database (SQLCipher). The decryption key is locked in your OS keychain.
                       </li>
                       <li style={{ marginBottom: "0.75rem" }}>
-                        <strong style={{ color: "white" }}>Edge Inference:</strong> Transcription and processing use heavily quantized local models (ONNX) running exclusively on your machine's neural engine.
+                        <strong style={{ color: "white" }}>Edge Inference:</strong> Transcription and processing use heavily quantized local models (ONNX) running exclusively on your machine&apos;s neural engine.
                       </li>
                       <li>
                         <strong style={{ color: "white" }}>Zero Telemetry:</strong> The codebase contains zero analytics, trackers, or hidden API calls. We physically cannot see your data.

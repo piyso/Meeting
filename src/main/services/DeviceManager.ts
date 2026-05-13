@@ -26,6 +26,7 @@ import * as os from 'os'
 import * as crypto from 'crypto'
 import { app } from 'electron'
 import { v4 as uuidv4 } from 'uuid'
+import { getTierLimits, isUnlimited } from './TierMappingService'
 
 export interface Device {
   id: string
@@ -68,7 +69,6 @@ export class DeviceManager {
    * P3-7 FIX: Import from TierMappingService (SSOT) instead of hardcoding
    */
   private getDeviceLimit(planTier: string): number {
-    const { getTierLimits, isUnlimited } = require('./TierMappingService')
     const limits = getTierLimits(planTier)
     return isUnlimited(limits.deviceLimit) ? Infinity : limits.deviceLimit
   }

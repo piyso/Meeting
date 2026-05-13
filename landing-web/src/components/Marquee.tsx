@@ -1,7 +1,7 @@
 'use client'
 
 import { motion } from 'framer-motion'
-import { useState, useEffect } from 'react'
+import React from 'react'
 
 const quotes = [
   "It's like having a brilliant intern who never misses anything.",
@@ -13,14 +13,6 @@ const quotes = [
 ]
 
 export function VocMarquee() {
-  const [mounted, setMounted] = useState(false)
-
-  useEffect(() => {
-    setMounted(true)
-  }, [])
-
-  if (!mounted) return null
-
   return (
     <div
       className="voc-marquee-section"

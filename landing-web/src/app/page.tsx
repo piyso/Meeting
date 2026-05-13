@@ -17,7 +17,6 @@ import {
 } from 'lucide-react'
 import { Logo3D } from '../components/Logo3D'
 import { VocMarquee } from '../components/Marquee'
-import { MembershipApplication } from '../components/MembershipApplication'
 import Image from 'next/image'
 
 /* ─── animation variants ─── */
@@ -156,6 +155,7 @@ export default function Home() {
           <a href="#features">Architecture</a>
           <a href="#trust">Security</a>
           <a href="#pricing">Nodes</a>
+          <a href="/apply">Enterprise</a>
           <a href="#download" className="nav-cta liquid-glass-strong">
             Initialize Core
           </a>
@@ -194,6 +194,9 @@ export default function Home() {
             </a>
             <a href="#pricing" onClick={() => setMobileMenuOpen(false)}>
               Nodes
+            </a>
+            <a href="/apply" onClick={() => setMobileMenuOpen(false)}>
+              Enterprise
             </a>
             <a href="#download" onClick={() => setMobileMenuOpen(false)}>
               Initialize Core
@@ -305,7 +308,7 @@ export default function Home() {
         <motion.div
           initial="hidden"
           whileInView="visible"
-          viewport={{ once: true }}
+          viewport={{ once: true, margin: "-10% 0px" }}
           variants={fadeUp}
         >
           <p className="section-label">BlueArkive Inference Engine</p>
@@ -409,7 +412,7 @@ export default function Home() {
         <motion.div
           initial="hidden"
           whileInView="visible"
-          viewport={{ once: true }}
+          viewport={{ once: true, margin: "-10% 0px" }}
           variants={fadeUp}
         >
           <p className="section-label">Built for how you work.</p>
@@ -456,7 +459,7 @@ export default function Home() {
         <motion.div
           initial="hidden"
           whileInView="visible"
-          viewport={{ once: true }}
+          viewport={{ once: true, margin: "-10% 0px" }}
           variants={fadeUp}
         >
           <h2 className="section-title">
@@ -516,7 +519,7 @@ export default function Home() {
               key={i}
               initial="hidden"
               whileInView="visible"
-              viewport={{ once: true }}
+              viewport={{ once: true, margin: "-10%" }}
               variants={{
                 hidden: { opacity: 0, y: 30 },
                 visible: { opacity: 1, y: 0, transition: { duration: 0.8, delay: i * 0.1 } },
@@ -541,7 +544,7 @@ export default function Home() {
           <motion.div
             initial="hidden"
             whileInView="visible"
-            viewport={{ once: true }}
+            viewport={{ once: true, margin: "-10% 0px" }}
             variants={{
               hidden: { opacity: 0, y: 30 },
               visible: { opacity: 1, y: 0, transition: { duration: 0.8, delay: 0.3 } },
@@ -578,7 +581,7 @@ export default function Home() {
         <motion.div
           initial="hidden"
           whileInView="visible"
-          viewport={{ once: true }}
+          viewport={{ once: true, margin: "-10% 0px" }}
           variants={fadeUp}
         >
           <p className="section-label">Sovereignty over your context.</p>
@@ -720,7 +723,7 @@ export default function Home() {
         <motion.div
           initial="hidden"
           whileInView="visible"
-          viewport={{ once: true }}
+          viewport={{ once: true, margin: "-10% 0px" }}
           variants={fadeUp}
         >
           <p className="section-label">Claim your sovereign node.</p>
@@ -773,15 +776,14 @@ export default function Home() {
         </motion.div>
       </section>
 
-      {/* ═══ ENTERPRISE APPLICATION ═══ */}
-      <MembershipApplication />
+      {/* ═══ ENTERPRISE APPLICATION MOVED TO /APPLY ═══ */}
 
       {/* ═══ DOWNLOAD ═══ */}
       <section className="section-pad content-layer download-section" id="download">
         <motion.div
           initial="hidden"
           whileInView="visible"
-          viewport={{ once: true }}
+          viewport={{ once: true, margin: "-10% 0px" }}
           variants={fadeUp}
         >
           <h2 className="section-title" style={{ textAlign: 'center' }}>

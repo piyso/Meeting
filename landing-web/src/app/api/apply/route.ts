@@ -5,19 +5,28 @@ export async function POST(req: Request) {
   try {
     const data = await req.json();
 
+    // Validate required fields
+    if (!data.fullName || !data.email) {
+      return NextResponse.json(
+        { success: false, error: 'Name and email are required.' },
+        { status: 400 }
+      );
+    }
+
     // Outlook SMTP Configuration
-    // The user MUST provide their App Password in environment variables.
-    // Standard password often won't work with Microsoft due to security defaults.
+    // Uses App Password (not standard password) due to Microsoft 2FA requirement.
     const transporter = nodemailer.createTransport({
       host: 'smtp-mail.outlook.com',
       port: 587,
-      secure: false, // TLS requires secure: false for port 587
+      secure: false, // STARTTLS on port 587
       auth: {
         user: 'bluearkive@outlook.com',
-        pass: process.env.OUTLOOK_APP_PASSWORD || '', 
+        pass: process.env.OUTLOOK_APP_PASSWORD || '',
       },
       tls: {
-        ciphers: 'SSLv3',
+        // Do NOT use SSLv3 — it's deprecated and rejected on Node 18+.
+        // Let Node negotiate the best available TLS version.
+        rejectUnauthorized: true,
       },
     });
 
@@ -27,9 +36,9 @@ export async function POST(req: Request) {
         <h2 style="color: white; border-bottom: 1px solid #4ade80; padding-bottom: 10px;">🛡️ Sovereign Intake: New Application</h2>
         <p><strong>Type:</strong> ${data.type === 'access' ? 'Private Access Request' : 'Private Demo'}</p>
         <p><strong>Name:</strong> ${data.fullName}</p>
-        <p><strong>Firm:</strong> ${data.firm}</p>
+        <p><strong>Firm:</strong> ${data.firm || 'N/A'}</p>
         <p><strong>Email:</strong> <a href="mailto:${data.email}" style="color: #60a5fa;">${data.email}</a></p>
-        <p><strong>Role:</strong> ${data.role}</p>
+        <p><strong>Role:</strong> ${data.role || 'N/A'}</p>
         
         <h3 style="color: white; margin-top: 20px;">Statement of Intent / Details:</h3>
         <div style="background-color: rgba(255,255,255,0.05); padding: 15px; border-left: 3px solid #4ade80; color: #cbd5e1;">
@@ -53,10 +62,11 @@ export async function POST(req: Request) {
     });
 
     return NextResponse.json({ success: true, message: 'Application submitted successfully.' });
-  } catch (error) {
-    console.error('Error sending email:', error);
+  } catch (error: unknown) {
+    const errMsg = error instanceof Error ? error.message : String(error);
+    console.error('[Intake API] SMTP Error:', errMsg);
     return NextResponse.json(
-      { success: false, error: 'Failed to send application. Check SMTP configuration.' },
+      { success: false, error: 'Failed to send application. Please try again later.' },
       { status: 500 }
     );
   }

@@ -19,7 +19,53 @@ import {
   MicOff,
   Tag,
   StickyNote,
+  Palette,
 } from 'lucide-react'
+
+type ThemeName = 'monochrome' | 'ocean' | 'neon' | 'emerald'
+
+const THEMES = {
+  monochrome: {
+    aurora: 'radial-gradient(circle at 20% 20%, rgba(255, 255, 255, 0.05) 0%, transparent 55%), radial-gradient(circle at 80% 80%, rgba(255, 255, 255, 0.03) 0%, transparent 55%), radial-gradient(circle at 50% 50%, rgba(255, 255, 255, 0.02) 0%, transparent 65%)',
+    viz: 'rgba(255,255,255,0.95)',
+    vizShadow: '0 0 10px rgba(255,255,255,0.5)',
+    chipBg: 'bg-white/[0.04]',
+    chipBorder: 'border-white/[0.08]',
+    chipIcon: 'text-white/50',
+    chipText: 'text-white/80',
+    pickerBg: 'bg-white'
+  },
+  ocean: {
+    aurora: 'radial-gradient(circle at 20% 20%, rgba(59, 130, 246, 0.18) 0%, transparent 55%), radial-gradient(circle at 80% 80%, rgba(56, 189, 248, 0.15) 0%, transparent 55%), radial-gradient(circle at 50% 50%, rgba(96, 165, 250, 0.12) 0%, transparent 65%)',
+    viz: '#38bdf8',
+    vizShadow: '0 0 10px rgba(56, 189, 248, 0.6)',
+    chipBg: 'bg-blue-500/10',
+    chipBorder: 'border-blue-500/20',
+    chipIcon: 'text-blue-400',
+    chipText: 'text-blue-100',
+    pickerBg: 'bg-sky-400'
+  },
+  neon: {
+    aurora: 'radial-gradient(circle at 20% 20%, rgba(167, 139, 250, 0.15) 0%, transparent 50%), radial-gradient(circle at 80% 80%, rgba(244, 63, 94, 0.12) 0%, transparent 50%), radial-gradient(circle at 50% 50%, rgba(56, 189, 248, 0.08) 0%, transparent 60%)',
+    viz: '#a78bfa',
+    vizShadow: '0 0 10px rgba(167, 139, 250, 0.6)',
+    chipBg: 'bg-fuchsia-500/10',
+    chipBorder: 'border-fuchsia-500/20',
+    chipIcon: 'text-fuchsia-400',
+    chipText: 'text-fuchsia-100',
+    pickerBg: 'bg-fuchsia-400'
+  },
+  emerald: {
+    aurora: 'radial-gradient(circle at 20% 20%, rgba(16, 185, 129, 0.15) 0%, transparent 50%), radial-gradient(circle at 80% 80%, rgba(52, 211, 153, 0.12) 0%, transparent 50%), radial-gradient(circle at 50% 50%, rgba(110, 231, 183, 0.08) 0%, transparent 60%)',
+    viz: '#34d399',
+    vizShadow: '0 0 10px rgba(52, 211, 153, 0.6)',
+    chipBg: 'bg-emerald-500/10',
+    chipBorder: 'border-emerald-500/20',
+    chipIcon: 'text-emerald-400',
+    chipText: 'text-emerald-100',
+    pickerBg: 'bg-emerald-400'
+  }
+}
 
 interface MiniWidgetProps {
   isRecording: boolean
@@ -57,6 +103,8 @@ export const MiniWidget: React.FC<MiniWidgetProps> = ({
   const [isNoteExpanded, setIsNoteExpanded] = useState(false)
   const [noteText, setNoteText] = useState('')
   const [isHovered, setIsHovered] = useState(false)
+  const [theme, setTheme] = useState<ThemeName>('monochrome')
+  const [showThemePicker, setShowThemePicker] = useState(false)
 
   const AudioIcon = audioMode === 'system' ? Monitor : audioMode === 'microphone' ? Mic : MicOff
   const SyncIcon = syncStatus === 'syncing' ? RefreshCw : syncStatus === 'error' ? CloudOff : Cloud
@@ -94,8 +142,8 @@ export const MiniWidget: React.FC<MiniWidgetProps> = ({
             key={i}
             className="w-[2.5px] h-full rounded-full"
             style={{
-              background: isPaused ? 'var(--color-amber)' : 'rgba(255,255,255,0.95)',
-              boxShadow: !isPaused ? '0 0 10px rgba(255,255,255,0.5)' : 'none',
+              background: isPaused ? 'var(--color-amber)' : THEMES[theme].viz,
+              boxShadow: !isPaused ? THEMES[theme].vizShadow : 'none',
               transformOrigin: 'center',
             }}
             animate={{
@@ -142,7 +190,12 @@ export const MiniWidget: React.FC<MiniWidgetProps> = ({
       <motion.div
         animate={{ opacity: isRecording && !isPaused ? 1 : 0 }}
         transition={{ duration: 1.5 }}
-        className="absolute inset-0 widget-aurora pointer-events-none rounded-[inherit]"
+        className="absolute -inset-[100%] pointer-events-none rounded-[inherit] mix-blend-screen"
+        style={{
+          background: THEMES[theme].aurora,
+          backgroundSize: '250% 250%',
+          animation: 'widget-aurora 20s ease-in-out infinite'
+        }}
       />
 
       {/* ═══ Content Stack ═══ */}
@@ -205,6 +258,31 @@ export const MiniWidget: React.FC<MiniWidgetProps> = ({
                 <div className="w-[1px] h-3.5 bg-white/[0.12] mx-[2px] rounded-full" />
               </>
             )}
+
+            {showThemePicker && (
+              <motion.div 
+                initial={{ opacity: 0, width: 0 }}
+                animate={{ opacity: 1, width: 'auto' }}
+                className="flex items-center gap-[3px] pr-1 overflow-hidden"
+              >
+                {(Object.keys(THEMES) as ThemeName[]).map(t => (
+                  <button
+                    key={t}
+                    onClick={(e) => { e.stopPropagation(); setTheme(t); setShowThemePicker(false); }}
+                    className={`w-[14px] h-[14px] rounded-full ${THEMES[t].pickerBg} widget-nodrag outline-none transition-all hover:scale-125 ${theme === t ? 'ring-2 ring-white/50 ring-offset-1 ring-offset-black' : 'opacity-40 hover:opacity-100'}`}
+                    title={`Theme: ${t}`}
+                  />
+                ))}
+                <div className="w-[1px] h-3.5 bg-white/[0.12] mx-[2px] rounded-full" />
+              </motion.div>
+            )}
+            <DockButton
+              icon={<Palette size={12} strokeWidth={2.5} />}
+              onClick={() => setShowThemePicker(!showThemePicker)}
+              title="Change Theme"
+              active={showThemePicker}
+            />
+
             <DockButton
               icon={<Maximize2 size={12} strokeWidth={2.5} />}
               onClick={onRestore}
@@ -329,8 +407,8 @@ export const MiniWidget: React.FC<MiniWidgetProps> = ({
                         exit={{ opacity: 0, height: 0, marginTop: 0 }}
                         className="flex flex-wrap items-center gap-2"
                       >
-                        {entityCount > 0 && <Chip color="teal" label={`${entityCount} Entities`} icon={<Tag size={10} />} />}
-                        {noteCount > 0 && <Chip color="amber" label={`${noteCount} Notes`} icon={<StickyNote size={10} />} />}
+                        {entityCount > 0 && <Chip theme={theme} label={`${entityCount} Entities`} icon={<Tag size={10} />} />}
+                        {noteCount > 0 && <Chip theme={theme} label={`${noteCount} Notes`} icon={<StickyNote size={10} />} />}
                       </motion.div>
                     )}
                   </AnimatePresence>
@@ -382,32 +460,17 @@ const DockButton: React.FC<{
   )
 }
 
-/** Status chip — extracted for DRY rendering */
-const Chip: React.FC<{ color: 'teal' | 'amber'; label: string; icon: React.ReactNode }> = ({ color, label, icon }) => {
-  const colors = {
-    teal: {
-      bg: 'bg-[var(--color-teal)]/10',
-      border: 'border-[var(--color-teal)]/20',
-      iconColor: 'text-[var(--color-teal)] drop-shadow-[0_0_6px_var(--color-teal)]',
-      text: 'text-[var(--color-teal)]',
-    },
-    amber: {
-      bg: 'bg-[var(--color-amber)]/10',
-      border: 'border-[var(--color-amber)]/20',
-      iconColor: 'text-[var(--color-amber)] drop-shadow-[0_0_6px_var(--color-amber)]',
-      text: 'text-[var(--color-amber)]',
-    },
-  }
-  const c = colors[color]
-
+/** Status chip — dynamically themed */
+const Chip: React.FC<{ theme: ThemeName; label: string; icon: React.ReactNode }> = ({ theme, label, icon }) => {
+  const c = THEMES[theme]
   return (
     <motion.div
       initial={{ scale: 0.8, opacity: 0 }}
       animate={{ scale: 1, opacity: 1 }}
-      className={`flex items-center gap-1.5 ${c.bg} border ${c.border} px-2 py-[3px] rounded-full`}
+      className={`flex items-center gap-1.5 ${c.chipBg} border ${c.chipBorder} px-2 py-[3px] rounded-full transition-colors duration-500`}
     >
-      <span className={c.iconColor}>{icon}</span>
-      <span className={`text-[9.5px] ${c.text} font-bold tracking-[0.08em] uppercase`}>{label}</span>
+      <span className={`${c.chipIcon} transition-colors duration-500`}>{icon}</span>
+      <span className={`text-[9.5px] ${c.chipText} font-bold tracking-[0.08em] uppercase drop-shadow-sm transition-colors duration-500`}>{label}</span>
     </motion.div>
   )
 }

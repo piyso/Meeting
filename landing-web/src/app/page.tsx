@@ -1,10 +1,9 @@
 'use client'
 
-import { useState, useEffect, useRef, useCallback } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import {
   Menu,
-  Download,
   ArrowRight,
   CheckCircle,
   EyeOff,
@@ -12,7 +11,7 @@ import {
   Search,
   Cpu,
   Check,
-  ArrowDownCircle,
+  Sparkles,
   X,
 } from 'lucide-react'
 import { Logo3D } from '../components/Logo3D'
@@ -66,7 +65,6 @@ export default function Home() {
   const [activeRole, setActiveRole] = useState('founders')
   const [scrolled, setScrolled] = useState(false)
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
-  const [copyText, setCopyText] = useState('Copy')
   const [engineExpanded, setEngineExpanded] = useState(false)
   const [securityExpanded, setSecurityExpanded] = useState(false)
 
@@ -95,11 +93,7 @@ export default function Home() {
     return () => window.removeEventListener('keydown', handleKeyDown)
   }, [])
 
-  const handleCopy = useCallback(() => {
-    navigator.clipboard.writeText('sudo xattr -cr /Applications/BlueArkive.app')
-    setCopyText('Copied!')
-    setTimeout(() => setCopyText('Copy'), 1500)
-  }, [])
+
 
   const roles = [
     {
@@ -156,8 +150,8 @@ export default function Home() {
           <a href="#trust">Security</a>
           <a href="#pricing">Nodes</a>
           <a href="/apply">Enterprise</a>
-          <a href="#download" className="nav-cta liquid-glass-strong">
-            Initialize Core
+          <a href="/apply" className="nav-cta liquid-glass-strong">
+            Request Access
           </a>
         </div>
         <button
@@ -198,8 +192,8 @@ export default function Home() {
             <a href="/apply" onClick={() => setMobileMenuOpen(false)}>
               Enterprise
             </a>
-            <a href="#download" onClick={() => setMobileMenuOpen(false)}>
-              Initialize Core
+            <a href="/apply" onClick={() => setMobileMenuOpen(false)}>
+              Request Access
             </a>
           </motion.div>
         )}
@@ -258,13 +252,13 @@ export default function Home() {
 
           <div className="hero-actions">
             <a
-              href="https://dl.bluearkive.com/BlueArkive-0.3.5-beta-mac-arm64.dmg"
+              href="/apply"
               className="btn-primary liquid-glass-strong"
             >
               <span className="icon-circle">
-                <Download style={{ width: 14, height: 14 }} />
+                <Sparkles style={{ width: 14, height: 14 }} />
               </span>
-              Download Free
+              Request Early Access
             </a>
             <a href="#features" className="btn-secondary">
               See How It Works
@@ -766,11 +760,11 @@ export default function Home() {
             </ul>
 
             <a
-              href="https://dl.bluearkive.com/BlueArkive-0.3.5-beta-mac-arm64.dmg"
+              href="/apply"
               className="btn-primary liquid-glass-strong"
               style={{ width: '100%', justifyContent: 'center' }}
             >
-              Download Free
+              Request Early Access
             </a>
           </div>
         </motion.div>
@@ -778,109 +772,85 @@ export default function Home() {
 
       {/* ═══ ENTERPRISE APPLICATION MOVED TO /APPLY ═══ */}
 
-      {/* ═══ DOWNLOAD ═══ */}
-      <section className="section-pad content-layer download-section" id="download">
+      {/* ═══ REQUEST ACCESS CTA ═══ */}
+      <section className="section-pad content-layer download-section" id="access">
         <motion.div
           initial="hidden"
           whileInView="visible"
           viewport={{ once: true, margin: "-10% 0px" }}
           variants={fadeUp}
+          style={{ textAlign: 'center' }}
         >
-          <h2 className="section-title" style={{ textAlign: 'center' }}>
-            Download <em>BlueArkive.</em>
+          <h2 className="section-title">
+            Get <em>BlueArkive.</em>
           </h2>
-          <p className="section-desc centered">Free. Private. No account needed. Yours forever.</p>
+          <p className="section-desc centered">Free. Private. No cloud. Yours forever.</p>
           <p
             style={{
               textAlign: 'center',
               fontSize: '0.8125rem',
               color: 'rgba(255,255,255,0.4)',
               marginTop: '0.75rem',
+              maxWidth: 520,
+              margin: '0.75rem auto 0',
             }}
           >
-            💡 Your first meeting is 30 seconds away. Download, record a 2-minute test, and see the
-            magic.
+            We&apos;re onboarding early adopters in waves. Submit a quick request and we&apos;ll send
+            you a private download link within 24 hours.
           </p>
 
-          <div className="download-card liquid-glass-strong">
-            <a
-              href="https://dl.bluearkive.com/BlueArkive-0.3.5-beta-mac-arm64.dmg"
-              className="download-btn liquid-glass-strong"
-              style={{ width: '100%', justifyContent: 'center', textDecoration: 'none' }}
-            >
-              <ArrowDownCircle style={{ width: 20, height: 20 }} />
-              Download for macOS
-            </a>
-            <p className="download-meta">Apple Silicon · arm64 · 188 MB</p>
-            <p className="download-alt">
-              <a href="https://dl.bluearkive.com/BlueArkive-0.3.5-beta-mac-x64.dmg">
-                Download for Intel Mac instead (x64)
-              </a>
-            </p>
-            <p className="download-alt">
-              Also available soon for:{' '}
-              <span style={{ color: 'rgba(255,255,255,0.6)' }}>Windows</span> &amp;{' '}
-              <span style={{ color: 'rgba(255,255,255,0.6)' }}>Linux</span>
-            </p>
-          </div>
-
-          {/* SETUP */}
-          <p
+          <a
+            href="/apply"
+            className="btn-primary liquid-glass-strong"
             style={{
-              textAlign: 'center',
-              marginTop: '3rem',
-              fontSize: '0.8125rem',
-              color: 'rgba(255,255,255,0.4)',
+              display: 'inline-flex',
+              marginTop: '2rem',
+              padding: '1rem 2.5rem',
+              fontSize: '1rem',
             }}
           >
-            After downloading — three easy steps:
-          </p>
-          <p style={{ textAlign: 'center', fontSize: '0.75rem', color: 'rgba(255,255,255,0.3)' }}>
-            Because BlueArkive is free and independent, Apple shows a security warning. This quick
-            unlock takes 30 seconds.
-          </p>
+            <Sparkles style={{ width: 18, height: 18 }} />
+            Request Early Access
+          </a>
 
-          <div className="setup-steps">
+          <div
+            style={{
+              display: 'flex',
+              justifyContent: 'center',
+              gap: '2rem',
+              marginTop: '2rem',
+              flexWrap: 'wrap',
+            }}
+          >
             {[
-              {
-                n: 1,
-                t: 'Drag to Applications',
-                d: 'Open the .dmg file and drag BlueArkive into Applications.',
-              },
-              { n: 2, t: 'Open Terminal', d: 'Press ⌘ Space, type Terminal, press Enter.' },
-              {
-                n: 3,
-                t: 'Paste & press Enter',
-                d: 'Paste the command below and type your Mac password when asked.',
-              },
-            ].map(step => (
-              <div key={step.n} className="setup-step liquid-glass">
-                <div className="step-num">{step.n}</div>
-                <h4>{step.t}</h4>
-                <p>{step.d}</p>
+              { os: 'macOS', note: 'Apple Silicon & Intel' },
+              { os: 'Windows', note: 'Coming soon' },
+              { os: 'Linux', note: 'Coming soon' },
+            ].map(p => (
+              <div
+                key={p.os}
+                className="liquid-glass"
+                style={{
+                  padding: '0.75rem 1.5rem',
+                  borderRadius: 'var(--radius-lg)',
+                  textAlign: 'center',
+                }}
+              >
+                <p style={{ color: 'white', fontWeight: 600, fontSize: '0.875rem', margin: 0 }}>
+                  {p.os}
+                </p>
+                <p
+                  style={{
+                    color: 'rgba(255,255,255,0.45)',
+                    fontSize: '0.75rem',
+                    margin: '0.25rem 0 0',
+                  }}
+                >
+                  {p.note}
+                </p>
               </div>
             ))}
           </div>
-
-          <div className="terminal-block liquid-glass" style={{ marginTop: '1.5rem' }}>
-            <span>
-              <span style={{ color: 'rgba(255,255,255,0.3)' }}>$</span> sudo xattr -cr
-              /Applications/BlueArkive.app
-            </span>
-            <button className="copy-btn" onClick={handleCopy}>
-              {copyText}
-            </button>
-          </div>
-          <p
-            style={{
-              textAlign: 'center',
-              marginTop: '1rem',
-              fontSize: '0.8125rem',
-              color: 'rgba(255,255,255,0.5)',
-            }}
-          >
-            That&apos;s it! Double-click BlueArkive from Applications — it opens perfectly, forever.
-          </p>
         </motion.div>
       </section>
 
@@ -899,7 +869,7 @@ export default function Home() {
               <h4>Product</h4>
               <a href="#features">Capabilities</a>
               <a href="#pricing">Pricing</a>
-              <a href="#download">Download</a>
+              <a href="/apply">Request Access</a>
             </div>
             <div className="footer-col">
               <h4>Trust</h4>

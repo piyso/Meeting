@@ -346,7 +346,7 @@ export const OnboardingFlow: React.FC = () => {
               </p>
 
               {step === 'auth' && (
-                <div className="mt-[clamp(1.5rem,4vh,3rem)] grid grid-cols-2 gap-[clamp(0.75rem,2vh,1.25rem)] pr-4 lg:pr-8 pb-[clamp(1rem,3vh,3rem)]">
+                <div className="mt-[clamp(1.5rem,4vh,3rem)] grid grid-cols-1 sm:grid-cols-2 gap-[clamp(0.75rem,2vh,1.25rem)] pr-4 lg:pr-8 pb-[clamp(1rem,3vh,3rem)]">
                   <div className="group relative p-5 lg:p-6 rounded-2xl bg-white/[0.02] border border-white/[0.05] hover:bg-white/[0.04] hover:shadow-2xl hover:shadow-violet-500/10 transition-all duration-300 overflow-hidden cursor-default flex flex-col">
                     <div className="absolute inset-0 bg-gradient-to-br from-violet-500/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none" />
                     <div className="relative z-10 flex items-center gap-3.5 mb-[clamp(0.5rem,1.5vh,0.75rem)]">
@@ -814,7 +814,7 @@ export const OnboardingFlow: React.FC = () => {
                 <div className="relative mb-10 w-full rounded-2xl overflow-hidden">
                   {/* Vault outer glow */}
                   <div className="absolute inset-0 rounded-2xl bg-gradient-to-b from-white/[0.04] to-transparent pointer-events-none" />
-                  <div className="grid grid-cols-4 gap-3 p-6 rounded-2xl bg-[#060a14] border border-white/[0.06] shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]">
+                  <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 p-6 rounded-2xl bg-[#060a14] border border-white/[0.06] shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]">
                     {recoveryPhrase.map((word, i) => (
                       <div
                         key={i}

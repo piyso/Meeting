@@ -8,14 +8,17 @@ import {
   Copy,
   Mail,
   Download,
+  Wrench,
 } from 'lucide-react'
 import { Button } from '../ui/Button'
+import { useAppStore } from '../../store/appStore'
 
 interface HealthResult {
   system: string
   status: 'ok' | 'warn' | 'error'
   message: string
   fix?: string
+  fixAction?: string
 }
 
 interface SystemInfo {
@@ -28,6 +31,8 @@ export const HealthDashboard: React.FC = () => {
   const [loading, setLoading] = useState(false)
   const [copied, setCopied] = useState(false)
   const [lastChecked, setLastChecked] = useState<Date | null>(null)
+  const [fixingSystem, setFixingSystem] = useState<string | null>(null)
+  const navigate = useAppStore(s => s.navigate)
 
   const runHealthCheck = async () => {
     setLoading(true)
@@ -47,7 +52,56 @@ export const HealthDashboard: React.FC = () => {
 
   useEffect(() => {
     runHealthCheck()
-  }, [])
+
+    // Listen for navigate:onboarding from health:fix('open-auth')
+    const handleNavigateOnboarding = () => {
+      navigate('onboarding')
+    }
+    const unsub = window.electronAPI?.on?.navigateOnboarding?.(handleNavigateOnboarding)
+    return () => {
+      unsub?.()
+    }
+  }, [navigate])
+
+  const handleFix = async (result: HealthResult) => {
+    if (!result.fixAction) return
+
+    setFixingSystem(result.system)
+    try {
+      // Special case: auth fix navigates directly
+      if (result.fixAction === 'open-auth') {
+        navigate('onboarding')
+        return
+      }
+
+      const res = await window.electronAPI?.diagnostic?.healthFix?.(result.fixAction)
+
+      if (res?.success) {
+        const msg = res.data?.message || 'Fix applied'
+        useAppStore.getState().addToast({
+          type: res.data?.granted === false ? 'warning' : 'success',
+          title: msg,
+          duration: 3000,
+        })
+        // Re-run health check after fix to refresh statuses
+        setTimeout(runHealthCheck, 1500)
+      } else {
+        useAppStore.getState().addToast({
+          type: 'error',
+          title: 'Fix failed — try manually',
+          duration: 4000,
+        })
+      }
+    } catch {
+      useAppStore.getState().addToast({
+        type: 'error',
+        title: 'Fix action failed',
+        duration: 3000,
+      })
+    } finally {
+      setFixingSystem(null)
+    }
+  }
 
   const getStatusIcon = (status: HealthResult['status']) => {
     switch (status) {
@@ -189,10 +243,30 @@ export const HealthDashboard: React.FC = () => {
             </div>
             <div className="flex items-center gap-2 flex-shrink-0">
               {getStatusDot(r.status)}
-              {r.fix && r.status !== 'ok' && (
-                <span className="text-[11px] text-[var(--color-sky)] font-medium whitespace-nowrap">
-                  {r.fix}
-                </span>
+              {r.fixAction && r.status !== 'ok' ? (
+                <button
+                  onClick={() => handleFix(r)}
+                  disabled={fixingSystem === r.system}
+                  className="flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11px] font-medium
+                    bg-[var(--color-sky)]/10 text-[var(--color-sky)] border border-[var(--color-sky)]/20
+                    hover:bg-[var(--color-sky)]/20 hover:border-[var(--color-sky)]/30
+                    disabled:opacity-50 disabled:cursor-not-allowed
+                    transition-all duration-200 cursor-pointer whitespace-nowrap"
+                >
+                  {fixingSystem === r.system ? (
+                    <RefreshCw size={10} className="animate-spin" />
+                  ) : (
+                    <Wrench size={10} />
+                  )}
+                  {fixingSystem === r.system ? 'Fixing...' : 'Fix'}
+                </button>
+              ) : (
+                r.fix &&
+                r.status !== 'ok' && (
+                  <span className="text-[11px] text-[var(--color-text-quaternary)] font-medium whitespace-nowrap">
+                    {r.fix}
+                  </span>
+                )
               )}
             </div>
           </div>

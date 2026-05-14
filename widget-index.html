@@ -1,12 +1,12 @@
 <!doctype html>
-<html lang="en">
+<html lang="en" class="widget-html">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <!-- CSP is enforced at runtime via session.webRequest.onHeadersReceived in main.ts.
          Do NOT add a CSP meta tag here — browsers intersect both CSPs (most restrictive wins),
          which would block WebSockets, API calls, and fonts needed by the widget. -->
-    <title>BlueArkive - Widget</title>
+    <title>BlueArkive Widget</title>
     <style>
       /* Ensure the Electron window's HTML/Body is completely transparent so only the React widget shows */
       html,
@@ -17,6 +17,7 @@
         margin: 0;
         padding: 0;
         background-color: transparent !important;
+        background-image: none !important;
         overflow: hidden;
       }
 
@@ -30,8 +31,8 @@
       }
     </style>
   </head>
-  <body>
-    <div id="root"></div>
+  <body class="widget-body">
+    <div id="root" class="widget-root"></div>
     <script type="module" src="/src/renderer/WidgetApp.tsx"></script>
   </body>
 </html>

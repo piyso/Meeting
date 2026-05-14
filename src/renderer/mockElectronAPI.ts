@@ -1168,6 +1168,7 @@ function createMockElectronAPI() {
       deepLink: noop,
       windowMaximized: noop,
       windowUnmaximized: noop,
+      navigateOnboarding: noop,
     },
 
     // ── IPC Renderer ──────────────────────────────────────────────────
@@ -1290,14 +1291,24 @@ function createMockElectronAPI() {
               message: 'qwen2.5:3b loaded (3.1 GB VRAM)',
             },
             {
-              system: 'Storage',
+              system: 'Microphone',
               status: 'ok',
-              message: '2.1 GB used / 256 GB available',
+              message: 'Permitted',
+            },
+            {
+              system: 'Screen Recording',
+              status: 'ok',
+              message: 'Permitted',
             },
             {
               system: 'Network',
               status: 'ok',
               message: 'Mock mode — all systems simulated',
+            },
+            {
+              system: 'Storage',
+              status: 'ok',
+              message: '2.1 GB used / 256 GB available',
             },
           ],
           systemInfo: {
@@ -1309,6 +1320,8 @@ function createMockElectronAPI() {
             CPUs: '10 cores',
           },
         }),
+      healthFix: async (action: string) =>
+        delayed({ granted: true, message: `Mock fix applied: ${action}` }),
     },
 
     // ── Billing ───────────────────────────────────────────────────────

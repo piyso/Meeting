@@ -114,9 +114,8 @@ export function registerAudioHandlers(): void {
 
         await audioPipeline.startCapture(params.meetingId)
 
-        // Issue 19: Prevent system sleep during recording
         if (sleepBlockerId === null) {
-          sleepBlockerId = powerSaveBlocker.start('prevent-display-sleep')
+          sleepBlockerId = powerSaveBlocker.start('prevent-app-suspension')
           log.info(`powerSaveBlocker started (id: ${sleepBlockerId})`)
         }
 

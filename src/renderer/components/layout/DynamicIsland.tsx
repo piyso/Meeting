@@ -149,13 +149,10 @@ export const DynamicIsland: React.FC<DynamicIslandProps> = ({
   }, [recordingState])
 
   // IPC Widget sync — broadcasts recording state to the widget process.
-  // P1-1 FIX: Previously, the widget timer only updated when React deps changed
-  // (e.g., transcript line arrived), causing 30s+ drift during quiet sections.
-  // Now uses a dedicated 1-second setInterval for continuous timer sync.
+  // W16: Widget now computes elapsed time locally using raw timestamps.
+  // This eliminates the old 1s heartbeat interval that drifted during quiet sections.
   const recordingStartTime = useAppStore(s => s.recordingStartTime)
   const recordingTotalPausedMs = useAppStore(s => s.recordingTotalPausedMs)
-
-  const widgetTimerRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
   // Helper: compute elapsed time and broadcast widget state
   const broadcastWidgetState = useCallback(() => {
@@ -191,6 +188,24 @@ export const DynamicIsland: React.FC<DynamicIslandProps> = ({
         entityCount,
         noteCount,
       })
+    } else {
+      // W4 fix: Send a final reset so the widget properly hides and clears stale data.
+      // Without this, the widget could be orphaned showing the last recording state
+      // if main.ts auto-hide logic fails (e.g., widget window was recreated mid-session).
+      window.electronAPI?.widget?.updateState({
+        isRecording: false,
+        isPaused: false,
+        elapsedTime: '00:00:00',
+        // W16: Clear raw timestamps so the widget's local timer stops
+        recordingStartTime: null,
+        recordingTotalPausedMs: 0,
+        lastTranscriptLine: '',
+        audioMode: 'none',
+        syncStatus: 'idle',
+        liveCoachTip: null,
+        entityCount: 0,
+        noteCount: 0,
+      })
     }
   }, [
     recordingState,
@@ -211,26 +226,9 @@ export const DynamicIsland: React.FC<DynamicIslandProps> = ({
     broadcastWidgetState()
   }, [broadcastWidgetState])
 
-  // P1-1 FIX: Dedicated 1-second interval for continuous timer sync during recording
-  useEffect(() => {
-    if (recordingState === 'recording' || recordingState === 'paused') {
-      // Start 1s interval — widget always shows accurate elapsed time
-      widgetTimerRef.current = setInterval(broadcastWidgetState, 1000)
-      return () => {
-        if (widgetTimerRef.current) {
-          clearInterval(widgetTimerRef.current)
-          widgetTimerRef.current = null
-        }
-      }
-    } else {
-      // Not recording — clear any active interval
-      if (widgetTimerRef.current) {
-        clearInterval(widgetTimerRef.current)
-        widgetTimerRef.current = null
-      }
-      return undefined
-    }
-  }, [recordingState, broadcastWidgetState])
+  // W16 FIX: Removed the 1-second interval for continuous timer sync.
+  // The widget now computes elapsed time locally using raw timestamps.
+  // State is only broadcast when meaningful data (transcript, pause state, etc) changes.
 
   // Return formatted name for idle state
   const getViewName = () => {

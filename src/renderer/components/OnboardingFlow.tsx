@@ -285,7 +285,7 @@ export const OnboardingFlow: React.FC = () => {
     >
       {/* Left Visual Art Panel (Hidden on mobile, and hidden during wide steps) */}
       {step !== 'plan-selection' && step !== 'ghost-meeting' && (
-        <div className="hidden lg:flex w-1/2 h-full bg-slate-950 p-8 lg:p-12 flex-col relative overflow-y-auto sovereign-scrollbar border-r border-white/[0.04]">
+        <div className="hidden lg:flex w-1/2 h-full bg-slate-950 p-8 lg:p-12 flex-col relative overflow-hidden border-r border-white/[0.04]">
           <div className="absolute inset-0 with-noise opacity-[0.03] pointer-events-none z-0" />
           <motion.div
             className="absolute inset-0 pointer-events-none z-0 transition-opacity duration-300 opacity-60"
@@ -307,7 +307,7 @@ export const OnboardingFlow: React.FC = () => {
               transition={{ duration: 0.4, ease: 'easeOut' }}
               className="relative z-10 w-full max-w-xl mt-auto mb-auto mx-auto"
             >
-              <h1 className="text-4xl lg:text-[2.75rem] leading-[1.15] font-heading font-medium tracking-tight text-white mb-4 lg:mb-6 drop-shadow-lg">
+              <h1 className="text-[clamp(1.75rem,5vh,2.75rem)] leading-[1.15] font-heading font-medium tracking-tight text-white mb-[clamp(0.5rem,2vh,1.5rem)] drop-shadow-lg">
                 {step === 'auth'
                   ? authMode === 'register'
                     ? 'The Sovereign Memory Fabric.'
@@ -322,7 +322,7 @@ export const OnboardingFlow: React.FC = () => {
                 {(step as string) === 'plan-selection' ? 'Systems Ready.' : ''}
                 {(step as string) === 'ghost-meeting' ? 'Simulation Mode.' : ''}
               </h1>
-              <p className="text-slate-400 font-serif italic text-lg lg:text-xl leading-[1.7] opacity-90">
+              <p className="text-slate-400 font-serif italic text-[clamp(1rem,2.5vh,1.25rem)] leading-[1.7] opacity-90">
                 {step === 'auth'
                   ? 'Constructing the autonomous agentic web. Infinite recall, zero dependencies.'
                   : ''}
@@ -346,63 +346,63 @@ export const OnboardingFlow: React.FC = () => {
               </p>
 
               {step === 'auth' && (
-                <div className="mt-8 lg:mt-12 grid grid-cols-2 gap-4 lg:gap-5 pr-4 lg:pr-8 pb-12">
+                <div className="mt-[clamp(1.5rem,4vh,3rem)] grid grid-cols-2 gap-[clamp(0.75rem,2vh,1.25rem)] pr-4 lg:pr-8 pb-[clamp(1rem,3vh,3rem)]">
                   <div className="group relative p-5 lg:p-6 rounded-2xl bg-white/[0.02] border border-white/[0.05] hover:bg-white/[0.04] hover:shadow-2xl hover:shadow-violet-500/10 transition-all duration-300 overflow-hidden cursor-default flex flex-col">
                     <div className="absolute inset-0 bg-gradient-to-br from-violet-500/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none" />
-                    <div className="relative z-10 flex items-center gap-3.5 mb-3">
-                      <div className="flex items-center justify-center w-10 h-10 rounded-xl bg-violet-500/10 border border-violet-500/20 group-hover:scale-110 group-hover:bg-violet-500/20 transition-all duration-300 shadow-[inset_0_0_15px_rgba(139,92,246,0.1)] shrink-0">
+                    <div className="relative z-10 flex items-center gap-3.5 mb-[clamp(0.5rem,1.5vh,0.75rem)]">
+                      <div className="flex items-center justify-center w-[clamp(32px,5vh,40px)] h-[clamp(32px,5vh,40px)] rounded-xl bg-violet-500/10 border border-violet-500/20 group-hover:scale-110 group-hover:bg-violet-500/20 transition-all duration-300 shadow-[inset_0_0_15px_rgba(139,92,246,0.1)] shrink-0">
                         <Layers className="text-violet-400" size={18} />
                       </div>
-                      <h3 className="text-slate-200 font-semibold tracking-wide text-[14.5px] leading-tight">
+                      <h3 className="text-slate-200 font-semibold tracking-wide text-[clamp(13px,2vh,14.5px)] leading-tight">
                         Cognitive Substrate
                       </h3>
                     </div>
-                    <p className="relative z-10 text-[13px] text-slate-400 leading-relaxed group-hover:text-slate-300 transition-colors mt-auto">
+                    <p className="relative z-10 text-[clamp(11px,1.5vh,13px)] text-slate-400 leading-relaxed group-hover:text-slate-300 transition-colors mt-auto">
                       100% offline inference with zero external telemetry.
                     </p>
                   </div>
 
                   <div className="group relative p-5 lg:p-6 rounded-2xl bg-white/[0.02] border border-white/[0.05] hover:bg-white/[0.04] hover:shadow-2xl hover:shadow-emerald-500/10 transition-all duration-300 overflow-hidden cursor-default flex flex-col">
                     <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none" />
-                    <div className="relative z-10 flex items-center gap-3.5 mb-3">
-                      <div className="flex items-center justify-center w-10 h-10 rounded-xl bg-emerald-500/10 border border-emerald-500/20 group-hover:scale-110 group-hover:bg-emerald-500/20 transition-all duration-300 shadow-[inset_0_0_15px_rgba(16,185,129,0.1)] shrink-0">
+                    <div className="relative z-10 flex items-center gap-3.5 mb-[clamp(0.5rem,1.5vh,0.75rem)]">
+                      <div className="flex items-center justify-center w-[clamp(32px,5vh,40px)] h-[clamp(32px,5vh,40px)] rounded-xl bg-emerald-500/10 border border-emerald-500/20 group-hover:scale-110 group-hover:bg-emerald-500/20 transition-all duration-300 shadow-[inset_0_0_15px_rgba(16,185,129,0.1)] shrink-0">
                         <Activity className="text-emerald-400" size={18} />
                       </div>
-                      <h3 className="text-slate-200 font-semibold tracking-wide text-[14.5px] leading-tight">
+                      <h3 className="text-slate-200 font-semibold tracking-wide text-[clamp(13px,2vh,14.5px)] leading-tight">
                         Infinite Recall
                       </h3>
                     </div>
-                    <p className="relative z-10 text-[13px] text-slate-400 leading-relaxed group-hover:text-slate-300 transition-colors mt-auto">
+                    <p className="relative z-10 text-[clamp(11px,1.5vh,13px)] text-slate-400 leading-relaxed group-hover:text-slate-300 transition-colors mt-auto">
                       Continuous background ingestion and ambient retrieval.
                     </p>
                   </div>
 
                   <div className="group relative p-5 lg:p-6 rounded-2xl bg-white/[0.02] border border-white/[0.05] hover:bg-white/[0.04] hover:shadow-2xl hover:shadow-amber-500/10 transition-all duration-300 overflow-hidden cursor-default flex flex-col">
                     <div className="absolute inset-0 bg-gradient-to-br from-amber-500/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none" />
-                    <div className="relative z-10 flex items-center gap-3.5 mb-3">
-                      <div className="flex items-center justify-center w-10 h-10 rounded-xl bg-amber-500/10 border border-amber-500/20 group-hover:scale-110 group-hover:bg-amber-500/20 transition-all duration-300 shadow-[inset_0_0_15px_rgba(245,158,11,0.1)] shrink-0">
+                    <div className="relative z-10 flex items-center gap-3.5 mb-[clamp(0.5rem,1.5vh,0.75rem)]">
+                      <div className="flex items-center justify-center w-[clamp(32px,5vh,40px)] h-[clamp(32px,5vh,40px)] rounded-xl bg-amber-500/10 border border-amber-500/20 group-hover:scale-110 group-hover:bg-amber-500/20 transition-all duration-300 shadow-[inset_0_0_15px_rgba(245,158,11,0.1)] shrink-0">
                         <GitMerge className="text-amber-400" size={18} />
                       </div>
-                      <h3 className="text-slate-200 font-semibold tracking-wide text-[14.5px] leading-tight">
+                      <h3 className="text-slate-200 font-semibold tracking-wide text-[clamp(13px,2vh,14.5px)] leading-tight">
                         Agentic Action
                       </h3>
                     </div>
-                    <p className="relative z-10 text-[13px] text-slate-400 leading-relaxed group-hover:text-slate-300 transition-colors mt-auto">
+                    <p className="relative z-10 text-[clamp(11px,1.5vh,13px)] text-slate-400 leading-relaxed group-hover:text-slate-300 transition-colors mt-auto">
                       Autonomous workflow synthesis executed on-device.
                     </p>
                   </div>
 
                   <div className="group relative p-5 lg:p-6 rounded-2xl bg-white/[0.02] border border-white/[0.05] hover:bg-white/[0.04] hover:shadow-2xl hover:shadow-sky-500/10 transition-all duration-300 overflow-hidden cursor-default flex flex-col">
                     <div className="absolute inset-0 bg-gradient-to-br from-sky-500/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none" />
-                    <div className="relative z-10 flex items-center gap-3.5 mb-3">
-                      <div className="flex items-center justify-center w-10 h-10 rounded-xl bg-sky-500/10 border border-sky-500/20 group-hover:scale-110 group-hover:bg-sky-500/20 transition-all duration-300 shadow-[inset_0_0_15px_rgba(14,165,233,0.1)] shrink-0">
+                    <div className="relative z-10 flex items-center gap-3.5 mb-[clamp(0.5rem,1.5vh,0.75rem)]">
+                      <div className="flex items-center justify-center w-[clamp(32px,5vh,40px)] h-[clamp(32px,5vh,40px)] rounded-xl bg-sky-500/10 border border-sky-500/20 group-hover:scale-110 group-hover:bg-sky-500/20 transition-all duration-300 shadow-[inset_0_0_15px_rgba(14,165,233,0.1)] shrink-0">
                         <Landmark className="text-sky-400" size={18} />
                       </div>
-                      <h3 className="text-slate-200 font-semibold tracking-wide text-[14.5px] leading-tight">
+                      <h3 className="text-slate-200 font-semibold tracking-wide text-[clamp(13px,2vh,14.5px)] leading-tight">
                         Data Sovereignty
                       </h3>
                     </div>
-                    <p className="relative z-10 text-[13px] text-slate-400 leading-relaxed group-hover:text-slate-300 transition-colors mt-auto">
+                    <p className="relative z-10 text-[clamp(11px,1.5vh,13px)] text-slate-400 leading-relaxed group-hover:text-slate-300 transition-colors mt-auto">
                       Cryptographically guaranteed single-tenant architecture.
                     </p>
                   </div>

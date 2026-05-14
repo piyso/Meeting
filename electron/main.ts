@@ -266,62 +266,118 @@ const createWindow = () => {
 }
 
 const createWidgetWindow = () => {
-  const primaryDisplay = screen.getPrimaryDisplay()
-  const { width: screenWidth, height: screenHeight } = primaryDisplay.workArea
-  const widgetWidth = 320
-  const widgetHeight = 400
-  const padding = 24 // Distance from the right/bottom edge of the screen
+  try {
+    const primaryDisplay = screen.getPrimaryDisplay()
+    const { width: screenWidth, height: screenHeight } = primaryDisplay.workArea
+    const widgetWidth = 380
+    const widgetHeight = 800
+    const padding = 24 // Distance from the right/bottom edge of the screen
 
-  // Create the transparent, always-on-top widget window
-  widgetWindow = new BrowserWindow({
-    width: widgetWidth,
-    height: widgetHeight,
-    x: screenWidth - widgetWidth - padding,
-    y: screenHeight - widgetHeight - padding,
-    frame: false,
-    transparent: true,
-    backgroundColor: '#00000000', // Issue 16: DWM fallback — prevents solid black when compositing is disabled
-    ...(process.platform === 'win32' ? { backgroundMaterial: 'acrylic' as const } : {}), // OPT-12: Win11 acrylic blur
-    alwaysOnTop: true,
-    hasShadow: false, // We render the drop shadow in CSS for better border-radius control
-    ...(process.platform === 'darwin'
-      ? { type: 'panel' as const, vibrancy: 'under-window' as const }
-      : {}), // macOS: floating utility panel + vibrancy (~40% GPU reduction)
-    resizable: false,
-    show: false, // Hidden until told to show
-    webPreferences: {
-      preload: path.join(__dirname, 'preload.js'),
-      nodeIntegration: false,
-      contextIsolation: true,
-      sandbox: false,
-    },
-    title: 'BlueArkive Widget',
-  })
+    // Create the transparent, always-on-top widget window
+    widgetWindow = new BrowserWindow({
+      width: widgetWidth,
+      height: widgetHeight,
+      x: screenWidth - widgetWidth - padding,
+      y: screenHeight - widgetHeight - padding,
+      frame: false,
+      transparent: true,
+      backgroundColor: '#00000000', // Issue 16: DWM fallback — prevents solid black when compositing is disabled
+      ...(process.platform === 'win32' ? { backgroundMaterial: 'acrylic' as const } : {}), // OPT-12: Win11 acrylic blur
+      alwaysOnTop: true,
+      hasShadow: false, // We render the drop shadow in CSS for better border-radius control
+      ...(process.platform === 'darwin' ? { type: 'panel' as const } : {}), // macOS: floating utility panel without vibrancy to allow CSS glassmorphism
+      resizable: false,
+      show: true, // Show by default for testing visibility
+      webPreferences: {
+        preload: path.join(__dirname, 'preload-widget.js'),
+        nodeIntegration: false,
+        contextIsolation: true,
+        sandbox: false,
+      },
+      title: 'BlueArkive Widget',
+    })
 
-  // Make widget visible on all macOS Spaces and over fullscreen apps
-  if (process.platform === 'darwin') {
-    widgetWindow.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true })
-  }
-
-  // Load the separate WidgetApp HTML entry point
-  if (process.env.VITE_DEV_SERVER_URL) {
-    widgetWindow.loadURL(`${process.env.VITE_DEV_SERVER_URL}widget-index.html`)
-  } else {
-    widgetWindow.loadFile(path.join(__dirname, '../dist/widget-index.html'))
-  }
-
-  // Open external links securely in the default OS browser
-  widgetWindow.webContents.setWindowOpenHandler(({ url }) => {
-    if (url.startsWith('http:') || url.startsWith('https:')) {
-      require('electron').shell.openExternal(url)
+    // Make widget visible on all macOS Spaces and over fullscreen apps
+    if (process.platform === 'darwin') {
+      widgetWindow.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true })
     }
-    return { action: 'deny' }
-  })
 
-  widgetWindow.on('closed', () => {
+    // Load the separate WidgetApp HTML entry point
+    if (process.env.VITE_DEV_SERVER_URL) {
+      widgetWindow.loadURL(`${process.env.VITE_DEV_SERVER_URL}widget-index.html`)
+    } else {
+      widgetWindow.loadFile(path.join(__dirname, '../dist/widget-index.html'))
+    }
+
+    // W5 fix: Log when widget content is ready — confirms the HTML loaded and rendered
+    widgetWindow.webContents.on('did-finish-load', () => {
+      log.info('Widget window content loaded successfully')
+    })
+
+    // W5 fix: Catch widget load failures — previously silent, making diagnosis impossible
+    widgetWindow.webContents.on('did-fail-load', (_event, errorCode, errorDescription) => {
+      log.error(`Widget window failed to load: ${errorCode} — ${errorDescription}`)
+    })
+
+    // W10 fix: Prevent Chromium from overwriting the BrowserWindow title with the HTML <title>.
+    // getWidgetWindow() relies on title === 'BlueArkive Widget' for identification.
+    // Without this, any HTML <title> mismatch silently kills all widget IPC.
+    widgetWindow.on('page-title-updated', event => {
+      event.preventDefault()
+    })
+
+    // W11 fix: Auto-recover from widget renderer crashes (OOM, GPU crash, etc.)
+    // Without this, a crashed widget becomes a zombie — invisible, unresponsive,
+    // and the user has no way to interact with the recording overlay.
+    widgetWindow.webContents.on('render-process-gone', (_event, details) => {
+      log.error(`Widget renderer crashed: ${details.reason} (exit ${details.exitCode})`)
+      if (widgetWindow && !widgetWindow.isDestroyed()) {
+        widgetWindow.destroy()
+        widgetWindow = null
+      }
+      // Recreate after a brief delay to let Chromium clean up
+      setTimeout(() => {
+        log.info('Recreating widget window after crash recovery...')
+        createWidgetWindow()
+      }, 1500)
+    })
+
+    // Open external links securely in the default OS browser
+    widgetWindow.webContents.setWindowOpenHandler(({ url }) => {
+      if (url.startsWith('http:') || url.startsWith('https:')) {
+        require('electron').shell.openExternal(url)
+      }
+      return { action: 'deny' }
+    })
+
+    // W14 fix: Multi-monitor orphan recovery
+    // W17 fix: Use named handler + removeAllListeners to prevent listener stacking
+    // on crash recovery (createWidgetWindow may be called multiple times).
+    const handleDisplayRemoved = () => {
+      if (!widgetWindow || widgetWindow.isDestroyed()) return
+      const [wx, wy] = widgetWindow.getPosition()
+      const displays = screen.getAllDisplays()
+      const isOnScreen = displays.some(d => {
+        const { x, y, width, height } = d.workArea
+        return wx >= x && wx < x + width && wy >= y && wy < y + height
+      })
+      if (!isOnScreen) {
+        const primary = screen.getPrimaryDisplay().workArea
+        widgetWindow.setPosition(primary.width - 320 - 24, primary.height - 400 - 24)
+        log.info('Widget repositioned after display removal')
+      }
+    }
+    screen.removeAllListeners('display-removed')
+    screen.on('display-removed', handleDisplayRemoved)
+
+    widgetWindow.on('closed', () => {
+      widgetWindow = null
+      log.info('Widget window closed')
+    })
+  } catch (err) {
+    log.error('Failed to create widget window:', err)
     widgetWindow = null
-    log.info('Widget window closed')
-  })
+  }
 }
 
 // This method will be called when Electron has finished initialization
@@ -719,6 +775,25 @@ app
         log.warn(`Denied permission request: ${permission}`)
       }
       callback(granted)
+    })
+
+    // H1b: Permission CHECK handler — synchronous counterpart to the request handler.
+    // Electron queries this when checking if a permission is already granted (e.g.,
+    // navigator.permissions.query). Without this, some permission checks silently
+    // return 'denied' even when the OS has granted access, causing confusing UI states.
+    session.defaultSession.setPermissionCheckHandler((_webContents, permission) => {
+      const allowedChecks = [
+        'media',
+        'display-capture',
+        'mediaKeySystem',
+        'audioCapture',
+        'videoCaptureDevice',
+      ]
+      const granted = allowedChecks.includes(permission)
+      if (!granted) {
+        log.debug(`Permission check denied: ${permission}`)
+      }
+      return granted
     })
 
     // OPT-13: GPU crash recovery — reload renderer instead of blank screen

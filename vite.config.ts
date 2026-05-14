@@ -85,8 +85,11 @@ export default defineConfig({
         },
       },
       {
-        // Preload script
-        entry: 'electron/preload.ts',
+        // Preload scripts
+        entry: {
+          preload: 'electron/preload.ts',
+          'preload-widget': 'electron/preload-widget.ts',
+        },
         onstart(options) {
           // Notify the Renderer process to reload the page when the Preload scripts build is complete
           options.reload()
@@ -104,6 +107,9 @@ export default defineConfig({
             outDir: 'dist-electron',
             rollupOptions: {
               external: ['electron', ...nodeBuiltins],
+              output: {
+                entryFileNames: '[name].js',
+              },
             },
           },
         },

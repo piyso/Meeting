@@ -4,14 +4,18 @@ import { Logger } from '../../services/Logger'
 const log = Logger.create('WindowHandlers')
 
 // C6 fix: Avoid circular require('../../../../electron/main') by looking up
-// windows via BrowserWindow.getAllWindows() — same pattern as note/transcript handlers
+// windows via BrowserWindow.getAllWindows().
+// W1 fix: Use window title for reliable detection instead of fragile size heuristic.
+// The old approach (width <= 400) broke when DevTools opened or main window was resized small.
 function getMainWindow(): BrowserWindow | undefined {
-  return BrowserWindow.getAllWindows().find(w => !w.isDestroyed() && (w.getSize()?.[0] ?? 0) > 400)
+  return BrowserWindow.getAllWindows().find(
+    w => !w.isDestroyed() && w.getTitle() !== 'BlueArkive Widget'
+  )
 }
 
 function getWidgetWindow(): BrowserWindow | undefined {
   return BrowserWindow.getAllWindows().find(
-    w => !w.isDestroyed() && (w.getSize()?.[0] ?? 999) <= 400
+    w => !w.isDestroyed() && w.getTitle() === 'BlueArkive Widget'
   )
 }
 
@@ -76,13 +80,20 @@ export function registerWindowHandlers(): void {
     const widgetWindow = getWidgetWindow()
 
     if (mainWindow) {
+      if (mainWindow.isMinimized()) mainWindow.restore()
       mainWindow.show()
       mainWindow.focus()
-    }
+      require('electron').app.focus({ steal: true })
 
-    if (widgetWindow) {
-      widgetWindow.hide()
+      // W8 fix: Only hide widget AFTER main window is confirmed visible.
+      // Previously, widget.hide() ran unconditionally, creating a ~200ms flash
+      // of nothing while macOS animated the main window from minimized state.
+      if (widgetWindow && mainWindow.isVisible()) {
+        widgetWindow.hide()
+      }
     }
+    // W8 fix: If mainWindow is null (destroyed), DON'T hide the widget —
+    // it's the user's only control surface. They can still use Stop/Pause.
 
     return { success: true, data: undefined }
   })
@@ -93,16 +104,21 @@ export function registerWindowHandlers(): void {
     if (widgetWindow && !widgetWindow.isDestroyed()) {
       widgetWindow.webContents.send('widget:stateUpdated', state)
 
-      // Auto-show widget when recording starts if main window isn't focused
-      if (state.isRecording && !widgetWindow.isVisible()) {
+      // W2 fix: Auto-show/hide widget — account for BOTH recording AND paused states.
+      // Previously only checked isRecording, causing the widget to vanish when paused.
+      const shouldBeVisible = state.isRecording || state.isPaused
+      if (shouldBeVisible && !widgetWindow.isVisible()) {
         const mainWindow = getMainWindow()
         if (!mainWindow || !mainWindow.isFocused()) {
           widgetWindow.showInactive() // Show without stealing focus
         }
-      } else if (!state.isRecording && widgetWindow.isVisible()) {
+      } else if (!shouldBeVisible && widgetWindow.isVisible()) {
         // I12 fix: Actually hide widget when recording stops
         widgetWindow.hide()
       }
+    } else {
+      // W3 fix: Log when widget window is missing — helps diagnose "widget not forming" reports
+      log.debug('widget:updateState called but widget window not found')
     }
     return { success: true, data: undefined }
   })

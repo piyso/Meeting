@@ -348,6 +348,7 @@ const electronAPI: ElectronAPI = {
     deepLink: createEventListener<string>('deep-link'),
     windowMaximized: createEventListener<void>('window:maximized'),
     windowUnmaximized: createEventListener<void>('window:unmaximized'),
+    navigateOnboarding: createEventListener<void>('navigate:onboarding'),
   },
 
   // ============================================================================
@@ -441,6 +442,7 @@ const electronAPI: ElectronAPI = {
     getSystemInfo: () => ipcRenderer.invoke('diagnostic:getSystemInfo'),
     rebuildFts: () => ipcRenderer.invoke('diagnostic:rebuildFts'),
     healthCheck: () => ipcRenderer.invoke('health:check'),
+    healthFix: (action: string) => ipcRenderer.invoke('health:fix', action),
   },
 
   // ============================================================================

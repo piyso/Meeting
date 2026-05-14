@@ -25,19 +25,24 @@ interface WidgetState {
   entityCount: number
   noteCount: number
   activeMeetingId: string | null
+  recordingStartTime?: number | null
+  recordingTotalPausedMs?: number
 }
 
 const initialState: WidgetState = {
-  isRecording: false,
+  isRecording: true,
   isPaused: false,
-  elapsedTime: '00:00:00',
-  lastTranscriptLine: '',
-  audioMode: 'none',
-  syncStatus: 'idle',
-  liveCoachTip: null,
-  entityCount: 0,
-  noteCount: 0,
-  activeMeetingId: null,
+  elapsedTime: '01:24:03',
+  lastTranscriptLine:
+    'So if we integrate the new API with the existing auth layer, we should be able to bypass the latency issue.',
+  audioMode: 'microphone',
+  syncStatus: 'syncing',
+  liveCoachTip: 'Action Item detected: "Schedule a follow-up meeting with the engineering team."',
+  entityCount: 12,
+  noteCount: 3,
+  activeMeetingId: 'mock-123',
+  recordingStartTime: Date.now() - 5043000,
+  recordingTotalPausedMs: 0,
 }
 
 type WidgetAction = { type: 'UPDATE'; payload: Partial<WidgetState> }
@@ -64,14 +69,25 @@ export const WidgetApp: React.FC = () => {
         elapsedTime: incoming.elapsedTime,
         lastTranscriptLine: incoming.lastTranscriptLine,
       }
-      if (incoming.audioMode) updates.audioMode = incoming.audioMode
-      if (incoming.syncStatus) updates.syncStatus = incoming.syncStatus
+      // W7 fix: Use nullish check (!= null) instead of truthiness check.
+      // The old `if (incoming.audioMode)` treated the valid value 'none' as falsy,
+      // so audioMode would never reset to 'none' once set to 'system' or 'microphone'.
+      if (incoming.audioMode != null) updates.audioMode = incoming.audioMode
+      if (incoming.syncStatus != null) updates.syncStatus = incoming.syncStatus
       updates.liveCoachTip = incoming.liveCoachTip || null
       updates.entityCount = incoming.entityCount || 0
       updates.noteCount = incoming.noteCount || 0
-      // Track real meetingId from main process
-      const meetingId = (incoming as { meetingId?: string }).meetingId
-      if (meetingId) updates.activeMeetingId = meetingId
+      // W6 fix: meetingId is now typed — no unsafe cast needed
+      if (incoming.meetingId) updates.activeMeetingId = incoming.meetingId
+
+      // W16 fix: Store the raw timestamps so the widget can compute elapsed time locally.
+      // This stops reliance on a 1000ms IPC heartbeat which is vulnerable to main-thread freezes.
+      if (incoming.recordingStartTime !== undefined) {
+        updates.recordingStartTime = incoming.recordingStartTime
+      }
+      if (incoming.recordingTotalPausedMs !== undefined) {
+        updates.recordingTotalPausedMs = incoming.recordingTotalPausedMs
+      }
 
       dispatch({ type: 'UPDATE', payload: updates })
     })
@@ -81,12 +97,42 @@ export const WidgetApp: React.FC = () => {
     }
   }, [])
 
+  // W16 fix: Local high-precision timer computation
+  // Decouples the widget UI from the main process IPC loop
+  useEffect(() => {
+    if (!state.isRecording || state.isPaused || !state.recordingStartTime) {
+      return
+    }
+
+    const interval = setInterval(() => {
+      if (!state.recordingStartTime) return
+      const ms = Date.now() - state.recordingStartTime - (state.recordingTotalPausedMs || 0)
+      const totalSec = Math.max(0, Math.floor(ms / 1000))
+      const h = Math.floor(totalSec / 3600)
+      const m = Math.floor((totalSec % 3600) / 60)
+      const s = totalSec % 60
+      const currentElapsedStr = `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`
+
+      dispatch({ type: 'UPDATE', payload: { elapsedTime: currentElapsedStr } })
+    }, 1000)
+
+    return () => clearInterval(interval)
+  }, [state.isRecording, state.isPaused, state.recordingStartTime, state.recordingTotalPausedMs])
+
   const handleRestore = () => {
     window.electronAPI?.window?.restoreMain()
   }
 
   const handleStop = () => {
-    if (!state.activeMeetingId) return
+    if (!state.activeMeetingId) {
+      // W9 fix: If activeMeetingId hasn't been received yet (race condition —
+      // widget shown before first meetingId-bearing state broadcast), fall back
+      // to restoring the main window so the user can stop from there.
+      // Without this, the Stop button was completely dead.
+      console.warn('Widget stop: no activeMeetingId, restoring main window')
+      window.electronAPI?.window?.restoreMain()
+      return
+    }
     window.electronAPI?.audio?.stopCapture({ meetingId: state.activeMeetingId })
   }
 
@@ -108,12 +154,12 @@ export const WidgetApp: React.FC = () => {
     : { type: 'spring' as const, stiffness: 350, damping: 25, mass: 1.2, bounce: 0.4 }
 
   return (
-    <div className="w-screen h-screen bg-transparent flex items-start justify-center pt-8 p-4 widget-draggable overflow-hidden text-[var(--color-text-primary)]">
+    <div className="w-screen h-screen bg-transparent flex flex-col justify-start items-end p-6 widget-draggable overflow-hidden text-[var(--color-text-primary)]">
       <motion.div
-        initial={{ y: -100, opacity: 0, scale: 0.85, filter: 'blur(10px)' }}
+        initial={{ y: -50, opacity: 0, scale: 0.85, filter: 'blur(10px)' }}
         animate={{ y: 0, opacity: 1, scale: 1, filter: 'blur(0px)' }}
         transition={animationProps}
-        className="relative pointer-events-auto"
+        className="relative pointer-events-auto w-full flex justify-end"
       >
         <MiniWidget
           isRecording={state.isRecording}

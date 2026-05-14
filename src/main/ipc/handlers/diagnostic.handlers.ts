@@ -3,6 +3,8 @@
  *
  * Exposes DiagnosticLogger functionality to the renderer process.
  * Supports exporting logs, clearing logs, and getting log statistics.
+ * Includes health:check for system-wide diagnostics and health:fix for
+ * proactive repair actions (mic permission, screen recording, auth, network).
  */
 
 import { ipcMain, shell, systemPreferences, app } from 'electron'
@@ -21,6 +23,7 @@ interface HealthResult {
   status: 'ok' | 'warn' | 'error'
   message: string
   fix?: string
+  fixAction?: string
 }
 
 export function registerDiagnosticHandlers(): void {
@@ -75,20 +78,21 @@ export function registerDiagnosticHandlers(): void {
         results.push({
           system: 'Microphone',
           status: 'error',
-          message: 'Access denied',
-          fix: 'Open System Settings → Privacy → Microphone',
+          message: 'Access denied by macOS',
+          fix: 'Open System Settings → Privacy → Microphone → Enable BlueArkive',
+          fixAction: 'request-microphone',
         })
       } else {
         results.push({
           system: 'Microphone',
           status: 'warn',
-          message: 'Not yet requested',
-          fix: 'Start a recording to request permission',
+          message: 'Not yet requested — click Fix to grant access',
+          fix: 'Grant microphone access',
+          fixAction: 'request-microphone',
         })
       }
     } else {
       // Windows/Linux: Electron auto-grants microphone access.
-      // Check if microphone devices are enumerable as a proxy for availability.
       results.push({
         system: 'Microphone',
         status: 'ok',
@@ -110,7 +114,8 @@ export function registerDiagnosticHandlers(): void {
           system: 'Screen Recording',
           status: 'warn',
           message: 'Not permitted — system audio capture unavailable',
-          fix: 'Open System Settings → Privacy → Screen Recording',
+          fix: 'Open System Settings to enable',
+          fixAction: 'open-screen-recording',
         })
       }
     } else if (process.platform === 'win32') {
@@ -122,7 +127,8 @@ export function registerDiagnosticHandlers(): void {
       })
     }
 
-    // 5. Network
+    // 5. Network — multi-stage check for precise diagnostics
+    const isMockMode = process.env.USE_MOCK_DATA === 'true'
     try {
       const controller = new AbortController()
       const timeout = setTimeout(() => controller.abort(), 5000)
@@ -135,21 +141,83 @@ export function registerDiagnosticHandlers(): void {
       })
       clearTimeout(timeout)
       if (resp.ok || resp.status === 401) {
-        results.push({ system: 'Network', status: 'ok', message: 'Connected to cloud' })
+        results.push({
+          system: 'Network',
+          status: 'ok',
+          message: isMockMode
+            ? 'Connected (mock mode active — cloud sync disabled)'
+            : 'Connected to cloud',
+        })
       } else {
         results.push({
           system: 'Network',
           status: 'warn',
-          message: `Cloud returned ${resp.status}`,
+          message: `Cloud returned HTTP ${resp.status}${isMockMode ? ' (mock mode active)' : ''}`,
+          fix:
+            resp.status === 403
+              ? 'API key may be expired — check .env'
+              : 'Check cloud service status',
         })
       }
-    } catch {
-      results.push({
-        system: 'Network',
-        status: 'error',
-        message: 'Cannot reach cloud servers',
-        fix: 'Check your internet connection',
-      })
+    } catch (networkErr: unknown) {
+      // Differentiate DNS failure, timeout, and connection refused
+      const errMsg = networkErr instanceof Error ? networkErr.message : String(networkErr)
+      let diagnosis = 'Cannot reach cloud servers'
+      let fixAdvice = 'Check your internet connection'
+
+      if (errMsg.includes('abort') || errMsg.includes('AbortError')) {
+        diagnosis = 'Cloud connection timed out (>5s)'
+        fixAdvice = 'Check firewall or proxy settings'
+      } else if (errMsg.includes('ENOTFOUND') || errMsg.includes('getaddrinfo')) {
+        diagnosis = 'DNS resolution failed — cannot find cloud server'
+        fixAdvice = 'Check internet connection or DNS settings'
+      } else if (errMsg.includes('ECONNREFUSED')) {
+        diagnosis = 'Connection refused by cloud server'
+        fixAdvice = 'Cloud service may be down — try again later'
+      } else if (errMsg.includes('CERT') || errMsg.includes('SSL') || errMsg.includes('TLS')) {
+        diagnosis = 'SSL/TLS certificate error'
+        fixAdvice = 'Check system clock and certificate settings'
+      }
+
+      // Fallback: check if general internet works
+      let hasInternet = false
+      try {
+        const fallbackCtrl = new AbortController()
+        const fallbackTimeout = setTimeout(() => fallbackCtrl.abort(), 3000)
+        const fallbackResp = await fetch('https://www.google.com/generate_204', {
+          method: 'HEAD',
+          signal: fallbackCtrl.signal,
+        })
+        clearTimeout(fallbackTimeout)
+        hasInternet = fallbackResp.ok || fallbackResp.status === 204
+      } catch {
+        hasInternet = false
+      }
+
+      if (hasInternet) {
+        diagnosis += ' (internet is working — Supabase may be unreachable)'
+        fixAdvice = config.SUPABASE_URL
+          ? 'Verify SUPABASE_URL in .env is correct'
+          : 'Configure SUPABASE_URL in .env to enable cloud'
+      }
+
+      if (isMockMode) {
+        // In mock mode, network failure is expected and non-critical
+        results.push({
+          system: 'Network',
+          status: 'warn',
+          message: `Mock mode active — ${diagnosis.toLowerCase()}`,
+          fix: 'Set USE_MOCK_DATA=false in .env to enable cloud connectivity',
+        })
+      } else {
+        results.push({
+          system: 'Network',
+          status: 'error',
+          message: diagnosis,
+          fix: fixAdvice,
+          fixAction: 'retry-network',
+        })
+      }
     }
 
     // 6. Disk Space
@@ -321,6 +389,128 @@ export function registerDiagnosticHandlers(): void {
           timestamp: Date.now(),
         },
       }
+    }
+  })
+
+  // ══════════════════════════════════════════════════════════════
+  // health:fix — Proactive repair actions triggered from HealthDashboard
+  // ══════════════════════════════════════════════════════════════
+  ipcMain.handle('health:fix', async (_event, action: string) => {
+    log.info(`Health fix requested: ${action}`)
+
+    switch (action) {
+      case 'request-microphone': {
+        if (process.platform === 'darwin') {
+          try {
+            const granted = await systemPreferences.askForMediaAccess('microphone')
+            log.info(`Microphone permission result: ${granted ? 'granted' : 'denied'}`)
+            return {
+              success: true,
+              data: {
+                granted,
+                message: granted
+                  ? 'Microphone access granted'
+                  : 'Microphone access denied — enable in System Settings',
+              },
+            }
+          } catch (err) {
+            log.error('Failed to request microphone access:', err)
+            return {
+              success: false,
+              error: {
+                code: 'MIC_REQUEST_FAILED',
+                message: (err as Error).message,
+                timestamp: Date.now(),
+              },
+            }
+          }
+        }
+        return { success: true, data: { granted: true, message: 'Microphone managed by OS' } }
+      }
+
+      case 'open-screen-recording': {
+        try {
+          if (process.platform === 'darwin') {
+            await shell.openExternal(
+              'x-apple.systempreferences:com.apple.preference.security?Privacy_ScreenCapture'
+            )
+          } else if (process.platform === 'win32') {
+            await shell.openExternal('ms-settings:privacy-microphone')
+          }
+          return { success: true, data: { message: 'System Settings opened' } }
+        } catch (err) {
+          return {
+            success: false,
+            error: {
+              code: 'OPEN_SETTINGS_FAILED',
+              message: (err as Error).message,
+              timestamp: Date.now(),
+            },
+          }
+        }
+      }
+
+      case 'open-auth': {
+        // Signal renderer to navigate to onboarding/login
+        try {
+          const { BrowserWindow } = await import('electron')
+          const win = BrowserWindow.getAllWindows()[0]
+          if (win) {
+            win.webContents.send('navigate:onboarding')
+          }
+          return { success: true, data: { message: 'Opening sign-in flow' } }
+        } catch (err) {
+          return {
+            success: false,
+            error: {
+              code: 'NAVIGATE_FAILED',
+              message: (err as Error).message,
+              timestamp: Date.now(),
+            },
+          }
+        }
+      }
+
+      case 'retry-network': {
+        // Re-run network check only and return result
+        try {
+          const controller = new AbortController()
+          const timeout = setTimeout(() => controller.abort(), 5000)
+          const networkUrl = config.SUPABASE_URL
+            ? `${config.SUPABASE_URL}/rest/v1/`
+            : 'https://api.piyapi.cloud/health'
+          const resp = await fetch(networkUrl, { method: 'HEAD', signal: controller.signal })
+          clearTimeout(timeout)
+          const ok = resp.ok || resp.status === 401
+          return {
+            success: true,
+            data: {
+              connected: ok,
+              status: resp.status,
+              message: ok ? 'Cloud is reachable' : `Cloud returned ${resp.status}`,
+            },
+          }
+        } catch (err) {
+          return {
+            success: false,
+            error: {
+              code: 'NETWORK_RETRY_FAILED',
+              message: (err as Error).message,
+              timestamp: Date.now(),
+            },
+          }
+        }
+      }
+
+      default:
+        return {
+          success: false,
+          error: {
+            code: 'UNKNOWN_FIX_ACTION',
+            message: `Unknown fix action: ${action}`,
+            timestamp: Date.now(),
+          },
+        }
     }
   })
 }

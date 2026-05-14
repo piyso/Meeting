@@ -1114,6 +1114,11 @@ export interface ElectronAPI {
         liveCoachTip?: string | null
         entityCount?: number
         noteCount?: number
+        // W6 fix: These fields were sent by DynamicIsland but missing from the type,
+        // forcing WidgetApp to use unsafe `as` casts to read them.
+        meetingId?: string | null
+        recordingStartTime?: number | null
+        recordingTotalPausedMs?: number
       }) => void
     ) => () => void
     error: (callback: (error: ErrorEvent) => void) => () => void
@@ -1136,6 +1141,7 @@ export interface ElectronAPI {
     deepLink: (callback: (url: string) => void) => () => void
     windowMaximized: (callback: () => void) => () => void
     windowUnmaximized: (callback: () => void) => () => void
+    navigateOnboarding: (callback: () => void) => () => void
   }
 
   // IPC Renderer (for audio capture module)
@@ -1245,8 +1251,17 @@ export interface ElectronAPI {
           status: 'ok' | 'warn' | 'error'
           message: string
           fix?: string
+          fixAction?: string
         }>
         systemInfo: Record<string, string>
+      }>
+    >
+    healthFix: (action: string) => Promise<
+      IPCResponse<{
+        granted?: boolean
+        connected?: boolean
+        status?: number
+        message?: string
       }>
     >
   }

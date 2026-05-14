@@ -124,39 +124,26 @@ export const MiniWidget: React.FC<MiniWidgetProps> = ({
   const spring = { type: 'spring' as const, stiffness: 350, damping: 32, mass: 1.1 }
   const isActive = isRecording || isPaused
 
-  // ── 5-bar Audio Visualizer (GPU-composited via scaleY) ──
-  const AudioVisualizer = () => {
-    // Perfect [min, max, min] keyframes for a flawless infinite loop
-    const waveforms = [
-      [0.3, 0.7, 0.3],
-      [0.4, 0.9, 0.4],
-      [0.5, 1.1, 0.5], // Center bar (most active)
-      [0.4, 0.8, 0.4],
-      [0.3, 0.6, 0.3],
-    ]
-
+  // ── Subtle Recording Pulse (replaces distracting 5-bar visualizer) ──
+  const RecordingPulse = () => {
     return (
-      <div className="flex items-center gap-[2px] h-[12px] ml-1">
-        {[0, 1, 2, 3, 4].map(i => (
-          <motion.div
-            key={i}
-            className="w-[2.5px] h-full rounded-full"
-            style={{
-              background: isPaused ? 'var(--color-amber)' : THEMES[theme].viz,
-              boxShadow: !isPaused ? THEMES[theme].vizShadow : 'none',
-              transformOrigin: 'center',
-            }}
-            animate={{
-              scaleY: isPaused ? 0.2 : waveforms[i],
-            }}
-            transition={{
-              duration: 1.0, // Fixed duration for perfect sync
-              repeat: Infinity,
-              delay: i * 0.15, // Staggered delay creates the "wave" effect
-              ease: 'easeInOut',
-            }}
-          />
-        ))}
+      <div className="flex items-center justify-center w-3 h-3 ml-1">
+        <motion.div
+          className="w-2 h-2 rounded-full"
+          style={{
+            background: isPaused ? 'var(--color-amber)' : THEMES[theme].viz,
+            boxShadow: !isPaused ? THEMES[theme].vizShadow : 'none',
+          }}
+          animate={{
+            scale: isPaused ? 1 : [1, 1.35, 1],
+            opacity: isPaused ? 0.6 : [0.6, 1, 0.6],
+          }}
+          transition={{
+            duration: 3, // Slow, calm 3-second breathing cycle
+            repeat: Infinity,
+            ease: 'easeInOut',
+          }}
+        />
       </div>
     )
   }
@@ -205,9 +192,9 @@ export const MiniWidget: React.FC<MiniWidgetProps> = ({
           {/* Left: Visualizer + Timer */}
           <div className="flex items-center gap-3">
             {isActive ? (
-              <AudioVisualizer />
+              <RecordingPulse />
             ) : (
-              <div className="w-2 h-2 rounded-full bg-white/80 shadow-[0_0_10px_rgba(255,255,255,0.6)]" />
+              <div className="w-2 h-2 rounded-full bg-white/80 shadow-[0_0_10px_rgba(255,255,255,0.6)] ml-1" />
             )}
             <span
               className={`font-mono text-[13px] font-semibold tracking-wider ${

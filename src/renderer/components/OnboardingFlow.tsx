@@ -285,7 +285,7 @@ export const OnboardingFlow: React.FC = () => {
     >
       {/* Left Visual Art Panel (Hidden on mobile, and hidden during wide steps) */}
       {step !== 'plan-selection' && step !== 'ghost-meeting' && (
-        <div className="hidden lg:flex w-1/2 h-full bg-slate-950 p-8 lg:p-12 flex-col relative overflow-hidden border-r border-white/[0.04]">
+        <div className="hidden lg:flex lg:w-7/12 xl:w-3/5 h-full bg-slate-950 p-8 lg:p-16 flex-col relative overflow-hidden border-r border-white/[0.04]">
           <div className="absolute inset-0 with-noise opacity-[0.03] pointer-events-none z-0" />
           <motion.div
             className="absolute inset-0 pointer-events-none z-0 transition-opacity duration-300 opacity-60"
@@ -305,7 +305,7 @@ export const OnboardingFlow: React.FC = () => {
               animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
               exit={{ opacity: 0, y: -15, filter: 'blur(6px)' }}
               transition={{ duration: 0.4, ease: 'easeOut' }}
-              className="relative z-10 w-full max-w-xl mt-auto mb-auto mx-auto"
+              className="relative z-10 w-full max-w-2xl mt-auto mb-auto mx-auto px-2 xl:px-8"
             >
               <h1 className="text-[clamp(1.75rem,5vh,2.75rem)] leading-[1.15] font-heading font-medium tracking-tight text-white mb-[clamp(0.5rem,2vh,1.5rem)] drop-shadow-lg">
                 {step === 'auth'
@@ -346,7 +346,7 @@ export const OnboardingFlow: React.FC = () => {
               </p>
 
               {step === 'auth' && (
-                <div className="mt-[clamp(1.5rem,4vh,3rem)] grid grid-cols-1 sm:grid-cols-2 gap-[clamp(0.75rem,2vh,1.25rem)] pr-4 lg:pr-8 pb-[clamp(1rem,3vh,3rem)]">
+                <div className="mt-[clamp(1.5rem,4vh,3rem)] grid grid-cols-1 xl:grid-cols-2 gap-[clamp(0.75rem,2vh,1.25rem)] pb-[clamp(1rem,3vh,3rem)]">
                   <div className="group relative p-5 lg:p-6 rounded-2xl bg-white/[0.02] border border-white/[0.05] hover:bg-white/[0.04] hover:shadow-2xl hover:shadow-violet-500/10 transition-all duration-300 overflow-hidden cursor-default flex flex-col">
                     <div className="absolute inset-0 bg-gradient-to-br from-violet-500/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none" />
                     <div className="relative z-10 flex items-center gap-3.5 mb-[clamp(0.5rem,1.5vh,0.75rem)]">
@@ -411,7 +411,7 @@ export const OnboardingFlow: React.FC = () => {
 
               {step === 'recovery-key' && (
                 <div
-                  className="mt-10 lg:mt-12 w-full animate-fade-in pr-6 lg:pr-12"
+                  className="mt-10 lg:mt-12 w-full animate-fade-in"
                   style={{ animationDelay: '0.2s' }}
                 >
                   {/* Premium Security Enclave Wrapper */}
@@ -487,7 +487,7 @@ export const OnboardingFlow: React.FC = () => {
 
       {/* Right Control Panel (Form) */}
       <div
-        className={`w-full ${step === 'plan-selection' || step === 'ghost-meeting' ? '' : 'lg:w-1/2'} h-full flex items-center justify-center p-8 relative overflow-y-auto pt-[env(titlebar-area-height,32px)]`}
+        className={`w-full ${step === 'plan-selection' || step === 'ghost-meeting' ? '' : 'lg:w-5/12 xl:w-2/5'} h-full flex items-center justify-center p-8 relative overflow-y-auto pt-[env(titlebar-area-height,32px)]`}
       >
         {/* Subtle global noise texture for right side too */}
         <div className="absolute inset-0 z-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-indigo-900/10 via-[#02040a] to-[#02040a]" />

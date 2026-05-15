@@ -24,7 +24,7 @@ Local-first meeting transcription application with AI-powered note expansion.
 
 ### Prerequisites
 
-- Node.js 18+ 
+- Node.js 18+
 - npm or yarn
 
 ### Installation

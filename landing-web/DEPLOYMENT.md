@@ -11,7 +11,7 @@ graph TD
     A --> C["Git Repo 2: piyso/Meeting (parent)"]
     C -->|"Root Dir: landing-web"| D["Vercel Project: piynotes"]
     D --> E["www.bluearkive.com"]
-    
+
     style A fill:#1e1e2e,stroke:#6366f1,color:#fff
     style D fill:#1e1e2e,stroke:#10b981,color:#fff
     style E fill:#1e1e2e,stroke:#f59e0b,color:#fff
@@ -19,13 +19,13 @@ graph TD
 
 ## Key Facts
 
-| Component | Value |
-|---|---|
-| **Production URL** | `https://www.bluearkive.com` |
-| **Vercel Project** | `piynotes` |
-| **Vercel Org** | `piysos-projects` |
-| **Deployment Source** | Parent repo `piyso/Meeting`, root dir `landing-web` |
-| **Vercel Auto-Deploy** | ❌ Not reliable — use CLI `vercel --prod` |
+| Component                   | Value                                                   |
+| --------------------------- | ------------------------------------------------------- |
+| **Production URL**          | `https://www.bluearkive.com`                            |
+| **Vercel Project**          | `piynotes`                                              |
+| **Vercel Org**              | `piysos-projects`                                       |
+| **Deployment Source**       | Parent repo `piyso/Meeting`, root dir `landing-web`     |
+| **Vercel Auto-Deploy**      | ❌ Not reliable — use CLI `vercel --prod`               |
 | **Landing Standalone Repo** | `piyso/bluearkive-landing` (backup, not used by Vercel) |
 
 ## Why Two Git Repos?
@@ -38,6 +38,7 @@ graph TD
 ## Deployment Pipeline
 
 ### Quick Deploy (recommended)
+
 ```bash
 cd landing-web
 ./deploy.sh "feat: my changes"
@@ -46,6 +47,7 @@ cd landing-web
 This handles everything: build check → commit both repos → push both → deploy to Vercel.
 
 ### Manual Deploy
+
 ```bash
 # 1. From landing-web/ — commit and push standalone repo
 cd landing-web

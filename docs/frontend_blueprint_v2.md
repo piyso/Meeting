@@ -1,4 +1,5 @@
 # PiyAPI Notes — Frontend Blueprint: Wire The Intelligence
+
 ## Phase 2 Implementation Specification
 
 > **Document Status:** v5 Final · Verified byte-by-byte against actual codebase (Feb 25, 2026).
@@ -11,22 +12,24 @@
 
 Phase 1 is fully implemented. For design system specs, see `ui/ux.md`.
 
-| Layer | Count | Key Files |
-|-------|-------|-----------|
-| **Renderer Components** | 57 across `ui/`, `meeting/`, `command/`, `layout/`, `settings/`, `audio/` | `NoteEditor.tsx`, `TranscriptPanel.tsx`, `MiniWidget.tsx`, `PostMeetingDigest.tsx`, `SilentPrompter.tsx`, `CommandPalette.tsx` |
-| **React Hooks** | 12 (7 query + 5 general) | `useTranscriptStream` (61L), `useNotes` (58L), `useLLMStream` (31L), `useMeetings` (15L), `useSearch`, `useAudioStatus`, `useCurrentMeeting` |
-| **Zustand Store** | `appStore.ts` | Global state management |
-| **Views** | 3 | `MeetingList`, `MeetingDetail`, `Settings` |
-| **Main Services** | 23 files | ASR, Sync, Encryption, Embedding, Conflict Resolution, Transcript, etc. |
-| **Database** | 9 tables + FTS5 + triggers | `meetings`, `transcripts`, `notes`, `entities`, `sync_queue`, `encryption_keys`, `settings`, `devices`, `audit_logs` |
-| **Preload Bridge** | 242 lines | All 12 API groups + 6 event listeners exposed via `window.electronAPI` |
-| **Audio Capture** | 3 files | `audioCapture.ts` (16KB), `audio-vad-worklet.ts` (8KB), `audio-worklet-processor.js` (4KB) |
-| **IPC Handlers** | **4 of 12 active** | `meeting` ✅, `audio` ✅, `model` ✅, `transcript` ✅ — **8 missing** |
+| Layer                   | Count                                                                     | Key Files                                                                                                                                    |
+| ----------------------- | ------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Renderer Components** | 57 across `ui/`, `meeting/`, `command/`, `layout/`, `settings/`, `audio/` | `NoteEditor.tsx`, `TranscriptPanel.tsx`, `MiniWidget.tsx`, `PostMeetingDigest.tsx`, `SilentPrompter.tsx`, `CommandPalette.tsx`               |
+| **React Hooks**         | 12 (7 query + 5 general)                                                  | `useTranscriptStream` (61L), `useNotes` (58L), `useLLMStream` (31L), `useMeetings` (15L), `useSearch`, `useAudioStatus`, `useCurrentMeeting` |
+| **Zustand Store**       | `appStore.ts`                                                             | Global state management                                                                                                                      |
+| **Views**               | 3                                                                         | `MeetingList`, `MeetingDetail`, `Settings`                                                                                                   |
+| **Main Services**       | 23 files                                                                  | ASR, Sync, Encryption, Embedding, Conflict Resolution, Transcript, etc.                                                                      |
+| **Database**            | 9 tables + FTS5 + triggers                                                | `meetings`, `transcripts`, `notes`, `entities`, `sync_queue`, `encryption_keys`, `settings`, `devices`, `audit_logs`                         |
+| **Preload Bridge**      | 242 lines                                                                 | All 12 API groups + 6 event listeners exposed via `window.electronAPI`                                                                       |
+| **Audio Capture**       | 3 files                                                                   | `audioCapture.ts` (16KB), `audio-vad-worklet.ts` (8KB), `audio-worklet-processor.js` (4KB)                                                   |
+| **IPC Handlers**        | **4 of 12 active**                                                        | `meeting` ✅, `audio` ✅, `model` ✅, `transcript` ✅ — **8 missing**                                                                        |
 
 ---
 
 # ═══════════════════════════════════════════════════════
+
 # PHASE 2: WIRE THE INTELLIGENCE
+
 # ═══════════════════════════════════════════════════════
 
 > **Scope:** Everything that requires a running service — audio capture, Whisper transcription, LLM inference, local embeddings, encrypted sync, IPC wiring to real data, and AI-powered features.
@@ -41,86 +44,86 @@ Every file audited. No assumptions.
 
 `preload.ts` exposes **12 API groups** to the renderer. Only **4 have backend handlers**. Any renderer call to the other 8 groups throws `Error: No handler registered` — **runtime crash**.
 
-| API Group | Preload Exposed? | Handler File Exists? | Status |
-|-----------|-----------------|---------------------|--------|
-| `meeting` | ✅ | ✅ `meeting.handlers.ts` (262L) | **Working** — full CRUD + pagination |
-| `audio` | ✅ | ✅ `audio.handlers.ts` (24KB) | **Working** — capture, permissions, diagnostics, fallback |
-| `model` | ✅ | ✅ `model.handlers.ts` (108L) | **Working** — tier detection, download, verify |
-| `transcript` | ✅ | ✅ `transcript.handlers.ts` (192L) | **Working** — get, getContext, updateSpeaker, event forwarding |
-| `note` | ✅ | 🔴 **Missing** | Crash on `note.create/update/expand/get/delete` |
-| `entity` | ✅ | 🔴 **Missing** | Crash on `entity.get/getByType` |
-| `search` | ✅ | 🔴 **Missing** | Crash on `search.query/semantic` |
-| `sync` | ✅ | 🔴 **Missing** | Crash on `sync.getStatus/trigger/login/logout` |
-| `intelligence` | ✅ | 🔴 **Missing** | Crash on `intelligence.getHardwareTier/getEngineStatus/checkOllama/unloadModels` |
-| `settings` | ✅ | 🔴 **Missing** | Crash on `settings.getAll/get/update/reset` |
-| `graph` | ✅ | 🔴 **Missing** | Crash on `graph.get/getContradictions` |
-| `digest` | ✅ | 🔴 **Missing** | Crash on `digest.generate/getLatest` |
+| API Group      | Preload Exposed? | Handler File Exists?               | Status                                                                           |
+| -------------- | ---------------- | ---------------------------------- | -------------------------------------------------------------------------------- |
+| `meeting`      | ✅               | ✅ `meeting.handlers.ts` (262L)    | **Working** — full CRUD + pagination                                             |
+| `audio`        | ✅               | ✅ `audio.handlers.ts` (24KB)      | **Working** — capture, permissions, diagnostics, fallback                        |
+| `model`        | ✅               | ✅ `model.handlers.ts` (108L)      | **Working** — tier detection, download, verify                                   |
+| `transcript`   | ✅               | ✅ `transcript.handlers.ts` (192L) | **Working** — get, getContext, updateSpeaker, event forwarding                   |
+| `note`         | ✅               | 🔴 **Missing**                     | Crash on `note.create/update/expand/get/delete`                                  |
+| `entity`       | ✅               | 🔴 **Missing**                     | Crash on `entity.get/getByType`                                                  |
+| `search`       | ✅               | 🔴 **Missing**                     | Crash on `search.query/semantic`                                                 |
+| `sync`         | ✅               | 🔴 **Missing**                     | Crash on `sync.getStatus/trigger/login/logout`                                   |
+| `intelligence` | ✅               | 🔴 **Missing**                     | Crash on `intelligence.getHardwareTier/getEngineStatus/checkOllama/unloadModels` |
+| `settings`     | ✅               | 🔴 **Missing**                     | Crash on `settings.getAll/get/update/reset`                                      |
+| `graph`        | ✅               | 🔴 **Missing**                     | Crash on `graph.get/getContradictions`                                           |
+| `digest`       | ✅               | 🔴 **Missing**                     | Crash on `digest.generate/getLatest`                                             |
 
 ### Main Process Services
 
-| Service | Lines | Status | Notes |
-|---------|-------|--------|-------|
-| `ASRService.ts` | 291 | ✅ Production | Worker thread manager, `transcribe(Float32Array)`, idle timeout auto-unload |
-| `AudioPipelineService.ts` | **2** | 🔴 **Empty Stub** | `export class AudioPipelineService {}` — nothing inside |
-| `SyncManager.ts` | 499 | ⚠️ **Missing embedding call** | Event-sourced queue, AES encryption, chunking, backoff. Does NOT call `LocalEmbeddingService.embed()` before encryption |
-| `LocalEmbeddingService.ts` | 377 | ✅ Production | ONNX all-MiniLM-L6-v2, `embed()`, `embedBatch()`, cosine similarity, search |
-| `TranscriptService.ts` | 198 | ✅ Production | Save + EventEmitter for real-time forwarding |
-| `EncryptionService.ts` | 231 | ✅ Production | AES-256-GCM, PBKDF2 key derivation (100K iterations) |
-| `ConflictResolver.ts` | 385 | ✅ Production | Vector clocks + Yjs auto-merge |
-| `YjsConflictResolver.ts` | 365 | ✅ Production | Yjs doc management for CRDT merge |
-| `VectorClockManager.ts` | 230 | ✅ Production | Lamport-style vector clocks |
-| `DatabaseService.ts` | 404 | ✅ Production | High-level DB facade |
-| `HardwareTierService.ts` | 231 | ✅ Production | Auto-detects Whisper model tier by RAM |
-| `CloudTranscriptionService.ts` | 345 | ✅ Production | Deepgram API fallback |
-| `ModelDownloadService.ts` | 425 | ✅ Production | Whisper + embedding model downloads with progress |
-| `TranscriptChunker.ts` | 275 | ✅ Production | Plan-aware content chunking |
-| `CloudAccessManager.ts` | 394 | ✅ Production | Tier-based feature gating |
-| `DeviceManager.ts` | 500 | ✅ Production | Multi-device management |
-| `KeyStorageService.ts` | 280 | ✅ Production | `keytar` integration for OS keychain |
-| `RecoveryPhraseService.ts` | 563 | ✅ Production | Recovery key generation & validation |
-| `PHIDetectionService.ts` | 321 | ✅ Production | Protected Health Information detection |
-| `AuditLogger.ts` | 533 | ✅ Production | Immutable audit trail |
-| `DiagnosticLogger.ts` | 371 | ✅ Production | Audio diagnostic recording |
-| `PiyAPIBackend.ts` | 462 | ✅ Production | Full CRUD, semantic/hybrid search, graph traversal, auth with keytar, health checks |
+| Service                        | Lines | Status                        | Notes                                                                                                                   |
+| ------------------------------ | ----- | ----------------------------- | ----------------------------------------------------------------------------------------------------------------------- |
+| `ASRService.ts`                | 291   | ✅ Production                 | Worker thread manager, `transcribe(Float32Array)`, idle timeout auto-unload                                             |
+| `AudioPipelineService.ts`      | **2** | 🔴 **Empty Stub**             | `export class AudioPipelineService {}` — nothing inside                                                                 |
+| `SyncManager.ts`               | 499   | ⚠️ **Missing embedding call** | Event-sourced queue, AES encryption, chunking, backoff. Does NOT call `LocalEmbeddingService.embed()` before encryption |
+| `LocalEmbeddingService.ts`     | 377   | ✅ Production                 | ONNX all-MiniLM-L6-v2, `embed()`, `embedBatch()`, cosine similarity, search                                             |
+| `TranscriptService.ts`         | 198   | ✅ Production                 | Save + EventEmitter for real-time forwarding                                                                            |
+| `EncryptionService.ts`         | 231   | ✅ Production                 | AES-256-GCM, PBKDF2 key derivation (100K iterations)                                                                    |
+| `ConflictResolver.ts`          | 385   | ✅ Production                 | Vector clocks + Yjs auto-merge                                                                                          |
+| `YjsConflictResolver.ts`       | 365   | ✅ Production                 | Yjs doc management for CRDT merge                                                                                       |
+| `VectorClockManager.ts`        | 230   | ✅ Production                 | Lamport-style vector clocks                                                                                             |
+| `DatabaseService.ts`           | 404   | ✅ Production                 | High-level DB facade                                                                                                    |
+| `HardwareTierService.ts`       | 231   | ✅ Production                 | Auto-detects Whisper model tier by RAM                                                                                  |
+| `CloudTranscriptionService.ts` | 345   | ✅ Production                 | Deepgram API fallback                                                                                                   |
+| `ModelDownloadService.ts`      | 425   | ✅ Production                 | Whisper + embedding model downloads with progress                                                                       |
+| `TranscriptChunker.ts`         | 275   | ✅ Production                 | Plan-aware content chunking                                                                                             |
+| `CloudAccessManager.ts`        | 394   | ✅ Production                 | Tier-based feature gating                                                                                               |
+| `DeviceManager.ts`             | 500   | ✅ Production                 | Multi-device management                                                                                                 |
+| `KeyStorageService.ts`         | 280   | ✅ Production                 | `keytar` integration for OS keychain                                                                                    |
+| `RecoveryPhraseService.ts`     | 563   | ✅ Production                 | Recovery key generation & validation                                                                                    |
+| `PHIDetectionService.ts`       | 321   | ✅ Production                 | Protected Health Information detection                                                                                  |
+| `AuditLogger.ts`               | 533   | ✅ Production                 | Immutable audit trail                                                                                                   |
+| `DiagnosticLogger.ts`          | 371   | ✅ Production                 | Audio diagnostic recording                                                                                              |
+| `PiyAPIBackend.ts`             | 462   | ✅ Production                 | Full CRUD, semantic/hybrid search, graph traversal, auth with keytar, health checks                                     |
 
 ### Renderer Hooks
 
-| Hook | Lines | Status | Notes |
-|------|-------|--------|-------|
-| `useTranscriptStream` | 61 | ✅ **Complete** | Combines historical DB + live IPC streaming with dedup, chronological sort |
-| `useNotes` | 58 | ✅ **Complete** | Full CRUD with `useMutation`, optimistic cache invalidation |
-| `useLLMStream` | 31 | ✅ **Complete** | Token streaming with proper cleanup |
-| `useMeetings` | 15 | ✅ **Complete** | React-query wrapper over `meeting.list()` |
-| `useSearch` | 32 | ✅ Built | Calls `search.query()` — **will crash until handler exists** |
-| `useAudioStatus` | 46 | ✅ Built | Subscribes to audio events |
-| `useCurrentMeeting` | 16 | ✅ Built | Calls `meeting.get()` |
-| `useAudioSession` | 85 | ✅ Built | Full lifecycle: check → permission → capture → monitor → stop |
-| `useKeyboardShortcuts` | 60 | ✅ Built | Global keyboard shortcut registry |
-| `usePowerMode` | 36 | ⚠️ **Needs fix** | Uses `navigator.getBattery()` (Web Battery API) — silently fails in Electron, doesn't crash but returns no data |
-| `useSyncEngine` | 54 | ✅ Built | Calls `sync.getStatus()` — **will crash until handler exists** |
-| `useToast` | 27 | ✅ Built | Toast notification manager |
+| Hook                   | Lines | Status           | Notes                                                                                                           |
+| ---------------------- | ----- | ---------------- | --------------------------------------------------------------------------------------------------------------- |
+| `useTranscriptStream`  | 61    | ✅ **Complete**  | Combines historical DB + live IPC streaming with dedup, chronological sort                                      |
+| `useNotes`             | 58    | ✅ **Complete**  | Full CRUD with `useMutation`, optimistic cache invalidation                                                     |
+| `useLLMStream`         | 31    | ✅ **Complete**  | Token streaming with proper cleanup                                                                             |
+| `useMeetings`          | 15    | ✅ **Complete**  | React-query wrapper over `meeting.list()`                                                                       |
+| `useSearch`            | 32    | ✅ Built         | Calls `search.query()` — **will crash until handler exists**                                                    |
+| `useAudioStatus`       | 46    | ✅ Built         | Subscribes to audio events                                                                                      |
+| `useCurrentMeeting`    | 16    | ✅ Built         | Calls `meeting.get()`                                                                                           |
+| `useAudioSession`      | 85    | ✅ Built         | Full lifecycle: check → permission → capture → monitor → stop                                                   |
+| `useKeyboardShortcuts` | 60    | ✅ Built         | Global keyboard shortcut registry                                                                               |
+| `usePowerMode`         | 36    | ⚠️ **Needs fix** | Uses `navigator.getBattery()` (Web Battery API) — silently fails in Electron, doesn't crash but returns no data |
+| `useSyncEngine`        | 54    | ✅ Built         | Calls `sync.getStatus()` — **will crash until handler exists**                                                  |
+| `useToast`             | 27    | ✅ Built         | Toast notification manager                                                                                      |
 
 ### Key Component Status
 
-| Component | Lines | Status |
-|-----------|-------|--------|
-| `NoteEditor.tsx` | 159 | ✅ **Functional** — Tiptap + Yjs + IndexedDB + Cmd+Enter expansion + debounced auto-save. ⚠️ Undo atomicity bug (see P2.5) |
-| `TranscriptPanel.tsx` | 124 | ✅ Built — visual shell, wired to `useTranscriptStream` |
-| `TranscriptSegment.tsx` | 87 | ✅ Built — speaker colors, pin icon |
-| `PostMeetingDigest.tsx` | 135 | ⚠️ Shell only — visual layout exists, AI synthesis not wired |
-| `SilentPrompter.tsx` | 46 | ⚠️ Shell only — no Ollama integration |
-| `MagicExpansion.tsx` | 42 | ✅ Built — AI expansion display with 🤖 badge |
-| `CommandPalette.tsx` | 195 | ✅ Built — will crash on search until `search.handlers.ts` exists |
-| `OnboardingFlow.tsx` | 182 | ✅ Built — 5-step flow: `auth` → `setup` → `recovery-key` → `plan-selection` → `ghost-meeting`. ⚠️ Auth calls not wired to `PiyAPIBackend.login()` |
-| `MeetingDetailView.tsx` | 84 | 🔴 **Uses hardcoded mock data** — `MOCK_SEGMENTS` (42 fake segments with "Alex Demo" / "Sarah Sync"), `MOCK_DIGEST` (fake summary/actions). Must be replaced with real hook data |
-| `MeetingListView.tsx` | 176 | ⚠️ **Fake date grouping** — Uses `slice(0,3)` to split "Today" / "Yesterday" instead of real date comparison. Wired to `useMeetings` + real `meeting.start/delete` ✅ |
-| `GhostMeetingTutorial.tsx` | 79 | ✅ Built — Progressive onboarding: pre-recorded transcript streams, pulsing Cmd+Enter prompt, auto-clears after demo (GAP-31) |
-| `MiniWidget.tsx` | 68 | ✅ Built — 280×72px always-on-top glassmorphic pill: recording timer + stop button + last transcript line. Triggered via `Cmd+Shift+M` (GAP-30) |
-| `SpeakerHeatmap.tsx` | 35 | ⚠️ Shell only — Visual layout for speaker-colored audio timeline. Needs real speaker segment data wiring (GAP-27) |
-| `SmartChip.tsx` | 37 | ✅ Built — Color-coded entity chips: 👤 People (blue), 📅 Dates (green), 📊 Amounts (orange), ✅ Actions (red). Needs entity extraction wiring (§2.9) |
-| `RecoveryKeyExport.tsx` | 209 | ✅ Built — Recovery key display with Copy to Clipboard + Save as File + confirmation (GAP-22 / A.6) |
-| `RecoverAccount.tsx` | 216 | ✅ Built — Account recovery flow using recovery phrase to decrypt synced data |
-| `GlobalContextBar.tsx` | 97 | ✅ Built — `Cmd+Shift+K` cross-meeting semantic search UI. Needs `LocalEmbeddingService` + `search.handlers.ts` wiring |
+| Component                  | Lines | Status                                                                                                                                                                           |
+| -------------------------- | ----- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `NoteEditor.tsx`           | 159   | ✅ **Functional** — Tiptap + Yjs + IndexedDB + Cmd+Enter expansion + debounced auto-save. ⚠️ Undo atomicity bug (see P2.5)                                                       |
+| `TranscriptPanel.tsx`      | 124   | ✅ Built — visual shell, wired to `useTranscriptStream`                                                                                                                          |
+| `TranscriptSegment.tsx`    | 87    | ✅ Built — speaker colors, pin icon                                                                                                                                              |
+| `PostMeetingDigest.tsx`    | 135   | ⚠️ Shell only — visual layout exists, AI synthesis not wired                                                                                                                     |
+| `SilentPrompter.tsx`       | 46    | ⚠️ Shell only — no Ollama integration                                                                                                                                            |
+| `MagicExpansion.tsx`       | 42    | ✅ Built — AI expansion display with 🤖 badge                                                                                                                                    |
+| `CommandPalette.tsx`       | 195   | ✅ Built — will crash on search until `search.handlers.ts` exists                                                                                                                |
+| `OnboardingFlow.tsx`       | 182   | ✅ Built — 5-step flow: `auth` → `setup` → `recovery-key` → `plan-selection` → `ghost-meeting`. ⚠️ Auth calls not wired to `PiyAPIBackend.login()`                               |
+| `MeetingDetailView.tsx`    | 84    | 🔴 **Uses hardcoded mock data** — `MOCK_SEGMENTS` (42 fake segments with "Alex Demo" / "Sarah Sync"), `MOCK_DIGEST` (fake summary/actions). Must be replaced with real hook data |
+| `MeetingListView.tsx`      | 176   | ⚠️ **Fake date grouping** — Uses `slice(0,3)` to split "Today" / "Yesterday" instead of real date comparison. Wired to `useMeetings` + real `meeting.start/delete` ✅            |
+| `GhostMeetingTutorial.tsx` | 79    | ✅ Built — Progressive onboarding: pre-recorded transcript streams, pulsing Cmd+Enter prompt, auto-clears after demo (GAP-31)                                                    |
+| `MiniWidget.tsx`           | 68    | ✅ Built — 280×72px always-on-top glassmorphic pill: recording timer + stop button + last transcript line. Triggered via `Cmd+Shift+M` (GAP-30)                                  |
+| `SpeakerHeatmap.tsx`       | 35    | ⚠️ Shell only — Visual layout for speaker-colored audio timeline. Needs real speaker segment data wiring (GAP-27)                                                                |
+| `SmartChip.tsx`            | 37    | ✅ Built — Color-coded entity chips: 👤 People (blue), 📅 Dates (green), 📊 Amounts (orange), ✅ Actions (red). Needs entity extraction wiring (§2.9)                            |
+| `RecoveryKeyExport.tsx`    | 209   | ✅ Built — Recovery key display with Copy to Clipboard + Save as File + confirmation (GAP-22 / A.6)                                                                              |
+| `RecoverAccount.tsx`       | 216   | ✅ Built — Account recovery flow using recovery phrase to decrypt synced data                                                                                                    |
+| `GlobalContextBar.tsx`     | 97    | ✅ Built — `Cmd+Shift+K` cross-meeting semantic search UI. Needs `LocalEmbeddingService` + `search.handlers.ts` wiring                                                           |
 
 ---
 
@@ -185,9 +188,19 @@ export function registerNoteHandlers(): void {
         body: JSON.stringify({ model: 'qwen2.5:3b', prompt, stream: false }),
       })
       const data = await response.json()
-      return { success: true, data: { expandedText: data.response, sourceSegments: context.transcripts.map(t => t.id) } }
+      return {
+        success: true,
+        data: { expandedText: data.response, sourceSegments: context.transcripts.map(t => t.id) },
+      }
     } catch (error) {
-      return { success: true, data: { expandedText: '⚠️ AI expansion unavailable — Ollama is not running. Start it with: ollama serve', sourceSegments: [] } }
+      return {
+        success: true,
+        data: {
+          expandedText:
+            '⚠️ AI expansion unavailable — Ollama is not running. Start it with: ollama serve',
+          sourceSegments: [],
+        },
+      }
     }
   })
 
@@ -248,7 +261,14 @@ export function registerSearchHandlers(): void {
       // Full implementation connects to SQLite embedding column
       return { success: true, data: { results: [], query: params.query } }
     } catch (error) {
-      return { success: false, error: { code: 'SEMANTIC_SEARCH_FAILED', message: (error as Error).message, timestamp: Date.now() } }
+      return {
+        success: false,
+        error: {
+          code: 'SEMANTIC_SEARCH_FAILED',
+          message: (error as Error).message,
+          timestamp: Date.now(),
+        },
+      }
     }
   })
 }
@@ -268,13 +288,18 @@ let syncManager: SyncManager | null = null
 
 export function registerSyncHandlers(): void {
   ipcMain.handle('sync:getStatus', async () => {
-    if (!syncManager) return { success: true, data: { status: 'disconnected', pending: 0, total: 0 } }
+    if (!syncManager)
+      return { success: true, data: { status: 'disconnected', pending: 0, total: 0 } }
     const stats = syncManager.getSyncStats()
     return { success: true, data: { status: 'connected', ...stats } }
   })
 
   ipcMain.handle('sync:trigger', async (_, params) => {
-    if (!syncManager) return { success: false, error: { code: 'SYNC_NOT_INITIALIZED', message: 'Not logged in', timestamp: Date.now() } }
+    if (!syncManager)
+      return {
+        success: false,
+        error: { code: 'SYNC_NOT_INITIALIZED', message: 'Not logged in', timestamp: Date.now() },
+      }
     const result = await syncManager.syncPendingEvents()
     return { success: true, data: result }
   })
@@ -288,7 +313,14 @@ export function registerSyncHandlers(): void {
       syncManager.startAutoSync()
       return { success: true, data: { userId: params.userId } }
     } catch (error) {
-      return { success: false, error: { code: 'SYNC_LOGIN_FAILED', message: (error as Error).message, timestamp: Date.now() } }
+      return {
+        success: false,
+        error: {
+          code: 'SYNC_LOGIN_FAILED',
+          message: (error as Error).message,
+          timestamp: Date.now(),
+        },
+      }
     }
   })
 
@@ -354,7 +386,9 @@ export function registerSettingsHandlers(): void {
     const db = getDatabase()
     const settings = db.prepare('SELECT key, value FROM settings').all()
     const result: Record<string, string> = {}
-    for (const row of settings as any[]) { result[row.key] = row.value }
+    for (const row of settings as any[]) {
+      result[row.key] = row.value
+    }
     return { success: true, data: result }
   })
 
@@ -367,7 +401,11 @@ export function registerSettingsHandlers(): void {
   ipcMain.handle('settings:update', async (_, params) => {
     const db = getDatabase()
     const now = Math.floor(Date.now() / 1000)
-    db.prepare('INSERT OR REPLACE INTO settings (key, value, updated_at) VALUES (?, ?, ?)').run(params.key, JSON.stringify(params.value), now)
+    db.prepare('INSERT OR REPLACE INTO settings (key, value, updated_at) VALUES (?, ?, ?)').run(
+      params.key,
+      JSON.stringify(params.value),
+      now
+    )
     return { success: true }
   })
 
@@ -389,7 +427,10 @@ import { ipcMain } from 'electron'
 export function registerGraphHandlers(): void {
   // Knowledge Graph requires cloud PiyAPI — returns empty for offline mode
   ipcMain.handle('graph:get', async (_, params) => {
-    return { success: true, data: { nodes: [], edges: [], stats: { totalNodes: 0, totalEdges: 0 } } }
+    return {
+      success: true,
+      data: { nodes: [], edges: [], stats: { totalNodes: 0, totalEdges: 0 } },
+    }
   })
 
   ipcMain.handle('graph:getContradictions', async (_, params) => {
@@ -419,9 +460,18 @@ export function registerDigestHandlers(): void {
         }),
       })
       const data = await response.json()
-      return { success: true, data: { digest: data.response, generatedAt: new Date().toISOString() } }
+      return {
+        success: true,
+        data: { digest: data.response, generatedAt: new Date().toISOString() },
+      }
     } catch {
-      return { success: true, data: { digest: 'Weekly digest unavailable — Ollama not running.', generatedAt: new Date().toISOString() } }
+      return {
+        success: true,
+        data: {
+          digest: 'Weekly digest unavailable — Ollama not running.',
+          generatedAt: new Date().toISOString(),
+        },
+      }
     }
   })
 
@@ -485,9 +535,9 @@ import { getASRService } from './ASRService'
 import { getTranscriptService } from './TranscriptService'
 
 interface PipelineConfig {
-  sampleRate: number        // 16000 (Whisper's expected rate)
-  chunkDurationSec: number  // 30 seconds
-  vadThreshold: number      // 0.5 (Silero VAD confidence)
+  sampleRate: number // 16000 (Whisper's expected rate)
+  chunkDurationSec: number // 30 seconds
+  vadThreshold: number // 0.5 (Silero VAD confidence)
 }
 
 export class AudioPipelineService extends EventEmitter {
@@ -558,7 +608,7 @@ export class AudioPipelineService extends EventEmitter {
 
     // Calculate chunk timing relative to meeting start
     const chunkStart = (this.chunkStartTime - this.meetingStartTime) / 1000
-    const chunkEnd = chunkStart + (totalLength / this.config.sampleRate)
+    const chunkEnd = chunkStart + totalLength / this.config.sampleRate
 
     // Reset buffer for next chunk
     this.audioBuffer = []
@@ -612,7 +662,8 @@ export class AudioPipelineService extends EventEmitter {
     return {
       isCapturing: this.isCapturing,
       meetingId: this.currentMeetingId,
-      bufferDuration: this.audioBuffer.reduce((sum, buf) => sum + buf.length, 0) / this.config.sampleRate,
+      bufferDuration:
+        this.audioBuffer.reduce((sum, buf) => sum + buf.length, 0) / this.config.sampleRate,
     }
   }
 }
@@ -782,9 +833,11 @@ Already specified in P2.2 (`note.handlers.ts`). The complete data flow is:
 ### Graceful Fallback
 
 If Ollama is not running (connection refused), the handler returns:
+
 ```
 "⚠️ AI expansion unavailable — Ollama is not running. Start it with: ollama serve"
 ```
+
 This text is inserted as a styled warning instead of crashing.
 
 ### Context Sessions API — Dual-Path Context Retrieval
@@ -794,20 +847,22 @@ This text is inserted as a styled warning instead of crashing.
 ```typescript
 // In note.handlers.ts — note:expand handler:
 async function getContextForExpansion(
-  meetingId: string, noteText: string, timestamp: number
+  meetingId: string,
+  noteText: string,
+  timestamp: number
 ): Promise<string> {
   // PATH A: Pro users with cloud sync → PiyAPI Context Sessions API
   //   Semantic retrieval with token budgets (better quality)
   if (await hasCloudAccess()) {
     const session = await fetch(`${API_BASE}/api/v1/context/sessions`, {
       method: 'POST',
-      headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
       body: JSON.stringify({
         namespace: 'meetings.transcripts',
         token_budget: 2048,
         time_range: { start: timestamp - 60, end: timestamp + 10 },
-        filters: { meeting_id: meetingId }
-      })
+        filters: { meeting_id: meetingId },
+      }),
     }).then(r => r.json())
 
     const contextData = await fetch(
@@ -859,7 +914,7 @@ class ModelManager {
     console.log(`Loading ${model} (on-demand)...`)
     await fetch('http://localhost:11434/api/generate', {
       method: 'POST',
-      body: JSON.stringify({ model, prompt: '', keep_alive: '60s' })
+      body: JSON.stringify({ model, prompt: '', keep_alive: '60s' }),
     })
     this.llmLoaded = true
     this.resetUnloadTimer()
@@ -876,7 +931,7 @@ class ModelManager {
     const model = info.ram >= 16 ? 'qwen2.5:3b' : 'qwen2.5:1.5b'
     await fetch('http://localhost:11434/api/generate', {
       method: 'POST',
-      body: JSON.stringify({ model, keep_alive: '0' })
+      body: JSON.stringify({ model, keep_alive: '0' }),
     })
     this.llmLoaded = false
     console.log('LLM unloaded to free RAM')
@@ -886,12 +941,12 @@ class ModelManager {
 
 **RAM Impact:**
 
-| State | Whisper | Qwen 2.5 3B | Electron + App | Total |
-|-------|---------|-------------|----------------|-------|
-| **Idle** | Unloaded | Unloaded | 0.5 GB | ~0.5 GB |
-| **Transcribing** | 1.5 GB | Unloaded | 0.8 GB | ~2.3 GB |
-| **Expanding note** | 1.5 GB | 2.2 GB | 0.8 GB | ~4.5 GB |
-| **After expansion (60s)** | 1.5 GB | *Unloaded* | 0.8 GB | ~2.3 GB |
+| State                     | Whisper  | Qwen 2.5 3B | Electron + App | Total   |
+| ------------------------- | -------- | ----------- | -------------- | ------- |
+| **Idle**                  | Unloaded | Unloaded    | 0.5 GB         | ~0.5 GB |
+| **Transcribing**          | 1.5 GB   | Unloaded    | 0.8 GB         | ~2.3 GB |
+| **Expanding note**        | 1.5 GB   | 2.2 GB      | 0.8 GB         | ~4.5 GB |
+| **After expansion (60s)** | 1.5 GB   | _Unloaded_  | 0.8 GB         | ~2.3 GB |
 
 ---
 
@@ -902,7 +957,7 @@ class ModelManager {
 `useTranscriptStream.ts` appends chunks indefinitely with no cap:
 
 ```typescript
-return [...prev, chunk]  // No limit
+return [...prev, chunk] // No limit
 ```
 
 For 2+ hour meetings: 240+ segments in React state → performance degradation.
@@ -963,14 +1018,14 @@ The `ConflictResolver.ts` (385 lines) and `YjsConflictResolver.ts` (365 lines) a
 
 ### Transcript ↔ Notes Symbiosis (Deferred to Phase 3)
 
-| Feature | Status |
-|---------|--------|
-| Drag-and-drop transcript → notes blockquote | Not built — requires custom Tiptap extension |
+| Feature                                                             | Status                                                                                                                                                     |
+| ------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Drag-and-drop transcript → notes blockquote                         | Not built — requires custom Tiptap extension                                                                                                               |
 | Bidirectional source anchors (click AI note → highlight transcript) | Shell exists in NoteEditor, needs real anchor data from `note:expand` `sourceSegments` return. Click → scroll transcript + violet pulse animation (GAP-26) |
-| Slash commands (`/action`, `/decision`, `/summarize`) | Not built |
-| Speaker heatmap | `SpeakerHeatmap.tsx` (35L) shell exists — needs speaker segment data from `TranscriptService`. Renders colored bars per speaker for click-to-seek (GAP-27) |
-| Pinned moments | Not built — ⭐ icon on hover right of transcript segments. Pins aggregate into "Key Moments" tab in PostMeetingDigest (GAP-28) |
-| Transcript inline corrections | Not built — post-meeting editable transcript text, saves via `transcript.update()`. Tiny "edited" badge on corrected segments (GAP-29) |
+| Slash commands (`/action`, `/decision`, `/summarize`)               | Not built                                                                                                                                                  |
+| Speaker heatmap                                                     | `SpeakerHeatmap.tsx` (35L) shell exists — needs speaker segment data from `TranscriptService`. Renders colored bars per speaker for click-to-seek (GAP-27) |
+| Pinned moments                                                      | Not built — ⭐ icon on hover right of transcript segments. Pins aggregate into "Key Moments" tab in PostMeetingDigest (GAP-28)                             |
+| Transcript inline corrections                                       | Not built — post-meeting editable transcript text, saves via `transcript.update()`. Tiny "edited" badge on corrected segments (GAP-29)                     |
 
 ### Silent AI Prompter
 
@@ -1009,7 +1064,7 @@ export function registerPowerHandlers(): void {
       success: true,
       data: {
         isOnBattery: powerMonitor.isOnBatteryPower,
-      }
+      },
     }
   })
 }
@@ -1040,26 +1095,31 @@ PRAGMA wal_autocheckpoint = 1000;
 **On Meeting Stop**: `PRAGMA wal_checkpoint(TRUNCATE)` to merge WAL + reclaim disk.
 
 **During Recording**: Passive checkpoint every 10 minutes:
+
 ```typescript
-walCheckpointInterval = setInterval(() => {
-  db.pragma('wal_checkpoint(PASSIVE)')
-}, 10 * 60 * 1000)
+walCheckpointInterval = setInterval(
+  () => {
+    db.pragma('wal_checkpoint(PASSIVE)')
+  },
+  10 * 60 * 1000
+)
 ```
 
 ### Memory Budgets
 
-| Resource | Budget | Enforcement |
-|----------|--------|-------------|
-| Transcript segments in React state | ≤ 500 | Older pruned, lazy-loaded on scroll-up |
-| Tiptap editor nodes | ≤ 200 | Long notes paginate |
-| Renderer process RAM | ≤ 200MB | DevTools profiling |
-| IPC payload per call | ≤ 100KB | Cursor pagination for large datasets |
+| Resource                           | Budget  | Enforcement                            |
+| ---------------------------------- | ------- | -------------------------------------- |
+| Transcript segments in React state | ≤ 500   | Older pruned, lazy-loaded on scroll-up |
+| Tiptap editor nodes                | ≤ 200   | Long notes paginate                    |
+| Renderer process RAM               | ≤ 200MB | DevTools profiling                     |
+| IPC payload per call               | ≤ 100KB | Cursor pagination for large datasets   |
 
 ---
 
 ## P2.10 macOS Permission Recovery
 
 Already fully implemented:
+
 - `PermissionRequestFlow.tsx` (9.5KB) — multi-step permission request UI
 - `AudioCaptureWithPermissions.tsx` (6.2KB) — wraps capture with permission checks
 - `AudioFallbackNotification.tsx` — toast when falling back to microphone
@@ -1105,6 +1165,7 @@ No additional work needed.
 ### `MeetingListView.tsx` — Fake Date Grouping
 
 **Current state** (line 96-97):
+
 ```typescript
 const today = meetings.slice(0, 3)
 const yesterday = meetings.slice(3)
@@ -1130,13 +1191,13 @@ const older = meetings.filter(m => m.start_time < yesterdayStart)
 
 ### What Needs Wiring
 
-| Step | Current State | Fix Required |
-|------|--------------|-------------|
-| **Auth** (email/password) | Button calls `setStep('setup')` — no API call | Call `PiyAPIBackend.login(email, password)` via `sync:login` IPC |
-| **Google OAuth** | Button does nothing | Implement OAuth flow via `shell.openExternal` + redirect URI handler |
-| **Model download** | `setTimeout(3000)` mock | Call `model:downloadAll` IPC — already has `ModelDownloadService.ts` ✅ |
-| **Recovery key** | Mock 12-word phrase from static array | Call `RecoveryPhraseService.generatePhrase()` via IPC — already exists ✅ |
-| **Plan selection** | `PricingView` shown but no payment | Wire to payment provider (see P2.19) |
+| Step                      | Current State                                 | Fix Required                                                              |
+| ------------------------- | --------------------------------------------- | ------------------------------------------------------------------------- |
+| **Auth** (email/password) | Button calls `setStep('setup')` — no API call | Call `PiyAPIBackend.login(email, password)` via `sync:login` IPC          |
+| **Google OAuth**          | Button does nothing                           | Implement OAuth flow via `shell.openExternal` + redirect URI handler      |
+| **Model download**        | `setTimeout(3000)` mock                       | Call `model:downloadAll` IPC — already has `ModelDownloadService.ts` ✅   |
+| **Recovery key**          | Mock 12-word phrase from static array         | Call `RecoveryPhraseService.generatePhrase()` via IPC — already exists ✅ |
+| **Plan selection**        | `PricingView` shown but no payment            | Wire to payment provider (see P2.19)                                      |
 
 ### Auth IPC Handler Required
 
@@ -1200,11 +1261,13 @@ This allows the renderer to send **any** IPC message to the main process, bypass
 ### Meeting Templates
 
 `NewMeetingDialog.tsx` already has visual template selectors. Wire templates to influence:
+
 - Default note structure (Tiptap initial content)
 - Silent Prompter topic tracking
 - PostMeeting digest format
 
 Template types from `piynotes.md` GAP-32:
+
 - **Blank** — No preset structure
 - **1:1** — Agenda items + action tracking
 - **Standup** — Yesterday/Today/Blockers
@@ -1214,6 +1277,7 @@ Template types from `piynotes.md` GAP-32:
 ### Context Document Attachment
 
 `NewMeetingDialog.tsx` has a visual drop zone (`piynotes.md` GAP-33). Wire to:
+
 1. Parse `.pdf` / `.md` / `.txt` files via Node.js `fs` in main process
 2. Inject parsed text as context for AI note expansion prompts
 3. Store reference in `meetings` table metadata
@@ -1234,6 +1298,7 @@ if (!cloudAccess.canUseAI()) {
 ```
 
 Free tier limits (from `CloudAccessManager.ts`):
+
 - 3 devices max
 - Local Whisper only (no cloud transcription)
 - No AI note expansion (Ollama gated)
@@ -1241,18 +1306,19 @@ Free tier limits (from `CloudAccessManager.ts`):
 
 ### 6 Upgrade Trigger Moments
 
-| # | Trigger | When | What User Sees | Est. Conv. Rate |
-|---|---------|------|---------------|-----------|
-| 1 | **🔄 Device Wall** | 3rd device login | "Upgrade for unlimited devices" | ~25% |
-| 2 | **🧠 AI Query Limit** | Day ~20 of month | "47/50 queries used — Upgrade for unlimited" | ~30% |
-| 3 | **🔍 Cross-Meeting Search** | Search across meetings | "Found 12 matches — [🔓 Unlock full results]" | ~15% |
-| 4 | **🕸️ Decision Changed** | Contradiction detected | "⚠️ Budget changed — [🔓 See graph details]" | ~20% |
-| 5 | **👤 Person Deep Dive** | Click entity chip | "Sarah in 14 meetings — [🔓 See timeline]" | ~8% |
-| 6 | **📊 Weekly Digest** | Friday 4 PM | "12 meetings, 3 decisions — [🔓 View full digest]" | ~12% |
+| #   | Trigger                     | When                   | What User Sees                                     | Est. Conv. Rate |
+| --- | --------------------------- | ---------------------- | -------------------------------------------------- | --------------- |
+| 1   | **🔄 Device Wall**          | 3rd device login       | "Upgrade for unlimited devices"                    | ~25%            |
+| 2   | **🧠 AI Query Limit**       | Day ~20 of month       | "47/50 queries used — Upgrade for unlimited"       | ~30%            |
+| 3   | **🔍 Cross-Meeting Search** | Search across meetings | "Found 12 matches — [🔓 Unlock full results]"      | ~15%            |
+| 4   | **🕸️ Decision Changed**     | Contradiction detected | "⚠️ Budget changed — [🔓 See graph details]"       | ~20%            |
+| 5   | **👤 Person Deep Dive**     | Click entity chip      | "Sarah in 14 meetings — [🔓 See timeline]"         | ~8%             |
+| 6   | **📊 Weekly Digest**        | Friday 4 PM            | "12 meetings, 3 decisions — [🔓 View full digest]" | ~12%            |
 
 ### 14-Day Pro Trial
 
 New users get 14-day Pro trial. Implement:
+
 - Trial state in `settings` table (`trial_start`, `trial_expires`)
 - Countdown badge in DynamicIsland: "Pro Trial: 5 days left"
 - Expiry notification → shows Device Wall / Intelligence Wall
@@ -1261,6 +1327,7 @@ New users get 14-day Pro trial. Implement:
 ### Query Quota Fallback (GAP-21)
 
 When Starter users exhaust their 50 cloud AI queries/month:
+
 1. **Do NOT show an error** — silently fall back to local Qwen 2.5
 2. Show remaining quota badge: `"4 cloud queries left"` → `"Local mode"`
 3. Local mode quality is ~80% of cloud (Qwen 2.5 vs GPT-4o-mini)
@@ -1269,6 +1336,7 @@ When Starter users exhaust their 50 cloud AI queries/month:
 ### Referral Loop
 
 Invite system for organic growth:
+
 - Alice (free user) sends invite link to Bob
 - Bob installs → gets 14-day Pro trial (standard)
 - Alice gets **1 week free Pro** (reward for referral)
@@ -1287,10 +1355,10 @@ async function waitForEmbedding(memoryId: string, maxWaitMs = 10_000): Promise<b
   const start = Date.now()
   while (Date.now() - start < maxWaitMs) {
     const res = await fetch(`${API_BASE}/api/v1/memories/${memoryId}`, {
-      headers: { 'Authorization': `Bearer ${token}` }
+      headers: { Authorization: `Bearer ${token}` },
     })
     const memory = await res.json()
-    if (memory.embedding_status === 'ready') return true  // NOT 'completed'
+    if (memory.embedding_status === 'ready') return true // NOT 'completed'
     await sleep(1000)
   }
   return false // Timed out — search may return incomplete results
@@ -1310,25 +1378,23 @@ Separate from the per-meeting `PostMeetingDigest` — this is an **aggregate Fri
 // Triggered every Friday at 4 PM (or manually)
 async function generateWeeklyDigest(): Promise<WeeklyDigest> {
   // 1. Get all meetings from this week via PiyAPI
-  const meetings = await fetch(
-    `${API_BASE}/api/v1/memories?namespace=meetings&limit=100`,
-    { headers: { 'Authorization': `Bearer ${token}` } }
-  ).then(r => r.json())
+  const meetings = await fetch(`${API_BASE}/api/v1/memories?namespace=meetings&limit=100`, {
+    headers: { Authorization: `Bearer ${token}` },
+  }).then(r => r.json())
 
   // 2. Get graph for contradiction detection
-  const graph = await fetch(
-    `${API_BASE}/api/v1/graph?namespace=meetings&maxHops=1`,
-    { headers: { 'Authorization': `Bearer ${token}` } }
-  ).then(r => r.json())
+  const graph = await fetch(`${API_BASE}/api/v1/graph?namespace=meetings&maxHops=1`, {
+    headers: { Authorization: `Bearer ${token}` },
+  }).then(r => r.json())
 
   // 3. Ask PiyAPI to summarize (GPT-4o-mini via RAG)
   const digest = await fetch(`${API_BASE}/api/v1/ask`, {
     method: 'POST',
-    headers: { 'Authorization': `Bearer ${token}` },
+    headers: { Authorization: `Bearer ${token}` },
     body: JSON.stringify({
       query: "Summarize all key decisions, action items, and changes from this week's meetings",
-      namespace: 'meetings'
-    })
+      namespace: 'meetings',
+    }),
   }).then(r => r.json())
 
   return {
@@ -1342,6 +1408,7 @@ async function generateWeeklyDigest(): Promise<WeeklyDigest> {
 ```
 
 Display in a dedicated `WeeklyDigestView` or a notification card:
+
 ```
 📊 Your Week in Meetings (Feb 17-21)
 ═══════════════════════════════════
@@ -1364,11 +1431,11 @@ Action Items Still Open:
 
 ### What Triggers Each Type
 
-| Type | Content Pattern Required | Example |
-|------|------------------------|---------|
-| `contradicts` | "Actually", "no, it's", "correction" + overlapping entity | Memory A: "Revenue is $2.3M" → Memory B: "Actually, revenue is $1.8M" |
-| `supersedes` | Same entity + newer date + higher confidence | Memory A: "Q3 deadline March 15" → Memory B: "Q3 deadline March 30" |
-| `parent` | Auto-chunking of content >30KB | Long transcript auto-chunked by `TranscriptChunker` → creates parent-child links |
+| Type          | Content Pattern Required                                  | Example                                                                          |
+| ------------- | --------------------------------------------------------- | -------------------------------------------------------------------------------- |
+| `contradicts` | "Actually", "no, it's", "correction" + overlapping entity | Memory A: "Revenue is $2.3M" → Memory B: "Actually, revenue is $1.8M"            |
+| `supersedes`  | Same entity + newer date + higher confidence              | Memory A: "Q3 deadline March 15" → Memory B: "Q3 deadline March 30"              |
+| `parent`      | Auto-chunking of content >30KB                            | Long transcript auto-chunked by `TranscriptChunker` → creates parent-child links |
 
 ### Testing Strategy
 
@@ -1387,6 +1454,7 @@ Create 5 specifically crafted memory pairs via `PiyAPIBackend.ts` to verify each
 Not implemented yet. `piynotes.md` specifies Razorpay integration with PiyAPI Billing. `PricingView.tsx` displays the 5-tier table but buttons are not wired.
 
 **When implementing:**
+
 1. `PricingView.tsx` → Button click → `shell.openExternal(paymentUrl)` with JWT token
 2. Webhook from payment → PiyAPI updates `plan_tier` → client refreshes token
 3. `CloudAccessManager.ts` gates features based on `plan_tier`
@@ -1396,6 +1464,7 @@ Not implemented yet. `piynotes.md` specifies Razorpay integration with PiyAPI Bi
 ## P2.20 App Distribution (Phase 10 — Deferred)
 
 Missing for production release:
+
 - `.icns` (macOS) and `.ico` (Windows) app icons
 - Code signing certificates (Apple Developer ID + Windows Authenticode)
 - `electron-builder` config for DMG/MSI/AppImage packaging
@@ -1409,87 +1478,88 @@ Missing for production release:
 
 **Goal**: No `Error: No handler registered` crashes. App interactive with real SQLite data.
 
-| # | Task | Depends On |
-|---|------|-----------|
-| 1 | Create 8 missing IPC handler files (`note`, `entity`, `search`, `sync`, `intelligence`, `settings`, `graph`, `digest`) | CRUD modules ✅ |
-| 2 | Update `setup.ts` — register all 12 handlers | Step 1 |
-| 3 | Restrict `preload.ts` generic `ipcRenderer.send` to allowlist | None |
-| 4 | Verify: every `window.electronAPI.*` method returns without crashing | Steps 1-3 |
+| #   | Task                                                                                                                   | Depends On      |
+| --- | ---------------------------------------------------------------------------------------------------------------------- | --------------- |
+| 1   | Create 8 missing IPC handler files (`note`, `entity`, `search`, `sync`, `intelligence`, `settings`, `graph`, `digest`) | CRUD modules ✅ |
+| 2   | Update `setup.ts` — register all 12 handlers                                                                           | Step 1          |
+| 3   | Restrict `preload.ts` generic `ipcRenderer.send` to allowlist                                                          | None            |
+| 4   | Verify: every `window.electronAPI.*` method returns without crashing                                                   | Steps 1-3       |
 
 ### Phase B — View Data Wiring (Day 2)
 
 **Goal**: App displays real data, not mocks.
 
-| # | Task | Depends On |
-|---|------|-----------|
-| 5 | Replace `MeetingDetailView` mock segments with `useTranscriptStream` | Phase A |
-| 6 | Replace `MeetingDetailView` mock digest with real meeting data | Phase A |
-| 7 | Fix `MeetingListView` date grouping — real date comparison, not `slice(0,3)` | None |
-| 8 | Wire `OnboardingFlow` auth step to `PiyAPIBackend.login()` via IPC | Step 1 (sync handler) |
-| 9 | Wire recovery key step to `RecoveryPhraseService.generatePhrase()` | None |
-| 10 | Wire model download step to `model:downloadAll` IPC | Already exists ✅ |
+| #   | Task                                                                         | Depends On            |
+| --- | ---------------------------------------------------------------------------- | --------------------- |
+| 5   | Replace `MeetingDetailView` mock segments with `useTranscriptStream`         | Phase A               |
+| 6   | Replace `MeetingDetailView` mock digest with real meeting data               | Phase A               |
+| 7   | Fix `MeetingListView` date grouping — real date comparison, not `slice(0,3)` | None                  |
+| 8   | Wire `OnboardingFlow` auth step to `PiyAPIBackend.login()` via IPC           | Step 1 (sync handler) |
+| 9   | Wire recovery key step to `RecoveryPhraseService.generatePhrase()`           | None                  |
+| 10  | Wire model download step to `model:downloadAll` IPC                          | Already exists ✅     |
 
 ### Phase C — Audio → Transcript Pipeline (Day 3-4)
 
 **Goal**: Start meeting → hear audio → see live transcript.
 
-| # | Task | Depends On |
-|---|------|-----------|
-| 11 | Implement `AudioPipelineService.ts` (full orchestrator) | Phase A |
-| 12 | Wire `audio:startCapture/stopCapture` → AudioPipelineService | Step 11 |
-| 13 | Add `audio:pcmData` IPC for renderer → main audio transport | Step 11 |
-| 14 | Wire `meeting:start/stop` → pipeline start/stop | Step 12 |
-| 15 | Verify: Start meeting → speak → see transcript segments appear | Steps 13-14 |
+| #   | Task                                                           | Depends On  |
+| --- | -------------------------------------------------------------- | ----------- |
+| 11  | Implement `AudioPipelineService.ts` (full orchestrator)        | Phase A     |
+| 12  | Wire `audio:startCapture/stopCapture` → AudioPipelineService   | Step 11     |
+| 13  | Add `audio:pcmData` IPC for renderer → main audio transport    | Step 11     |
+| 14  | Wire `meeting:start/stop` → pipeline start/stop                | Step 12     |
+| 15  | Verify: Start meeting → speak → see transcript segments appear | Steps 13-14 |
 
 ### Phase D — Encrypted Search Fix (Day 4)
 
 **Goal**: Synced data is searchable via semantic search.
 
-| # | Task | Depends On |
-|---|------|-----------|
-| 16 | Add `LocalEmbeddingService.embed()` call in `SyncManager.syncPendingEvents()` | Phase A |
-| 17 | Fix namespace from `${table}.${operation}` to `meetings.${table}` | Step 16 |
-| 18 | Add `embedding` + `skip_server_embedding: true` to Memory payload | Step 16 |
-| 19 | Verify: Synced memory has embedding data in PiyAPI | Step 18 |
+| #   | Task                                                                          | Depends On |
+| --- | ----------------------------------------------------------------------------- | ---------- |
+| 16  | Add `LocalEmbeddingService.embed()` call in `SyncManager.syncPendingEvents()` | Phase A    |
+| 17  | Fix namespace from `${table}.${operation}` to `meetings.${table}`             | Step 16    |
+| 18  | Add `embedding` + `skip_server_embedding: true` to Memory payload             | Step 16    |
+| 19  | Verify: Synced memory has embedding data in PiyAPI                            | Step 18    |
 
 ### Phase E — Intelligence Wiring (Day 5-6)
 
 **Goal**: AI features functional end-to-end.
 
-| # | Task | Depends On |
-|---|------|-----------|
-| 20 | Fix NoteEditor undo atomicity — use `commands.command(({ tr }) => ...)` | Phase A |
-| 21 | Add 500-segment cap in `useTranscriptStream` | None |
-| 22 | Implement `ModelManager` — LLM on-demand load, 60s idle unload | Phase A |
-| 23 | Add Context Sessions API dual-path in `note:expand` handler | Step 22 |
-| 24 | Wire `PostMeetingDigest` → Ollama synthesis | Phase A |
-| 25 | Wire `SilentPrompter` → Ollama suggestions | Phase C |
-| 26 | Add `power.handlers.ts` for main-process `powerMonitor` | Phase A |
-| 27 | Fix `usePowerMode` — replace `navigator.getBattery()` with IPC to `power:getStatus` | Step 26 |
-| 28 | Wire feature traps — all 6 upgrade triggers + 14-day trial + quota fallback | Phase A |
-| 29 | Wire `SmartChip.tsx` to local entity extraction | Phase A |
-| 30 | Wire `SpeakerHeatmap.tsx` to real speaker segment data | Phase C |
-| 31 | Add embedding status polling (`waitForEmbedding`) after sync | Phase D |
+| #   | Task                                                                                | Depends On |
+| --- | ----------------------------------------------------------------------------------- | ---------- |
+| 20  | Fix NoteEditor undo atomicity — use `commands.command(({ tr }) => ...)`             | Phase A    |
+| 21  | Add 500-segment cap in `useTranscriptStream`                                        | None       |
+| 22  | Implement `ModelManager` — LLM on-demand load, 60s idle unload                      | Phase A    |
+| 23  | Add Context Sessions API dual-path in `note:expand` handler                         | Step 22    |
+| 24  | Wire `PostMeetingDigest` → Ollama synthesis                                         | Phase A    |
+| 25  | Wire `SilentPrompter` → Ollama suggestions                                          | Phase C    |
+| 26  | Add `power.handlers.ts` for main-process `powerMonitor`                             | Phase A    |
+| 27  | Fix `usePowerMode` — replace `navigator.getBattery()` with IPC to `power:getStatus` | Step 26    |
+| 28  | Wire feature traps — all 6 upgrade triggers + 14-day trial + quota fallback         | Phase A    |
+| 29  | Wire `SmartChip.tsx` to local entity extraction                                     | Phase A    |
+| 30  | Wire `SpeakerHeatmap.tsx` to real speaker segment data                              | Phase C    |
+| 31  | Add embedding status polling (`waitForEmbedding`) after sync                        | Phase D    |
 
 ### Phase F — Deferred (Post-Beta)
 
-| # | Task | When |
-|---|------|------|
-| 32 | Payment integration (Razorpay + PiyAPI Billing) | Phase 9 (Week 19) |
-| 33 | Meeting templates → influence AI prompts | Phase 8 (Week 15) |
-| 34 | Context document attachment → AI context injection | Phase 8 (Week 15) |
-| 35 | App icons + code signing + electron-builder | Phase 10 (Week 21) |
-| 36 | Weekly aggregate digest (cross-meeting, `/ask` + `/graph`) | Phase 8 (Week 17) |
-| 37 | Graph trigger pattern testing (contradicts/supersedes/parent) | Phase 8 (Week 16) |
-| 38 | Pinned moments (GAP-28) + transcript inline corrections (GAP-29) | Phase 8 (Week 18) |
-| 39 | Bidirectional source highlighting (GAP-26) | Phase 8 (Week 15) |
-| 40 | Referral loop (invite → both get trial) | Phase 9 (Week 20) |
+| #   | Task                                                             | When               |
+| --- | ---------------------------------------------------------------- | ------------------ |
+| 32  | Payment integration (Razorpay + PiyAPI Billing)                  | Phase 9 (Week 19)  |
+| 33  | Meeting templates → influence AI prompts                         | Phase 8 (Week 15)  |
+| 34  | Context document attachment → AI context injection               | Phase 8 (Week 15)  |
+| 35  | App icons + code signing + electron-builder                      | Phase 10 (Week 21) |
+| 36  | Weekly aggregate digest (cross-meeting, `/ask` + `/graph`)       | Phase 8 (Week 17)  |
+| 37  | Graph trigger pattern testing (contradicts/supersedes/parent)    | Phase 8 (Week 16)  |
+| 38  | Pinned moments (GAP-28) + transcript inline corrections (GAP-29) | Phase 8 (Week 18)  |
+| 39  | Bidirectional source highlighting (GAP-26)                       | Phase 8 (Week 15)  |
+| 40  | Referral loop (invite → both get trial)                          | Phase 9 (Week 20)  |
 
 ---
 
 ## Verification Checklist
 
 ### Automated
+
 ```bash
 npx tsc --noEmit           # Zero type errors
 npx jest --config jest.config.ts  # 24 test files pass
@@ -1499,30 +1569,30 @@ npm run electron:dev       # Electron app launches
 
 ### Functional (Manual)
 
-| # | Test | Expected Result |
-|---|------|----------------|
-| 1 | Open app, click every nav item | No console errors, no crashes |
-| 2 | Call every `window.electronAPI.*` method in DevTools | All return `{ success: true }`, none throw `No handler registered` |
-| 3 | Start Meeting → check SQLite | Meeting record exists with correct timestamp |
-| 4 | MeetingDetailView shows real transcript segments | No "Alex Demo" / "Sarah Sync" mock data |
-| 5 | MeetingListView groups meetings by actual date | No `slice(0,3)` grouping |
-| 6 | Type in NoteEditor → wait 2s | Note auto-saved to SQLite via `note:update` |
-| 7 | Press Cmd+Enter in NoteEditor | AI expansion appears (or graceful fallback if no Ollama) |
-| 8 | Press Ctrl+Z after expansion | Entire AI block removed in **one** keystroke |
-| 9 | Start audio capture → speak | Transcript segments appear in TranscriptPanel |
-| 10 | Stop Meeting | Duration calculated, digest section appears |
-| 11 | Cmd+K → type search query | Results from FTS5 appear |
-| 12 | Onboarding flow completes end-to-end | Auth → model download → recovery key → plan → ghost meeting |
-| 13 | Recovery key displays real BIP39 words | Not mock array `['abandon', 'ability', ...]` |
-| 14 | Check SyncManager output | Embedding data present in Memory payload |
-| 15 | Open Settings | All settings load/save correctly |
-| 16 | Inspect `preload.ts` `send()` | Generic channel restricted to allowlist |
-| 17 | 30-minute simulated meeting | No memory leaks, RAM < 200MB |
-| 18 | Click AI-badged note → transcript highlights | Source segments pulse violet (bidirectional highlighting) |
-| 19 | SmartChip entity chips display | People (blue), dates (green), amounts (orange), actions (red) |
-| 20 | Cmd+Shift+K opens GlobalContextBar | Cross-meeting semantic search returns results |
-| 21 | Cmd+Shift+M opens MiniWidget | Floating pip shows recording timer + last transcript line |
-| 22 | LLM loads on Cmd+Enter, unloads after 60s idle | Monitor Ollama process: loaded → unloaded |
-| 23 | Pro user: note expansion uses Context Sessions API | Check network tab for `/api/v1/context/sessions` call |
-| 24 | 3rd device login → Device Wall | Wall shows with upgrade prompt |
-| 25 | 51st AI query → silent local fallback | No error, badge shows "Local mode", Qwen answers locally |
+| #   | Test                                                 | Expected Result                                                    |
+| --- | ---------------------------------------------------- | ------------------------------------------------------------------ |
+| 1   | Open app, click every nav item                       | No console errors, no crashes                                      |
+| 2   | Call every `window.electronAPI.*` method in DevTools | All return `{ success: true }`, none throw `No handler registered` |
+| 3   | Start Meeting → check SQLite                         | Meeting record exists with correct timestamp                       |
+| 4   | MeetingDetailView shows real transcript segments     | No "Alex Demo" / "Sarah Sync" mock data                            |
+| 5   | MeetingListView groups meetings by actual date       | No `slice(0,3)` grouping                                           |
+| 6   | Type in NoteEditor → wait 2s                         | Note auto-saved to SQLite via `note:update`                        |
+| 7   | Press Cmd+Enter in NoteEditor                        | AI expansion appears (or graceful fallback if no Ollama)           |
+| 8   | Press Ctrl+Z after expansion                         | Entire AI block removed in **one** keystroke                       |
+| 9   | Start audio capture → speak                          | Transcript segments appear in TranscriptPanel                      |
+| 10  | Stop Meeting                                         | Duration calculated, digest section appears                        |
+| 11  | Cmd+K → type search query                            | Results from FTS5 appear                                           |
+| 12  | Onboarding flow completes end-to-end                 | Auth → model download → recovery key → plan → ghost meeting        |
+| 13  | Recovery key displays real BIP39 words               | Not mock array `['abandon', 'ability', ...]`                       |
+| 14  | Check SyncManager output                             | Embedding data present in Memory payload                           |
+| 15  | Open Settings                                        | All settings load/save correctly                                   |
+| 16  | Inspect `preload.ts` `send()`                        | Generic channel restricted to allowlist                            |
+| 17  | 30-minute simulated meeting                          | No memory leaks, RAM < 200MB                                       |
+| 18  | Click AI-badged note → transcript highlights         | Source segments pulse violet (bidirectional highlighting)          |
+| 19  | SmartChip entity chips display                       | People (blue), dates (green), amounts (orange), actions (red)      |
+| 20  | Cmd+Shift+K opens GlobalContextBar                   | Cross-meeting semantic search returns results                      |
+| 21  | Cmd+Shift+M opens MiniWidget                         | Floating pip shows recording timer + last transcript line          |
+| 22  | LLM loads on Cmd+Enter, unloads after 60s idle       | Monitor Ollama process: loaded → unloaded                          |
+| 23  | Pro user: note expansion uses Context Sessions API   | Check network tab for `/api/v1/context/sessions` call              |
+| 24  | 3rd device login → Device Wall                       | Wall shows with upgrade prompt                                     |
+| 25  | 51st AI query → silent local fallback                | No error, badge shows "Local mode", Qwen answers locally           |

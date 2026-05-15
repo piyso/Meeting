@@ -37,6 +37,7 @@ const widgetAPI = {
     triggerBookmark: () => ipcRenderer.invoke('widget:triggerBookmark'),
     triggerPauseToggle: () => ipcRenderer.invoke('widget:triggerPauseToggle'),
     submitQuickNote: (note: string) => ipcRenderer.invoke('widget:submitQuickNote', note),
+    triggerStartCapture: () => ipcRenderer.invoke('widget:triggerStartCapture'),
   },
 
   // ============================================================================
@@ -51,6 +52,7 @@ const widgetAPI = {
   // ============================================================================
   on: {
     widgetStateUpdated: createEventListener('widget:stateUpdated'),
+    spatialHandoff: createEventListener('widget:spatialHandoff'),
   },
 
   // ============================================================================

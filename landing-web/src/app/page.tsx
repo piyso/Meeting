@@ -7,7 +7,7 @@ import {
   ArrowRight,
   CheckCircle,
   EyeOff,
-  PenLine,
+
   Search,
   Cpu,
   Check,
@@ -72,7 +72,7 @@ export default function Home() {
   const engineTextRef = useRef<HTMLParagraphElement>(null)
 
   const typedText = useTypingAnimation(
-    'sarah will finalize graphql payload... blocker is devops staging lambda... target shifted to friday eod',
+    'agent system initialized... ambient context ingestion active... synthesizing autonomous workflow graph...',
     25,
     engineTextRef
   )
@@ -93,36 +93,34 @@ export default function Home() {
     return () => window.removeEventListener('keydown', handleKeyDown)
   }, [])
 
-
-
   const roles = [
     {
-      id: 'founders',
-      label: 'Founders',
-      title: 'Investor Commitments & Hiring Actions',
-      desc: "BlueArkive listens to your pitch and automatically organizes 'soft yesses', stated check sizes, and follow-up materials requested by partners.",
-      pre: '+ Investor: Sequoia (Partner Meeting)\n  - Expressed interest: $2M allocation\n  - Action: Send updated ARR projection model by EOD',
+      id: 'knowledge-workers',
+      label: 'Knowledge Workers',
+      title: 'Continuous Cognitive Synthesis',
+      desc: 'The Sovereign Memory Fabric autonomously monitors context, synthesizing fragmented data streams into unified, queryable knowledge graphs.',
+      pre: '+ Agent: Knowledge Graph Compiler\n  - Action: Synthesize Q3 roadmap\n  - Result: 14 dependencies resolved automatically',
     },
     {
       id: 'engineers',
       label: 'Engineers',
-      title: 'Architecture Decisions & Jira Tickets',
-      desc: 'Never write another ticket. BlueArkive converts standups into actionable engineering tasks, documenting PR blockers and API payload changes.',
-      pre: '+ Epic: Migration to GraphQL\n  - Decision: Use Apollo Federation (approved by Sarah)\n  - Blocker: Staging DB credentials taking too long',
+      title: 'Autonomous System Architecture',
+      desc: 'Never write a ticket again. The fabric converts technical discussions into actionable engineering epics, generating PRs and resolving blockers.',
+      pre: '+ Agent: Architecture Synthesizer\n  - Decision: Migrate to Rust microservices\n  - Action: Generate boilerplate & open PR',
     },
     {
-      id: 'sales',
-      label: 'Sales',
-      title: 'BANT Qualification & Objections',
-      desc: 'BlueArkive listens to discovery calls and fills out Budget, Authority, Need, and Timeline directly, logging specific competitor mentions.',
-      pre: '+ Lead: Acme Corp (Enterprise)\n  - Budget: $150k approved in Q3\n  - Objection: Security review turnaround time',
+      id: 'executives',
+      label: 'Executives',
+      title: 'Strategic Pattern Recognition',
+      desc: 'Ambient intelligence that connects the dots across the enterprise. Detects market shifts and internal friction points before they materialize.',
+      pre: '+ Agent: Strategic Analyzer\n  - Insight: 40% increase in security objections\n  - Action: Generate new compliance battlecard',
     },
     {
-      id: 'product',
-      label: 'Product',
-      title: 'User Friction & Feature Requests',
-      desc: 'Turn user interviews into a structured database. BlueArkive flags emotional friction points and maps feature requests to existing epics.',
-      pre: '+ Interview: Beta User 042\n  - Friction: Onboarding tooltips feel overwhelming\n  - Request: Ability to export metrics to CSV (High Priority)',
+      id: 'researchers',
+      label: 'Researchers',
+      title: 'Infinite Context Windows',
+      desc: 'Process thousands of papers instantly. The fabric cross-references methodologies and generates novel hypotheses based on semantic overlap.',
+      pre: '+ Agent: Hypothesis Generator\n  - Finding: Overlap in 3 recent neural architecture papers\n  - Output: Synthesized proposal for new attention mechanism',
     },
   ]
 
@@ -142,8 +140,8 @@ export default function Home() {
       {/* ═══ NAV ═══ */}
       <nav className={`hero-nav ${scrolled ? 'scrolled' : ''}`} id="main-nav">
         <a href="#hero" className="nav-logo">
-          <Image src="/logo.svg" alt="BlueArkive Logo" width={32} height={32} />
-          BlueArkive
+          <Image src="/logo.svg" alt="Sovereign Logo" width={32} height={32} />
+          Sovereign
         </a>
         <div className="nav-links">
           <a href="#features">Architecture</a>
@@ -228,9 +226,9 @@ export default function Home() {
           </div>
 
           <h1>
-            Your meetings.
+            The Sovereign
             <br />
-            <em>Perfectly remembered.</em>
+            <em>Memory Fabric.</em>
           </h1>
 
           <p
@@ -242,26 +240,23 @@ export default function Home() {
               color: 'rgba(200,220,255,0.6)',
             }}
           >
-            The Sovereign Memory Fabric.
+            Constructing the autonomous agentic web.
           </p>
 
           <p className="hero-sub">
-            Private AI meeting notes that run 100% locally on your machine. No creepy bots joining
-            your calls. No cloud servers. No monthly fees.
+            Infinite recall, zero dependencies. 100% offline inference with zero external telemetry.
+            The foundational cognitive substrate for on-device autonomous agents.
           </p>
 
           <div className="hero-actions">
-            <a
-              href="/apply"
-              className="btn-primary liquid-glass-strong"
-            >
+            <a href="/apply" className="btn-primary liquid-glass-strong">
               <span className="icon-circle">
                 <Sparkles style={{ width: 14, height: 14 }} />
               </span>
-              Request Early Access
+              Initialize Node
             </a>
             <a href="#features" className="btn-secondary">
-              See How It Works
+              Explore Substrate
               <ArrowRight style={{ width: 16, height: 16 }} />
             </a>
           </div>
@@ -302,11 +297,11 @@ export default function Home() {
         <motion.div
           initial="hidden"
           whileInView="visible"
-          viewport={{ once: true, margin: "-10% 0px" }}
+          viewport={{ once: true, margin: '-10% 0px' }}
           variants={fadeUp}
         >
-          <p className="section-label">BlueArkive Inference Engine</p>
-          <h2 className="section-title">You type:</h2>
+          <p className="section-label">Sovereign Inference Engine</p>
+          <h2 className="section-title">Ambient Context Stream:</h2>
 
           <div className="engine-demo liquid-glass-strong">
             <div
@@ -356,7 +351,7 @@ export default function Home() {
                         gap: '6px',
                       }}
                     >
-                      <CheckCircle style={{ width: 14, height: 14 }} /> Extracted Action Items
+                      <CheckCircle style={{ width: 14, height: 14 }} /> Autonomous Action Generated
                     </h4>
                     <ul
                       style={{
@@ -369,15 +364,16 @@ export default function Home() {
                       }}
                     >
                       <li>
-                        <strong style={{ color: 'white' }}>Sarah:</strong> Finalize GraphQL payload
+                        <strong style={{ color: 'white' }}>Node Alpha:</strong> Extracted critical
+                        dependencies
                       </li>
-                      <li style={{ color: 'rgba(255,180,180,1)' }}>
-                        <strong style={{ color: 'white' }}>DevOps:</strong> Unblock staging lambda
-                        (Blocker)
+                      <li style={{ color: 'rgba(180,255,180,1)' }}>
+                        <strong style={{ color: 'white' }}>Workflow:</strong> Auto-generating
+                        architectural schematics
                       </li>
                       <li>
-                        <strong style={{ color: 'white' }}>Timeline:</strong> Target shifted to
-                        Friday EOD
+                        <strong style={{ color: 'white' }}>Status:</strong> Compiled and locked in
+                        local memory enclave
                       </li>
                     </ul>
                   </motion.div>
@@ -406,12 +402,12 @@ export default function Home() {
         <motion.div
           initial="hidden"
           whileInView="visible"
-          viewport={{ once: true, margin: "-10% 0px" }}
+          viewport={{ once: true, margin: '-10% 0px' }}
           variants={fadeUp}
         >
           <p className="section-label">Built for how you work.</p>
           <h2 className="section-title">
-            BlueArkive adapts its inference engine
+            The Sovereign Fabric adapts its inference engine
             <br />
             to your role, extracting exactly
             <br />
@@ -453,7 +449,7 @@ export default function Home() {
         <motion.div
           initial="hidden"
           whileInView="visible"
-          viewport={{ once: true, margin: "-10% 0px" }}
+          viewport={{ once: true, margin: '-10% 0px' }}
           variants={fadeUp}
         >
           <h2 className="section-title">
@@ -473,96 +469,77 @@ export default function Home() {
         <div className="features-grid">
           {[
             {
-              icon: EyeOff,
-              title: 'Your Invisible Scribe',
-              heading: 'Focus on the conversation.',
-              desc: 'Records your Zoom, Google Meet, or Teams calls silently in the background. No creepy bots joining your meetings. No complicated setup. It just works.',
-              bullets: [
-                'Works instantly with all meeting apps',
-                'Transcribes everything as it happens',
-                'Zero lag, completely free forever',
-              ],
-              tip: '💡 Try this: Join a meeting. It automatically starts preserving context.',
-            },
-            {
-              icon: PenLine,
-              title: 'Your Decision Timeline',
-              heading: 'Jot a thought. Write a chapter.',
-              desc: "Type a rough bullet like 'follow up on budget'. Press ⌘+Enter. BlueArkive reads the transcript and instantly expands your shorthand into a perfect summary.",
-              bullets: [
-                'Natural language expansion',
-                'Auto-assigns action items',
-                'Context-aware formatting',
-              ],
-              tip: '💡 Try this: Document an "Action Item" and watch it auto-assign.',
+              icon: Cpu,
+              title: 'Cognitive Substrate',
+              desc: '100% local inference. Absolute neural independence.',
+              hoverClass: 'group-hover:border-emerald-500/30 group-hover:bg-emerald-500/10 group-hover:shadow-[0_0_20px_rgba(16,185,129,0.15)]',
+              iconHover: 'group-hover:text-emerald-400',
+              textHover: 'group-hover:text-emerald-300'
             },
             {
               icon: Search,
-              title: 'Semantic Magic',
-              heading: 'Find anything instantly.',
-              desc: 'Press ⌘+K anywhere to search your entire history by meaning, not just exact keywords. Ask "what was the marketing budget?" — we\'ll find the exact moment.',
-              bullets: [
-                'Meaning-based, not keyword-based',
-                'Cross-meeting search',
-                'Instant results',
-              ],
-              tip: '💡 Try this: Search "pipeline blockers from yesterday".',
+              title: 'Infinite Recall',
+              desc: 'Seamless ambient capture. Retrieve any thought instantly.',
+              hoverClass: 'group-hover:border-blue-500/30 group-hover:bg-blue-500/10 group-hover:shadow-[0_0_20px_rgba(59,130,246,0.15)]',
+              iconHover: 'group-hover:text-blue-400',
+              textHover: 'group-hover:text-blue-300'
+            },
+            {
+              icon: Sparkles,
+              title: 'Agentic Action',
+              desc: 'Proactive autonomy. Execute complex workflows entirely on-device.',
+              hoverClass: 'group-hover:border-amber-500/30 group-hover:bg-amber-500/10 group-hover:shadow-[0_0_20px_rgba(245,158,11,0.15)]',
+              iconHover: 'group-hover:text-amber-400',
+              textHover: 'group-hover:text-amber-300'
             },
           ].map((feature, i) => (
             <motion.div
               key={i}
               initial="hidden"
               whileInView="visible"
-              viewport={{ once: true, margin: "-10%" }}
+              viewport={{ once: true, margin: '-10%' }}
               variants={{
                 hidden: { opacity: 0, y: 30 },
                 visible: { opacity: 1, y: 0, transition: { duration: 0.8, delay: i * 0.1 } },
               }}
-              className="feature-card liquid-glass"
+              className="feature-card liquid-glass group flex flex-col items-center text-center !p-12 transition-all duration-700 hover:bg-white/[0.04] hover:shadow-2xl hover:border-white/10 hover:-translate-y-2"
             >
-              <div className="icon-wrap">
-                <feature.icon style={{ width: 22, height: 22 }} />
+              <div className={`icon-wrap mb-6 flex items-center justify-center w-16 h-16 rounded-2xl border border-white/5 bg-white/[0.02] shadow-[inset_0_1px_0_rgba(255,255,255,0.1)] transition-all duration-500 group-hover:scale-110 group-hover:-translate-y-1 ${feature.hoverClass}`}>
+                <feature.icon className={`w-7 h-7 text-slate-300 transition-colors duration-500 ${feature.iconHover}`} />
               </div>
-              <h3>{feature.title}</h3>
-              <h2>{feature.heading}</h2>
-              <p>{feature.desc}</p>
-              <ul>
-                {feature.bullets.map(b => (
-                  <li key={b}>{b}</li>
-                ))}
-              </ul>
-              <p className="tip">{feature.tip}</p>
+              <h3 className={`text-[0.8rem] font-bold tracking-[0.2em] uppercase text-slate-400 mb-4 transition-colors duration-500 ${feature.textHover}`}>{feature.title}</h3>
+              <p className="text-[1.05rem] text-slate-300 font-light leading-relaxed max-w-[280px]">
+                {feature.desc}
+              </p>
             </motion.div>
           ))}
 
           <motion.div
             initial="hidden"
             whileInView="visible"
-            viewport={{ once: true, margin: "-10% 0px" }}
+            viewport={{ once: true, margin: '-10% 0px' }}
             variants={{
               hidden: { opacity: 0, y: 30 },
               visible: { opacity: 1, y: 0, transition: { duration: 0.8, delay: 0.3 } },
             }}
-            className="feature-card liquid-glass"
+            className="feature-card liquid-glass group flex flex-col items-center text-center !p-12 md:col-span-1 lg:col-span-3 transition-all duration-700 hover:bg-white/[0.04] hover:shadow-2xl hover:border-white/10 hover:-translate-y-2"
           >
-            <div className="icon-wrap">
-              <Cpu style={{ width: 22, height: 22 }} />
+            <div className="icon-wrap mb-6 flex items-center justify-center w-16 h-16 rounded-2xl border border-white/5 bg-white/[0.02] shadow-[inset_0_1px_0_rgba(255,255,255,0.1)] transition-all duration-500 group-hover:scale-110 group-hover:-translate-y-1 group-hover:border-purple-500/30 group-hover:bg-purple-500/10 group-hover:shadow-[0_0_20px_rgba(168,85,247,0.15)]">
+              <EyeOff className="w-7 h-7 text-slate-300 transition-colors duration-500 group-hover:text-purple-400" />
             </div>
-            <h3>Sovereign Foundation</h3>
-            <h2>Your hardware. Your intelligence.</h2>
-            <p>
-              BlueArkive runs beautifully on Mac, Windows, and Linux. Because it uses your own
-              computer, the entire product is completely free — forever.
+            <h3 className="text-[0.8rem] font-bold tracking-[0.2em] uppercase text-slate-400 mb-4 transition-colors duration-500 group-hover:text-purple-300">Data Sovereignty</h3>
+            <p className="text-[1.05rem] text-slate-300 font-light leading-relaxed max-w-[500px] mx-auto">
+              Cryptographic finality. Inexorably bound to your hardware enclave.
             </p>
-            <div className="platform-grid" style={{ marginTop: '1.25rem' }}>
+            <div className="flex flex-wrap justify-center gap-4 mt-8 w-full max-w-[600px] mx-auto">
               {[
-                { os: 'macOS', desc: 'Apple Silicon & Intel' },
-                { os: 'Windows', desc: 'x64 Installer & Portable' },
-                { os: 'Linux', desc: 'AppImage, .deb, .rpm' },
+                { os: 'macOS', desc: 'Secure Enclave' },
+                { os: 'Windows', desc: 'TPM 2.0' },
+                { os: 'Linux', desc: 'LUKS' },
               ].map(p => (
-                <div key={p.os} className="platform-card liquid-glass">
-                  <h3>{p.os}</h3>
-                  <p>{p.desc}</p>
+                <div key={p.os} className="flex-1 min-w-[140px] py-4 px-6 rounded-2xl border border-white/5 bg-white/[0.01] hover:bg-white/[0.03] transition-colors duration-300">
+                  <h4 className="text-[0.7rem] font-bold tracking-[0.2em] text-slate-500 uppercase mb-2">{p.os}</h4>
+                  <p className="text-[0.95rem] text-slate-300 font-medium">{p.desc}</p>
                 </div>
               ))}
             </div>
@@ -575,7 +552,7 @@ export default function Home() {
         <motion.div
           initial="hidden"
           whileInView="visible"
-          viewport={{ once: true, margin: "-10% 0px" }}
+          viewport={{ once: true, margin: '-10% 0px' }}
           variants={fadeUp}
         >
           <p className="section-label">Sovereignty over your context.</p>
@@ -603,8 +580,8 @@ export default function Home() {
               <thead>
                 <tr>
                   <th></th>
-                  <th>BlueArkive (Safe)</th>
-                  <th>Cloud Note-Takers (Risky)</th>
+                  <th>Sovereign Fabric (Safe)</th>
+                  <th>Cloud AI (Risky)</th>
                 </tr>
               </thead>
               <tbody>
@@ -717,7 +694,7 @@ export default function Home() {
         <motion.div
           initial="hidden"
           whileInView="visible"
-          viewport={{ once: true, margin: "-10% 0px" }}
+          viewport={{ once: true, margin: '-10% 0px' }}
           variants={fadeUp}
         >
           <p className="section-label">Claim your sovereign node.</p>
@@ -777,14 +754,14 @@ export default function Home() {
         <motion.div
           initial="hidden"
           whileInView="visible"
-          viewport={{ once: true, margin: "-10% 0px" }}
+          viewport={{ once: true, margin: '-10% 0px' }}
           variants={fadeUp}
           style={{ textAlign: 'center' }}
         >
           <h2 className="section-title">
-            Get <em>BlueArkive.</em>
+            Initialize <em>Sovereign.</em>
           </h2>
-          <p className="section-desc centered">Free. Private. No cloud. Yours forever.</p>
+          <p className="section-desc centered">Autonomous. Private. No cloud. Yours forever.</p>
           <p
             style={{
               textAlign: 'center',
@@ -795,8 +772,8 @@ export default function Home() {
               margin: '0.75rem auto 0',
             }}
           >
-            We&apos;re onboarding early adopters in waves. Submit a quick request and we&apos;ll send
-            you a private download link within 24 hours.
+            The cognitive network is expanding. Submit your request for node activation, and our
+            system will provision your local installer within 24 hours.
           </p>
 
           <a
@@ -859,8 +836,8 @@ export default function Home() {
         <div className="footer-inner">
           <div className="footer-brand">
             <a href="#hero" className="nav-logo" style={{ fontSize: '1.25rem' }}>
-              <Image src="/logo.svg" alt="BlueArkive Logo" width={24} height={24} />
-              BlueArkive
+              <Image src="/logo.svg" alt="Sovereign Logo" width={24} height={24} />
+              Sovereign
             </a>
             <p>The sovereign memory fabric.</p>
           </div>
@@ -897,7 +874,7 @@ export default function Home() {
             <span className="footer-badge liquid-glass">100% Offline</span>
             <span className="footer-badge liquid-glass">No Account Required</span>
           </div>
-          <p className="footer-copy">© 2026 BlueArkive. All rights reserved.</p>
+          <p className="footer-copy">© 2026 Sovereign. All rights reserved.</p>
         </div>
       </footer>
     </main>

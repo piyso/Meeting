@@ -96,45 +96,38 @@ export const PricingView: React.FC<{ onPlanSelect?: (plan: string) => void }> = 
 
   return (
     <div className="w-full flex flex-col items-center p-4 overflow-y-auto sovereign-scrollbar">
-      {/* Currency Toggle */}
-      <div className="flex items-center gap-2 mb-8 bg-[var(--color-bg-elevated)] p-1 rounded-full border border-[var(--color-border-subtle)] animate-fade-in">
+      <div className="flex items-center gap-1 mb-12 bg-white/[0.02] p-1.5 rounded-full border border-white/5 backdrop-blur-md shadow-[inset_0_1px_0_rgba(255,255,255,0.05),0_4px_24px_rgba(0,0,0,0.3)] animate-fade-in">
         <button
           onClick={() => setCurrency('USD')}
-          className={`px-4 py-1.5 rounded-full text-sm font-medium transition-all ${currency === 'USD' ? 'bg-[var(--color-violet)] text-white shadow-sm' : 'text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)]'}`}
+          className={`px-6 py-2 rounded-full text-[0.8rem] tracking-widest uppercase font-bold transition-all duration-500 ${currency === 'USD' ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 shadow-[inset_0_1px_0_rgba(255,255,255,0.1),0_0_20px_rgba(16,185,129,0.2)]' : 'text-slate-400 hover:text-slate-200 border border-transparent'}`}
         >
           USD ($)
         </button>
         <button
           onClick={() => setCurrency('INR')}
-          className={`px-4 py-1.5 rounded-full text-sm font-medium transition-all ${currency === 'INR' ? 'bg-[var(--color-violet)] text-white shadow-sm' : 'text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)]'}`}
+          className={`px-6 py-2 rounded-full text-[0.8rem] tracking-widest uppercase font-bold transition-all duration-500 ${currency === 'INR' ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 shadow-[inset_0_1px_0_rgba(255,255,255,0.1),0_0_20px_rgba(16,185,129,0.2)]' : 'text-slate-400 hover:text-slate-200 border border-transparent'}`}
         >
           INR (₹)
         </button>
       </div>
 
-      {/* Cards Layout - 3 on top, 2 wider on bottom */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-6 gap-4 w-full max-w-5xl pb-10">
+      {/* Cards Layout */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 w-full max-w-5xl px-4 pb-10 mt-6 items-stretch">
         {tiers.map((t, i) => {
-          // Calculate grid boundaries based on index
-          // 0: Free (col 1-2), 1: Starter (col 3-4), 2: Pro (col 5-6)
-          // 3: Team (col 2-4), 4: Enterprise (col 4-6)
           let gridClass = ''
-          if (i === 0) gridClass = 'lg:col-span-2'
-          if (i === 1) gridClass = 'lg:col-span-2'
-          if (i === 2) gridClass = 'lg:col-span-2 transform lg:-translate-y-2' // Elevate recommended tier
-          if (i === 3) gridClass = 'lg:col-span-3 lg:col-start-1 mt-4'
-          if (i === 4) gridClass = 'lg:col-span-3 lg:col-start-4 mt-4'
+          // Elevate recommended tier physically with padding/margin adjustment
+          if (t.recommended) gridClass = 'md:-mt-6 md:mb-6 z-10'
 
           return (
             <div
               key={i}
               className={`
-              rounded-2xl p-6 flex flex-col relative transition-all duration-300 hover:scale-[1.02]
-              bg-[var(--color-bg-glass)] border 
+              group rounded-[2rem] p-8 lg:p-10 flex flex-col relative transition-all duration-700 hover:-translate-y-2
+              backdrop-blur-xl h-full
               ${
                 t.recommended
-                  ? 'border-[var(--color-violet)] shadow-[0_8px_32px_rgba(167,139,250,0.15)] bg-slate-900/40 z-10'
-                  : 'border-white/10 hover:border-white/20 shadow-lg'
+                  ? 'border border-emerald-500/40 shadow-[inset_0_1px_0_rgba(255,255,255,0.1),0_0_40px_rgba(16,185,129,0.15)] bg-emerald-500/[0.03] hover:border-emerald-400/60 hover:shadow-[inset_0_1px_0_rgba(255,255,255,0.2),0_20px_60px_-15px_rgba(16,185,129,0.3)] hover:bg-emerald-500/[0.06]'
+                  : 'border border-white/5 bg-white/[0.02] shadow-[inset_0_1px_0_rgba(255,255,255,0.05),0_0_30px_rgba(0,0,0,0.3)] hover:border-white/15 hover:shadow-[inset_0_1px_0_rgba(255,255,255,0.1),0_20px_40px_-15px_rgba(0,0,0,0.5)] hover:bg-white/[0.04]'
               }
               animate-slide-up
               ${gridClass}
@@ -142,27 +135,29 @@ export const PricingView: React.FC<{ onPlanSelect?: (plan: string) => void }> = 
               style={{ animationDelay: `${i * 80}ms`, animationFillMode: 'both' }}
             >
               {t.recommended && (
-                <div className="absolute -top-3 left-1/2 -translate-x-1/2 px-3 py-1 bg-gradient-to-r from-violet-500 to-fuchsia-500 text-white text-[10px] font-bold uppercase tracking-widest rounded-full shadow-md whitespace-nowrap">
-                  ⭐ Recommended
+                <div className="absolute -top-4 left-1/2 -translate-x-1/2 px-6 py-1.5 border border-emerald-500/40 bg-emerald-950/80 text-emerald-300 text-[0.65rem] font-bold uppercase tracking-widest rounded-full shadow-[0_0_20px_rgba(16,185,129,0.3)] whitespace-nowrap backdrop-blur-xl z-20">
+                  Optimal Capacity
                 </div>
               )}
 
-              <h3 className="text-base font-semibold text-slate-200 mb-2">{t.name}</h3>
+              <h3 className="text-[0.75rem] font-bold tracking-[0.2em] uppercase text-slate-400 mb-3 transition-colors duration-500 group-hover:text-slate-200">{t.name}</h3>
 
-              <div className="mb-4 border-b border-white/10 pb-4 flex items-baseline">
-                <span className="text-3xl font-bold text-white tracking-tight">
+              <div className="mb-8 border-b border-white/10 pb-6 flex items-end">
+                <span className={`text-[2.75rem] leading-none font-extralight tracking-tight transition-colors duration-500 ${t.recommended ? 'text-emerald-300' : 'text-white group-hover:text-emerald-300'}`}>
                   {currency === 'INR' && t.priceINR ? t.priceINR : t.price}
                 </span>
-                <span className="text-sm text-slate-400 ml-1.5 font-medium">{t.period}</span>
+                <span className="text-[0.7rem] tracking-widest uppercase text-slate-500 ml-2 mb-1.5 font-medium">/ {t.period}</span>
               </div>
 
-              <ul className="space-y-3 flex-1 mb-6">
+              <ul className="space-y-4 flex-1 mb-8">
                 {t.features.map((f: string, j: number) => (
                   <li
                     key={j}
-                    className="flex gap-2.5 items-start text-sm text-slate-300 leading-tight"
+                    className="flex gap-4 items-start text-[0.95rem] text-slate-300 font-light leading-snug transition-colors duration-500 group-hover:text-slate-200"
                   >
-                    <Check size={14} className="mt-0.5 shrink-0 text-violet-400" />
+                    <div className={`mt-0.5 shrink-0 flex items-center justify-center w-5 h-5 rounded-full border transition-all duration-500 ${t.recommended ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-400' : 'border-white/10 bg-white/5 text-slate-400 group-hover:border-emerald-500/30 group-hover:bg-emerald-500/10 group-hover:text-emerald-400'}`}>
+                      <Check size={12} strokeWidth={2.5} />
+                    </div>
                     <span>{f}</span>
                   </li>
                 ))}
@@ -170,9 +165,11 @@ export const PricingView: React.FC<{ onPlanSelect?: (plan: string) => void }> = 
 
               <Button
                 variant={t.variant}
-                className={`w-full shadow-sm py-4 rounded-xl font-medium tracking-wide ${
-                  t.recommended ? 'bg-violet-600 hover:bg-violet-500 text-white border-none' : ''
-                } ${t.variant === 'ghost' ? 'bg-white/5 hover:bg-white/10 text-white border-white/10' : ''}`}
+                className={`w-full py-4 mt-auto rounded-2xl font-bold tracking-[0.15em] uppercase text-[0.7rem] transition-all duration-500 ${
+                  t.recommended 
+                    ? 'bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 shadow-[0_0_20px_rgba(16,185,129,0.15)] hover:shadow-[0_0_30px_rgba(16,185,129,0.3)]' 
+                    : 'bg-white/5 hover:bg-white/10 text-slate-300 border border-white/10 hover:border-white/20'
+                }`}
                 onClick={() => onPlanSelect?.(t.name)}
               >
                 {t.cta}

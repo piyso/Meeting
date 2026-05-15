@@ -26,45 +26,49 @@ type ThemeName = 'monochrome' | 'ocean' | 'neon' | 'emerald'
 
 const THEMES = {
   monochrome: {
-    aurora: 'radial-gradient(circle at 20% 20%, rgba(255, 255, 255, 0.05) 0%, transparent 55%), radial-gradient(circle at 80% 80%, rgba(255, 255, 255, 0.03) 0%, transparent 55%), radial-gradient(circle at 50% 50%, rgba(255, 255, 255, 0.02) 0%, transparent 65%)',
+    aurora:
+      'radial-gradient(circle at 20% 20%, rgba(255, 255, 255, 0.05) 0%, transparent 55%), radial-gradient(circle at 80% 80%, rgba(255, 255, 255, 0.03) 0%, transparent 55%), radial-gradient(circle at 50% 50%, rgba(255, 255, 255, 0.02) 0%, transparent 65%)',
     viz: 'rgba(255,255,255,0.95)',
     vizShadow: '0 0 10px rgba(255,255,255,0.5)',
     chipBg: 'bg-white/[0.04]',
     chipBorder: 'border-white/[0.08]',
     chipIcon: 'text-white/50',
     chipText: 'text-white/80',
-    pickerBg: 'bg-white'
+    pickerBg: 'bg-white',
   },
   ocean: {
-    aurora: 'radial-gradient(circle at 20% 20%, rgba(59, 130, 246, 0.18) 0%, transparent 55%), radial-gradient(circle at 80% 80%, rgba(56, 189, 248, 0.15) 0%, transparent 55%), radial-gradient(circle at 50% 50%, rgba(96, 165, 250, 0.12) 0%, transparent 65%)',
+    aurora:
+      'radial-gradient(circle at 20% 20%, rgba(59, 130, 246, 0.18) 0%, transparent 55%), radial-gradient(circle at 80% 80%, rgba(56, 189, 248, 0.15) 0%, transparent 55%), radial-gradient(circle at 50% 50%, rgba(96, 165, 250, 0.12) 0%, transparent 65%)',
     viz: '#38bdf8',
     vizShadow: '0 0 10px rgba(56, 189, 248, 0.6)',
     chipBg: 'bg-blue-500/10',
     chipBorder: 'border-blue-500/20',
     chipIcon: 'text-blue-400',
     chipText: 'text-blue-100',
-    pickerBg: 'bg-sky-400'
+    pickerBg: 'bg-sky-400',
   },
   neon: {
-    aurora: 'radial-gradient(circle at 20% 20%, rgba(167, 139, 250, 0.15) 0%, transparent 50%), radial-gradient(circle at 80% 80%, rgba(244, 63, 94, 0.12) 0%, transparent 50%), radial-gradient(circle at 50% 50%, rgba(56, 189, 248, 0.08) 0%, transparent 60%)',
+    aurora:
+      'radial-gradient(circle at 20% 20%, rgba(167, 139, 250, 0.15) 0%, transparent 50%), radial-gradient(circle at 80% 80%, rgba(244, 63, 94, 0.12) 0%, transparent 50%), radial-gradient(circle at 50% 50%, rgba(56, 189, 248, 0.08) 0%, transparent 60%)',
     viz: '#a78bfa',
     vizShadow: '0 0 10px rgba(167, 139, 250, 0.6)',
     chipBg: 'bg-fuchsia-500/10',
     chipBorder: 'border-fuchsia-500/20',
     chipIcon: 'text-fuchsia-400',
     chipText: 'text-fuchsia-100',
-    pickerBg: 'bg-fuchsia-400'
+    pickerBg: 'bg-fuchsia-400',
   },
   emerald: {
-    aurora: 'radial-gradient(circle at 20% 20%, rgba(16, 185, 129, 0.15) 0%, transparent 50%), radial-gradient(circle at 80% 80%, rgba(52, 211, 153, 0.12) 0%, transparent 50%), radial-gradient(circle at 50% 50%, rgba(110, 231, 183, 0.08) 0%, transparent 60%)',
+    aurora:
+      'radial-gradient(circle at 20% 20%, rgba(16, 185, 129, 0.15) 0%, transparent 50%), radial-gradient(circle at 80% 80%, rgba(52, 211, 153, 0.12) 0%, transparent 50%), radial-gradient(circle at 50% 50%, rgba(110, 231, 183, 0.08) 0%, transparent 60%)',
     viz: '#34d399',
     vizShadow: '0 0 10px rgba(52, 211, 153, 0.6)',
     chipBg: 'bg-emerald-500/10',
     chipBorder: 'border-emerald-500/20',
     chipIcon: 'text-emerald-400',
     chipText: 'text-emerald-100',
-    pickerBg: 'bg-emerald-400'
-  }
+    pickerBg: 'bg-emerald-400',
+  },
 }
 
 interface MiniWidgetProps {
@@ -82,6 +86,7 @@ interface MiniWidgetProps {
   onBookmark: () => void
   onPauseToggle?: () => void
   onQuickNote: (text: string) => void
+  onStartCapture?: () => void
 }
 
 export const MiniWidget: React.FC<MiniWidgetProps> = ({
@@ -99,6 +104,7 @@ export const MiniWidget: React.FC<MiniWidgetProps> = ({
   onBookmark,
   onPauseToggle,
   onQuickNote,
+  onStartCapture,
 }) => {
   const [isNoteExpanded, setIsNoteExpanded] = useState(false)
   const [noteText, setNoteText] = useState('')
@@ -164,9 +170,6 @@ export const MiniWidget: React.FC<MiniWidgetProps> = ({
             ? '0 24px 80px -16px rgba(0,0,0,0.6), 0 0 60px -20px rgba(255,255,255,0.15), inset 0 1px 1px rgba(255,255,255,0.15)'
             : '0 24px 80px -16px rgba(0,0,0,0.6), inset 0 1px 1px rgba(255,255,255,0.12)',
       }}
-      onClick={e => {
-        if (!(e.target as HTMLElement).closest('button, input, form')) onRestore()
-      }}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
     >
@@ -181,7 +184,7 @@ export const MiniWidget: React.FC<MiniWidgetProps> = ({
         style={{
           background: THEMES[theme].aurora,
           backgroundSize: '250% 250%',
-          animation: 'widget-aurora 20s ease-in-out infinite'
+          animation: 'widget-aurora 20s ease-in-out infinite',
         }}
       />
 
@@ -194,24 +197,24 @@ export const MiniWidget: React.FC<MiniWidgetProps> = ({
             {isActive ? (
               <RecordingPulse />
             ) : (
-              <div className="w-2 h-2 rounded-full bg-white/80 shadow-[0_0_10px_rgba(255,255,255,0.6)] ml-1" />
+              <div className="w-2 h-2 rounded-full bg-white/40 shadow-[0_0_10px_rgba(255,255,255,0.2)] ml-1" />
             )}
             <span
               className={`font-mono text-[13px] font-semibold tracking-wider ${
-                isPaused ? 'text-white/50' : 'text-white/90'
+                isPaused ? 'text-white/50' : isActive ? 'text-white/90' : 'text-white/40'
               }`}
               style={{
                 fontVariantNumeric: 'tabular-nums',
                 textShadow: isRecording && !isPaused ? 'none' : '0 1px 3px rgba(0,0,0,0.8)',
               }}
             >
-              {isPaused ? 'PAUSED' : elapsedTime}
+              {isPaused ? 'PAUSED' : isActive ? elapsedTime : 'SOVEREIGN'}
             </span>
           </div>
 
           {/* Right: Floating Control Dock */}
           <div className="flex items-center gap-[3px] bg-black/50 backdrop-blur-xl rounded-full p-[3px] border border-white/[0.08] shadow-[inset_0_1px_2px_rgba(0,0,0,0.4)]">
-            {isActive && (
+            {isActive ? (
               <>
                 <DockButton
                   icon={<PenLine size={12} strokeWidth={2.5} />}
@@ -243,11 +246,35 @@ export const MiniWidget: React.FC<MiniWidgetProps> = ({
                   hoverColor="rose"
                 />
                 <div className="w-[1px] h-3.5 bg-white/[0.12] mx-[2px] rounded-full" />
+                <DockButton
+                  icon={<Maximize2 size={12} strokeWidth={2.5} />}
+                  onClick={onRestore}
+                  title="Open Sovereign App"
+                  hoverColor="emerald"
+                />
+                <div className="w-[1px] h-3.5 bg-white/[0.12] mx-[2px] rounded-full" />
+              </>
+            ) : (
+              <>
+                <DockButton
+                  icon={<div className="w-2.5 h-2.5 bg-rose-500 rounded-full" />}
+                  onClick={() => onStartCapture?.()}
+                  title={`Start Recording (${modKey}+Shift+Space)`}
+                  hoverColor="rose"
+                />
+                <div className="w-[1px] h-3.5 bg-white/[0.12] mx-[2px] rounded-full" />
+                <DockButton
+                  icon={<Maximize2 size={12} strokeWidth={2.5} />}
+                  onClick={onRestore}
+                  title="Open Sovereign App"
+                  hoverColor="emerald"
+                />
+                <div className="w-[1px] h-3.5 bg-white/[0.12] mx-[2px] rounded-full" />
               </>
             )}
 
             {showThemePicker && (
-              <motion.div 
+              <motion.div
                 initial={{ opacity: 0, width: 0 }}
                 animate={{ opacity: 1, width: 'auto' }}
                 className="flex items-center gap-[3px] pr-1 overflow-hidden"
@@ -255,7 +282,11 @@ export const MiniWidget: React.FC<MiniWidgetProps> = ({
                 {(Object.keys(THEMES) as ThemeName[]).map(t => (
                   <button
                     key={t}
-                    onClick={(e) => { e.stopPropagation(); setTheme(t); setShowThemePicker(false); }}
+                    onClick={e => {
+                      e.stopPropagation()
+                      setTheme(t)
+                      setShowThemePicker(false)
+                    }}
                     className={`w-[14px] h-[14px] rounded-full ${THEMES[t].pickerBg} widget-nodrag outline-none transition-all hover:scale-125 ${theme === t ? 'ring-2 ring-white/50 ring-offset-1 ring-offset-black' : 'opacity-40 hover:opacity-100'}`}
                     title={`Theme: ${t}`}
                   />
@@ -394,8 +425,20 @@ export const MiniWidget: React.FC<MiniWidgetProps> = ({
                         exit={{ opacity: 0, height: 0, marginTop: 0 }}
                         className="flex flex-wrap items-center gap-2"
                       >
-                        {entityCount > 0 && <Chip theme={theme} label={`${entityCount} Entities`} icon={<Tag size={10} />} />}
-                        {noteCount > 0 && <Chip theme={theme} label={`${noteCount} Notes`} icon={<StickyNote size={10} />} />}
+                        {entityCount > 0 && (
+                          <Chip
+                            theme={theme}
+                            label={`${entityCount} Entities`}
+                            icon={<Tag size={10} />}
+                          />
+                        )}
+                        {noteCount > 0 && (
+                          <Chip
+                            theme={theme}
+                            label={`${noteCount} Notes`}
+                            icon={<StickyNote size={10} />}
+                          />
+                        )}
                       </motion.div>
                     )}
                   </AnimatePresence>
@@ -419,11 +462,12 @@ const DockButton: React.FC<{
   onClick: () => void
   title: string
   active?: boolean
-  hoverColor?: 'violet' | 'rose'
+  hoverColor?: 'violet' | 'rose' | 'emerald'
 }> = ({ icon, onClick, title, active, hoverColor }) => {
   const hoverMap = {
     violet: 'hover:text-[var(--color-violet)] hover:bg-[var(--color-violet)]/15',
     rose: 'hover:text-[var(--color-rose)] hover:bg-[var(--color-rose)]/15',
+    emerald: 'hover:text-[var(--color-emerald)] hover:bg-[var(--color-emerald)]/15',
   }
   const hoverClass = hoverColor ? hoverMap[hoverColor] : 'hover:text-white hover:bg-white/10'
 
@@ -448,7 +492,11 @@ const DockButton: React.FC<{
 }
 
 /** Status chip — dynamically themed */
-const Chip: React.FC<{ theme: ThemeName; label: string; icon: React.ReactNode }> = ({ theme, label, icon }) => {
+const Chip: React.FC<{ theme: ThemeName; label: string; icon: React.ReactNode }> = ({
+  theme,
+  label,
+  icon,
+}) => {
   const c = THEMES[theme]
   return (
     <motion.div
@@ -457,7 +505,11 @@ const Chip: React.FC<{ theme: ThemeName; label: string; icon: React.ReactNode }>
       className={`flex items-center gap-1.5 ${c.chipBg} border ${c.chipBorder} px-2 py-[3px] rounded-full transition-colors duration-500`}
     >
       <span className={`${c.chipIcon} transition-colors duration-500`}>{icon}</span>
-      <span className={`text-[9.5px] ${c.chipText} font-bold tracking-[0.08em] uppercase drop-shadow-sm transition-colors duration-500`}>{label}</span>
+      <span
+        className={`text-[9.5px] ${c.chipText} font-bold tracking-[0.08em] uppercase drop-shadow-sm transition-colors duration-500`}
+      >
+        {label}
+      </span>
     </motion.div>
   )
 }

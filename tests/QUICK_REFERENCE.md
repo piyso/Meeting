@@ -11,6 +11,7 @@ npm test
 ## 📋 Test Checklist
 
 ### Before Test
+
 - [ ] Audio drivers updated
 - [ ] System volume >50%
 - [ ] Audio not muted
@@ -18,12 +19,14 @@ npm test
 - [ ] Other mic apps closed
 
 ### During Test
+
 - [ ] Click "Run Full Test"
 - [ ] Play YouTube audio
 - [ ] Keep audio playing 10s
 - [ ] Watch console output
 
 ### After Test
+
 - [ ] Click "Export Results"
 - [ ] Document in TEST_RESULTS.md
 - [ ] Take screenshots if failed
@@ -31,12 +34,12 @@ npm test
 
 ## ✅ Pass Criteria
 
-| Metric | Pass Value |
-|--------|------------|
-| Variance | > 0.0001 |
-| Max RMS | > 0.01 |
-| Audio Sources | ≥ 1 detected |
-| Byte Stream | Changing values |
+| Metric        | Pass Value      |
+| ------------- | --------------- |
+| Variance      | > 0.0001        |
+| Max RMS       | > 0.01          |
+| Audio Sources | ≥ 1 detected    |
+| Byte Stream   | Changing values |
 
 ## 🎯 Success Rate Target
 
@@ -45,16 +48,19 @@ npm test
 ## 🔧 Quick Fixes
 
 ### No Audio Sources?
+
 ```
 Settings → Sound → Recording → Show Disabled Devices → Enable Stereo Mix
 ```
 
 ### Permission Denied?
+
 ```
 Settings → Privacy → Microphone → Allow apps
 ```
 
 ### No Audio Detected?
+
 ```
 1. Check volume >50%
 2. Unmute audio
@@ -64,11 +70,11 @@ Settings → Privacy → Microphone → Allow apps
 
 ## 📊 Result Codes
 
-| Code | Meaning | Action |
-|------|---------|--------|
-| ✅ PASS | System audio works | Document & continue |
-| ⚠️ PARTIAL_PASS | Mic fallback works | Document fallback |
-| ❌ FAIL | No audio captured | Document failure mode |
+| Code            | Meaning            | Action                |
+| --------------- | ------------------ | --------------------- |
+| ✅ PASS         | System audio works | Document & continue   |
+| ⚠️ PARTIAL_PASS | Mic fallback works | Document fallback     |
+| ❌ FAIL         | No audio captured  | Document failure mode |
 
 ## 🖥️ Test Machines Needed
 
@@ -92,11 +98,11 @@ tests/results/
 
 ## ⌨️ Keyboard Shortcuts
 
-| Shortcut | Action |
-|----------|--------|
-| Ctrl+R | Run test |
-| Ctrl+E | Export results |
-| Ctrl+L | Clear output |
+| Shortcut | Action         |
+| -------- | -------------- |
+| Ctrl+R   | Run test       |
+| Ctrl+E   | Export results |
+| Ctrl+L   | Clear output   |
 
 ## 🆘 Emergency Contacts
 

@@ -1,182 +1,275 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>BlueArkive - Minimalist Masterpiece (A2)</title>
-    <link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700;800;900&family=Geist+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+    <link
+      href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700;800;900&family=Geist+Mono:wght@400;500;600&display=swap"
+      rel="stylesheet"
+    />
     <style>
-        /* ============================================================
+      /* ============================================================
            BlueArkive A2 — True Premium Minimalism (Apple/Stripe Grade)
            Zero AI gimmicks. Just perfect photography, math, and type.
            ============================================================ */
 
-        * { box-sizing: border-box; margin: 0; padding: 0; }
-        
-        :root {
-            --accent: #F59E0B; /* Strict single accent color */
-            --text-primary: #FFFFFF;
-            --text-secondary: rgba(255, 255, 255, 0.6);
-            --text-tertiary: rgba(255, 255, 255, 0.4);
-        }
+      * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
 
-        @page { size: A2 landscape; margin: 0; }
+      :root {
+        --accent: #f59e0b; /* Strict single accent color */
+        --text-primary: #ffffff;
+        --text-secondary: rgba(255, 255, 255, 0.6);
+        --text-tertiary: rgba(255, 255, 255, 0.4);
+      }
 
+      @page {
+        size: A2 landscape;
+        margin: 0;
+      }
+
+      body {
+        background-color: #000000;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        min-height: 100vh;
+        padding: 3rem;
+        font-family:
+          'Instrument Sans',
+          -apple-system,
+          sans-serif;
+        -webkit-font-smoothing: antialiased;
+      }
+
+      /* The Pure Canvas */
+      .poster {
+        width: 594mm;
+        height: 420mm;
+        position: relative;
+        overflow: hidden;
+        background-color: #050a10;
+        background-image: url('bg-master.png');
+        background-size: cover;
+        background-position: center right;
+        box-shadow: 0 40px 100px rgba(0, 0, 0, 0.8);
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+      }
+
+      @media print {
         body {
-            background-color: #000000;
-            display: flex; justify-content: center; align-items: center;
-            min-height: 100vh; padding: 3rem;
-            font-family: 'Instrument Sans', -apple-system, sans-serif;
-            -webkit-font-smoothing: antialiased;
+          padding: 0;
+          background: none;
         }
-
-        /* The Pure Canvas */
         .poster {
-            width: 594mm; height: 420mm;
-            position: relative; overflow: hidden;
-            background-color: #050A10;
-            background-image: url('bg-master.png');
-            background-size: cover;
-            background-position: center right;
-            box-shadow: 0 40px 100px rgba(0,0,0,0.8);
-            -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important;
+          box-shadow: none;
         }
+      }
 
-        @media print {
-            body { padding: 0; background: none; }
-            .poster { box-shadow: none; }
-        }
+      /* Subtle linear gradient just to ensure text readability on the left */
+      .text-protector {
+        position: absolute;
+        inset: 0;
+        background: linear-gradient(
+          to right,
+          rgba(2, 6, 15, 0.95) 0%,
+          rgba(2, 6, 15, 0.7) 45%,
+          transparent 100%
+        );
+        z-index: 1;
+        pointer-events: none;
+      }
 
-        /* Subtle linear gradient just to ensure text readability on the left */
-        .text-protector {
-            position: absolute; inset: 0;
-            background: linear-gradient(to right, rgba(2, 6, 15, 0.95) 0%, rgba(2, 6, 15, 0.7) 45%, transparent 100%);
-            z-index: 1; pointer-events: none;
-        }
+      /* Pure Grid Architecture */
+      .grid {
+        position: relative;
+        z-index: 10;
+        width: 100%;
+        height: 100%;
+        display: grid;
+        grid-template-columns: 55% 45%;
+      }
 
-        /* Pure Grid Architecture */
-        .grid {
-            position: relative; z-index: 10;
-            width: 100%; height: 100%;
-            display: grid; grid-template-columns: 55% 45%;
-        }
+      /* ─── LEFT: Typography as Art ─── */
+      .content-left {
+        padding: 40mm 0 40mm 50mm;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+      }
 
-        /* ─── LEFT: Typography as Art ─── */
-        .content-left {
-            padding: 40mm 0 40mm 50mm;
-            display: flex; flex-direction: column; justify-content: space-between;
-        }
+      .brand {
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        font-size: 18pt;
+        font-weight: 700;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+        color: var(--text-tertiary);
+      }
+      .brand-mark {
+        width: 12px;
+        height: 12px;
+        border-radius: 50%;
+        background: var(--text-tertiary);
+      }
 
-        .brand {
-            display: flex; align-items: center; gap: 14px;
-            font-size: 18pt; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase;
-            color: var(--text-tertiary);
-        }
-        .brand-mark { width: 12px; height: 12px; border-radius: 50%; background: var(--text-tertiary); }
+      .hero {
+        margin-top: -30mm;
+      } /* Optical alignment */
 
-        .hero { margin-top: -30mm; } /* Optical alignment */
-        
-        .headline {
-            font-size: 82pt; font-weight: 800; line-height: 0.95; letter-spacing: -0.04em;
-            color: var(--text-primary); margin-bottom: 25px;
-        }
-        
-        .sub-headline {
-            font-size: 32pt; font-weight: 400; line-height: 1.3; color: var(--text-secondary);
-            letter-spacing: -0.01em; max-width: 90%;
-        }
+      .headline {
+        font-size: 82pt;
+        font-weight: 800;
+        line-height: 0.95;
+        letter-spacing: -0.04em;
+        color: var(--text-primary);
+        margin-bottom: 25px;
+      }
 
-        .value-prop { margin-bottom: 20mm; }
-        .free-text {
-            font-size: 72pt; font-weight: 900; letter-spacing: -0.04em;
-            color: var(--accent); line-height: 1;
-        }
-        .free-sub {
-            font-family: 'Geist Mono', monospace; font-size: 16pt; font-weight: 500;
-            color: var(--text-secondary); margin-top: 10px; letter-spacing: 0.05em; text-transform: uppercase;
-        }
+      .sub-headline {
+        font-size: 32pt;
+        font-weight: 400;
+        line-height: 1.3;
+        color: var(--text-secondary);
+        letter-spacing: -0.01em;
+        max-width: 90%;
+      }
 
-        /* ─── RIGHT: Cold, Hard Logic ─── */
-        .content-right {
-            padding: 40mm 50mm 40mm 20mm;
-            display: flex; flex-direction: column; justify-content: flex-end; align-items: flex-start;
-        }
+      .value-prop {
+        margin-bottom: 20mm;
+      }
+      .free-text {
+        font-size: 72pt;
+        font-weight: 900;
+        letter-spacing: -0.04em;
+        color: var(--accent);
+        line-height: 1;
+      }
+      .free-sub {
+        font-family: 'Geist Mono', monospace;
+        font-size: 16pt;
+        font-weight: 500;
+        color: var(--text-secondary);
+        margin-top: 10px;
+        letter-spacing: 0.05em;
+        text-transform: uppercase;
+      }
 
-        .specs-table {
-            width: 100%; margin-bottom: 40mm;
-        }
-        .spec-row {
-            display: flex; justify-content: space-between; align-items: baseline;
-            padding: 18px 0; border-bottom: 1px solid rgba(255,255,255,0.1);
-        }
-        .spec-label {
-            font-size: 18pt; font-weight: 500; color: var(--text-primary);
-        }
-        .spec-value {
-            font-family: 'Geist Mono', monospace; font-size: 14pt; color: var(--text-secondary);
-            letter-spacing: 0.02em;
-        }
+      /* ─── RIGHT: Cold, Hard Logic ─── */
+      .content-right {
+        padding: 40mm 50mm 40mm 20mm;
+        display: flex;
+        flex-direction: column;
+        justify-content: flex-end;
+        align-items: flex-start;
+      }
 
-        .cta-group { width: 100%; }
-        .url {
-            font-size: 36pt; font-weight: 800; letter-spacing: -0.02em; color: var(--text-primary);
-            display: flex; align-items: center; gap: 20px;
-        }
-        .url-arrow { color: var(--accent); font-weight: 400; }
-        .trust-mark {
-            font-family: 'Geist Mono', monospace; font-size: 12pt; color: var(--text-tertiary);
-            margin-top: 15px; letter-spacing: 0.05em; text-transform: uppercase;
-        }
+      .specs-table {
+        width: 100%;
+        margin-bottom: 40mm;
+      }
+      .spec-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: baseline;
+        padding: 18px 0;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+      }
+      .spec-label {
+        font-size: 18pt;
+        font-weight: 500;
+        color: var(--text-primary);
+      }
+      .spec-value {
+        font-family: 'Geist Mono', monospace;
+        font-size: 14pt;
+        color: var(--text-secondary);
+        letter-spacing: 0.02em;
+      }
 
+      .cta-group {
+        width: 100%;
+      }
+      .url {
+        font-size: 36pt;
+        font-weight: 800;
+        letter-spacing: -0.02em;
+        color: var(--text-primary);
+        display: flex;
+        align-items: center;
+        gap: 20px;
+      }
+      .url-arrow {
+        color: var(--accent);
+        font-weight: 400;
+      }
+      .trust-mark {
+        font-family: 'Geist Mono', monospace;
+        font-size: 12pt;
+        color: var(--text-tertiary);
+        margin-top: 15px;
+        letter-spacing: 0.05em;
+        text-transform: uppercase;
+      }
     </style>
-</head>
-<body>
-
+  </head>
+  <body>
     <div class="poster">
-        <div class="text-protector"></div>
-        
-        <div class="grid">
-            <div class="content-left">
-                <div class="brand"><div class="brand-mark"></div>BlueArkive</div>
-                
-                <div class="hero">
-                    <h1 class="headline">You spend 392 hours<br>a year in meetings.</h1>
-                    <p class="sub-headline">The private AI assistant that records,<br>transcribes, and drafts action items.</p>
-                </div>
-                
-                <div class="value-prop">
-                    <div class="free-text">FREE FOREVER.</div>
-                    <div class="free-sub">Zero Cloud. Zero Paywalls. Zero Limits.</div>
-                </div>
-            </div>
+      <div class="text-protector"></div>
 
-            <div class="content-right">
-                <div class="specs-table">
-                    <div class="spec-row">
-                        <div class="spec-label">Processing Architecture</div>
-                        <div class="spec-value">100% Local Inference</div>
-                    </div>
-                    <div class="spec-row">
-                        <div class="spec-label">Network Dependency</div>
-                        <div class="spec-value">Zero (Full Offline Support)</div>
-                    </div>
-                    <div class="spec-row">
-                        <div class="spec-label">Security Protocol</div>
-                        <div class="spec-value">On-Device AES-256</div>
-                    </div>
-                    <div class="spec-row">
-                        <div class="spec-label">AI Meeting Bots</div>
-                        <div class="spec-value">None (Invisible Capture)</div>
-                    </div>
-                </div>
+      <div class="grid">
+        <div class="content-left">
+          <div class="brand">
+            <div class="brand-mark"></div>
+            BlueArkive
+          </div>
 
-                <div class="cta-group">
-                    <div class="url">bluearkive.com <span class="url-arrow">→</span></div>
-                    <div class="trust-mark">Join 1,200+ professionals this month</div>
-                </div>
-            </div>
+          <div class="hero">
+            <h1 class="headline">You spend 392 hours<br />a year in meetings.</h1>
+            <p class="sub-headline">
+              The private AI assistant that records,<br />transcribes, and drafts action items.
+            </p>
+          </div>
+
+          <div class="value-prop">
+            <div class="free-text">FREE FOREVER.</div>
+            <div class="free-sub">Zero Cloud. Zero Paywalls. Zero Limits.</div>
+          </div>
         </div>
-    </div>
 
-</body>
+        <div class="content-right">
+          <div class="specs-table">
+            <div class="spec-row">
+              <div class="spec-label">Processing Architecture</div>
+              <div class="spec-value">100% Local Inference</div>
+            </div>
+            <div class="spec-row">
+              <div class="spec-label">Network Dependency</div>
+              <div class="spec-value">Zero (Full Offline Support)</div>
+            </div>
+            <div class="spec-row">
+              <div class="spec-label">Security Protocol</div>
+              <div class="spec-value">On-Device AES-256</div>
+            </div>
+            <div class="spec-row">
+              <div class="spec-label">AI Meeting Bots</div>
+              <div class="spec-value">None (Invisible Capture)</div>
+            </div>
+          </div>
+
+          <div class="cta-group">
+            <div class="url">bluearkive.com <span class="url-arrow">→</span></div>
+            <div class="trust-mark">Join 1,200+ professionals this month</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </body>
 </html>

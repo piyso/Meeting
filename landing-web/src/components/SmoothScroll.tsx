@@ -7,7 +7,7 @@ export function SmoothScroll({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     const lenis = new Lenis({
       duration: 1.2,
-      easing: (t) => Math.min(1, 1.001 - Math.pow(2, -10 * t)), // LexVault standard easing
+      easing: t => Math.min(1, 1.001 - Math.pow(2, -10 * t)), // LexVault standard easing
       orientation: 'vertical',
       gestureOrientation: 'vertical',
       smoothWheel: true,

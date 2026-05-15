@@ -497,7 +497,9 @@
   flex-direction: column;
   gap: var(--space-12);
   cursor: default;
-  transition: background var(--transition-base), border-color var(--transition-base);
+  transition:
+    background var(--transition-base),
+    border-color var(--transition-base);
   /* contain: paint kept for compositing — but will-change only on hover to avoid GPU waste */
   contain: layout style;
 }
@@ -540,8 +542,13 @@
 }
 
 @keyframes ai-pulse {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.35; }
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.35;
+  }
 }
 
 /* ── Spinner Icon ── */
@@ -549,8 +556,12 @@
   animation: ai-spin 1s linear infinite;
 }
 @keyframes ai-spin {
-  from { transform: rotate(0deg); }
-  to { transform: rotate(360deg); }
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 /* ── Error State ── */
@@ -569,8 +580,14 @@
   animation: ai-slide-up 200ms var(--ease-snappy, ease-out);
 }
 @keyframes ai-slide-up {
-  from { opacity: 0; transform: translateY(6px); }
-  to   { opacity: 1; transform: translateY(0); }
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 .ui-ai-expansion-btn {
   display: inline-flex;

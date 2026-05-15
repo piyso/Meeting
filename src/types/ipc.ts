@@ -972,6 +972,7 @@ export interface ElectronAPI {
     triggerBookmark: () => Promise<IPCResponse<void>>
     submitQuickNote: (note: string) => Promise<IPCResponse<void>>
     triggerPauseToggle: () => Promise<IPCResponse<void>>
+    triggerStartCapture: () => Promise<IPCResponse<void>>
   }
 
   // Highlight (bookmark) operations
@@ -1120,6 +1121,9 @@ export interface ElectronAPI {
         recordingStartTime?: number | null
         recordingTotalPausedMs?: number
       }) => void
+    ) => () => void
+    spatialHandoff: (
+      callback: (data: { state: 'expanded' | 'orb' | 'hidden' }) => void
     ) => () => void
     error: (callback: (error: ErrorEvent) => void) => () => void
     'intelligence:streamToken': (

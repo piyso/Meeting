@@ -214,7 +214,7 @@ body[data-platform='win32'] .ui-dynamic-island {
   position: absolute;
   inset: -4px;
   border-radius: inherit;
-  background: radial-gradient(ellipse at center, rgba(20, 184, 166, 0.10) 0%, transparent 70%);
+  background: radial-gradient(ellipse at center, rgba(20, 184, 166, 0.1) 0%, transparent 70%);
   pointer-events: none;
   animation: glow-pulse 2s ease-in-out infinite;
   z-index: -1;
@@ -253,7 +253,7 @@ body[data-platform='win32'] .ui-dynamic-island {
   position: absolute;
   inset: -4px;
   border-radius: inherit;
-  background: radial-gradient(ellipse at center, rgba(251, 191, 36, 0.10) 0%, transparent 70%);
+  background: radial-gradient(ellipse at center, rgba(251, 191, 36, 0.1) 0%, transparent 70%);
   pointer-events: none;
   animation: glow-pulse 3.5s ease-in-out infinite;
   z-index: -1;

@@ -966,26 +966,39 @@ export const MOCK_BILLING_CONFIG = {
   tiers: [
     {
       id: 'free',
-      name: 'Sovereign Local',
+      name: 'Sovereign Core',
       price: '$0',
       period: 'forever',
-      features: ['1 Device', 'Local Processing', 'Basic Transcription'],
+      features: [
+        '100% Local Inference',
+        'Unlimited Encrypted Memory',
+        'Zero Telemetry',
+      ],
     },
     {
       id: 'starter',
-      name: 'Enhanced Sync',
+      name: 'Cognitive Sync',
       price: '$9',
       yearlyPrice: '$7',
       period: 'month',
-      features: ['2 Devices', 'Cloud Sync', '50 AI Queries/mo'],
+      features: [
+        'End-to-End Encrypted Sync',
+        'Multi-Device Coherence',
+        '50 Agentic Actions / mo',
+      ],
     },
     {
       id: 'pro',
-      name: 'Limitless Memory',
+      name: 'Agentic Fabric',
       price: '$19',
       yearlyPrice: '$15',
       period: 'month',
-      features: ['Unlimited Devices', 'Unlimited AI', 'Speaker Diarization', 'Weekly Digests'],
+      features: [
+        'Unlimited Agentic Actions',
+        'Continuous Knowledge Graph',
+        'Proactive Workflow Synthesis',
+        'Cryptographic Cloud Backup',
+      ],
     },
   ],
 }

@@ -1,4 +1,5 @@
 # PiyAPI Notes — Frontend Architectural Blueprint (2-Phase)
+
 ## The Definitive UI/UX Specification
 
 > **Document Status:** Final · Restructured into 2 clear phases for execution clarity.
@@ -7,7 +8,9 @@
 ---
 
 # ════════════════════════════════════════════════════════════════
+
 # PHASE 1: DESIGN & BUILD THE UI SHELL
+
 # ════════════════════════════════════════════════════════════════
 
 > **Phase 1 Scope:** Everything that can be built, styled, and visually verified **without any running backend service, AI model, or audio pipeline**. A pure frontend developer can complete this entire phase using mock/empty data and visual verification only.
@@ -17,10 +20,12 @@
 ## P1.1 Design System — Sovereign UI (Zen Glass)
 
 ### The "Zen Glass" UX Philosophy
+
 The application adheres to the **Sovereign Zen Glass** design language. The goal is a highly premium, distraction-free environment that feels like a physical piece of etched crystal on the user's screen. It relies on absolute blacks, multi-layered Gaussian blurs, ultra-subtle monochromatic noise grain, fluid spring animations, and typography-driven visual hierarchy. It feels undeniably expensive.
 
 **Core UX Performance Principles:**
-- **Perceived Speed > Actual Speed:** The UI must *feel* instant. Every navigation action shows immediate visual feedback (<50ms) even if data arrives later. Optimistic UI updates, skeleton shimmer, and progressive data loading are mandatory — never a blank screen.
+
+- **Perceived Speed > Actual Speed:** The UI must _feel_ instant. Every navigation action shows immediate visual feedback (<50ms) even if data arrives later. Optimistic UI updates, skeleton shimmer, and progressive data loading are mandatory — never a blank screen.
 - **Cognitive Load Reduction:** No more than 3 visual layers competing for attention at any time. The void black background is not decoration — it is active negative space that lets the brain breathe.
 - **Motion as Information:** Animations are not decorative. Every transition communicates spatial relationships ("where did I come from, where am I going"). Staggered reveals tell the user that data is streaming in, not dumped.
 
@@ -28,57 +33,57 @@ The application adheres to the **Sovereign Zen Glass** design language. The goal
 
 ```css
 /* ── Base Surfaces (Infinite Depth) ── */
---color-bg-root:         #030303;   /* Void Black — absolute background for a calmer feel */
---color-bg-panel:        rgba(15, 15, 17, 0.6); /* Deep translucent panels */
---color-bg-glass:        rgba(255, 255, 255, 0.02); /* Glassmorphic cards */
---color-bg-glass-hover:  rgba(255, 255, 255, 0.05);
+--color-bg-root: #030303; /* Void Black — absolute background for a calmer feel */
+--color-bg-panel: rgba(15, 15, 17, 0.6); /* Deep translucent panels */
+--color-bg-glass: rgba(255, 255, 255, 0.02); /* Glassmorphic cards */
+--color-bg-glass-hover: rgba(255, 255, 255, 0.05);
 
 /* ── Borders & Lights ── */
---color-border-inset:    rgba(255, 255, 255, 0.04); /* Inner highlights mimicking glass reflections */
---color-border-subtle:   rgba(255, 255, 255, 0.08); /* Card outlines */
---color-glow-violet:     rgba(139, 92, 246, 0.15);  /* Ambient AI glow */
+--color-border-inset: rgba(255, 255, 255, 0.04); /* Inner highlights mimicking glass reflections */
+--color-border-subtle: rgba(255, 255, 255, 0.08); /* Card outlines */
+--color-glow-violet: rgba(139, 92, 246, 0.15); /* Ambient AI glow */
 
 /* ── Text Hierarchy (High Contrast) ── */
---color-text-primary:    #FFFFFF;   /* Headings, active semantic states */
---color-text-secondary:  #A1A1AA;   /* Body text, deactivated items */
---color-text-tertiary:   #52525B;   /* Metadata, minor UI elements */
+--color-text-primary: #ffffff; /* Headings, active semantic states */
+--color-text-secondary: #a1a1aa; /* Body text, deactivated items */
+--color-text-tertiary: #52525b; /* Metadata, minor UI elements */
 
 /* ── Semantic Accents (Desaturated & Elegant) ── */
---color-emerald:         #34D399;   /* Success, Recording Active (Calmer green) */
---color-amber:           #FBBF24;   /* Warnings, Mic Fallback */
---color-violet:          #A78BFA;   /* Brand, AI "Magic" Expansion */
---color-rose:            #FB7185;   /* Errors, Destructive actions */
+--color-emerald: #34d399; /* Success, Recording Active (Calmer green) */
+--color-amber: #fbbf24; /* Warnings, Mic Fallback */
+--color-violet: #a78bfa; /* Brand, AI "Magic" Expansion */
+--color-rose: #fb7185; /* Errors, Destructive actions */
 
 /* ── Premium Smart Chip Entities ── */
---chip-person-bg:        rgba(96, 165, 250, 0.08);
---chip-person-text:      #93C5FD;
---chip-date-bg:          rgba(52, 211, 153, 0.08);
---chip-date-text:        #6EE7B7;
---chip-amount-bg:        rgba(251, 191, 36, 0.08);
---chip-amount-text:      #FCD34D;
---chip-action-bg:        rgba(251, 113, 133, 0.08);
---chip-action-text:      #FDA4AF;
+--chip-person-bg: rgba(96, 165, 250, 0.08);
+--chip-person-text: #93c5fd;
+--chip-date-bg: rgba(52, 211, 153, 0.08);
+--chip-date-text: #6ee7b7;
+--chip-amount-bg: rgba(251, 191, 36, 0.08);
+--chip-amount-text: #fcd34d;
+--chip-action-bg: rgba(251, 113, 133, 0.08);
+--chip-action-text: #fda4af;
 ```
 
 ### Premium Typography
 
 ```css
 /* Fonts: Geist or Inter for an ultra-modern, crisp tech aesthetic */
---font-heading:    'Geist', 'Inter', system-ui, sans-serif;
---font-body:       'Geist', 'Inter', system-ui, sans-serif;
---font-mono:       'Geist Mono', 'JetBrains Mono', monospace;
+--font-heading: 'Geist', 'Inter', system-ui, sans-serif;
+--font-body: 'Geist', 'Inter', system-ui, sans-serif;
+--font-mono: 'Geist Mono', 'JetBrains Mono', monospace;
 
 /* Scale (Fluid & Harmonious) */
---text-xs:    0.75rem;    /* 12px — chip labels, metadata */
---text-sm:    0.875rem;   /* 14px — sidebar items, secondary */
---text-base:  1rem;       /* 16px — active transcript */
---text-lg:    1.125rem;   /* 18px — card titles */
---text-xl:    1.5rem;     /* 24px — view headers */
---text-2xl:   2rem;       /* 32px — hero text */
+--text-xs: 0.75rem; /* 12px — chip labels, metadata */
+--text-sm: 0.875rem; /* 14px — sidebar items, secondary */
+--text-base: 1rem; /* 16px — active transcript */
+--text-lg: 1.125rem; /* 18px — card titles */
+--text-xl: 1.5rem; /* 24px — view headers */
+--text-2xl: 2rem; /* 32px — hero text */
 
 /* Tracking Constraints */
 --tracking-tight: -0.02em; /* Gives headings a high-end, editorial feel */
---tracking-wide:   0.05em; /* Used for tiny all-caps metadata */
+--tracking-wide: 0.05em; /* Used for tiny all-caps metadata */
 ```
 
 **Font Loading Strategy (Zero FOIT):**
@@ -90,27 +95,27 @@ A "clean app" requires mathematically precise spatial harmony. We strictly enfor
 
 ```css
 /* Structural Spacing (8px Grid) */
---space-8:  8px;   /* Tight element gap */
---space-16: 16px;  /* Standard container flow */
---space-24: 24px;  /* Section breaks */
---space-32: 32px;  /* Major page segments */
---space-64: 64px;  /* Void areas */
+--space-8: 8px; /* Tight element gap */
+--space-16: 16px; /* Standard container flow */
+--space-24: 24px; /* Section breaks */
+--space-32: 32px; /* Major page segments */
+--space-64: 64px; /* Void areas */
 
 /* Component Internal Flow (4px Grid) */
---space-4:  4px;   /* Icon to text distance */
---space-12: 12px;  /* Medium button padding */
+--space-4: 4px; /* Icon to text distance */
+--space-12: 12px; /* Medium button padding */
 --space-20: 20px;
 
 /* ── Native Component Heights (CRITICAL for OS feel) ── */
---h-sm: 24px;  /* Badges, tiny toggles */
---h-md: 32px;  /* Standard macOS control height (Inputs, secondary buttons) */
---h-lg: 40px;  /* Primary CTA buttons */
---h-xl: 48px;  /* The Zen Rail icons, Floating Island */
+--h-sm: 24px; /* Badges, tiny toggles */
+--h-md: 32px; /* Standard macOS control height (Inputs, secondary buttons) */
+--h-lg: 40px; /* Primary CTA buttons */
+--h-xl: 48px; /* The Zen Rail icons, Floating Island */
 
 /* Radii (Squircle math) */
---radius-sm:  6px;   /* Inner elements (Chips, small buttons) */
---radius-md:  10px;  /* Standard inputs/cards */
---radius-lg:  16px;  /* Floating panels, Zen Rail */
+--radius-sm: 6px; /* Inner elements (Chips, small buttons) */
+--radius-md: 10px; /* Standard inputs/cards */
+--radius-lg: 16px; /* Floating panels, Zen Rail */
 --radius-full: 9999px; /* Pills (Dynamic Island), Avatars */
 ```
 
@@ -120,30 +125,39 @@ Standard `ease-out` is not premium enough. We use Apple-style spring physics tra
 
 ```css
 /* ── Timing Functions ── */
---ease-spring:       cubic-bezier(0.175, 0.885, 0.32, 1.1); /* Bouncy enter */
---ease-fluid:        cubic-bezier(0.16, 1, 0.3, 1);         /* Silky smooth */
---ease-snappy:       cubic-bezier(0.4, 0, 0.2, 1);          /* Quick UI state */
+--ease-spring: cubic-bezier(0.175, 0.885, 0.32, 1.1); /* Bouncy enter */
+--ease-fluid: cubic-bezier(0.16, 1, 0.3, 1); /* Silky smooth */
+--ease-snappy: cubic-bezier(0.4, 0, 0.2, 1); /* Quick UI state */
 
---transition-fast:   150ms var(--ease-snappy);
---transition-base:   300ms var(--ease-fluid);
---transition-slow:   500ms var(--ease-fluid);
+--transition-fast: 150ms var(--ease-snappy);
+--transition-base: 300ms var(--ease-fluid);
+--transition-slow: 500ms var(--ease-fluid);
 
 /* Premium Interactions */
 .premium-hover {
-  transition: transform var(--transition-base), box-shadow var(--transition-base);
+  transition:
+    transform var(--transition-base),
+    box-shadow var(--transition-base);
   will-change: transform;
 }
 .premium-hover:hover {
   transform: translateY(-1px) scale(1.01);
-  box-shadow: 0 8px 24px -4px rgba(0, 0, 0, 0.5), 
-              0 0 0 1px var(--color-border-subtle),
-              0 0 12px var(--color-glow-violet);
+  box-shadow:
+    0 8px 24px -4px rgba(0, 0, 0, 0.5),
+    0 0 0 1px var(--color-border-subtle),
+    0 0 12px var(--color-glow-violet);
 }
 
 /* ── Staggered Entrance Choreography ── */
 @keyframes stagger-in {
-  from { opacity: 0; transform: translateY(8px); }
-  to   { opacity: 1; transform: translateY(0); }
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 .stagger-child {
   animation: stagger-in 300ms var(--ease-fluid) both;
@@ -159,24 +173,20 @@ Every elevated surface uses this multi-layer glassmorphism technique.
 
 ```css
 .surface-glass-premium {
-  background: linear-gradient(
-    145deg,
-    rgba(255, 255, 255, 0.03) 0%,
-    rgba(255, 255, 255, 0.01) 100%
-  );
+  background: linear-gradient(145deg, rgba(255, 255, 255, 0.03) 0%, rgba(255, 255, 255, 0.01) 100%);
   backdrop-filter: blur(24px) saturate(120%);
   -webkit-backdrop-filter: blur(24px) saturate(120%);
-  box-shadow: 
+  box-shadow:
     0 4px 24px -1px rgba(0, 0, 0, 0.4),
     0 1px 0 0 rgba(255, 255, 255, 0.1) inset,
     0 0 0 1px rgba(255, 255, 255, 0.05);
   border-radius: var(--radius-xl);
-  transform: translateZ(0); 
+  transform: translateZ(0);
 }
 
 /* Film Grain Noise Overlay */
 .with-noise::after {
-  content: "";
+  content: '';
   position: absolute;
   inset: 0;
   background-image: url('data:image/svg+xml,...'); /* SVG Noise */
@@ -193,9 +203,18 @@ Dark Mode Only by design. Premium overlay scrollbars.
 
 ```css
 /* ── Overlay Scrollbars (macOS Native Feel) ── */
-::-webkit-scrollbar { width: 8px; height: 8px; background: transparent; }
-::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.1); border-radius: var(--radius-full); }
-::-webkit-scrollbar-thumb:hover { background: rgba(255, 255, 255, 0.2); }
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: var(--radius-full);
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
 
 /* ── Window Blur (Lost Focus) State ── */
 .window-blurred {
@@ -219,7 +238,7 @@ mainWindow = new BrowserWindow({
   height: 800,
   minWidth: 800,
   minHeight: 600,
-  titleBarStyle: 'hiddenInset',  // macOS hidden title bar with inset traffic lights
+  titleBarStyle: 'hiddenInset', // macOS hidden title bar with inset traffic lights
   trafficLightPosition: { x: 16, y: 12 },
   frame: process.platform === 'darwin' ? true : false, // frameless on Windows
   // ... existing webPreferences unchanged
@@ -261,32 +280,32 @@ We discard the traditional heavy left sidebar. Instead, we use a spatial, layere
 
 ```typescript
 // src/renderer/store/appStore.ts
-import { create } from 'zustand';
+import { create } from 'zustand'
 
 interface AppState {
-  activeView: 'meeting-list' | 'meeting-detail' | 'settings';
-  selectedMeetingId: string | null;
-  recordingState: 'idle' | 'starting' | 'recording' | 'stopping' | 'processing';
-  activeMeetingId: string | null;
-  audioMode: 'system' | 'microphone' | 'none';
-  isOnline: boolean;
-  syncStatus: 'idle' | 'syncing' | 'error';
-  lastSyncTimestamp: number | null;
-  focusMode: boolean;
-  commandPaletteOpen: boolean;
-  toasts: Toast[];
+  activeView: 'meeting-list' | 'meeting-detail' | 'settings'
+  selectedMeetingId: string | null
+  recordingState: 'idle' | 'starting' | 'recording' | 'stopping' | 'processing'
+  activeMeetingId: string | null
+  audioMode: 'system' | 'microphone' | 'none'
+  isOnline: boolean
+  syncStatus: 'idle' | 'syncing' | 'error'
+  lastSyncTimestamp: number | null
+  focusMode: boolean
+  commandPaletteOpen: boolean
+  toasts: Toast[]
 
-  navigate: (view: AppState['activeView'], meetingId?: string) => void;
-  setRecordingState: (state: AppState['recordingState'], mode?: AppState['audioMode']) => void;
-  toggleFocusMode: () => void;
-  toggleCommandPalette: () => void;
-  addToast: (toast: Omit<Toast, 'id'>) => void;
-  removeToast: (id: string) => void;
+  navigate: (view: AppState['activeView'], meetingId?: string) => void
+  setRecordingState: (state: AppState['recordingState'], mode?: AppState['audioMode']) => void
+  toggleFocusMode: () => void
+  toggleCommandPalette: () => void
+  addToast: (toast: Omit<Toast, 'id'>) => void
+  removeToast: (id: string) => void
 }
 
-export const useAppStore = create<AppState>()((set) => ({
+export const useAppStore = create<AppState>()(set => ({
   // Implementation...
-}));
+}))
 ```
 
 **Why Zustand:** Zero provider wrapping, <1KB bundle, atomic updates (ZenRail never re-renders when transcript updates).
@@ -341,21 +360,23 @@ export const useAppStore = create<AppState>()((set) => ({
 
 **Layout Architecture:**
 
-| Concept | Execution | Rationale |
-|---------|-----------|-----------|
-| **Divider** | 1px glowing line, 16px invisible drag hit area | Maintains single glass sheet illusion |
-| **Reading Flow** | Transcript top (auto-scroll), notes bottom (grows down) | Minimizes saccadic eye movement |
-| **Action Isolation** | Controls in Dynamic Island, not content area | Keeps text canvas sacred |
-| **Smart Chip Rhythm** | Chips recessed until hovered, then illuminate | Prevents visual overload |
-| **Focus State** | `Cmd+Shift+F` collapses Rail, centers editor | Morphs app to singular writing instrument |
+| Concept               | Execution                                               | Rationale                                 |
+| --------------------- | ------------------------------------------------------- | ----------------------------------------- |
+| **Divider**           | 1px glowing line, 16px invisible drag hit area          | Maintains single glass sheet illusion     |
+| **Reading Flow**      | Transcript top (auto-scroll), notes bottom (grows down) | Minimizes saccadic eye movement           |
+| **Action Isolation**  | Controls in Dynamic Island, not content area            | Keeps text canvas sacred                  |
+| **Smart Chip Rhythm** | Chips recessed until hovered, then illuminate           | Prevents visual overload                  |
+| **Focus State**       | `Cmd+Shift+F` collapses Rail, centers editor            | Morphs app to singular writing instrument |
 
 **Transcript Panel (Visual Only):**
+
 - Speaker diarization colors (violet, teal, amber, rose, sky, lime) with 8px colored dots
 - ⭐ Pin icon on hover per segment
 - "Edited" badge on corrected segments
 - Scroll lock: user scrolls up → "↓ Jump to latest" FAB fades in
 
 **Note Editor (Tiptap Shell):**
+
 - Engine: Tiptap (`@tiptap/react`)
 - Schema: Paragraphs, Bullet Lists, Bold, Italic, Blockquotes
 - Default: Bullet list for fast shorthand capture
@@ -391,6 +412,7 @@ export const useAppStore = create<AppState>()((set) => ({
 │ Sarah: "...budget cuts..."  │
 └─────────────────────────────┘
 ```
+
 280×72px, always-on-top, glassmorphic pill. Click to restore full window.
 
 ### P1.6.6 Command Palette (Cmd+K) — Visual
@@ -414,14 +436,14 @@ Fully keyboard-navigable (Arrow Up/Down + Enter).
 
 ### P1.6.7 Settings View
 
-| Section | Controls | Phase 1 Status |
-|---------|----------|----------------|
-| **Recording** | Mic selector, auto-start toggle, save audio toggle | ✅ Build UI |
-| **Transcription** | Language selector, confidence toggle, delay selector | 🎨 Layout only |
-| **Intelligence** | Auto-expand toggle, expansion style, timestamps toggle | 🎨 Layout only |
-| **Sync & Privacy** | Auto-sync toggle, data location, encryption status | 🎨 Layout only |
-| **Storage** | Local/cloud usage bars, clear old meetings | ✅ Build UI |
-| **Account** | Device count, add device, GDPR export, delete account | 🎨 Layout only |
+| Section            | Controls                                               | Phase 1 Status |
+| ------------------ | ------------------------------------------------------ | -------------- |
+| **Recording**      | Mic selector, auto-start toggle, save audio toggle     | ✅ Build UI    |
+| **Transcription**  | Language selector, confidence toggle, delay selector   | 🎨 Layout only |
+| **Intelligence**   | Auto-expand toggle, expansion style, timestamps toggle | 🎨 Layout only |
+| **Sync & Privacy** | Auto-sync toggle, data location, encryption status     | 🎨 Layout only |
+| **Storage**        | Local/cloud usage bars, clear old meetings             | ✅ Build UI    |
+| **Account**        | Device count, add device, GDPR export, delete account  | 🎨 Layout only |
 
 ### P1.6.8 Global Context Bar (Visual Shell)
 
@@ -449,38 +471,38 @@ Visual overlay only in Phase 1. RAG pipeline wiring in Phase 2.
 
 ### UI Primitives
 
-| Component | Height | Padding | Physics |
-|-----------|--------|---------|---------|
-| `<Button />` | 32px / 40px | `px-12` | `.premium-hover` active shadow |
-| `<IconButton />` | 32×32 / 24×24 | center | Icon scales 1.1x on hover |
-| `<Input />` | 32px | `px-12` | `--color-violet` 1px glow on focus |
-| `<Toggle />` | 24px track | 20px thumb | Spring animation |
-| `<Badge />` | 24px | `px-8` | Static |
-| `<SmartChip />` | 24px inline | `px-6` | Expands slightly on hover |
-| `<Dialog />` | fluid | `p-24` | `slide-up` + backdrop blur |
-| `<ContextMenu />` | min-w 160px | `py-4` | Appears at click coords |
+| Component         | Height        | Padding    | Physics                            |
+| ----------------- | ------------- | ---------- | ---------------------------------- |
+| `<Button />`      | 32px / 40px   | `px-12`    | `.premium-hover` active shadow     |
+| `<IconButton />`  | 32×32 / 24×24 | center     | Icon scales 1.1x on hover          |
+| `<Input />`       | 32px          | `px-12`    | `--color-violet` 1px glow on focus |
+| `<Toggle />`      | 24px track    | 20px thumb | Spring animation                   |
+| `<Badge />`       | 24px          | `px-8`     | Static                             |
+| `<SmartChip />`   | 24px inline   | `px-6`     | Expands slightly on hover          |
+| `<Dialog />`      | fluid         | `p-24`     | `slide-up` + backdrop blur         |
+| `<ContextMenu />` | min-w 160px   | `py-4`     | Appears at click coords            |
 
 ### Domain Components (Visual Shells)
 
-| Component | Purpose |
-|-----------|---------|
-| `<MeetingCard />` | Floating card with meeting preview |
-| `<MeetingSkeleton />` | Shimmer vector for loading |
-| `<TranscriptSegment />` | Segment with speaker color, pin, edit |
-| `<NoteExpansionLoader />` | Pulsing violet dots |
-| `<MagicExpansion />` | AI-expanded node visual (trust badge + reject button) |
-| `<AudioIndicator />` | Pulsing waveform (uses OffscreenCanvas) |
-| `<AudioTimeline />` | Waveform scrubber for past meetings |
-| `<RecordingTimer />` | `00:00:00` elapsed display (requestAnimationFrame) |
-| `<PostMeetingDigest />` | Summary/Actions/Decisions pane layout |
-| `<SilentPrompter />` | Ghost-text coaching in DynamicIsland |
-| `<MiniWidget />` | Always-on-top floating pill |
-| `<CommandPalette />` | Center overlay search & actions |
-| `<GlobalContextBar />` | System-level Spotlight shell |
-| `<SyncStatusIndicator />` | Dot + label in Island |
-| `<EmptyState />` | Beautiful zero-data screens |
-| `<GhostMeetingTutorial />` | First-run onboarding simulation |
-| `<OfflineBanner />` | Subtle offline warning line |
+| Component                  | Purpose                                               |
+| -------------------------- | ----------------------------------------------------- |
+| `<MeetingCard />`          | Floating card with meeting preview                    |
+| `<MeetingSkeleton />`      | Shimmer vector for loading                            |
+| `<TranscriptSegment />`    | Segment with speaker color, pin, edit                 |
+| `<NoteExpansionLoader />`  | Pulsing violet dots                                   |
+| `<MagicExpansion />`       | AI-expanded node visual (trust badge + reject button) |
+| `<AudioIndicator />`       | Pulsing waveform (uses OffscreenCanvas)               |
+| `<AudioTimeline />`        | Waveform scrubber for past meetings                   |
+| `<RecordingTimer />`       | `00:00:00` elapsed display (requestAnimationFrame)    |
+| `<PostMeetingDigest />`    | Summary/Actions/Decisions pane layout                 |
+| `<SilentPrompter />`       | Ghost-text coaching in DynamicIsland                  |
+| `<MiniWidget />`           | Always-on-top floating pill                           |
+| `<CommandPalette />`       | Center overlay search & actions                       |
+| `<GlobalContextBar />`     | System-level Spotlight shell                          |
+| `<SyncStatusIndicator />`  | Dot + label in Island                                 |
+| `<EmptyState />`           | Beautiful zero-data screens                           |
+| `<GhostMeetingTutorial />` | First-run onboarding simulation                       |
+| `<OfflineBanner />`        | Subtle offline warning line                           |
 
 ### Existing Components (KEEP all 17)
 
@@ -560,24 +582,24 @@ src/renderer/
 
 ### Cold Start Acceleration
 
-| Optimization | Implementation |
-|-------------|----------------|
-| **Code Splitting** | `React.lazy()` for MeetingDetailView, SettingsView, CommandPalette |
-| **Font Preloading** | Bundled locally + `<link rel="preload" as="font">` |
-| **Deferred Hydration** | Main process pre-fetches meetings during window creation |
-| **Splash Shell** | `index.html` inline CSS: void black + centered logo pulse |
+| Optimization           | Implementation                                                     |
+| ---------------------- | ------------------------------------------------------------------ |
+| **Code Splitting**     | `React.lazy()` for MeetingDetailView, SettingsView, CommandPalette |
+| **Font Preloading**    | Bundled locally + `<link rel="preload" as="font">`                 |
+| **Deferred Hydration** | Main process pre-fetches meetings during window creation           |
+| **Splash Shell**       | `index.html` inline CSS: void black + centered logo pulse          |
 
 ### Rendering Pipeline
 
-| Vector | Strategy |
-|--------|----------|
-| **Atomic Updates** | Zustand (no Context Provider cascade) |
-| **DOM Virtualization** | `@tanstack/react-virtual` with dynamic measurement (`measureElement` + `ResizeObserver`) |
-| **CSS Containment** | `contain: strict;` on Zen Rail, Split Pane |
-| **Animation Threading** | CSS transforms only, zero JS animations |
-| **Icon SVGs** | Lucide React, static imports |
-| **Segment Memoization** | `React.memo()` on every `<TranscriptSegment />` |
-| **Waveform** | `OffscreenCanvas` in WebWorker for `<AudioIndicator />` |
+| Vector                  | Strategy                                                                                 |
+| ----------------------- | ---------------------------------------------------------------------------------------- |
+| **Atomic Updates**      | Zustand (no Context Provider cascade)                                                    |
+| **DOM Virtualization**  | `@tanstack/react-virtual` with dynamic measurement (`measureElement` + `ResizeObserver`) |
+| **CSS Containment**     | `contain: strict;` on Zen Rail, Split Pane                                               |
+| **Animation Threading** | CSS transforms only, zero JS animations                                                  |
+| **Icon SVGs**           | Lucide React, static imports                                                             |
+| **Segment Memoization** | `React.memo()` on every `<TranscriptSegment />`                                          |
+| **Waveform**            | `OffscreenCanvas` in WebWorker for `<AudioIndicator />`                                  |
 
 ### GPU & Compositing
 
@@ -593,26 +615,26 @@ Apply to: ZenRail, DynamicIsland, SplitPane divider, CommandPalette backdrop, To
 
 ### Perceived Performance Tricks
 
-| Technique | Where | Effect |
-|-----------|-------|--------|
-| **Optimistic UI** | Title edit, note save, delete | Instant UI → background IPC → rollback on failure |
-| **Hover Prefetch** | Meeting List cards | 200ms hover → silent prefetch → instant click |
-| **Skeleton Shimmer** | Lists, transcript | Exact-geometry shimmer, never spinners |
-| **Deferred Search** | Command Palette | `useDeferredValue()` — typing never stutters |
-| **Instant Navigation** | View switching | Skeleton in <16ms, data async |
-| **Idle Pre-computation** | Fuzzy indexing | `requestIdleCallback()` for non-critical work |
+| Technique                | Where                         | Effect                                            |
+| ------------------------ | ----------------------------- | ------------------------------------------------- |
+| **Optimistic UI**        | Title edit, note save, delete | Instant UI → background IPC → rollback on failure |
+| **Hover Prefetch**       | Meeting List cards            | 200ms hover → silent prefetch → instant click     |
+| **Skeleton Shimmer**     | Lists, transcript             | Exact-geometry shimmer, never spinners            |
+| **Deferred Search**      | Command Palette               | `useDeferredValue()` — typing never stutters      |
+| **Instant Navigation**   | View switching                | Skeleton in <16ms, data async                     |
+| **Idle Pre-computation** | Fuzzy indexing                | `requestIdleCallback()` for non-critical work     |
 
 ### Performance Budgets
 
-| Metric | Target |
-|--------|--------|
+| Metric                    | Target  |
+| ------------------------- | ------- |
 | Cold start to interactive | < 500ms |
-| Initial shell render | < 150ms |
-| View navigation | < 50ms |
-| Split-pane drag | 60 FPS |
-| Transcript append | < 8ms |
-| Command Palette open | < 100ms |
-| Renderer memory | < 200MB |
+| Initial shell render      | < 150ms |
+| View navigation           | < 50ms  |
+| Split-pane drag           | 60 FPS  |
+| Transcript append         | < 8ms   |
+| Command Palette open      | < 100ms |
+| Renderer memory           | < 200MB |
 
 ---
 
@@ -629,11 +651,13 @@ Apply to: ZenRail, DynamicIsland, SplitPane divider, CommandPalette backdrop, To
 ## P1.12 Phase 1 Implementation Sequence
 
 ### Day 1: Design System Foundation
+
 1. Replace `index.css` with full CSS variable system
 2. Initialize Zustand `appStore.ts`
 3. Create `Button`, `Input`, `Badge`, `EmptyState`, `Skeletons` primitives
 
 ### Day 2: App Shell
+
 4. Build `DynamicIsland.tsx` (custom frameless bar with drag region)
 5. Build `ZenRail.tsx` (navigation icons)
 6. Build `AppLayout.tsx` (Rail + main area)
@@ -641,12 +665,14 @@ Apply to: ZenRail, DynamicIsland, SplitPane divider, CommandPalette backdrop, To
 8. Rewrite `App.tsx` with layouts and providers
 
 ### Day 3: Meeting List View
+
 9. Build `MeetingCard.tsx` + Context Menu
 10. Build `MeetingListView.tsx` with date-grouped card grid + skeleton loader
 11. Build `NewMeetingDialog.tsx` using Dialog primitive
 12. Build `CommandPalette.tsx` (Cmd+K overlay)
 
 ### Day 4: Meeting Detail View (Layout)
+
 13. Build `SplitPane.tsx` (resizable divider)
 14. Build `TranscriptSegment.tsx` (visual component)
 15. Build `TranscriptPanel.tsx` (visual with scroll lock UI)
@@ -662,6 +688,7 @@ Apply to: ZenRail, DynamicIsland, SplitPane divider, CommandPalette backdrop, To
 ## P1.13 Phase 1 Verification
 
 ### Automated
+
 ```bash
 npx tsc --noEmit
 npm run dev
@@ -669,6 +696,7 @@ npm run electron:dev
 ```
 
 ### Visual Checklist
+
 - [ ] App launches without errors
 - [ ] Custom title bar renders (macOS traffic lights visible)
 - [ ] Zen Rail shows navigation icons
@@ -687,10 +715,13 @@ npm run electron:dev
 - [ ] All animations feel smooth (spring physics, stagger)
 
 ---
+
 ---
 
 # ════════════════════════════════════════════════════════════════
+
 # PHASE 2: WIRE THE INTELLIGENCE
+
 # ════════════════════════════════════════════════════════════════
 
 > **Phase 2 Scope:** Everything that requires a **running service** — audio capture, Whisper transcription, LLM inference, local embeddings, encrypted sync, IPC wiring to real backend data, and all AI-powered features. Phase 2 builds ON TOP of Phase 1's visual shells, filling them with real data and intelligence.
@@ -713,35 +744,37 @@ npm run electron:dev
 
 **12 service groups** exposed via `window.electronAPI`:
 
-| Group | Methods | Status |
-|-------|---------|--------|
-| `meeting` | `start`, `stop`, `get`, `list`, `update`, `delete`, `export` | ✅ Functional |
-| `audio` | `listDevices`, `startCapture`, `stopCapture`, `getStatus`, `preFlightTest`, permissions | ✅ Functional |
-| `note` | `create`, `get`, `list`, `update`, `delete`, `augment` | ⏳ Stubbed |
-| `transcript` | `getSegments`, `search`, `updateSpeaker` | ⏳ Stubbed |
-| `search` | `fullText`, `semantic`, `hybrid` | ⏳ Stubbed |
-| `intelligence` | `expandNote`, `extractEntities`, `summarize`, `askQuestion` | ⏳ Stubbed |
-| `settings` | `get`, `update`, `reset` | ⏳ Stubbed |
-| `sync` | `start`, `stop`, `getStatus`, `forceSync` | ⏳ Stubbed |
-| `graph` | `get`, `traverse`, `getStats` | ⏳ Stubbed |
-| `digest` | `generate`, `getLatest`, `getHistory` | ⏳ Stubbed |
-| `shell` | `openExternal` | ✅ Functional |
-| Event streams | `transcriptChunk`, `llmToken`, `syncEvent`, `audioEvent`, `error` | ✅ Wired |
+| Group          | Methods                                                                                 | Status        |
+| -------------- | --------------------------------------------------------------------------------------- | ------------- |
+| `meeting`      | `start`, `stop`, `get`, `list`, `update`, `delete`, `export`                            | ✅ Functional |
+| `audio`        | `listDevices`, `startCapture`, `stopCapture`, `getStatus`, `preFlightTest`, permissions | ✅ Functional |
+| `note`         | `create`, `get`, `list`, `update`, `delete`, `augment`                                  | ⏳ Stubbed    |
+| `transcript`   | `getSegments`, `search`, `updateSpeaker`                                                | ⏳ Stubbed    |
+| `search`       | `fullText`, `semantic`, `hybrid`                                                        | ⏳ Stubbed    |
+| `intelligence` | `expandNote`, `extractEntities`, `summarize`, `askQuestion`                             | ⏳ Stubbed    |
+| `settings`     | `get`, `update`, `reset`                                                                | ⏳ Stubbed    |
+| `sync`         | `start`, `stop`, `getStatus`, `forceSync`                                               | ⏳ Stubbed    |
+| `graph`        | `get`, `traverse`, `getStats`                                                           | ⏳ Stubbed    |
+| `digest`       | `generate`, `getLatest`, `getHistory`                                                   | ⏳ Stubbed    |
+| `shell`        | `openExternal`                                                                          | ✅ Functional |
+| Event streams  | `transcriptChunk`, `llmToken`, `syncEvent`, `audioEvent`, `error`                       | ✅ Wired      |
 
 ### Database Entities (`src/types/database.ts`)
+
 6 core types: `Meeting`, `Transcript`, `Note`, `Entity` (with `EntityType` enum), `SyncQueueItem`, `EncryptionKey`.
 
 ### Competitive Differentiation
 
-| Us vs Competition | Our Advantage |
-|---|---|
-| **100% Local Processing** | Audio never leaves device |
-| **Offline-First** | Works without internet |
-| **Ctrl+Enter Magic** | Brief note → AI-expanded sentence using transcript context |
-| **Smart Chips** | Entities (people, dates, amounts, actions) as interactive colored chips |
-| **Knowledge Graph** | Cross-meeting relationships, contradiction detection |
+| Us vs Competition         | Our Advantage                                                           |
+| ------------------------- | ----------------------------------------------------------------------- |
+| **100% Local Processing** | Audio never leaves device                                               |
+| **Offline-First**         | Works without internet                                                  |
+| **Ctrl+Enter Magic**      | Brief note → AI-expanded sentence using transcript context              |
+| **Smart Chips**           | Entities (people, dates, amounts, actions) as interactive colored chips |
+| **Knowledge Graph**       | Cross-meeting relationships, contradiction detection                    |
 
 ### Local Embedding Service (CRITICAL)
+
 A lightweight `all-MiniLM-L6-v2` model (ONNX, 25MB) runs in main process for 384-dimensional vector embeddings locally. Solves the **Encrypted Search Paradox**: when sync is enabled, content is AES-256-GCM encrypted before upload — the server cannot generate embeddings from ciphertext. Client generates unencrypted embeddings locally alongside encrypted payload with `skip_server_embedding: true`.
 
 ---
@@ -754,52 +787,52 @@ A lightweight `all-MiniLM-L6-v2` model (ONNX, 25MB) runs in main process for 384
 // ─── audio-vad-worklet.ts (AudioWorklet processor, runs on audio thread) ───
 class VADWorkletProcessor extends AudioWorkletProcessor {
   process(inputs: Float32Array[][], outputs: Float32Array[][]) {
-    const input = inputs[0]?.[0];
+    const input = inputs[0]?.[0]
     if (input && input.length > 0) {
-      this.port.postMessage({ type: 'audio_chunk', data: new Float32Array(input) });
+      this.port.postMessage({ type: 'audio_chunk', data: new Float32Array(input) })
     }
-    return true;
+    return true
   }
 }
-registerProcessor('vad-worklet', VADWorkletProcessor);
+registerProcessor('vad-worklet', VADWorkletProcessor)
 
 // ─── AudioPipeline.ts (Main process orchestrator) ───
 class AudioPipeline {
-  private audioContext: AudioContext;
-  private stream: MediaStream;
-  private workletNode: AudioWorkletNode;
-  private vadWorker: Worker;
-  private audioBuffer: Float32Array[] = [];
-  
+  private audioContext: AudioContext
+  private stream: MediaStream
+  private workletNode: AudioWorkletNode
+  private vadWorker: Worker
+  private audioBuffer: Float32Array[] = []
+
   async startCapture() {
     // Platform-specific capture
-    if (process.platform === 'win32') this.stream = await this.captureWindows();
-    else if (process.platform === 'darwin') this.stream = await this.captureMac();
-    else throw new Error('Linux support coming soon');
-    
+    if (process.platform === 'win32') this.stream = await this.captureWindows()
+    else if (process.platform === 'darwin') this.stream = await this.captureMac()
+    else throw new Error('Linux support coming soon')
+
     // Audio context at 16kHz (Whisper's expected sample rate)
-    this.audioContext = new AudioContext({ sampleRate: 16000 });
-    const source = this.audioContext.createMediaStreamSource(this.stream);
-    
+    this.audioContext = new AudioContext({ sampleRate: 16000 })
+    const source = this.audioContext.createMediaStreamSource(this.stream)
+
     // AudioWorklet for real-time capture
-    await this.audioContext.audioWorklet.addModule('./audio-vad-worklet.js');
-    this.workletNode = new AudioWorkletNode(this.audioContext, 'vad-worklet');
-    source.connect(this.workletNode);
-    this.workletNode.connect(this.audioContext.destination);
-    
+    await this.audioContext.audioWorklet.addModule('./audio-vad-worklet.js')
+    this.workletNode = new AudioWorkletNode(this.audioContext, 'vad-worklet')
+    source.connect(this.workletNode)
+    this.workletNode.connect(this.audioContext.destination)
+
     // VAD in separate Worker Thread
-    this.vadWorker = new Worker('./vad-worker.js');
-    this.workletNode.port.onmessage = (e) => {
-      if (e.data.type === 'audio_chunk') this.vadWorker.postMessage(e.data);
-    };
-    
+    this.vadWorker = new Worker('./vad-worker.js')
+    this.workletNode.port.onmessage = e => {
+      if (e.data.type === 'audio_chunk') this.vadWorker.postMessage(e.data)
+    }
+
     // Only buffer audio with detected speech
-    this.vadWorker.on('message', (msg) => {
+    this.vadWorker.on('message', msg => {
       if (msg.type === 'vad_result' && msg.hasVoice) {
-        this.audioBuffer.push(msg.audioChunk);
-        if (this.getDuration() >= 30) this.processChunk(); // 30-second chunks
+        this.audioBuffer.push(msg.audioChunk)
+        if (this.getDuration() >= 30) this.processChunk() // 30-second chunks
       }
-    });
+    })
   }
 }
 ```
@@ -811,18 +844,18 @@ class AudioPipeline {
 ```typescript
 // ─── vad-worker.ts (Dedicated Worker Thread) ───
 class SileroVAD {
-  private model: any;
-  private threshold = 0.5;
-  
+  private model: any
+  private threshold = 0.5
+
   async init() {
-    const ort = require('onnxruntime-node');
-    this.model = await ort.InferenceSession.create('./models/silero_vad.onnx');
+    const ort = require('onnxruntime-node')
+    this.model = await ort.InferenceSession.create('./models/silero_vad.onnx')
   }
-  
+
   async detect(audioChunk: Float32Array): Promise<boolean> {
-    const tensor = new ort.Tensor('float32', audioChunk, [1, audioChunk.length]);
-    const output = await this.model.run({ input: tensor });
-    return output.output.data[0] > this.threshold;
+    const tensor = new ort.Tensor('float32', audioChunk, [1, audioChunk.length])
+    const output = await this.model.run({ input: tensor })
+    return output.output.data[0] > this.threshold
   }
 }
 ```
@@ -841,35 +874,34 @@ class SileroVAD {
 
 ### Model Selection (Phase 0 Validated — Feb 2026)
 
-| Model | Size | Speed (M4) | Accuracy | RAM | Target |
-|-------|------|-------|----------|-----|--------|
-| **turbo** | 1.6 GB | **51.8x RT** | ~10% WER | ~1.5 GB | ✅ **16GB machines** |
-| **Moonshine Base** | ~250 MB | ~290x RT | 12% WER | ~300 MB | ✅ **8GB machines** |
+| Model              | Size    | Speed (M4)   | Accuracy | RAM     | Target               |
+| ------------------ | ------- | ------------ | -------- | ------- | -------------------- |
+| **turbo**          | 1.6 GB  | **51.8x RT** | ~10% WER | ~1.5 GB | ✅ **16GB machines** |
+| **Moonshine Base** | ~250 MB | ~290x RT     | 12% WER  | ~300 MB | ✅ **8GB machines**  |
 
 ```typescript
 // whisper-worker.ts (separate Worker Thread)
-const tier = detectHardwareTier();
-const modelPath = tier.model === 'turbo'
-  ? './models/ggml-large-v3-turbo.bin'
-  : './models/moonshine-base.onnx';
+const tier = detectHardwareTier()
+const modelPath =
+  tier.model === 'turbo' ? './models/ggml-large-v3-turbo.bin' : './models/moonshine-base.onnx'
 
 function detectHardwareTier() {
-  const totalRAM = Math.round(os.totalmem() / (1024 ** 3));
-  return { ram: totalRAM, model: totalRAM >= 16 ? 'turbo' : 'moonshine' };
+  const totalRAM = Math.round(os.totalmem() / 1024 ** 3)
+  return { ram: totalRAM, model: totalRAM >= 16 ? 'turbo' : 'moonshine' }
 }
 
-const model = await whisper.load({ modelPath, quantized: true, threads: 4 });
+const model = await whisper.load({ modelPath, quantized: true, threads: 4 })
 
-parentPort.on('message', async (msg) => {
+parentPort.on('message', async msg => {
   if (msg.type === 'transcribe') {
     const result = await model.transcribe(msg.audio, {
       language: 'en',
       word_timestamps: true,
-      temperature: 0.0
-    });
-    parentPort.postMessage({ type: 'transcription', segments: result.segments });
+      temperature: 0.0,
+    })
+    parentPort.postMessage({ type: 'transcription', segments: result.segments })
   }
-});
+})
 ```
 
 ---
@@ -879,23 +911,26 @@ parentPort.on('message', async (msg) => {
 ```typescript
 // ─── embedding-service.ts (Main Process, Singleton) ───
 class LocalEmbeddingService {
-  private session: ort.InferenceSession | null = null;
-  
+  private session: ort.InferenceSession | null = null
+
   async init() {
     this.session = await ort.InferenceSession.create('./models/all-MiniLM-L6-v2.onnx', {
       executionProviders: ['cpu'],
-      graphOptimizationLevel: 'all'
-    });
+      graphOptimizationLevel: 'all',
+    })
   }
-  
+
   async embed(text: string): Promise<Float32Array> {
-    const tokens = encode(text).slice(0, 512);
+    const tokens = encode(text).slice(0, 512)
     const feeds = {
       input_ids: new ort.Tensor('int32', new Int32Array(tokens), [1, tokens.length]),
-      attention_mask: new ort.Tensor('int32', new Int32Array(tokens.length).fill(1), [1, tokens.length])
-    };
-    const output = await this.session.run(feeds);
-    return this.meanPooling(output.last_hidden_state.data, tokens.length);
+      attention_mask: new ort.Tensor('int32', new Int32Array(tokens.length).fill(1), [
+        1,
+        tokens.length,
+      ]),
+    }
+    const output = await this.session.run(feeds)
+    return this.meanPooling(output.last_hidden_state.data, tokens.length)
   }
 }
 ```
@@ -907,7 +942,7 @@ class LocalEmbeddingService {
 async syncTranscript(transcript: Transcript) {
   const embedding = await embeddingService.embed(transcript.text);  // Before encryption
   const encryptedContent = await this.encrypt(transcript.text);      // AES-256-GCM
-  
+
   await fetch(`${API_BASE}/api/v1/memories`, {
     body: JSON.stringify({
       namespace: 'meetings.transcripts',
@@ -924,13 +959,13 @@ async syncTranscript(transcript: Transcript) {
 
 Cosine similarity search across all locally-stored embeddings in SQLite. Each embedding ~1.5KB (384 floats). 1000 transcripts = ~1.5MB overhead. Search latency: ~100ms.
 
-| Operation | Latency |
-|-----------|---------|
-| Model Load | ~200ms (one-time) |
-| Single Embed | ~50ms |
-| Batch Embed (10) | ~300ms |
-| Local Search (1000 transcripts) | ~100ms |
-| Memory Overhead | 25MB |
+| Operation                       | Latency           |
+| ------------------------------- | ----------------- |
+| Model Load                      | ~200ms (one-time) |
+| Single Embed                    | ~50ms             |
+| Batch Embed (10)                | ~300ms            |
+| Local Search (1000 transcripts) | ~100ms            |
+| Memory Overhead                 | 25MB              |
 
 ---
 
@@ -1020,13 +1055,13 @@ When sync is enabled, notes edited in Tiptap use **Yjs** for character-level CRD
 
 ## P2.8 Transcript ↔ Notes Symbiosis
 
-| Interaction | Behavior | UX Value |
-|-------------|----------|----------|
-| **Drag & Drop** | Dragging a transcript segment into notes creates a styled blockquote with linked timestamp | Frictionless exact-quote capture |
-| **Bidirectional Anchors** | AI-expanded notes link back to source transcript segments; clicking highlights sources | Source attribution builds trust |
-| **Click-to-Play** | Clicking any timestamp jumps audio playback to that millisecond | Instant contextual recall |
-| **Slash Commands** | `/action`, `/decision`, `/summarize-last-5m` | Power-user speed |
-| **Speaker Heatmap** | Color-coded audio timeline by speaker diarization color | Visual scan for "who spoke when" |
+| Interaction               | Behavior                                                                                   | UX Value                         |
+| ------------------------- | ------------------------------------------------------------------------------------------ | -------------------------------- |
+| **Drag & Drop**           | Dragging a transcript segment into notes creates a styled blockquote with linked timestamp | Frictionless exact-quote capture |
+| **Bidirectional Anchors** | AI-expanded notes link back to source transcript segments; clicking highlights sources     | Source attribution builds trust  |
+| **Click-to-Play**         | Clicking any timestamp jumps audio playback to that millisecond                            | Instant contextual recall        |
+| **Slash Commands**        | `/action`, `/decision`, `/summarize-last-5m`                                               | Power-user speed                 |
+| **Speaker Heatmap**       | Color-coded audio timeline by speaker diarization color                                    | Visual scan for "who spoke when" |
 
 ---
 
@@ -1046,11 +1081,11 @@ If user selected a structured meeting template (e.g., "Sales Discovery"), the `D
 
 A 3-stage RAG pipeline using local models:
 
-| Stage | What Happens | Why |
-|-------|-------------|-----|
-| **1. Vectorize Query** | User question → 384-dim vector via all-MiniLM-L6-v2 | Transforms text into searchable numeric representation |
-| **2. Retrieve Top-K** | Query vector against sqlite-vec/FAISS for top 5 chunks. BM25 keyword search in parallel | Local LLMs have 8k–32k context windows. Only 5 chunks (~2000 tokens) keeps LLM fast and accurate |
-| **3. Synthesize** | 5 chunks + question → Qwen generates 2–3 sentence answer with source citations | Focused context = accurate answer in ~1–2s |
+| Stage                  | What Happens                                                                            | Why                                                                                              |
+| ---------------------- | --------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------ |
+| **1. Vectorize Query** | User question → 384-dim vector via all-MiniLM-L6-v2                                     | Transforms text into searchable numeric representation                                           |
+| **2. Retrieve Top-K**  | Query vector against sqlite-vec/FAISS for top 5 chunks. BM25 keyword search in parallel | Local LLMs have 8k–32k context windows. Only 5 chunks (~2000 tokens) keeps LLM fast and accurate |
+| **3. Synthesize**      | 5 chunks + question → Qwen generates 2–3 sentence answer with source citations          | Focused context = accurate answer in ~1–2s                                                       |
 
 **Query Quota Fallback:** Cloud users (Pro) get monthly quota (e.g., 50 queries). When exhausted, silently falls back to local Qwen pipeline — reduced accuracy but zero downtime. `<GlobalContextBar />` shows: `"4 cloud queries left"` → `"Local mode"`.
 
@@ -1068,6 +1103,7 @@ When user clicks **Stop**, UI transitions from "Capture Mode" to "Output Mode":
 **Action Item Lifecycle:** "Push" button creates native OS reminder (macOS Reminders / Windows To Do) with deep-link `piyapi://meeting/123#segment-456` back to exact transcript moment.
 
 **Export:**
+
 - Copy as Markdown (Obsidian/Notion)
 - Export as PDF
 - Copy as Slack Message (bold headers, @mentions)
@@ -1109,26 +1145,30 @@ PRAGMA wal_autocheckpoint = 1000;  -- Auto-checkpoint every ~4MB
 **On Meeting Stop:** Manual `PRAGMA wal_checkpoint(TRUNCATE)` to merge WAL into main DB and reclaim disk space.
 
 **During Recording:** Passive checkpoint every 10 minutes:
+
 ```typescript
-walCheckpointInterval = setInterval(() => {
-  db.pragma('wal_checkpoint(PASSIVE)');
-}, 10 * 60 * 1000);
+walCheckpointInterval = setInterval(
+  () => {
+    db.pragma('wal_checkpoint(PASSIVE)')
+  },
+  10 * 60 * 1000
+)
 
 // Emergency: if -wal > 500MB, force passive checkpoint
 async function checkWalHealth() {
-  const walSize = (await fs.stat(dbPath + '-wal')).size;
-  if (walSize > 500 * 1024 * 1024) db.pragma('wal_checkpoint(PASSIVE)');
+  const walSize = (await fs.stat(dbPath + '-wal')).size
+  if (walSize > 500 * 1024 * 1024) db.pragma('wal_checkpoint(PASSIVE)')
 }
 ```
 
 ### Memory Management Budgets
 
-| Resource | Budget | Enforcement |
-|----------|--------|-------------|
-| Transcript segments in React state | ≤ 500 | Older segments pruned, lazy-loaded on scroll-up |
-| Tiptap editor nodes | ≤ 200 | Long notes paginate or collapse |
-| Renderer process RAM | ≤ 200MB | DevTools profiling required if exceeded |
-| IPC payload per call | ≤ 100KB | Large datasets use cursor pagination |
+| Resource                           | Budget  | Enforcement                                     |
+| ---------------------------------- | ------- | ----------------------------------------------- |
+| Transcript segments in React state | ≤ 500   | Older segments pruned, lazy-loaded on scroll-up |
+| Tiptap editor nodes                | ≤ 200   | Long notes paginate or collapse                 |
+| Renderer process RAM               | ≤ 200MB | DevTools profiling required if exceeded         |
+| IPC payload per call               | ≤ 100KB | Large datasets use cursor pagination            |
 
 ---
 
@@ -1142,8 +1182,8 @@ if (permissionStatus === 'denied') {
   const openSystemSettings = () => {
     window.electronAPI.shell.openExternal(
       'x-apple.systempreferences:com.apple.preference.security?Privacy_Microphone'
-    );
-  };
+    )
+  }
   // Show: "Permission was denied. Click here to fix it in System Settings."
 }
 ```
@@ -1154,21 +1194,22 @@ This fallback MUST be implemented. Without it, users who clicked "Deny" see a br
 
 ## P2.15 Scope Boundaries (What NOT to Build Yet)
 
-| Feature | Why Not Now | When |
-|---------|-----------|------|
-| Smart Chip insertion from transcript | Requires entity extraction backend | Phase 8 (Week 15) |
-| Knowledge Graph visualization (d3-force) | Requires cloud graph API | Phase 8 (Week 15) |
-| Weekly Digest view | Requires cloud digest API | Phase 8 (Week 17) |
-| Onboarding flow (signup/login) | Requires auth backend | Phase 6 (Week 9) |
-| Pricing/upgrade wall | Requires payment integration | Phase 9 (Week 19) |
-| Cross-meeting AI (/ask) | Requires cloud RAG API | Phase 8 (Week 16) |
-| Real-time transcript streaming | Requires Whisper worker thread | Phase 3 (Week 5) |
+| Feature                                  | Why Not Now                        | When              |
+| ---------------------------------------- | ---------------------------------- | ----------------- |
+| Smart Chip insertion from transcript     | Requires entity extraction backend | Phase 8 (Week 15) |
+| Knowledge Graph visualization (d3-force) | Requires cloud graph API           | Phase 8 (Week 15) |
+| Weekly Digest view                       | Requires cloud digest API          | Phase 8 (Week 17) |
+| Onboarding flow (signup/login)           | Requires auth backend              | Phase 6 (Week 9)  |
+| Pricing/upgrade wall                     | Requires payment integration       | Phase 9 (Week 19) |
+| Cross-meeting AI (/ask)                  | Requires cloud RAG API             | Phase 8 (Week 16) |
+| Real-time transcript streaming           | Requires Whisper worker thread     | Phase 3 (Week 5)  |
 
 ---
 
 ## P2.16 Phase 2 Implementation Sequence
 
 ### Day 5: Data Layer + Transcript Streaming
+
 1. Create `useMeetings`, `useCurrentMeeting`, `useNotes` hooks with @tanstack/react-query
 2. Create `useTranscriptStream` hook with IPC subscription + cleanup
 3. Create `useAudioStatus` hook
@@ -1177,6 +1218,7 @@ This fallback MUST be implemented. Without it, users who clicked "Deny" see a br
 6. Wire "Start Meeting" → `meeting.start()` → navigate to detail
 
 ### Day 6: Audio + Notes + AI
+
 7. Install Tiptap extensions: `@tiptap/extension-bullet-list`, `@tiptap/extension-collaboration`
 8. Install Yjs: `yjs`, `y-indexeddb`
 9. Wire `NoteEditor` → real `note.update()` with debounced auto-save
@@ -1189,6 +1231,7 @@ This fallback MUST be implemented. Without it, users who clicked "Deny" see a br
 16. Wire "Stop Meeting" → `audio.stopCapture()` → `meeting.stop()` → update UI
 
 ### Day 7: Polish, Wire Remaining, Verify
+
 17. Build `CommandPalette` search → real `search.fullText()` IPC
 18. Wire `PostMeetingDigest` → real AI synthesis (summary, actions, decisions)
 19. Wire export buttons (Markdown, PDF, Slack, Email, raw)
@@ -1205,6 +1248,7 @@ This fallback MUST be implemented. Without it, users who clicked "Deny" see a br
 ## P2.17 Phase 2 Verification
 
 ### Automated
+
 ```bash
 npx tsc --noEmit
 npm run dev
@@ -1212,6 +1256,7 @@ npm run electron:dev
 ```
 
 ### Functional Checklist
+
 - [ ] "Start Meeting" creates a real meeting in SQLite
 - [ ] Audio capture starts (system audio or microphone fallback)
 - [ ] Live transcript segments stream into TranscriptPanel
@@ -1241,29 +1286,29 @@ npm run electron:dev
 
 ### Frontend-Impacting Fixes
 
-| # | Issue | Where Fixed | Status |
-|---|-------|-------------|--------|
-| 1 | **Encrypted Search Paradox** — Client must generate local embeddings + `skip_server_embedding: true` | P2.4 (Embedding Service) | ✅ Injected |
-| 6 | **Yjs CRDT for Tiptap Notes** — Replace LWW sync with Yjs binary updates | P2.7 | ✅ Injected |
-| 7 | **Battery-Aware Orchestration** | P2.12 (`usePowerMode`) | ✅ Injected |
-| 9 | **AI Trust Badges** — 🤖 on AI text, bidirectional source highlighting | P2.6 | ✅ Injected |
-| 10 | **WAL Checkpoint** — autocheckpoint + TRUNCATE on stop | P2.13 | ✅ Injected |
-| 22 | **Query Quota Fallback** — Silent fallback to local Qwen | P2.10 | ✅ Injected |
+| #   | Issue                                                                                                | Where Fixed              | Status      |
+| --- | ---------------------------------------------------------------------------------------------------- | ------------------------ | ----------- |
+| 1   | **Encrypted Search Paradox** — Client must generate local embeddings + `skip_server_embedding: true` | P2.4 (Embedding Service) | ✅ Injected |
+| 6   | **Yjs CRDT for Tiptap Notes** — Replace LWW sync with Yjs binary updates                             | P2.7                     | ✅ Injected |
+| 7   | **Battery-Aware Orchestration**                                                                      | P2.12 (`usePowerMode`)   | ✅ Injected |
+| 9   | **AI Trust Badges** — 🤖 on AI text, bidirectional source highlighting                               | P2.6                     | ✅ Injected |
+| 10  | **WAL Checkpoint** — autocheckpoint + TRUNCATE on stop                                               | P2.13                    | ✅ Injected |
+| 22  | **Query Quota Fallback** — Silent fallback to local Qwen                                             | P2.10                    | ✅ Injected |
 
 ### Backend Fixes (Must Be Applied to piytes.md)
 
-| # | Issue | Fix Required | Priority |
-|---|-------|-------------|----------|
-| 2 | **Auth Endpoint Paths** — Must use `/api/v1/auth/*` not `/auth/*` | Fix in `piytes.md` | ⚠️ |
-| 3 | **Namespace Format** — Dots not slashes: `meetings.transcripts` | Fix in `piytes.md` | ⚠️ |
-| 4 | **Batch Sync** — Each transcript segment as individual memory | Rewrite `sync()` to loop per-event | 🔴 Critical |
-| 5 | **HKDF Salt/Info Reversed** — Salt empty, purpose in info param | Fix `crypto.hkdfSync()` | 🔴 Critical |
-| 8 | **Dodo Payments > Lemon Squeezy** | Update payment strategy | 🟡 Phase 9 |
-| 11 | **embedding_status returns 'ready' not 'completed'** | Check `=== 'ready'` in client | 🟡 Phase 5 |
-| 12 | **Export downloadUrl is relative** — Prepend `API_BASE` | URL construction in SyncManager | 🟡 Phase 6 |
-| 13 | **Graph types = 0 in production** | Need triggering content patterns | 🟡 Phase 8 |
-| 17 | **Embedding status polling** — Wait ~4s after creation | Add polling/delay in SyncManager | 🟡 Phase 6 |
-| 18 | **Content size limit ~30KB** — Chunk to max 20KB per memory | Add chunking in SyncManager | 🔴 Phase 6 |
-| 19 | **Compliance DELETE needs undocumented params** | Investigate before GDPR impl | 🟡 Phase 8 |
-| 20 | **API Key Exposed** — Rotate and replace with placeholder | Fix in `piytes.md` | ⚠️ |
-| 21 | **RAM Table References Phi-3** — Should be Qwen 2.5 3B | Fix in `piytes.md` | ⚠️ |
+| #   | Issue                                                             | Fix Required                       | Priority    |
+| --- | ----------------------------------------------------------------- | ---------------------------------- | ----------- |
+| 2   | **Auth Endpoint Paths** — Must use `/api/v1/auth/*` not `/auth/*` | Fix in `piytes.md`                 | ⚠️          |
+| 3   | **Namespace Format** — Dots not slashes: `meetings.transcripts`   | Fix in `piytes.md`                 | ⚠️          |
+| 4   | **Batch Sync** — Each transcript segment as individual memory     | Rewrite `sync()` to loop per-event | 🔴 Critical |
+| 5   | **HKDF Salt/Info Reversed** — Salt empty, purpose in info param   | Fix `crypto.hkdfSync()`            | 🔴 Critical |
+| 8   | **Dodo Payments > Lemon Squeezy**                                 | Update payment strategy            | 🟡 Phase 9  |
+| 11  | **embedding_status returns 'ready' not 'completed'**              | Check `=== 'ready'` in client      | 🟡 Phase 5  |
+| 12  | **Export downloadUrl is relative** — Prepend `API_BASE`           | URL construction in SyncManager    | 🟡 Phase 6  |
+| 13  | **Graph types = 0 in production**                                 | Need triggering content patterns   | 🟡 Phase 8  |
+| 17  | **Embedding status polling** — Wait ~4s after creation            | Add polling/delay in SyncManager   | 🟡 Phase 6  |
+| 18  | **Content size limit ~30KB** — Chunk to max 20KB per memory       | Add chunking in SyncManager        | 🔴 Phase 6  |
+| 19  | **Compliance DELETE needs undocumented params**                   | Investigate before GDPR impl       | 🟡 Phase 8  |
+| 20  | **API Key Exposed** — Rotate and replace with placeholder         | Fix in `piytes.md`                 | ⚠️          |
+| 21  | **RAM Table References Phi-3** — Should be Qwen 2.5 3B            | Fix in `piytes.md`                 | ⚠️          |

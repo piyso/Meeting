@@ -1,6 +1,6 @@
 {
   "name": "bluearkive",
-  "version": "0.3.5-beta",
+  "version": "0.3.6",
   "description": "Local-first meeting transcription application with AI-powered note expansion",
   "main": "dist-electron/main.js",
   "author": {

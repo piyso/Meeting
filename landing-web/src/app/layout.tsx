@@ -31,7 +31,11 @@ export default function RootLayout({
   children: React.ReactNode
 }>) {
   return (
-    <html lang="en" suppressHydrationWarning className={`${poppins.variable} ${sourceSerif4.variable}`}>
+    <html
+      lang="en"
+      suppressHydrationWarning
+      className={`${poppins.variable} ${sourceSerif4.variable}`}
+    >
       <body suppressHydrationWarning>
         <SmoothScroll>{children}</SmoothScroll>
       </body>

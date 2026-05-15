@@ -29,14 +29,14 @@
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  
+
   /* Extend header to screen edges by negating container padding */
   margin-left: calc(-1 * clamp(var(--space-16), 4vw, var(--space-48)));
   margin-right: calc(-1 * clamp(var(--space-16), 4vw, var(--space-48)));
-  
+
   /* Re-apply the padding internally so contents align with list */
   padding: 48px clamp(var(--space-16), 4vw, var(--space-48)) var(--space-20);
-  
+
   margin-bottom: var(--space-16);
   background: transparent;
   min-width: 0;

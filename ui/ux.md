@@ -1,4 +1,5 @@
 # PiyAPI Notes — UI/UX Phase 1 Implementation Guide
+
 ## AI-Optimized · 9 Self-Contained Parts
 
 > **Purpose:** Every spec value is explicit. Every file has an exact path. Every instruction is imperative. Follow parts 1–9 sequentially. Each part lists prerequisites and verification steps.
@@ -8,10 +9,13 @@
 ---
 
 # ═══════════════════════════════════════════
+
 # PART 1 — PROJECT SETUP
+
 # ═══════════════════════════════════════════
 
 ## Prerequisites
+
 - Node.js ≥ 18, npm ≥ 9
 - Existing Electron + React + TypeScript project at project root
 - Existing `src/renderer/` directory with `main.tsx`, `App.tsx`, `audioCapture.ts`
@@ -126,10 +130,13 @@ Delete `src/renderer/App.css` — replaced by Zen Glass tokens in `index.css`.
 ---
 
 # ═══════════════════════════════════════════
+
 # PART 2 — DESIGN SYSTEM CSS
+
 # ═══════════════════════════════════════════
 
 ## Prerequisites
+
 - Part 1 complete
 - Font files in `resources/fonts/`
 
@@ -178,63 +185,63 @@ Delete all existing content. Write this complete file:
 /* ── CSS Custom Properties (Design Tokens) ── */
 :root {
   /* Base Surfaces (Infinite Depth) */
-  --color-bg-root:         #030303;
-  --color-bg-panel:        rgba(15, 15, 17, 0.6);
-  --color-bg-glass:        rgba(255, 255, 255, 0.02);
-  --color-bg-glass-hover:  rgba(255, 255, 255, 0.05);
+  --color-bg-root: #030303;
+  --color-bg-panel: rgba(15, 15, 17, 0.6);
+  --color-bg-glass: rgba(255, 255, 255, 0.02);
+  --color-bg-glass-hover: rgba(255, 255, 255, 0.05);
 
   /* Borders & Lights */
-  --color-border-inset:    rgba(255, 255, 255, 0.04);
-  --color-border-subtle:   rgba(255, 255, 255, 0.08);
-  --color-glow-violet:     rgba(139, 92, 246, 0.15);
+  --color-border-inset: rgba(255, 255, 255, 0.04);
+  --color-border-subtle: rgba(255, 255, 255, 0.08);
+  --color-glow-violet: rgba(139, 92, 246, 0.15);
 
   /* Text Hierarchy (High Contrast) */
-  --color-text-primary:    #FFFFFF;
-  --color-text-secondary:  #A1A1AA;
-  --color-text-tertiary:   #52525B;
+  --color-text-primary: #ffffff;
+  --color-text-secondary: #a1a1aa;
+  --color-text-tertiary: #52525b;
 
   /* Semantic Accents (Desaturated & Elegant) */
-  --color-emerald:         #34D399;
-  --color-amber:           #FBBF24;
-  --color-violet:          #A78BFA;
-  --color-rose:            #FB7185;
+  --color-emerald: #34d399;
+  --color-amber: #fbbf24;
+  --color-violet: #a78bfa;
+  --color-rose: #fb7185;
 
   /* Premium Smart Chip Entities */
-  --chip-person-bg:        rgba(96, 165, 250, 0.08);
-  --chip-person-text:      #93C5FD;
-  --chip-date-bg:          rgba(52, 211, 153, 0.08);
-  --chip-date-text:        #6EE7B7;
-  --chip-amount-bg:        rgba(251, 191, 36, 0.08);
-  --chip-amount-text:      #FCD34D;
-  --chip-action-bg:        rgba(251, 113, 133, 0.08);
-  --chip-action-text:      #FDA4AF;
+  --chip-person-bg: rgba(96, 165, 250, 0.08);
+  --chip-person-text: #93c5fd;
+  --chip-date-bg: rgba(52, 211, 153, 0.08);
+  --chip-date-text: #6ee7b7;
+  --chip-amount-bg: rgba(251, 191, 36, 0.08);
+  --chip-amount-text: #fcd34d;
+  --chip-action-bg: rgba(251, 113, 133, 0.08);
+  --chip-action-text: #fda4af;
 
   /* Typography */
-  --font-heading:    'Geist', 'Inter', system-ui, sans-serif;
-  --font-body:       'Geist', 'Inter', system-ui, sans-serif;
-  --font-mono:       'Geist Mono', 'JetBrains Mono', monospace;
+  --font-heading: 'Geist', 'Inter', system-ui, sans-serif;
+  --font-body: 'Geist', 'Inter', system-ui, sans-serif;
+  --font-mono: 'Geist Mono', 'JetBrains Mono', monospace;
 
   /* Type Scale */
-  --text-xs:    0.75rem;
-  --text-sm:    0.875rem;
-  --text-base:  1rem;
-  --text-lg:    1.125rem;
-  --text-xl:    1.5rem;
-  --text-2xl:   2rem;
+  --text-xs: 0.75rem;
+  --text-sm: 0.875rem;
+  --text-base: 1rem;
+  --text-lg: 1.125rem;
+  --text-xl: 1.5rem;
+  --text-2xl: 2rem;
 
   /* Tracking */
   --tracking-tight: -0.02em;
-  --tracking-wide:   0.05em;
+  --tracking-wide: 0.05em;
 
   /* Structural Spacing (8px Grid) */
-  --space-8:  8px;
+  --space-8: 8px;
   --space-16: 16px;
   --space-24: 24px;
   --space-32: 32px;
   --space-64: 64px;
 
   /* Component Internal Flow (4px Grid) */
-  --space-4:  4px;
+  --space-4: 4px;
   --space-12: 12px;
   --space-20: 20px;
 
@@ -245,30 +252,34 @@ Delete all existing content. Write this complete file:
   --h-xl: 48px;
 
   /* Radii (Squircle Math) */
-  --radius-sm:   6px;
-  --radius-md:   10px;
-  --radius-lg:   16px;
-  --radius-xl:   20px;
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 16px;
+  --radius-xl: 20px;
   --radius-full: 9999px;
 
   /* Timing Functions */
-  --ease-spring:       cubic-bezier(0.175, 0.885, 0.32, 1.1);
-  --ease-fluid:        cubic-bezier(0.16, 1, 0.3, 1);
-  --ease-snappy:       cubic-bezier(0.4, 0, 0.2, 1);
+  --ease-spring: cubic-bezier(0.175, 0.885, 0.32, 1.1);
+  --ease-fluid: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-snappy: cubic-bezier(0.4, 0, 0.2, 1);
 
-  --transition-fast:   150ms var(--ease-snappy);
-  --transition-base:   300ms var(--ease-fluid);
-  --transition-slow:   500ms var(--ease-fluid);
+  --transition-fast: 150ms var(--ease-snappy);
+  --transition-base: 300ms var(--ease-fluid);
+  --transition-slow: 500ms var(--ease-fluid);
 }
 
 /* ── Global Reset ── */
-*, *::before, *::after {
+*,
+*::before,
+*::after {
   box-sizing: border-box;
   margin: 0;
   padding: 0;
 }
 
-html, body, #root {
+html,
+body,
+#root {
   height: 100%;
   background: var(--color-bg-root);
   color: var(--color-text-primary);
@@ -282,11 +293,7 @@ html, body, #root {
 
 /* ── Premium Glass Texture Formula ── */
 .surface-glass-premium {
-  background: linear-gradient(
-    145deg,
-    rgba(255, 255, 255, 0.03) 0%,
-    rgba(255, 255, 255, 0.01) 100%
-  );
+  background: linear-gradient(145deg, rgba(255, 255, 255, 0.03) 0%, rgba(255, 255, 255, 0.01) 100%);
   backdrop-filter: blur(24px) saturate(120%);
   -webkit-backdrop-filter: blur(24px) saturate(120%);
   box-shadow:
@@ -299,7 +306,7 @@ html, body, #root {
 
 /* ── Film Grain Noise Overlay ── */
 .with-noise::after {
-  content: "";
+  content: '';
   position: absolute;
   inset: 0;
   background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='1'/%3E%3C/svg%3E");
@@ -311,20 +318,29 @@ html, body, #root {
 
 /* ── Premium Hover Effect ── */
 .premium-hover {
-  transition: transform var(--transition-base), box-shadow var(--transition-base);
+  transition:
+    transform var(--transition-base),
+    box-shadow var(--transition-base);
   will-change: transform;
 }
 .premium-hover:hover {
   transform: translateY(-1px) scale(1.01);
-  box-shadow: 0 8px 24px -4px rgba(0, 0, 0, 0.5),
-              0 0 0 1px var(--color-border-subtle),
-              0 0 12px var(--color-glow-violet);
+  box-shadow:
+    0 8px 24px -4px rgba(0, 0, 0, 0.5),
+    0 0 0 1px var(--color-border-subtle),
+    0 0 12px var(--color-glow-violet);
 }
 
 /* ── Staggered Entrance Choreography ── */
 @keyframes stagger-in {
-  from { opacity: 0; transform: translateY(8px); }
-  to   { opacity: 1; transform: translateY(0); }
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 .stagger-child {
   animation: stagger-in 300ms var(--ease-fluid) both;
@@ -332,9 +348,18 @@ html, body, #root {
 /* JS applies: style="animation-delay: ${index * 40}ms" per child. Max 12 staggered, rest instant. */
 
 /* ── Overlay Scrollbars (macOS Native Feel) ── */
-::-webkit-scrollbar { width: 8px; height: 8px; background: transparent; }
-::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.1); border-radius: var(--radius-full); }
-::-webkit-scrollbar-thumb:hover { background: rgba(255, 255, 255, 0.2); }
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: var(--radius-full);
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
 
 /* ── Window Blur (Lost Focus) State ── */
 .window-blurred {
@@ -355,8 +380,12 @@ html, body, #root {
 
 /* ── Skeleton Shimmer ── */
 @keyframes shimmer {
-  0% { background-position: -200% 0; }
-  100% { background-position: 200% 0; }
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
 }
 .skeleton {
   background: linear-gradient(
@@ -372,8 +401,14 @@ html, body, #root {
 
 /* ── Slide Up Animation (for Dialogs) ── */
 @keyframes slide-up {
-  from { opacity: 0; transform: translateY(16px) scale(0.98); }
-  to   { opacity: 1; transform: translateY(0) scale(1); }
+  from {
+    opacity: 0;
+    transform: translateY(16px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
 }
 
 /* ── Drag Region (macOS title bar) ── */
@@ -397,10 +432,13 @@ html, body, #root {
 ---
 
 # ═══════════════════════════════════════════
+
 # PART 3 — ELECTRON & HTML CONFIGURATION
+
 # ═══════════════════════════════════════════
 
 ## Prerequisites
+
 - Part 2 complete (index.css ready)
 
 ## 3.1 Update `electron/main.ts` — BrowserWindow Config
@@ -420,13 +458,13 @@ mainWindow = new BrowserWindow({
 })
 ```
 
-| Property | Value | Rationale |
-|----------|-------|-----------|
-| `titleBarStyle` | `'hiddenInset'` | macOS hidden title bar with inset traffic lights |
-| `trafficLightPosition` | `{ x: 16, y: 12 }` | Precise traffic light placement for Zen Rail alignment |
-| `frame` | `true` on macOS, `false` on Windows | Frameless on Windows for custom chrome |
-| `minWidth` | `800` | Minimum graceful resize target |
-| `minHeight` | `600` | Minimum graceful resize target |
+| Property               | Value                               | Rationale                                              |
+| ---------------------- | ----------------------------------- | ------------------------------------------------------ |
+| `titleBarStyle`        | `'hiddenInset'`                     | macOS hidden title bar with inset traffic lights       |
+| `trafficLightPosition` | `{ x: 16, y: 12 }`                  | Precise traffic light placement for Zen Rail alignment |
+| `frame`                | `true` on macOS, `false` on Windows | Frameless on Windows for custom chrome                 |
+| `minWidth`             | `800`                               | Minimum graceful resize target                         |
+| `minHeight`            | `600`                               | Minimum graceful resize target                         |
 
 ## 3.2 Update `index.html` — Splash Shell
 
@@ -435,7 +473,13 @@ Add font preload in `<head>` and inline splash CSS. The splash ensures void blac
 Add inside `<head>`:
 
 ```html
-<link rel="preload" href="resources/fonts/geist-regular.woff2" as="font" type="font/woff2" crossorigin>
+<link
+  rel="preload"
+  href="resources/fonts/geist-regular.woff2"
+  as="font"
+  type="font/woff2"
+  crossorigin
+/>
 <style>
   /* Inline splash — renders before any JS loads */
   body {
@@ -460,8 +504,15 @@ Add inside `<head>`:
     animation: pulse 2s ease-in-out infinite;
   }
   @keyframes pulse {
-    0%, 100% { opacity: 0.4; transform: scale(1); }
-    50% { opacity: 1; transform: scale(1.05); }
+    0%,
+    100% {
+      opacity: 0.4;
+      transform: scale(1);
+    }
+    50% {
+      opacity: 1;
+      transform: scale(1.05);
+    }
   }
 </style>
 ```
@@ -477,8 +528,8 @@ Remove the splash in `main.tsx` after React mounts:
 
 ```typescript
 // At end of main.tsx, after ReactDOM.createRoot(...).render(...)
-const splash = document.getElementById('splash');
-if (splash) splash.remove();
+const splash = document.getElementById('splash')
+if (splash) splash.remove()
 ```
 
 ## Part 3 Verification
@@ -493,55 +544,58 @@ if (splash) splash.remove();
 ---
 
 # ═══════════════════════════════════════════
+
 # PART 4 — STATE & HOOKS
+
 # ═══════════════════════════════════════════
 
 ## Prerequisites
+
 - Part 1 complete (`zustand` installed)
 
 ## 4.1 Create `src/renderer/store/appStore.ts`
 
 ```typescript
-import { create } from 'zustand';
+import { create } from 'zustand'
 
 export interface Toast {
-  id: string;
-  type: 'info' | 'success' | 'warning' | 'error';
-  title: string;
-  message?: string;
-  duration?: number; // ms, default 5000
+  id: string
+  type: 'info' | 'success' | 'warning' | 'error'
+  title: string
+  message?: string
+  duration?: number // ms, default 5000
 }
 
 interface AppState {
   // ── Navigation ──
-  activeView: 'meeting-list' | 'meeting-detail' | 'settings';
-  selectedMeetingId: string | null;
+  activeView: 'meeting-list' | 'meeting-detail' | 'settings'
+  selectedMeetingId: string | null
 
   // ── Recording ──
-  recordingState: 'idle' | 'starting' | 'recording' | 'stopping' | 'processing';
-  activeMeetingId: string | null;
-  audioMode: 'system' | 'microphone' | 'none';
+  recordingState: 'idle' | 'starting' | 'recording' | 'stopping' | 'processing'
+  activeMeetingId: string | null
+  audioMode: 'system' | 'microphone' | 'none'
 
   // ── Connectivity ──
-  isOnline: boolean;
-  syncStatus: 'idle' | 'syncing' | 'error';
-  lastSyncTimestamp: number | null;
+  isOnline: boolean
+  syncStatus: 'idle' | 'syncing' | 'error'
+  lastSyncTimestamp: number | null
 
   // ── UI State ──
-  focusMode: boolean;
-  commandPaletteOpen: boolean;
-  toasts: Toast[];
+  focusMode: boolean
+  commandPaletteOpen: boolean
+  toasts: Toast[]
 
   // ── Actions ──
-  navigate: (view: AppState['activeView'], meetingId?: string) => void;
-  setRecordingState: (state: AppState['recordingState'], mode?: AppState['audioMode']) => void;
-  toggleFocusMode: () => void;
-  toggleCommandPalette: () => void;
-  addToast: (toast: Omit<Toast, 'id'>) => void;
-  removeToast: (id: string) => void;
+  navigate: (view: AppState['activeView'], meetingId?: string) => void
+  setRecordingState: (state: AppState['recordingState'], mode?: AppState['audioMode']) => void
+  toggleFocusMode: () => void
+  toggleCommandPalette: () => void
+  addToast: (toast: Omit<Toast, 'id'>) => void
+  removeToast: (id: string) => void
 }
 
-export const useAppStore = create<AppState>()((set) => ({
+export const useAppStore = create<AppState>()(set => ({
   // Navigation
   activeView: 'meeting-list',
   selectedMeetingId: null,
@@ -562,26 +616,22 @@ export const useAppStore = create<AppState>()((set) => ({
   toasts: [],
 
   // Actions
-  navigate: (view, meetingId) =>
-    set({ activeView: view, selectedMeetingId: meetingId ?? null }),
+  navigate: (view, meetingId) => set({ activeView: view, selectedMeetingId: meetingId ?? null }),
 
   setRecordingState: (recordingState, audioMode) =>
-    set((s) => ({ recordingState, audioMode: audioMode ?? s.audioMode })),
+    set(s => ({ recordingState, audioMode: audioMode ?? s.audioMode })),
 
-  toggleFocusMode: () =>
-    set((s) => ({ focusMode: !s.focusMode })),
+  toggleFocusMode: () => set(s => ({ focusMode: !s.focusMode })),
 
-  toggleCommandPalette: () =>
-    set((s) => ({ commandPaletteOpen: !s.commandPaletteOpen })),
+  toggleCommandPalette: () => set(s => ({ commandPaletteOpen: !s.commandPaletteOpen })),
 
-  addToast: (toast) =>
-    set((s) => ({
+  addToast: toast =>
+    set(s => ({
       toasts: [...s.toasts, { ...toast, id: crypto.randomUUID() }],
     })),
 
-  removeToast: (id) =>
-    set((s) => ({ toasts: s.toasts.filter((t) => t.id !== id) })),
-}));
+  removeToast: id => set(s => ({ toasts: s.toasts.filter(t => t.id !== id) })),
+}))
 ```
 
 **Why Zustand:** Zero provider wrapping, <1KB bundle, atomic updates (ZenRail never re-renders when transcript updates).
@@ -589,98 +639,98 @@ export const useAppStore = create<AppState>()((set) => ({
 ## 4.2 Create `src/renderer/hooks/useToast.ts`
 
 ```typescript
-import { useEffect, useCallback } from 'react';
-import { useAppStore } from '../store/appStore';
+import { useEffect, useCallback } from 'react'
+import { useAppStore } from '../store/appStore'
 
 export function useToast() {
-  const toasts = useAppStore((s) => s.toasts);
-  const addToast = useAppStore((s) => s.addToast);
-  const removeToast = useAppStore((s) => s.removeToast);
+  const toasts = useAppStore(s => s.toasts)
+  const addToast = useAppStore(s => s.addToast)
+  const removeToast = useAppStore(s => s.removeToast)
 
   useEffect(() => {
-    const timers: ReturnType<typeof setTimeout>[] = [];
-    toasts.forEach((toast) => {
-      const duration = toast.duration ?? 5000;
-      const timer = setTimeout(() => removeToast(toast.id), duration);
-      timers.push(timer);
-    });
-    return () => timers.forEach(clearTimeout);
-  }, [toasts, removeToast]);
+    const timers: ReturnType<typeof setTimeout>[] = []
+    toasts.forEach(toast => {
+      const duration = toast.duration ?? 5000
+      const timer = setTimeout(() => removeToast(toast.id), duration)
+      timers.push(timer)
+    })
+    return () => timers.forEach(clearTimeout)
+  }, [toasts, removeToast])
 
   const toast = useCallback(
     (type: 'info' | 'success' | 'warning' | 'error', title: string, message?: string) => {
-      addToast({ type, title, message });
+      addToast({ type, title, message })
     },
     [addToast]
-  );
+  )
 
-  return { toasts, toast, removeToast };
+  return { toasts, toast, removeToast }
 }
 ```
 
 ## 4.3 Create `src/renderer/hooks/useKeyboardShortcuts.ts`
 
 ```typescript
-import { useEffect } from 'react';
-import { useAppStore } from '../store/appStore';
+import { useEffect } from 'react'
+import { useAppStore } from '../store/appStore'
 
 export function useKeyboardShortcuts() {
-  const toggleCommandPalette = useAppStore((s) => s.toggleCommandPalette);
-  const toggleFocusMode = useAppStore((s) => s.toggleFocusMode);
-  const navigate = useAppStore((s) => s.navigate);
+  const toggleCommandPalette = useAppStore(s => s.toggleCommandPalette)
+  const toggleFocusMode = useAppStore(s => s.toggleFocusMode)
+  const navigate = useAppStore(s => s.navigate)
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
-      const meta = e.metaKey || e.ctrlKey;
+      const meta = e.metaKey || e.ctrlKey
 
       // Cmd+K → Command Palette (actions)
       if (meta && !e.shiftKey && e.key === 'k') {
-        e.preventDefault();
-        toggleCommandPalette();
+        e.preventDefault()
+        toggleCommandPalette()
       }
 
       // Cmd+Shift+K → Semantic Search (content, wired in Phase 2)
       if (meta && e.shiftKey && e.key === 'K') {
-        e.preventDefault();
+        e.preventDefault()
         // TODO Phase 2: open semantic search overlay
       }
 
       // Cmd+N → New Meeting dialog
       if (meta && !e.shiftKey && e.key === 'n') {
-        e.preventDefault();
+        e.preventDefault()
         // Dispatched via custom event; NewMeetingDialog listens
-        window.dispatchEvent(new CustomEvent('open-new-meeting'));
+        window.dispatchEvent(new CustomEvent('open-new-meeting'))
       }
 
       // Cmd+Shift+F → Focus Mode (collapse Zen Rail)
       if (meta && e.shiftKey && e.key === 'F') {
-        e.preventDefault();
-        toggleFocusMode();
+        e.preventDefault()
+        toggleFocusMode()
       }
 
       // Cmd+Shift+M → Mini Widget (always-on-top floating pill)
       if (meta && e.shiftKey && e.key === 'M') {
-        e.preventDefault();
+        e.preventDefault()
         // TODO Phase 2: toggle mini widget via IPC
       }
 
       // Cmd+\ → Toggle split pane orientation
       if (meta && e.key === '\\') {
-        e.preventDefault();
+        e.preventDefault()
         // Dispatched via custom event; SplitPane listens
-        window.dispatchEvent(new CustomEvent('toggle-split-orientation'));
+        window.dispatchEvent(new CustomEvent('toggle-split-orientation'))
       }
 
       // Cmd+J → Collapse/expand notes pane
       if (meta && !e.shiftKey && e.key === 'j') {
-        e.preventDefault();
-        window.dispatchEvent(new CustomEvent('toggle-notes-pane'));
+        e.preventDefault()
+        window.dispatchEvent(new CustomEvent('toggle-notes-pane'))
       }
-    };
+    }
 
-    window.addEventListener('keydown', handler);
-    return () => window.removeEventListener('keydown', handler);
-  }, [toggleCommandPalette, toggleFocusMode, navigate]);
+    window.addEventListener('keydown', handler)
+    return () => window.removeEventListener('keydown', handler)
+  }, [toggleCommandPalette, toggleFocusMode, navigate])
 }
 ```
 
@@ -695,23 +745,26 @@ export function useKeyboardShortcuts() {
 ---
 
 # ═══════════════════════════════════════════
+
 # PART 5 — UI PRIMITIVES
+
 # ═══════════════════════════════════════════
 
 ## Prerequisites
+
 - Part 2 complete (index.css tokens available)
 - `lucide-react` installed
 
 ## 5.1 Create `src/renderer/components/ui/Button.tsx`
 
 ```tsx
-import React from 'react';
+import React from 'react'
 
 interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
-  variant?: 'primary' | 'secondary' | 'ghost' | 'danger';
-  size?: 'sm' | 'md' | 'lg';
-  icon?: React.ReactNode;
-  loading?: boolean;
+  variant?: 'primary' | 'secondary' | 'ghost' | 'danger'
+  size?: 'sm' | 'md' | 'lg'
+  icon?: React.ReactNode
+  loading?: boolean
 }
 
 /*
@@ -729,22 +782,34 @@ interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
   - icon:      Render left of text with var(--space-4) gap
 */
 
-export const Button: React.FC<ButtonProps> = ({ variant = 'primary', size = 'md', icon, loading, children, ...props }) => {
+export const Button: React.FC<ButtonProps> = ({
+  variant = 'primary',
+  size = 'md',
+  icon,
+  loading,
+  children,
+  ...props
+}) => {
   // Implementation: apply styles based on variant/size, render icon + children
-  return <button {...props}>{icon}{children}</button>;
-};
+  return (
+    <button {...props}>
+      {icon}
+      {children}
+    </button>
+  )
+}
 ```
 
 ## 5.2 Create `src/renderer/components/ui/IconButton.tsx`
 
 ```tsx
-import React from 'react';
+import React from 'react'
 
 interface IconButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
-  icon: React.ReactNode;
-  size?: 'sm' | 'md';
-  tooltip?: string;
-  active?: boolean;
+  icon: React.ReactNode
+  size?: 'sm' | 'md'
+  tooltip?: string
+  active?: boolean
 }
 
 /*
@@ -763,12 +828,12 @@ interface IconButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> 
 ## 5.3 Create `src/renderer/components/ui/Input.tsx`
 
 ```tsx
-import React from 'react';
+import React from 'react'
 
 interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> {
-  label?: string;
-  error?: string;
-  icon?: React.ReactNode;
+  label?: string
+  error?: string
+  icon?: React.ReactNode
 }
 
 /*
@@ -791,11 +856,11 @@ interface InputProps extends React.InputHTMLAttributes<HTMLInputElement> {
 ## 5.4 Create `src/renderer/components/ui/Select.tsx`
 
 ```tsx
-import React from 'react';
+import React from 'react'
 
 interface SelectProps extends React.SelectHTMLAttributes<HTMLSelectElement> {
-  label?: string;
-  options: { value: string; label: string }[];
+  label?: string
+  options: { value: string; label: string }[]
 }
 
 /*
@@ -808,13 +873,13 @@ interface SelectProps extends React.SelectHTMLAttributes<HTMLSelectElement> {
 ## 5.5 Create `src/renderer/components/ui/Toggle.tsx`
 
 ```tsx
-import React from 'react';
+import React from 'react'
 
 interface ToggleProps {
-  checked: boolean;
-  onChange: (checked: boolean) => void;
-  label?: string;
-  disabled?: boolean;
+  checked: boolean
+  onChange: (checked: boolean) => void
+  label?: string
+  disabled?: boolean
 }
 
 /*
@@ -833,11 +898,11 @@ interface ToggleProps {
 ## 5.6 Create `src/renderer/components/ui/Badge.tsx`
 
 ```tsx
-import React from 'react';
+import React from 'react'
 
 interface BadgeProps {
-  children: React.ReactNode;
-  variant?: 'default' | 'success' | 'warning' | 'error' | 'violet';
+  children: React.ReactNode
+  variant?: 'default' | 'success' | 'warning' | 'error' | 'violet'
 }
 
 /*
@@ -859,13 +924,13 @@ interface BadgeProps {
 ## 5.7 Create `src/renderer/components/ui/Tooltip.tsx`
 
 ```tsx
-import React from 'react';
+import React from 'react'
 
 interface TooltipProps {
-  content: string;
-  children: React.ReactNode;
-  position?: 'top' | 'bottom' | 'left' | 'right';
-  delay?: number; // ms, default 400
+  content: string
+  children: React.ReactNode
+  position?: 'top' | 'bottom' | 'left' | 'right'
+  delay?: number // ms, default 400
 }
 
 /*
@@ -885,14 +950,14 @@ interface TooltipProps {
 ## 5.8 Create `src/renderer/components/ui/Dialog.tsx`
 
 ```tsx
-import React from 'react';
+import React from 'react'
 
 interface DialogProps {
-  open: boolean;
-  onClose: () => void;
-  title?: string;
-  children: React.ReactNode;
-  width?: number; // px, default 480
+  open: boolean
+  onClose: () => void
+  title?: string
+  children: React.ReactNode
+  width?: number // px, default 480
 }
 
 /*
@@ -911,21 +976,21 @@ interface DialogProps {
 ## 5.9 Create `src/renderer/components/ui/ContextMenu.tsx`
 
 ```tsx
-import React from 'react';
+import React from 'react'
 
 interface ContextMenuItem {
-  label: string;
-  icon?: React.ReactNode;
-  shortcut?: string;
-  danger?: boolean;
-  separator?: boolean;
-  onClick?: () => void;
+  label: string
+  icon?: React.ReactNode
+  shortcut?: string
+  danger?: boolean
+  separator?: boolean
+  onClick?: () => void
 }
 
 interface ContextMenuProps {
-  items: ContextMenuItem[];
-  position: { x: number; y: number };
-  onClose: () => void;
+  items: ContextMenuItem[]
+  position: { x: number; y: number }
+  onClose: () => void
 }
 
 /*
@@ -951,12 +1016,12 @@ interface ContextMenuProps {
 ## 5.10 Create `src/renderer/components/ui/Toast.tsx`
 
 ```tsx
-import React from 'react';
-import type { Toast as ToastType } from '../../store/appStore';
+import React from 'react'
+import type { Toast as ToastType } from '../../store/appStore'
 
 interface ToastContainerProps {
-  toasts: ToastType[];
-  onDismiss: (id: string) => void;
+  toasts: ToastType[]
+  onDismiss: (id: string) => void
 }
 
 /*
@@ -985,13 +1050,13 @@ interface ToastContainerProps {
 ## 5.11 Create `src/renderer/components/ui/EmptyState.tsx`
 
 ```tsx
-import React from 'react';
+import React from 'react'
 
 interface EmptyStateProps {
-  icon: React.ReactNode;
-  title: string;
-  description: string;
-  action?: { label: string; onClick: () => void };
+  icon: React.ReactNode
+  title: string
+  description: string
+  action?: { label: string; onClick: () => void }
 }
 
 /*
@@ -1008,12 +1073,12 @@ interface EmptyStateProps {
 ## 5.12 Create `src/renderer/components/ui/Skeletons.tsx`
 
 ```tsx
-import React from 'react';
+import React from 'react'
 
 /* All skeleton components use the .skeleton class from index.css */
 
 interface MeetingCardSkeletonProps {
-  count?: number; // default 6
+  count?: number // default 6
 }
 
 /*
@@ -1039,15 +1104,15 @@ interface MeetingCardSkeletonProps {
 ## 5.13 Create `src/renderer/components/ui/SplitPane.tsx`
 
 ```tsx
-import React from 'react';
+import React from 'react'
 
 interface SplitPaneProps {
-  top: React.ReactNode;
-  bottom: React.ReactNode;
-  defaultRatio?: number; // 0-1, default 0.55 (55% transcript / 45% notes)
-  minTopHeight?: number; // px, default 200
-  minBottomHeight?: number; // px, default 150
-  orientation?: 'horizontal' | 'vertical'; // default horizontal (top/bottom)
+  top: React.ReactNode
+  bottom: React.ReactNode
+  defaultRatio?: number // 0-1, default 0.55 (55% transcript / 45% notes)
+  minTopHeight?: number // px, default 200
+  minBottomHeight?: number // px, default 150
+  orientation?: 'horizontal' | 'vertical' // default horizontal (top/bottom)
 }
 
 /*
@@ -1070,14 +1135,14 @@ interface SplitPaneProps {
 ## 5.14 Create `src/renderer/components/meeting/SmartChip.tsx`
 
 ```tsx
-import React from 'react';
+import React from 'react'
 
-type EntityType = 'PERSON' | 'DATE' | 'AMOUNT' | 'ACTION_ITEM';
+type EntityType = 'PERSON' | 'DATE' | 'AMOUNT' | 'ACTION_ITEM'
 
 interface SmartChipProps {
-  type: EntityType;
-  label: string;
-  onClick?: () => void;
+  type: EntityType
+  label: string
+  onClick?: () => void
 }
 
 /*
@@ -1122,22 +1187,25 @@ interface SmartChipProps {
 ---
 
 # ═══════════════════════════════════════════
+
 # PART 6 — APP SHELL
+
 # ═══════════════════════════════════════════
 
 ## Prerequisites
+
 - Parts 2, 4, 5 complete
 - `lucide-react` installed
 
 ## 6.1 Create `src/renderer/components/layout/ZenRail.tsx`
 
 ```tsx
-import React from 'react';
+import React from 'react'
 
 interface ZenRailProps {
-  activeView: 'meeting-list' | 'meeting-detail' | 'settings';
-  onNavigate: (view: 'meeting-list' | 'settings') => void;
-  focusMode: boolean; // when true, Rail slides off-screen
+  activeView: 'meeting-list' | 'meeting-detail' | 'settings'
+  onNavigate: (view: 'meeting-list' | 'settings') => void
+  focusMode: boolean // when true, Rail slides off-screen
 }
 
 /*
@@ -1177,17 +1245,17 @@ interface ZenRailProps {
 ## 6.2 Create `src/renderer/components/layout/DynamicIsland.tsx`
 
 ```tsx
-import React from 'react';
+import React from 'react'
 
 interface DynamicIslandProps {
-  recordingState: 'idle' | 'starting' | 'recording' | 'stopping' | 'processing';
-  meetingTitle?: string;
-  elapsedTime?: string; // "00:45:12"
-  syncStatus: 'idle' | 'syncing' | 'error';
-  isOnline: boolean;
-  onBack?: () => void;
-  onStopRecording?: () => void;
-  onTitleChange?: (title: string) => void;
+  recordingState: 'idle' | 'starting' | 'recording' | 'stopping' | 'processing'
+  meetingTitle?: string
+  elapsedTime?: string // "00:45:12"
+  syncStatus: 'idle' | 'syncing' | 'error'
+  isOnline: boolean
+  onBack?: () => void
+  onStopRecording?: () => void
+  onTitleChange?: (title: string) => void
 }
 
 /*
@@ -1230,19 +1298,19 @@ interface DynamicIslandProps {
 ## 6.3 Create `src/renderer/components/layout/AppLayout.tsx`
 
 ```tsx
-import React, { Suspense, lazy } from 'react';
-import { useAppStore } from '../../store/appStore';
-import { ZenRail } from './ZenRail';
-import { DynamicIsland } from './DynamicIsland';
-import { ErrorBoundary } from './ErrorBoundary';
-import { OfflineBanner } from './OfflineBanner';
-import { useToast } from '../../hooks/useToast';
-import { useKeyboardShortcuts } from '../../hooks/useKeyboardShortcuts';
+import React, { Suspense, lazy } from 'react'
+import { useAppStore } from '../../store/appStore'
+import { ZenRail } from './ZenRail'
+import { DynamicIsland } from './DynamicIsland'
+import { ErrorBoundary } from './ErrorBoundary'
+import { OfflineBanner } from './OfflineBanner'
+import { useToast } from '../../hooks/useToast'
+import { useKeyboardShortcuts } from '../../hooks/useKeyboardShortcuts'
 
 // Code-split heavy views
-const MeetingListView = lazy(() => import('../../views/MeetingListView'));
-const MeetingDetailView = lazy(() => import('../../views/MeetingDetailView'));
-const SettingsView = lazy(() => import('../../views/SettingsView'));
+const MeetingListView = lazy(() => import('../../views/MeetingListView'))
+const MeetingDetailView = lazy(() => import('../../views/MeetingDetailView'))
+const SettingsView = lazy(() => import('../../views/SettingsView'))
 
 /*
   Layout structure:
@@ -1279,16 +1347,16 @@ const SettingsView = lazy(() => import('../../views/SettingsView'));
 ## 6.4 Create `src/renderer/components/layout/ErrorBoundary.tsx`
 
 ```tsx
-import React from 'react';
+import React from 'react'
 
 interface ErrorBoundaryProps {
-  children: React.ReactNode;
-  fallback?: React.ReactNode;
+  children: React.ReactNode
+  fallback?: React.ReactNode
 }
 
 interface ErrorBoundaryState {
-  hasError: boolean;
-  error: Error | null;
+  hasError: boolean
+  error: Error | null
 }
 
 /*
@@ -1318,10 +1386,10 @@ interface ErrorBoundaryState {
 ## 6.5 Create `src/renderer/components/layout/OfflineBanner.tsx`
 
 ```tsx
-import React from 'react';
+import React from 'react'
 
 interface OfflineBannerProps {
-  isOnline: boolean;
+  isOnline: boolean
 }
 
 /*
@@ -1346,11 +1414,11 @@ interface OfflineBannerProps {
 ## 6.6 Rewrite `src/renderer/App.tsx`
 
 ```tsx
-import React from 'react';
-import { AppLayout } from './components/layout/AppLayout';
+import React from 'react'
+import { AppLayout } from './components/layout/AppLayout'
 
 export default function App() {
-  return <AppLayout />;
+  return <AppLayout />
 }
 ```
 
@@ -1369,28 +1437,31 @@ export default function App() {
 ---
 
 # ═══════════════════════════════════════════
+
 # PART 7 — MEETING LIST
+
 # ═══════════════════════════════════════════
 
 ## Prerequisites
+
 - Parts 4, 5, 6 complete
 - `@tanstack/react-virtual` installed
 
 ## 7.1 Create `src/renderer/components/meeting/MeetingCard.tsx`
 
 ```tsx
-import React from 'react';
+import React from 'react'
 
 interface MeetingCardProps {
-  id: string;
-  title: string;
-  date: Date;
-  duration: number; // seconds
-  participantCount: number;
-  hasTranscript: boolean;
-  hasNotes: boolean;
-  onClick: (id: string) => void;
-  onContextMenu: (e: React.MouseEvent, id: string) => void;
+  id: string
+  title: string
+  date: Date
+  duration: number // seconds
+  participantCount: number
+  hasTranscript: boolean
+  hasNotes: boolean
+  onClick: (id: string) => void
+  onContextMenu: (e: React.MouseEvent, id: string) => void
 }
 
 /*
@@ -1426,7 +1497,7 @@ interface MeetingCardProps {
 ## 7.2 Create `src/renderer/views/MeetingListView.tsx`
 
 ```tsx
-import React from 'react';
+import React from 'react'
 
 /*
   Layout:
@@ -1463,18 +1534,18 @@ import React from 'react';
 ## 7.3 Create `src/renderer/components/meeting/NewMeetingDialog.tsx`
 
 ```tsx
-import React from 'react';
+import React from 'react'
 
 interface NewMeetingDialogProps {
-  open: boolean;
-  onClose: () => void;
-  onSubmit: (config: NewMeetingConfig) => void;
+  open: boolean
+  onClose: () => void
+  onSubmit: (config: NewMeetingConfig) => void
 }
 
 interface NewMeetingConfig {
-  title: string;
-  template: 'blank' | '1on1' | 'standup' | 'client-call' | 'brainstorm';
-  contextFiles: File[];
+  title: string
+  template: 'blank' | '1on1' | 'standup' | 'client-call' | 'brainstorm'
+  contextFiles: File[]
 }
 
 /*
@@ -1516,21 +1587,21 @@ interface NewMeetingConfig {
 ## 7.4 Create `src/renderer/components/command/CommandPalette.tsx`
 
 ```tsx
-import React from 'react';
+import React from 'react'
 
 interface CommandPaletteProps {
-  open: boolean;
-  onClose: () => void;
+  open: boolean
+  onClose: () => void
 }
 
 interface CommandItem {
-  id: string;
-  type: 'action' | 'meeting';
-  icon: React.ReactNode;
-  label: string;
-  description?: string;
-  shortcut?: string;
-  onSelect: () => void;
+  id: string
+  type: 'action' | 'meeting'
+  icon: React.ReactNode
+  label: string
+  description?: string
+  shortcut?: string
+  onSelect: () => void
 }
 
 /*
@@ -1599,11 +1670,11 @@ interface CommandItem {
 ## 7.5 Create `src/renderer/components/command/GlobalContextBar.tsx`
 
 ```tsx
-import React from 'react';
+import React from 'react'
 
 interface GlobalContextBarProps {
-  open: boolean;
-  onClose: () => void;
+  open: boolean
+  onClose: () => void
 }
 
 /*
@@ -1642,17 +1713,20 @@ interface GlobalContextBarProps {
 ---
 
 # ═══════════════════════════════════════════
+
 # PART 8 — MEETING DETAIL
+
 # ═══════════════════════════════════════════
 
 ## Prerequisites
+
 - Parts 5, 6, 7 complete
 - `@tiptap/react`, `@tiptap/starter-kit`, `@tiptap/extension-bullet-list`, `@tiptap/extension-collaboration`, `yjs`, `y-indexeddb` installed
 
 ## 8.1 Create `src/renderer/views/MeetingDetailView.tsx`
 
 ```tsx
-import React from 'react';
+import React from 'react'
 
 /*
   Layout:
@@ -1670,20 +1744,25 @@ import React from 'react';
 ## 8.2 Create `src/renderer/components/meeting/TranscriptSegment.tsx`
 
 ```tsx
-import React from 'react';
+import React from 'react'
 
 interface TranscriptSegmentProps {
-  id: string;
-  speakerName: string;
-  speakerColor: 'violet' | 'teal' | 'amber' | 'rose' | 'sky' | 'lime';
-  timestamp: string; // "[00:12]"
-  text: string;
-  isPinned: boolean;
-  isEdited: boolean;
-  isLive: boolean; // currently streaming
-  entities?: Array<{ type: 'PERSON' | 'DATE' | 'AMOUNT' | 'ACTION_ITEM'; text: string; start: number; end: number }>;
-  onPin: (id: string) => void;
-  onEdit: (id: string, newText: string) => void;
+  id: string
+  speakerName: string
+  speakerColor: 'violet' | 'teal' | 'amber' | 'rose' | 'sky' | 'lime'
+  timestamp: string // "[00:12]"
+  text: string
+  isPinned: boolean
+  isEdited: boolean
+  isLive: boolean // currently streaming
+  entities?: Array<{
+    type: 'PERSON' | 'DATE' | 'AMOUNT' | 'ACTION_ITEM'
+    text: string
+    start: number
+    end: number
+  }>
+  onPin: (id: string) => void
+  onEdit: (id: string, newText: string) => void
 }
 
 /*
@@ -1747,11 +1826,11 @@ interface TranscriptSegmentProps {
 ## 8.3 Create `src/renderer/components/meeting/TranscriptPanel.tsx`
 
 ```tsx
-import React from 'react';
+import React from 'react'
 
 interface TranscriptPanelProps {
-  segments: TranscriptSegmentProps[];
-  isRecording: boolean;
+  segments: TranscriptSegmentProps[]
+  isRecording: boolean
 }
 
 /*
@@ -1792,10 +1871,10 @@ interface TranscriptPanelProps {
 ## 8.4 Create `src/renderer/components/meeting/NoteEditor.tsx`
 
 ```tsx
-import React from 'react';
+import React from 'react'
 
 interface NoteEditorProps {
-  meetingId: string;
+  meetingId: string
 }
 
 /*
@@ -1839,7 +1918,7 @@ interface NoteEditorProps {
 ## 8.5 Create `src/renderer/components/meeting/NoteExpansionLoader.tsx`
 
 ```tsx
-import React from 'react';
+import React from 'react'
 
 /*
   Visual shell for AI expansion loading state.
@@ -1856,12 +1935,12 @@ import React from 'react';
 ## 8.6 Create `src/renderer/components/meeting/MagicExpansion.tsx`
 
 ```tsx
-import React from 'react';
+import React from 'react'
 
 interface MagicExpansionProps {
-  content: string;
-  sourceSegmentIds: string[];
-  onReject: () => void;
+  content: string
+  sourceSegmentIds: string[]
+  onReject: () => void
 }
 
 /*
@@ -1885,17 +1964,17 @@ interface MagicExpansionProps {
 ## 8.7 Create `src/renderer/components/meeting/PostMeetingDigest.tsx`
 
 ```tsx
-import React from 'react';
+import React from 'react'
 
 interface PostMeetingDigestProps {
-  meetingId: string;
-  duration: number; // seconds
-  participantCount: number;
-  summary?: string;
-  decisions?: Array<{ text: string; changed?: boolean; previousValue?: string }>;
-  actionItems?: Array<{ text: string; assignee: string; dueDate?: string; completed: boolean }>;
-  pinnedMoments?: Array<{ timestamp: string; text: string }>;
-  people?: Array<{ name: string; totalMeetings: number }>;
+  meetingId: string
+  duration: number // seconds
+  participantCount: number
+  summary?: string
+  decisions?: Array<{ text: string; changed?: boolean; previousValue?: string }>
+  actionItems?: Array<{ text: string; assignee: string; dueDate?: string; completed: boolean }>
+  pinnedMoments?: Array<{ timestamp: string; text: string }>
+  people?: Array<{ name: string; totalMeetings: number }>
 }
 
 /*
@@ -1946,11 +2025,11 @@ interface PostMeetingDigestProps {
 ## 8.8 Create `src/renderer/components/meeting/AudioIndicator.tsx`
 
 ```tsx
-import React from 'react';
+import React from 'react'
 
 interface AudioIndicatorProps {
-  audioLevel: number; // 0-1
-  isRecording: boolean;
+  audioLevel: number // 0-1
+  isRecording: boolean
 }
 
 /*
@@ -1970,11 +2049,11 @@ interface AudioIndicatorProps {
 ## 8.9 Create `src/renderer/components/meeting/RecordingTimer.tsx`
 
 ```tsx
-import React from 'react';
+import React from 'react'
 
 interface RecordingTimerProps {
-  startTime: number | null; // Date.now() when recording started
-  isRecording: boolean;
+  startTime: number | null // Date.now() when recording started
+  isRecording: boolean
 }
 
 /*
@@ -1992,14 +2071,14 @@ interface RecordingTimerProps {
 ## 8.10 Create `src/renderer/components/meeting/MiniWidget.tsx`
 
 ```tsx
-import React from 'react';
+import React from 'react'
 
 interface MiniWidgetProps {
-  isRecording: boolean;
-  elapsedTime: string;
-  lastTranscriptLine: string;
-  onRestore: () => void;
-  onStop: () => void;
+  isRecording: boolean
+  elapsedTime: string
+  lastTranscriptLine: string
+  onRestore: () => void
+  onStop: () => void
 }
 
 /*
@@ -2027,15 +2106,15 @@ interface MiniWidgetProps {
 ## 8.11 Create `src/renderer/components/meeting/SpeakerHeatmap.tsx`
 
 ```tsx
-import React from 'react';
+import React from 'react'
 
 interface SpeakerHeatmapProps {
   segments: Array<{
-    speakerColor: string;
-    startTime: number;
-    endTime: number;
-  }>;
-  totalDuration: number;
+    speakerColor: string
+    startTime: number
+    endTime: number
+  }>
+  totalDuration: number
 }
 
 /*
@@ -2054,11 +2133,11 @@ interface SpeakerHeatmapProps {
 ## 8.12 Create `src/renderer/components/meeting/SilentPrompter.tsx`
 
 ```tsx
-import React from 'react';
+import React from 'react'
 
 interface SilentPrompterProps {
-  suggestion: string | null;
-  onDismiss: () => void;
+  suggestion: string | null
+  onDismiss: () => void
 }
 
 /*
@@ -2099,10 +2178,13 @@ interface SilentPrompterProps {
 ---
 
 # ═══════════════════════════════════════════
+
 # PART 9 — ONBOARDING & SETTINGS
+
 # ═══════════════════════════════════════════
 
 ## Prerequisites
+
 - Parts 5, 6 complete (Dialog, Button, Input, Toggle, Select, Badge primitives)
 
 ## 9.1 Expand `src/renderer/components/audio/OnboardingFlow.tsx`
@@ -2112,7 +2194,7 @@ interface SilentPrompterProps {
 ```tsx
 // Add these to the OnboardingFlow step sequence:
 
-type OnboardingStep = 'auth' | 'setup' | 'recovery-key' | 'plan-selection' | 'ghost-meeting';
+type OnboardingStep = 'auth' | 'setup' | 'recovery-key' | 'plan-selection' | 'ghost-meeting'
 ```
 
 ### Step 1: Authentication (< 60 seconds)
@@ -2138,6 +2220,7 @@ type OnboardingStep = 'auth' | 'setup' | 'recovery-key' | 'plan-selection' | 'gh
 ```
 
 Styles:
+
 - Centered card, max-width 440px
 - Apply .surface-glass-premium
 - Title: var(--text-2xl), font-weight 700, var(--tracking-tight)
@@ -2167,6 +2250,7 @@ Styles:
 ```
 
 Styles:
+
 - Progress bar: height 4px, bg var(--color-bg-glass), filled bg var(--color-violet), radius var(--radius-full)
   - NOTE: This is the ONLY progress bar in the entire app (onboarding only, per anti-spinner philosophy)
 - Checklist items: var(--text-sm)
@@ -2197,6 +2281,7 @@ Styles:
 ```
 
 Styles:
+
 - 🔑 icon: 48px
 - Recovery key box: bg rgba(255,255,255,0.03), border 1px dashed var(--color-border-subtle), padding var(--space-12), font var(--font-mono), var(--text-sm), text-align center, user-select all
 - Copy button: <Button variant="secondary" icon={Clipboard} />
@@ -2219,6 +2304,7 @@ Styles:
 ```
 
 Styles:
+
 - Each tier: horizontal card with checkmarks
 - Free: bg transparent, always selected by default
 - Starter: bg var(--color-bg-glass), border var(--color-border-subtle)
@@ -2231,7 +2317,7 @@ Create `src/renderer/components/meeting/GhostMeetingTutorial.tsx`:
 
 ```tsx
 interface GhostMeetingTutorialProps {
-  onComplete: () => void;
+  onComplete: () => void
 }
 
 /*
@@ -2267,9 +2353,9 @@ Also create `src/renderer/views/SettingsView.tsx` as a thin wrapper with default
 
 ```tsx
 interface SettingsSection {
-  id: string;
-  title: string;
-  icon: React.ReactNode;
+  id: string
+  title: string
+  icon: React.ReactNode
 }
 
 /*
@@ -2341,11 +2427,11 @@ interface SettingsSection {
 
 ```tsx
 interface DeviceWallDialogProps {
-  open: boolean;
-  onClose: () => void;
-  currentDevices: number;
-  maxDevices: number;
-  onUpgrade: () => void;
+  open: boolean
+  onClose: () => void
+  currentDevices: number
+  maxDevices: number
+  onUpgrade: () => void
 }
 
 /*
@@ -2365,11 +2451,11 @@ interface DeviceWallDialogProps {
 
 ```tsx
 interface IntelligenceWallDialogProps {
-  open: boolean;
-  onClose: () => void;
-  queriesUsed: number;
-  queryLimit: number;
-  onUpgrade: () => void;
+  open: boolean
+  onClose: () => void
+  queriesUsed: number
+  queryLimit: number
+  onUpgrade: () => void
 }
 
 /*
@@ -2389,11 +2475,11 @@ interface IntelligenceWallDialogProps {
 
 ```tsx
 interface PricingTier {
-  name: string;
-  price: string;
-  features: string[];
-  recommended?: boolean;
-  cta: string;
+  name: string
+  price: string
+  features: string[]
+  recommended?: boolean
+  cta: string
 }
 
 /*
@@ -2445,7 +2531,9 @@ interface PricingTier {
 ---
 
 # ═══════════════════════════════════════════
+
 # FINAL VERIFICATION — ALL 9 PARTS
+
 # ═══════════════════════════════════════════
 
 ## Automated Checks
@@ -2491,15 +2579,15 @@ npm run electron:dev      # Electron app launches
 
 ## Performance Budgets
 
-| Metric | Target |
-|--------|--------|
+| Metric                    | Target  |
+| ------------------------- | ------- |
 | Cold start to interactive | < 500ms |
-| Initial shell render | < 150ms |
-| View navigation | < 50ms |
-| Split-pane drag | 60 FPS |
-| Transcript append | < 8ms |
-| Command Palette open | < 100ms |
-| Renderer memory | < 200MB |
+| Initial shell render      | < 150ms |
+| View navigation           | < 50ms  |
+| Split-pane drag           | 60 FPS  |
+| Transcript append         | < 8ms   |
+| Command Palette open      | < 100ms |
+| Renderer memory           | < 200MB |
 
 ## Accessibility
 

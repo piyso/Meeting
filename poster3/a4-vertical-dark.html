@@ -1,146 +1,320 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>BlueArkive - A4 Marketing Poster (Dark)</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;700;800;900&family=Geist+Mono:wght@500&display=swap" rel="stylesheet">
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;700;800;900&family=Geist+Mono:wght@500&display=swap"
+      rel="stylesheet"
+    />
     <style>
-        * { box-sizing: border-box; margin: 0; padding: 0; }
-        
-        :root {
-            --deep-current: #0A1628;
-            --ocean-blue: #0066FF;
-            --electric-indigo: #6366F1;
-            --violet-pulse: #A855F7;
-            --coral-bloom: #FF6B6B;
-            --sunset-peach: #FBBF24;
-            --aurora-gradient: linear-gradient(135deg, var(--ocean-blue) 0%, var(--electric-indigo) 30%, var(--violet-pulse) 55%, var(--coral-bloom) 80%, var(--sunset-peach) 100%);
-        }
+      * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
 
-        @page { size: A4 portrait; margin: 0; }
+      :root {
+        --deep-current: #0a1628;
+        --ocean-blue: #0066ff;
+        --electric-indigo: #6366f1;
+        --violet-pulse: #a855f7;
+        --coral-bloom: #ff6b6b;
+        --sunset-peach: #fbbf24;
+        --aurora-gradient: linear-gradient(
+          135deg,
+          var(--ocean-blue) 0%,
+          var(--electric-indigo) 30%,
+          var(--violet-pulse) 55%,
+          var(--coral-bloom) 80%,
+          var(--sunset-peach) 100%
+        );
+      }
 
-        body {
-            width: 210mm; height: 297mm;
-            background-color: var(--deep-current); color: #FFFFFF;
-            font-family: 'Instrument Sans', sans-serif;
-            position: relative; overflow: hidden;
-            -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important;
-            padding: 25mm 20mm;
-            display: flex; flex-direction: column; align-items: flex-start;
-        }
+      @page {
+        size: A4 portrait;
+        margin: 0;
+      }
 
-        .noise-overlay {
-            position: absolute; top: 0; left: 0; right: 0; bottom: 0;
-            background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 400 400' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E");
-            opacity: 0.04; z-index: 50; pointer-events: none; mix-blend-mode: overlay;
-        }
+      body {
+        width: 210mm;
+        height: 297mm;
+        background-color: var(--deep-current);
+        color: #ffffff;
+        font-family: 'Instrument Sans', sans-serif;
+        position: relative;
+        overflow: hidden;
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+        padding: 25mm 20mm;
+        display: flex;
+        flex-direction: column;
+        align-items: flex-start;
+      }
 
-        .blobs-container { position: absolute; top: 0; left: 0; width: 100%; height: 100%; z-index: 1; pointer-events: none; }
-        .blob {
-            position: absolute; border-radius: 40% 60% 55% 45% / 60% 40% 65% 35%;
-            filter: blur(40px); opacity: 0.20;
-            background: linear-gradient(135deg, var(--ocean-blue) 0%, var(--electric-indigo) 30%, var(--violet-pulse) 55%, var(--coral-bloom) 80%);
-        }
-        .blob-1 { width: 600px; height: 600px; top: -10%; left: 20%; transform: rotate(-15deg); }
-        .blob-2 { width: 700px; height: 500px; bottom: -15%; right: -20%; transform: rotate(25deg); opacity: 0.15; }
+      .noise-overlay {
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 400 400' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E");
+        opacity: 0.04;
+        z-index: 50;
+        pointer-events: none;
+        mix-blend-mode: overlay;
+      }
 
-        .content-layer {
-            position: relative; z-index: 10;
-            display: flex; flex-direction: column; height: 100%; width: 100%;
-        }
+      .blobs-container {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        z-index: 1;
+        pointer-events: none;
+      }
+      .blob {
+        position: absolute;
+        border-radius: 40% 60% 55% 45% / 60% 40% 65% 35%;
+        filter: blur(40px);
+        opacity: 0.2;
+        background: linear-gradient(
+          135deg,
+          var(--ocean-blue) 0%,
+          var(--electric-indigo) 30%,
+          var(--violet-pulse) 55%,
+          var(--coral-bloom) 80%
+        );
+      }
+      .blob-1 {
+        width: 600px;
+        height: 600px;
+        top: -10%;
+        left: 20%;
+        transform: rotate(-15deg);
+      }
+      .blob-2 {
+        width: 700px;
+        height: 500px;
+        bottom: -15%;
+        right: -20%;
+        transform: rotate(25deg);
+        opacity: 0.15;
+      }
 
-        .logo { font-size: 16pt; font-weight: 800; letter-spacing: -0.02em; margin-bottom: 20mm; display: flex; align-items: center; gap: 10px; color: #FFFFFF; }
-        .logo-mark { width: 20px; height: 20px; border-radius: 50%; background: var(--aurora-gradient); }
+      .content-layer {
+        position: relative;
+        z-index: 10;
+        display: flex;
+        flex-direction: column;
+        height: 100%;
+        width: 100%;
+      }
 
-        .hero-headline { font-size: 38pt; font-weight: 800; line-height: 1.05; letter-spacing: -0.03em; margin-bottom: 12mm; }
-        
-        .sub-headline { font-size: 16pt; font-weight: 400; line-height: 1.4; color: rgba(255,255,255,0.8); margin-bottom: 20mm; max-width: 90%;}
+      .logo {
+        font-size: 16pt;
+        font-weight: 800;
+        letter-spacing: -0.02em;
+        margin-bottom: 20mm;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        color: #ffffff;
+      }
+      .logo-mark {
+        width: 20px;
+        height: 20px;
+        border-radius: 50%;
+        background: var(--aurora-gradient);
+      }
 
-        .why-free-zone { margin-bottom: 20mm; max-width: 85%; }
-        .why-free-title { font-size: 14pt; font-weight: 800; color: #FFFFFF; margin-bottom: 4mm; }
-        .why-free-text { font-size: 12pt; font-weight: 400; line-height: 1.5; color: rgba(255,255,255,0.7); }
+      .hero-headline {
+        font-size: 38pt;
+        font-weight: 800;
+        line-height: 1.05;
+        letter-spacing: -0.03em;
+        margin-bottom: 12mm;
+      }
 
-        .checklist { list-style: none; font-family: 'Geist Mono', monospace; font-size: 10pt; font-weight: 500; letter-spacing: 0.03em; line-height: 2.5; color: rgba(255,255,255,0.9); margin-bottom: 20mm;}
-        .checklist li { display: flex; align-items: center; gap: 12px; margin-bottom: 4mm;}
-        .checklist li::before { content: '✓'; color: var(--coral-bloom); font-family: 'Instrument Sans', sans-serif; font-weight: 800; font-size: 14pt; }
+      .sub-headline {
+        font-size: 16pt;
+        font-weight: 400;
+        line-height: 1.4;
+        color: rgba(255, 255, 255, 0.8);
+        margin-bottom: 20mm;
+        max-width: 90%;
+      }
 
-        .comparison-table { width: 100%; border-collapse: collapse; font-family: 'Geist Mono', monospace; font-size: 10pt; margin-bottom: auto;}
-        .comparison-table th { padding-bottom: 8mm; text-align: left; font-family: 'Instrument Sans', sans-serif; font-weight: 800; font-size: 14pt; border-bottom: 2px solid rgba(255,255,255,0.1); color: rgba(255,255,255,0.9); }
-        .comparison-table th.brand-col { color: var(--sunset-peach); }
-        .comparison-table td { padding: 6mm 0; border-bottom: 1px solid rgba(255,255,255,0.05); color: rgba(255,255,255,0.6); }
-        .comparison-table td.brand-col { color: #FFFFFF; font-weight: 700; font-family: 'Instrument Sans', sans-serif; font-size: 12pt;}
+      .why-free-zone {
+        margin-bottom: 20mm;
+        max-width: 85%;
+      }
+      .why-free-title {
+        font-size: 14pt;
+        font-weight: 800;
+        color: #ffffff;
+        margin-bottom: 4mm;
+      }
+      .why-free-text {
+        font-size: 12pt;
+        font-weight: 400;
+        line-height: 1.5;
+        color: rgba(255, 255, 255, 0.7);
+      }
 
-        .cta-container { display: flex; align-items: center; justify-content: space-between; width: 100%; padding-top: 10mm;}
-        .website-link { font-size: 16pt; font-weight: 700; color: #FFFFFF; font-family: 'Geist Mono', monospace;}
-        .social-proof { font-family: 'Geist Mono', monospace; font-size: 10pt; font-weight: 500; color: rgba(255,255,255,0.5); }
+      .checklist {
+        list-style: none;
+        font-family: 'Geist Mono', monospace;
+        font-size: 10pt;
+        font-weight: 500;
+        letter-spacing: 0.03em;
+        line-height: 2.5;
+        color: rgba(255, 255, 255, 0.9);
+        margin-bottom: 20mm;
+      }
+      .checklist li {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        margin-bottom: 4mm;
+      }
+      .checklist li::before {
+        content: '✓';
+        color: var(--coral-bloom);
+        font-family: 'Instrument Sans', sans-serif;
+        font-weight: 800;
+        font-size: 14pt;
+      }
 
+      .comparison-table {
+        width: 100%;
+        border-collapse: collapse;
+        font-family: 'Geist Mono', monospace;
+        font-size: 10pt;
+        margin-bottom: auto;
+      }
+      .comparison-table th {
+        padding-bottom: 8mm;
+        text-align: left;
+        font-family: 'Instrument Sans', sans-serif;
+        font-weight: 800;
+        font-size: 14pt;
+        border-bottom: 2px solid rgba(255, 255, 255, 0.1);
+        color: rgba(255, 255, 255, 0.9);
+      }
+      .comparison-table th.brand-col {
+        color: var(--sunset-peach);
+      }
+      .comparison-table td {
+        padding: 6mm 0;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+        color: rgba(255, 255, 255, 0.6);
+      }
+      .comparison-table td.brand-col {
+        color: #ffffff;
+        font-weight: 700;
+        font-family: 'Instrument Sans', sans-serif;
+        font-size: 12pt;
+      }
+
+      .cta-container {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        width: 100%;
+        padding-top: 10mm;
+      }
+      .website-link {
+        font-size: 16pt;
+        font-weight: 700;
+        color: #ffffff;
+        font-family: 'Geist Mono', monospace;
+      }
+      .social-proof {
+        font-family: 'Geist Mono', monospace;
+        font-size: 10pt;
+        font-weight: 500;
+        color: rgba(255, 255, 255, 0.5);
+      }
     </style>
-</head>
-<body>
+  </head>
+  <body>
     <div class="noise-overlay"></div>
     <div class="blobs-container">
-        <div class="blob blob-1"></div>
-        <div class="blob blob-2"></div>
+      <div class="blob blob-1"></div>
+      <div class="blob blob-2"></div>
     </div>
 
     <div class="content-layer">
-        <div class="logo"><div class="logo-mark"></div>BlueArkive</div>
-        
-        <h1 class="hero-headline">You had 6 meetings today.<br>Can you remember what was decided in the second one?</h1>
-        
-        <div class="sub-headline">BlueArkive listens to every meeting and writes the notes for you. Action items, summaries, follow-up drafts — ready before you hang up.</div>
-        
-        <div class="why-free-zone">
-            <div class="why-free-title">Why it's free.</div>
-            <div class="why-free-text">Other tools process your audio on expensive cloud servers (costing you over $200/yr). BlueArkive runs entirely on your Mac. Our costs are zero. Your limits are zero.</div>
-        </div>
-        
-        <ul class="checklist">
-            <li>Unlimited meetings — free forever</li>
-            <li>No AI bots on your calls</li>
-            <li>Works perfectly without internet</li>
-            <li>Your data never leaves your device</li>
-        </ul>
+      <div class="logo">
+        <div class="logo-mark"></div>
+        BlueArkive
+      </div>
 
-        <table class="comparison-table">
-            <thead>
-                <tr>
-                    <th></th>
-                    <th>Typical Tools</th>
-                    <th class="brand-col">BlueArkive</th>
-                </tr>
-            </thead>
-            <tbody>
-                <tr>
-                    <td style="font-weight: 600; color: #FFFFFF;">Free tier</td>
-                    <td>300 min/mo</td>
-                    <td class="brand-col">Unlimited. Forever.</td>
-                </tr>
-                <tr>
-                    <td style="font-weight: 600; color: #FFFFFF;">Yearly cost</td>
-                    <td style="font-weight: 600; color: rgba(255,255,255,0.8);">Over $200/yr</td>
-                    <td class="brand-col">$0</td>
-                </tr>
-                <tr>
-                    <td style="font-weight: 600; color: #FFFFFF;">Bot joins?</td>
-                    <td>Yes</td>
-                    <td class="brand-col">Never</td>
-                </tr>
-                <tr>
-                    <td style="font-weight: 600; color: #FFFFFF;">Your Data</td>
-                    <td>Their servers</td>
-                    <td class="brand-col">Your device</td>
-                </tr>
-            </tbody>
-        </table>
+      <h1 class="hero-headline">
+        You had 6 meetings today.<br />Can you remember what was decided in the second one?
+      </h1>
 
-        <div class="cta-container">
-            <div class="website-link">bluearkive.com</div>
-            <div class="social-proof">Join 1,200+ professionals this month</div>
+      <div class="sub-headline">
+        BlueArkive listens to every meeting and writes the notes for you. Action items, summaries,
+        follow-up drafts — ready before you hang up.
+      </div>
+
+      <div class="why-free-zone">
+        <div class="why-free-title">Why it's free.</div>
+        <div class="why-free-text">
+          Other tools process your audio on expensive cloud servers (costing you over $200/yr).
+          BlueArkive runs entirely on your Mac. Our costs are zero. Your limits are zero.
         </div>
+      </div>
+
+      <ul class="checklist">
+        <li>Unlimited meetings — free forever</li>
+        <li>No AI bots on your calls</li>
+        <li>Works perfectly without internet</li>
+        <li>Your data never leaves your device</li>
+      </ul>
+
+      <table class="comparison-table">
+        <thead>
+          <tr>
+            <th></th>
+            <th>Typical Tools</th>
+            <th class="brand-col">BlueArkive</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td style="font-weight: 600; color: #ffffff">Free tier</td>
+            <td>300 min/mo</td>
+            <td class="brand-col">Unlimited. Forever.</td>
+          </tr>
+          <tr>
+            <td style="font-weight: 600; color: #ffffff">Yearly cost</td>
+            <td style="font-weight: 600; color: rgba(255, 255, 255, 0.8)">Over $200/yr</td>
+            <td class="brand-col">$0</td>
+          </tr>
+          <tr>
+            <td style="font-weight: 600; color: #ffffff">Bot joins?</td>
+            <td>Yes</td>
+            <td class="brand-col">Never</td>
+          </tr>
+          <tr>
+            <td style="font-weight: 600; color: #ffffff">Your Data</td>
+            <td>Their servers</td>
+            <td class="brand-col">Your device</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <div class="cta-container">
+        <div class="website-link">bluearkive.com</div>
+        <div class="social-proof">Join 1,200+ professionals this month</div>
+      </div>
     </div>
-</body>
+  </body>
 </html>

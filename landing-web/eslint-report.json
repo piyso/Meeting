@@ -1,1 +1,136 @@
-[{"filePath":"/Users/piyushkumar/Desktop/1.piynoteskiro/landing-web/backup_html/app.js","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"/Users/piyushkumar/Desktop/1.piynoteskiro/landing-web/eslint.config.mjs","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"/Users/piyushkumar/Desktop/1.piynoteskiro/landing-web/logo3d.js","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"/Users/piyushkumar/Desktop/1.piynoteskiro/landing-web/next.config.ts","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"/Users/piyushkumar/Desktop/1.piynoteskiro/landing-web/postcss.config.mjs","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"/Users/piyushkumar/Desktop/1.piynoteskiro/landing-web/src/app/layout.tsx","messages":[{"ruleId":"@next/next/no-page-custom-font","severity":1,"message":"Custom fonts not added in `pages/_document.js` will only load for a single page. This is discouraged. See: https://nextjs.org/docs/messages/no-page-custom-font","line":20,"column":9,"nodeType":"JSXOpeningElement","endLine":23,"endColumn":11}],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":1,"fixableErrorCount":0,"fixableWarningCount":0,"source":"import type { Metadata } from 'next'\nimport './globals.css'\n\nexport const metadata: Metadata = {\n  title: 'BlueArkive — The Sovereign Memory Fabric',\n  description:\n    'Private AI meeting notes that run 100% locally on your machine. No bots. No cloud. No fees. Free forever.',\n}\n\nexport default function RootLayout({\n  children,\n}: Readonly<{\n  children: React.ReactNode\n}>) {\n  return (\n    <html lang=\"en\" suppressHydrationWarning>\n      <head>\n        <link rel=\"preconnect\" href=\"https://fonts.googleapis.com\" />\n        <link rel=\"preconnect\" href=\"https://fonts.gstatic.com\" crossOrigin=\"anonymous\" />\n        <link\n          href=\"https://fonts.googleapis.com/css2?family=Poppins:ital,wght@0,300;0,400;0,500;0,600;0,700&family=Source+Serif+4:ital,wght@0,400;0,500;1,400;1,500&display=swap\"\n          rel=\"stylesheet\"\n        />\n      </head>\n      <body suppressHydrationWarning>{children}</body>\n    </html>\n  )\n}\n","usedDeprecatedRules":[]},{"filePath":"/Users/piyushkumar/Desktop/1.piynoteskiro/landing-web/src/app/page.tsx","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"/Users/piyushkumar/Desktop/1.piynoteskiro/landing-web/src/components/Logo3D.tsx","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]},{"filePath":"/Users/piyushkumar/Desktop/1.piynoteskiro/landing-web/src/components/Marquee.tsx","messages":[{"ruleId":"react-hooks/set-state-in-effect","severity":2,"message":"Error: Calling setState synchronously within an effect can trigger cascading renders\n\nEffects are intended to synchronize state between React and external systems such as manually updating the DOM, state management libraries, or other platform APIs. In general, the body of an effect should do one or both of the following:\n* Update external systems with the latest state from React.\n* Subscribe for updates from some external system, calling setState in a callback function when external state changes.\n\nCalling setState synchronously within an effect body causes cascading renders that can hurt performance, and is not recommended. (https://react.dev/learn/you-might-not-need-an-effect).\n\n/Users/piyushkumar/Desktop/1.piynoteskiro/landing-web/src/components/Marquee.tsx:19:5\n  17 |\n  18 |   useEffect(() => {\n> 19 |     setMounted(true)\n     |     ^^^^^^^^^^ Avoid calling setState() directly within an effect\n  20 |   }, [])\n  21 |\n  22 |   if (!mounted) return null","line":19,"column":5,"nodeType":null,"endLine":19,"endColumn":15}],"suppressedMessages":[],"errorCount":1,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"source":"'use client'\n\nimport { motion } from 'framer-motion'\nimport { useState, useEffect } from 'react'\n\nconst quotes = [\n  \"It's like having a brilliant intern who never misses anything.\",\n  'I can finally use an AI tool without my IT team screaming at me.',\n  'I kept waiting for the paywall. It never came.',\n  \"It doesn't destroy my MacBook Air battery.\",\n  \"I asked 'What did we decide?' and it pulled answers from three meetings ago.\",\n  'The 0 cloud uploads gives me total peace of mind.',\n]\n\nexport function VocMarquee() {\n  const [mounted, setMounted] = useState(false)\n\n  useEffect(() => {\n    setMounted(true)\n  }, [])\n\n  if (!mounted) return null\n\n  return (\n    <div\n      className=\"voc-marquee-section\"\n      style={{ overflow: 'hidden', padding: '4rem 0', position: 'relative', zIndex: 10 }}\n    >\n      <div className=\"voc-marquee-track\" style={{ display: 'flex', whiteSpace: 'nowrap' }}>\n        <motion.div\n          initial={{ x: 0 }}\n          animate={{ x: '-50%' }}\n          transition={{\n            repeat: Infinity,\n            ease: 'linear',\n            duration: 40,\n          }}\n          style={{ display: 'flex', gap: '2rem', paddingRight: '2rem' }}\n        >\n          {/* Double the array for seamless infinite scroll */}\n          {[...quotes, ...quotes].map((quote, i) => (\n            <div\n              key={i}\n              className=\"voc-quote liquid-glass\"\n              style={{\n                padding: '1.5rem 2rem',\n                borderRadius: '1rem',\n                fontSize: '0.9375rem',\n                color: 'rgba(255, 255, 255, 0.85)',\n                fontWeight: 500,\n                fontFamily: 'var(--font-serif)',\n                fontStyle: 'italic',\n                flexShrink: 0,\n              }}\n            >\n              &quot;{quote}&quot;\n            </div>\n          ))}\n        </motion.div>\n      </div>\n    </div>\n  )\n}\n","usedDeprecatedRules":[]},{"filePath":"/Users/piyushkumar/Desktop/1.piynoteskiro/landing-web/src/components/MembershipApplication.tsx","messages":[],"suppressedMessages":[],"errorCount":0,"fatalErrorCount":0,"warningCount":0,"fixableErrorCount":0,"fixableWarningCount":0,"usedDeprecatedRules":[]}]
+[
+  {
+    "filePath": "/Users/piyushkumar/Desktop/1.piynoteskiro/landing-web/backup_html/app.js",
+    "messages": [],
+    "suppressedMessages": [],
+    "errorCount": 0,
+    "fatalErrorCount": 0,
+    "warningCount": 0,
+    "fixableErrorCount": 0,
+    "fixableWarningCount": 0,
+    "usedDeprecatedRules": []
+  },
+  {
+    "filePath": "/Users/piyushkumar/Desktop/1.piynoteskiro/landing-web/eslint.config.mjs",
+    "messages": [],
+    "suppressedMessages": [],
+    "errorCount": 0,
+    "fatalErrorCount": 0,
+    "warningCount": 0,
+    "fixableErrorCount": 0,
+    "fixableWarningCount": 0,
+    "usedDeprecatedRules": []
+  },
+  {
+    "filePath": "/Users/piyushkumar/Desktop/1.piynoteskiro/landing-web/logo3d.js",
+    "messages": [],
+    "suppressedMessages": [],
+    "errorCount": 0,
+    "fatalErrorCount": 0,
+    "warningCount": 0,
+    "fixableErrorCount": 0,
+    "fixableWarningCount": 0,
+    "usedDeprecatedRules": []
+  },
+  {
+    "filePath": "/Users/piyushkumar/Desktop/1.piynoteskiro/landing-web/next.config.ts",
+    "messages": [],
+    "suppressedMessages": [],
+    "errorCount": 0,
+    "fatalErrorCount": 0,
+    "warningCount": 0,
+    "fixableErrorCount": 0,
+    "fixableWarningCount": 0,
+    "usedDeprecatedRules": []
+  },
+  {
+    "filePath": "/Users/piyushkumar/Desktop/1.piynoteskiro/landing-web/postcss.config.mjs",
+    "messages": [],
+    "suppressedMessages": [],
+    "errorCount": 0,
+    "fatalErrorCount": 0,
+    "warningCount": 0,
+    "fixableErrorCount": 0,
+    "fixableWarningCount": 0,
+    "usedDeprecatedRules": []
+  },
+  {
+    "filePath": "/Users/piyushkumar/Desktop/1.piynoteskiro/landing-web/src/app/layout.tsx",
+    "messages": [
+      {
+        "ruleId": "@next/next/no-page-custom-font",
+        "severity": 1,
+        "message": "Custom fonts not added in `pages/_document.js` will only load for a single page. This is discouraged. See: https://nextjs.org/docs/messages/no-page-custom-font",
+        "line": 20,
+        "column": 9,
+        "nodeType": "JSXOpeningElement",
+        "endLine": 23,
+        "endColumn": 11
+      }
+    ],
+    "suppressedMessages": [],
+    "errorCount": 0,
+    "fatalErrorCount": 0,
+    "warningCount": 1,
+    "fixableErrorCount": 0,
+    "fixableWarningCount": 0,
+    "source": "import type { Metadata } from 'next'\nimport './globals.css'\n\nexport const metadata: Metadata = {\n  title: 'BlueArkive — The Sovereign Memory Fabric',\n  description:\n    'Private AI meeting notes that run 100% locally on your machine. No bots. No cloud. No fees. Free forever.',\n}\n\nexport default function RootLayout({\n  children,\n}: Readonly<{\n  children: React.ReactNode\n}>) {\n  return (\n    <html lang=\"en\" suppressHydrationWarning>\n      <head>\n        <link rel=\"preconnect\" href=\"https://fonts.googleapis.com\" />\n        <link rel=\"preconnect\" href=\"https://fonts.gstatic.com\" crossOrigin=\"anonymous\" />\n        <link\n          href=\"https://fonts.googleapis.com/css2?family=Poppins:ital,wght@0,300;0,400;0,500;0,600;0,700&family=Source+Serif+4:ital,wght@0,400;0,500;1,400;1,500&display=swap\"\n          rel=\"stylesheet\"\n        />\n      </head>\n      <body suppressHydrationWarning>{children}</body>\n    </html>\n  )\n}\n",
+    "usedDeprecatedRules": []
+  },
+  {
+    "filePath": "/Users/piyushkumar/Desktop/1.piynoteskiro/landing-web/src/app/page.tsx",
+    "messages": [],
+    "suppressedMessages": [],
+    "errorCount": 0,
+    "fatalErrorCount": 0,
+    "warningCount": 0,
+    "fixableErrorCount": 0,
+    "fixableWarningCount": 0,
+    "usedDeprecatedRules": []
+  },
+  {
+    "filePath": "/Users/piyushkumar/Desktop/1.piynoteskiro/landing-web/src/components/Logo3D.tsx",
+    "messages": [],
+    "suppressedMessages": [],
+    "errorCount": 0,
+    "fatalErrorCount": 0,
+    "warningCount": 0,
+    "fixableErrorCount": 0,
+    "fixableWarningCount": 0,
+    "usedDeprecatedRules": []
+  },
+  {
+    "filePath": "/Users/piyushkumar/Desktop/1.piynoteskiro/landing-web/src/components/Marquee.tsx",
+    "messages": [
+      {
+        "ruleId": "react-hooks/set-state-in-effect",
+        "severity": 2,
+        "message": "Error: Calling setState synchronously within an effect can trigger cascading renders\n\nEffects are intended to synchronize state between React and external systems such as manually updating the DOM, state management libraries, or other platform APIs. In general, the body of an effect should do one or both of the following:\n* Update external systems with the latest state from React.\n* Subscribe for updates from some external system, calling setState in a callback function when external state changes.\n\nCalling setState synchronously within an effect body causes cascading renders that can hurt performance, and is not recommended. (https://react.dev/learn/you-might-not-need-an-effect).\n\n/Users/piyushkumar/Desktop/1.piynoteskiro/landing-web/src/components/Marquee.tsx:19:5\n  17 |\n  18 |   useEffect(() => {\n> 19 |     setMounted(true)\n     |     ^^^^^^^^^^ Avoid calling setState() directly within an effect\n  20 |   }, [])\n  21 |\n  22 |   if (!mounted) return null",
+        "line": 19,
+        "column": 5,
+        "nodeType": null,
+        "endLine": 19,
+        "endColumn": 15
+      }
+    ],
+    "suppressedMessages": [],
+    "errorCount": 1,
+    "fatalErrorCount": 0,
+    "warningCount": 0,
+    "fixableErrorCount": 0,
+    "fixableWarningCount": 0,
+    "source": "'use client'\n\nimport { motion } from 'framer-motion'\nimport { useState, useEffect } from 'react'\n\nconst quotes = [\n  \"It's like having a brilliant intern who never misses anything.\",\n  'I can finally use an AI tool without my IT team screaming at me.',\n  'I kept waiting for the paywall. It never came.',\n  \"It doesn't destroy my MacBook Air battery.\",\n  \"I asked 'What did we decide?' and it pulled answers from three meetings ago.\",\n  'The 0 cloud uploads gives me total peace of mind.',\n]\n\nexport function VocMarquee() {\n  const [mounted, setMounted] = useState(false)\n\n  useEffect(() => {\n    setMounted(true)\n  }, [])\n\n  if (!mounted) return null\n\n  return (\n    <div\n      className=\"voc-marquee-section\"\n      style={{ overflow: 'hidden', padding: '4rem 0', position: 'relative', zIndex: 10 }}\n    >\n      <div className=\"voc-marquee-track\" style={{ display: 'flex', whiteSpace: 'nowrap' }}>\n        <motion.div\n          initial={{ x: 0 }}\n          animate={{ x: '-50%' }}\n          transition={{\n            repeat: Infinity,\n            ease: 'linear',\n            duration: 40,\n          }}\n          style={{ display: 'flex', gap: '2rem', paddingRight: '2rem' }}\n        >\n          {/* Double the array for seamless infinite scroll */}\n          {[...quotes, ...quotes].map((quote, i) => (\n            <div\n              key={i}\n              className=\"voc-quote liquid-glass\"\n              style={{\n                padding: '1.5rem 2rem',\n                borderRadius: '1rem',\n                fontSize: '0.9375rem',\n                color: 'rgba(255, 255, 255, 0.85)',\n                fontWeight: 500,\n                fontFamily: 'var(--font-serif)',\n                fontStyle: 'italic',\n                flexShrink: 0,\n              }}\n            >\n              &quot;{quote}&quot;\n            </div>\n          ))}\n        </motion.div>\n      </div>\n    </div>\n  )\n}\n",
+    "usedDeprecatedRules": []
+  },
+  {
+    "filePath": "/Users/piyushkumar/Desktop/1.piynoteskiro/landing-web/src/components/MembershipApplication.tsx",
+    "messages": [],
+    "suppressedMessages": [],
+    "errorCount": 0,
+    "fatalErrorCount": 0,
+    "warningCount": 0,
+    "fixableErrorCount": 0,
+    "fixableWarningCount": 0,
+    "usedDeprecatedRules": []
+  }
+]

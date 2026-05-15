@@ -7,17 +7,7 @@ import { Input } from './ui/Input'
 import { PricingView } from './settings/PricingView'
 import { GhostMeetingTutorial } from './meeting/GhostMeetingTutorial'
 import { ModelDownloadProgress } from './ModelDownloadProgress'
-import {
-  Key,
-  Unlock,
-  ShieldAlert,
-  Copy,
-  Download,
-  GitMerge,
-  Activity,
-  Layers,
-  Landmark,
-} from 'lucide-react'
+import { Key, Unlock, ShieldAlert, Copy, Download } from 'lucide-react'
 import { Logo3D } from './ui/Logo3D'
 import { Logo } from './ui/Logo'
 
@@ -74,6 +64,7 @@ interface HardwareTierInfo {
 
 export const OnboardingFlow: React.FC = () => {
   const [step, setStep] = useState<OnboardingStep>('auth')
+  const [themeColor, setThemeColor] = useState<'emerald' | 'amber' | 'violet' | 'sky'>('emerald')
   const mouseX = useMotionValue(0)
   const mouseY = useMotionValue(0)
 
@@ -244,11 +235,10 @@ export const OnboardingFlow: React.FC = () => {
 
   const handleDownloadKey = () => {
     const content = [
-      'BlueArkive Recovery Key',
-      `Generated: ${new Date().toISOString()}`,
+      'Sovereign Recovery Key',
+      '=========================',
       '',
-      '⚠️ CRITICAL: Store this recovery key in a safe place!',
-      'Without this key, your encrypted data is PERMANENTLY UNRECOVERABLE if you lose your password.',
+      'Keep this secure. If you lose your password, you will need this key to recover your encrypted data. It is PERMANENTLY UNRECOVERABLE if you lose your password.',
       '',
       'Recovery Key:',
       recoveryPhrase.join(' '),
@@ -258,7 +248,7 @@ export const OnboardingFlow: React.FC = () => {
     const url = URL.createObjectURL(blob)
     const link = document.createElement('a')
     link.href = url
-    link.download = `bluearkive-recovery-${Date.now()}.txt`
+    link.download = `sovereign-recovery-${Date.now()}.txt`
     document.body.appendChild(link)
     link.click()
     document.body.removeChild(link)
@@ -293,8 +283,18 @@ export const OnboardingFlow: React.FC = () => {
               background: spotlightBackground,
             }}
           />
-          <div className="absolute top-0 right-0 w-[600px] h-[600px] bg-slate-800/30 blur-[130px] rounded-full pointer-events-none translate-x-1/4 -translate-y-1/4 z-0" />
-          <div className="absolute bottom-10 left-0 w-[500px] h-[500px] bg-emerald-500/5 blur-[120px] rounded-full pointer-events-none -translate-x-1/4 translate-y-1/4 z-0" />
+          <div className="absolute top-0 right-0 w-[clamp(300px,40vw,600px)] h-[clamp(300px,40vw,600px)] bg-slate-800/30 blur-[clamp(60px,8vw,130px)] rounded-full pointer-events-none translate-x-1/4 -translate-y-1/4 z-0 transition-colors duration-1000" />
+          <div
+            className={`absolute bottom-10 left-0 w-[clamp(250px,35vw,500px)] h-[clamp(250px,35vw,500px)] blur-[clamp(50px,7vw,120px)] rounded-full pointer-events-none -translate-x-1/4 translate-y-1/4 z-0 transition-colors duration-1000 ${
+              themeColor === 'emerald'
+                ? 'bg-emerald-500/5'
+                : themeColor === 'amber'
+                  ? 'bg-amber-500/5'
+                  : themeColor === 'violet'
+                    ? 'bg-violet-500/5'
+                    : 'bg-sky-500/5'
+            }`}
+          />
 
           {/* Removed Logo3D to clean up visual layout */}
 
@@ -305,109 +305,186 @@ export const OnboardingFlow: React.FC = () => {
               animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
               exit={{ opacity: 0, y: -15, filter: 'blur(6px)' }}
               transition={{ duration: 0.4, ease: 'easeOut' }}
-              className="relative z-10 w-full max-w-2xl mt-auto mb-auto mx-auto px-2 xl:px-8"
+              className="relative z-10 w-full max-w-xl mt-auto mb-auto mx-auto px-8 xl:px-12"
             >
-              <h1 className="text-[clamp(1.75rem,5vh,2.75rem)] leading-[1.15] font-heading font-medium tracking-tight text-white mb-[clamp(0.5rem,2vh,1.5rem)] drop-shadow-lg">
-                {step === 'auth'
-                  ? authMode === 'register'
-                    ? 'The Sovereign Memory Fabric.'
-                    : 'Welcome Back.'
-                  : ''}
-                {step === 'setup' ? 'Initializing Core.' : ''}
-                {step === 'recovery-key' && (
-                  <span className="text-transparent bg-clip-text bg-gradient-to-br from-emerald-300 via-emerald-100 to-amber-200 drop-shadow-[0_0_15px_rgba(16,185,129,0.3)]">
-                    Absolute Sovereignty.
-                  </span>
-                )}
-                {(step as string) === 'plan-selection' ? 'Systems Ready.' : ''}
-                {(step as string) === 'ghost-meeting' ? 'Simulation Mode.' : ''}
-              </h1>
-              <p className="text-slate-400 font-serif italic text-[clamp(1rem,2.5vh,1.25rem)] leading-[1.7] opacity-90">
-                {step === 'auth'
-                  ? 'Constructing the autonomous agentic web. Infinite recall, zero dependencies.'
-                  : ''}
-                {step === 'setup'
-                  ? 'Injecting AI models directly into your secure local environment.'
-                  : ''}
-                {step === 'recovery-key' && (
-                  <span className="text-slate-300">
-                    You are the only one holding the keys.{' '}
-                    <span className="text-emerald-300/90 not-italic font-sans font-medium tracking-wide">
-                      True ownership of your data.
+              <div className="relative">
+                {/* Background Glow */}
+                <div className="absolute -left-12 -top-12 w-48 h-48 bg-emerald-500/10 blur-[80px] rounded-full pointer-events-none" />
+                <h1 className="relative text-[2.75rem] lg:text-[3.5rem] leading-[1.05] font-sans font-extralight tracking-tight text-transparent bg-clip-text bg-gradient-to-br from-white via-white/90 to-white/40 mb-8 drop-shadow-[0_0_30px_rgba(255,255,255,0.15)]">
+                  {step === 'auth'
+                    ? authMode === 'register'
+                      ? 'The Sovereign Memory Fabric.'
+                      : 'Welcome Back.'
+                    : ''}
+                  {step === 'setup' ? 'Initializing Core.' : ''}
+                  {step === 'recovery-key' && (
+                    <span className="text-transparent bg-clip-text bg-gradient-to-br from-emerald-300 via-emerald-100 to-amber-200 drop-shadow-[0_0_15px_rgba(16,185,129,0.3)]">
+                      Absolute Sovereignty.
                     </span>
-                  </span>
-                )}
-                {(step as string) === 'plan-selection'
-                  ? 'Choose the cognitive capacity required for your workflows.'
-                  : ''}
-                {(step as string) === 'ghost-meeting'
-                  ? 'Your first session. Experiencing the intelligence locally.'
-                  : ''}
-              </p>
+                  )}
+                  {(step as string) === 'plan-selection' ? 'Systems Ready.' : ''}
+                  {(step as string) === 'ghost-meeting' ? 'Simulation Mode.' : ''}
+                </h1>
+                <p className="relative text-slate-400 font-sans text-[1rem] lg:text-[1.1rem] font-light tracking-[0.02em] leading-relaxed max-w-[85%] mb-16">
+                  {step === 'auth'
+                    ? 'Constructing the autonomous agentic web. Infinite recall, zero dependencies.'
+                    : ''}
+                  {step === 'setup'
+                    ? 'Injecting AI models directly into your secure local environment.'
+                    : ''}
+                  {step === 'recovery-key' && (
+                    <span className="text-slate-300">
+                      You are the only one holding the keys.{' '}
+                      <span className="text-emerald-300/90 not-italic font-sans font-medium tracking-wide">
+                        True ownership of your data.
+                      </span>
+                    </span>
+                  )}
+                  {(step as string) === 'plan-selection'
+                    ? 'Choose the cognitive capacity required for your workflows.'
+                    : ''}
+                  {(step as string) === 'ghost-meeting'
+                    ? 'Your first session. Experiencing the intelligence locally.'
+                    : ''}
+                </p>
+              </div>
 
               {step === 'auth' && (
-                <div className="mt-[clamp(1.5rem,4vh,3rem)] grid grid-cols-1 xl:grid-cols-2 gap-[clamp(0.75rem,2vh,1.25rem)] pb-[clamp(1rem,3vh,3rem)]">
-                  <div className="group relative p-5 lg:p-6 rounded-2xl bg-white/[0.02] border border-white/[0.05] hover:bg-white/[0.04] hover:shadow-2xl hover:shadow-violet-500/10 transition-all duration-300 overflow-hidden cursor-default flex flex-col">
-                    <div className="absolute inset-0 bg-gradient-to-br from-violet-500/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none" />
-                    <div className="relative z-10 flex items-center gap-3.5 mb-[clamp(0.5rem,1.5vh,0.75rem)]">
-                      <div className="flex items-center justify-center w-[clamp(32px,5vh,40px)] h-[clamp(32px,5vh,40px)] rounded-xl bg-violet-500/10 border border-violet-500/20 group-hover:scale-110 group-hover:bg-violet-500/20 transition-all duration-300 shadow-[inset_0_0_15px_rgba(139,92,246,0.1)] shrink-0">
-                        <Layers className="text-violet-400" size={18} />
-                      </div>
-                      <h3 className="text-slate-200 font-semibold tracking-wide text-[clamp(13px,2vh,14.5px)] leading-tight">
+                <div className="mt-12 flex flex-col gap-10 pr-4 relative">
+                  {/* Subtle vertical line connecting icons */}
+                  <div className="absolute left-[36px] top-8 bottom-8 w-px bg-gradient-to-b from-white/0 via-white/10 to-white/0 hidden sm:block"></div>
+
+                  <div 
+                    className="group relative flex items-start gap-8 p-6 -ml-6 rounded-[2rem] border border-transparent transition-all duration-700 hover:bg-white/[0.02] hover:border-white/[0.05] hover:shadow-[0_20px_40px_-15px_rgba(0,0,0,0.5)] hover:-translate-y-1 hover:backdrop-blur-xl"
+                    onMouseEnter={() => setThemeColor('emerald')}
+                  >
+                    <div className="relative z-10 shrink-0 flex items-center justify-center w-16 h-16 rounded-[1.25rem] border border-white/5 bg-white/[0.01] shadow-[inset_0_1px_0_rgba(255,255,255,0.05),0_0_20px_rgba(0,0,0,0.2)] backdrop-blur-md transition-all duration-700 group-hover:border-emerald-500/30 group-hover:bg-emerald-500/10 group-hover:shadow-[inset_0_1px_0_rgba(255,255,255,0.1),0_0_30px_rgba(16,185,129,0.2)] group-hover:-translate-y-1 group-hover:scale-105">
+                      <svg
+                        className="w-6 h-6 text-slate-500 group-hover:text-emerald-300 transition-colors duration-700"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                        strokeWidth="1.5"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          d="M8.25 3v1.5M4.5 8.25H3m18 0h-1.5M8.25 19.5V21M12 3v1.5m0 15V21m3.75-18v1.5m3.75 5.25H21m-18 0H3m3.75 8.25v1.5m10.5-15V3m0 18v-1.5m-3.75 1.5h-7.5a2.25 2.25 0 00-2.25 2.25v7.5a2.25 2.25 0 002.25 2.25h7.5a2.25 2.25 0 002.25-2.25v-7.5a2.25 2.25 0 00-2.25-2.25z"
+                        />
+                      </svg>
+                    </div>
+                    <div className="flex flex-col pt-1.5 z-10">
+                      <h3 className="text-[0.8rem] font-bold tracking-[0.2em] uppercase text-slate-400 group-hover:text-emerald-300 transition-colors duration-500 mb-2">
                         Cognitive Substrate
                       </h3>
+                      <p className="text-slate-400/90 text-[0.95rem] leading-[1.6] font-light transition-colors duration-500 group-hover:text-slate-300">
+                        100% local inference.{' '}
+                        <span className="text-white font-medium drop-shadow-md">
+                          Absolute neural independence.
+                        </span>
+                      </p>
                     </div>
-                    <p className="relative z-10 text-[clamp(11px,1.5vh,13px)] text-slate-400 leading-relaxed group-hover:text-slate-300 transition-colors mt-auto">
-                      100% offline inference with zero external telemetry.
-                    </p>
                   </div>
 
-                  <div className="group relative p-5 lg:p-6 rounded-2xl bg-white/[0.02] border border-white/[0.05] hover:bg-white/[0.04] hover:shadow-2xl hover:shadow-emerald-500/10 transition-all duration-300 overflow-hidden cursor-default flex flex-col">
-                    <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none" />
-                    <div className="relative z-10 flex items-center gap-3.5 mb-[clamp(0.5rem,1.5vh,0.75rem)]">
-                      <div className="flex items-center justify-center w-[clamp(32px,5vh,40px)] h-[clamp(32px,5vh,40px)] rounded-xl bg-emerald-500/10 border border-emerald-500/20 group-hover:scale-110 group-hover:bg-emerald-500/20 transition-all duration-300 shadow-[inset_0_0_15px_rgba(16,185,129,0.1)] shrink-0">
-                        <Activity className="text-emerald-400" size={18} />
-                      </div>
-                      <h3 className="text-slate-200 font-semibold tracking-wide text-[clamp(13px,2vh,14.5px)] leading-tight">
+                  <div 
+                    className="group relative flex items-start gap-8 p-6 -ml-6 rounded-[2rem] border border-transparent transition-all duration-700 hover:bg-white/[0.02] hover:border-white/[0.05] hover:shadow-[0_20px_40px_-15px_rgba(0,0,0,0.5)] hover:-translate-y-1 hover:backdrop-blur-xl"
+                    onMouseEnter={() => setThemeColor('amber')}
+                  >
+                    <div className="relative z-10 shrink-0 flex items-center justify-center w-16 h-16 rounded-[1.25rem] border border-white/5 bg-white/[0.01] shadow-[inset_0_1px_0_rgba(255,255,255,0.05),0_0_20px_rgba(0,0,0,0.2)] backdrop-blur-md transition-all duration-700 group-hover:border-amber-500/30 group-hover:bg-amber-500/10 group-hover:shadow-[inset_0_1px_0_rgba(255,255,255,0.1),0_0_30px_rgba(245,158,11,0.2)] group-hover:-translate-y-1 group-hover:scale-105">
+                      <svg
+                        className="w-6 h-6 text-slate-500 group-hover:text-amber-300 transition-colors duration-700"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                        strokeWidth="1.5"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182m0-4.991v4.99"
+                        />
+                      </svg>
+                    </div>
+                    <div className="flex flex-col pt-1.5 z-10">
+                      <h3 className="text-[0.8rem] font-bold tracking-[0.2em] uppercase text-slate-400 group-hover:text-amber-300 transition-colors duration-500 mb-2">
                         Infinite Recall
                       </h3>
+                      <p className="text-slate-400/90 text-[0.95rem] leading-[1.6] font-light transition-colors duration-500 group-hover:text-slate-300">
+                        Seamless ambient capture.{' '}
+                        <span className="text-white font-medium drop-shadow-md">
+                          Retrieve any thought instantly.
+                        </span>
+                      </p>
                     </div>
-                    <p className="relative z-10 text-[clamp(11px,1.5vh,13px)] text-slate-400 leading-relaxed group-hover:text-slate-300 transition-colors mt-auto">
-                      Continuous background ingestion and ambient retrieval.
-                    </p>
                   </div>
 
-                  <div className="group relative p-5 lg:p-6 rounded-2xl bg-white/[0.02] border border-white/[0.05] hover:bg-white/[0.04] hover:shadow-2xl hover:shadow-amber-500/10 transition-all duration-300 overflow-hidden cursor-default flex flex-col">
-                    <div className="absolute inset-0 bg-gradient-to-br from-amber-500/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none" />
-                    <div className="relative z-10 flex items-center gap-3.5 mb-[clamp(0.5rem,1.5vh,0.75rem)]">
-                      <div className="flex items-center justify-center w-[clamp(32px,5vh,40px)] h-[clamp(32px,5vh,40px)] rounded-xl bg-amber-500/10 border border-amber-500/20 group-hover:scale-110 group-hover:bg-amber-500/20 transition-all duration-300 shadow-[inset_0_0_15px_rgba(245,158,11,0.1)] shrink-0">
-                        <GitMerge className="text-amber-400" size={18} />
-                      </div>
-                      <h3 className="text-slate-200 font-semibold tracking-wide text-[clamp(13px,2vh,14.5px)] leading-tight">
+                  <div 
+                    className="group relative flex items-start gap-8 p-6 -ml-6 rounded-[2rem] border border-transparent transition-all duration-700 hover:bg-white/[0.02] hover:border-white/[0.05] hover:shadow-[0_20px_40px_-15px_rgba(0,0,0,0.5)] hover:-translate-y-1 hover:backdrop-blur-xl"
+                    onMouseEnter={() => setThemeColor('violet')}
+                  >
+                    <div className="relative z-10 shrink-0 flex items-center justify-center w-16 h-16 rounded-[1.25rem] border border-white/5 bg-white/[0.01] shadow-[inset_0_1px_0_rgba(255,255,255,0.05),0_0_20px_rgba(0,0,0,0.2)] backdrop-blur-md transition-all duration-700 group-hover:border-violet-500/30 group-hover:bg-violet-500/10 group-hover:shadow-[inset_0_1px_0_rgba(255,255,255,0.1),0_0_30px_rgba(139,92,246,0.2)] group-hover:-translate-y-1 group-hover:scale-105">
+                      <svg
+                        className="w-6 h-6 text-slate-500 group-hover:text-violet-300 transition-colors duration-700"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                        strokeWidth="1.5"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09zM18.259 8.715L18 9.75l-.259-1.035a3.375 3.375 0 00-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 002.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 002.456 2.456L21.75 6l-1.035.259a3.375 3.375 0 00-2.456 2.456zM16.894 20.567L16.5 21.75l-.394-1.183a2.25 2.25 0 00-1.423-1.423L13.5 18.75l1.183-.394a2.25 2.25 0 001.423-1.423l.394-1.183.394 1.183a2.25 2.25 0 001.423 1.423l1.183.394-1.183.394a2.25 2.25 0 00-1.423 1.423z"
+                        />
+                      </svg>
+                    </div>
+                    <div className="flex flex-col pt-1.5 z-10">
+                      <h3 className="text-[0.8rem] font-bold tracking-[0.2em] uppercase text-slate-400 group-hover:text-violet-300 transition-colors duration-500 mb-2">
                         Agentic Action
                       </h3>
+                      <p className="text-slate-400/90 text-[0.95rem] leading-[1.6] font-light transition-colors duration-500 group-hover:text-slate-300">
+                        Proactive autonomy.{' '}
+                        <span className="text-white font-medium drop-shadow-md">
+                          Execute complex workflows entirely on-device.
+                        </span>
+                      </p>
                     </div>
-                    <p className="relative z-10 text-[clamp(11px,1.5vh,13px)] text-slate-400 leading-relaxed group-hover:text-slate-300 transition-colors mt-auto">
-                      Autonomous workflow synthesis executed on-device.
-                    </p>
                   </div>
 
-                  <div className="group relative p-5 lg:p-6 rounded-2xl bg-white/[0.02] border border-white/[0.05] hover:bg-white/[0.04] hover:shadow-2xl hover:shadow-sky-500/10 transition-all duration-300 overflow-hidden cursor-default flex flex-col">
-                    <div className="absolute inset-0 bg-gradient-to-br from-sky-500/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none" />
-                    <div className="relative z-10 flex items-center gap-3.5 mb-[clamp(0.5rem,1.5vh,0.75rem)]">
-                      <div className="flex items-center justify-center w-[clamp(32px,5vh,40px)] h-[clamp(32px,5vh,40px)] rounded-xl bg-sky-500/10 border border-sky-500/20 group-hover:scale-110 group-hover:bg-sky-500/20 transition-all duration-300 shadow-[inset_0_0_15px_rgba(14,165,233,0.1)] shrink-0">
-                        <Landmark className="text-sky-400" size={18} />
-                      </div>
-                      <h3 className="text-slate-200 font-semibold tracking-wide text-[clamp(13px,2vh,14.5px)] leading-tight">
+                  <div 
+                    className="group relative flex items-start gap-8 p-6 -ml-6 rounded-[2rem] border border-transparent transition-all duration-700 hover:bg-white/[0.02] hover:border-white/[0.05] hover:shadow-[0_20px_40px_-15px_rgba(0,0,0,0.5)] hover:-translate-y-1 hover:backdrop-blur-xl"
+                    onMouseEnter={() => setThemeColor('sky')}
+                  >
+                    <div className="relative z-10 shrink-0 flex items-center justify-center w-16 h-16 rounded-[1.25rem] border border-white/5 bg-white/[0.01] shadow-[inset_0_1px_0_rgba(255,255,255,0.05),0_0_20px_rgba(0,0,0,0.2)] backdrop-blur-md transition-all duration-700 group-hover:border-sky-500/30 group-hover:bg-sky-500/10 group-hover:shadow-[inset_0_1px_0_rgba(255,255,255,0.1),0_0_30px_rgba(14,165,233,0.2)] group-hover:-translate-y-1 group-hover:scale-105">
+                      <svg
+                        className="w-6 h-6 text-slate-500 group-hover:text-sky-300 transition-colors duration-700"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                        strokeWidth="1.5"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          d="M16.5 10.5V6.75a4.5 4.5 0 10-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H6.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z"
+                        />
+                      </svg>
+                    </div>
+                    <div className="flex flex-col pt-1.5 z-10">
+                      <h3 className="text-[0.8rem] font-bold tracking-[0.2em] uppercase text-slate-400 group-hover:text-sky-300 transition-colors duration-500 mb-2">
                         Data Sovereignty
                       </h3>
+                      <p className="text-slate-400/90 text-[0.95rem] leading-[1.6] font-light transition-colors duration-500 group-hover:text-slate-300">
+                        Cryptographic finality.{' '}
+                        <span className="text-white font-medium drop-shadow-md">
+                          Inexorably bound to your hardware enclave.
+                        </span>
+                      </p>
                     </div>
-                    <p className="relative z-10 text-[clamp(11px,1.5vh,13px)] text-slate-400 leading-relaxed group-hover:text-slate-300 transition-colors mt-auto">
-                      Cryptographically guaranteed single-tenant architecture.
-                    </p>
                   </div>
                 </div>
               )}
+
+
 
               {step === 'recovery-key' && (
                 <div
@@ -512,13 +589,13 @@ export const OnboardingFlow: React.FC = () => {
                     <Logo size="lg" />
                   </div>
                   <h2 className="text-2xl font-semibold tracking-wide text-white">
-                    {authMode === 'register' ? 'Create Account' : 'Sign In'}
+                    {authMode === 'register' ? 'Initialize Core' : 'Authenticate Session'}
                   </h2>
                 </div>
               )}
 
               <form
-                className="w-full space-y-5 mb-8"
+                className="w-full space-y-6 mb-8"
                 onSubmit={e => {
                   e.preventDefault()
                   handleAuth()
@@ -581,18 +658,18 @@ export const OnboardingFlow: React.FC = () => {
                     type="submit"
                     variant="primary"
                     size="lg"
-                    className="w-full mt-6 h-13 text-[14px] bg-white text-slate-950 hover:bg-slate-200 border-none transition-colors"
+                    className="w-full mt-8 h-13 text-[14px] bg-white text-slate-950 hover:bg-slate-200 border-none transition-colors"
                     disabled={authLoading}
                   >
                     {authLoading
                       ? 'Authenticating...'
                       : authMode === 'register'
                         ? 'Initialize Core'
-                        : 'Sign In'}
+                        : 'Authenticate Session'}
                   </Button>
 
                   {/* Divider */}
-                  <div className="flex items-center gap-3 my-7">
+                  <div className="flex items-center gap-3 my-8">
                     <div className="flex-1 h-px bg-white/10" />
                     <span className="text-xs text-slate-500 tracking-widest uppercase">or</span>
                     <div className="flex-1 h-px bg-white/10" />
@@ -662,7 +739,7 @@ export const OnboardingFlow: React.FC = () => {
                         }}
                         className="text-white cursor-pointer hover:underline transition-colors font-medium"
                       >
-                        Log in
+                        Authenticate
                       </span>
                     </>
                   ) : (
@@ -675,7 +752,7 @@ export const OnboardingFlow: React.FC = () => {
                         }}
                         className="text-white cursor-pointer hover:underline transition-colors font-medium"
                       >
-                        Register
+                        Initialize Core
                       </span>
                     </>
                   )}
@@ -887,18 +964,24 @@ export const OnboardingFlow: React.FC = () => {
           )}
 
           {step === 'plan-selection' && (
-            <div className="w-full max-w-[1100px] flex flex-col items-center relative z-10 pt-10 pb-20">
-              <h2 className="text-3xl font-semibold tracking-wide text-white mb-8 text-center animate-fade-in font-heading">
-                Select Cognitive Capacity
-              </h2>
+            <div className="w-full max-w-[1200px] flex flex-col items-center relative z-10 pt-10 pb-20">
+              <div className="flex flex-col items-center mb-12 animate-fade-in">
+                <h2 className="text-[2rem] font-light tracking-[0.2em] uppercase text-white mb-4 drop-shadow-[0_0_15px_rgba(255,255,255,0.3)]">
+                  Cognitive Capacity
+                </h2>
+                <div className="w-16 h-[1px] bg-gradient-to-r from-transparent via-white/40 to-transparent mb-6"></div>
+                <p className="text-slate-400 font-light tracking-wider text-[0.9rem] max-w-lg text-center leading-relaxed">
+                  Provision your local node and configure networked synchronization capabilities.
+                </p>
+              </div>
               <PricingView onPlanSelect={() => setStep('ghost-meeting')} />
               <Button
                 variant="primary"
                 size="lg"
                 onClick={() => setStep('ghost-meeting')}
-                className="w-full mt-6 bg-white text-slate-950 hover:bg-slate-200 border-none transition-colors shadow-[0_0_30px_rgba(255,255,255,0.1)]"
+                className="w-full max-w-md mt-12 py-5 rounded-2xl bg-white text-slate-950 font-bold tracking-widest uppercase text-[0.8rem] hover:bg-slate-200 border-none transition-all duration-500 shadow-[0_0_40px_rgba(255,255,255,0.15)] hover:shadow-[0_0_50px_rgba(255,255,255,0.3)] hover:-translate-y-1"
               >
-                Initialize First Session
+                Initialize Architecture
               </Button>
             </div>
           )}

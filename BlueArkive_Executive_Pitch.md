@@ -5,7 +5,7 @@ class: invert
 paginate: true
 style: |
   @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
-  
+
   section {
     background-color: #030303;
     color: #e5e5e5;
@@ -14,7 +14,7 @@ style: |
     padding: 70px 90px;
     background-image: radial-gradient(circle at 50% 0%, #111111 0%, #030303 60%);
   }
-  
+
   h1 {
     color: #ffffff;
     font-size: 72px;
@@ -23,7 +23,7 @@ style: |
     line-height: 1.0;
     margin-bottom: 0.1em;
   }
-  
+
   h2 {
     color: #ffffff;
     font-size: 46px;
@@ -39,7 +39,7 @@ style: |
     font-weight: 400;
     letter-spacing: -0.5px;
   }
-  
+
   p, li {
     font-size: 28px;
     line-height: 1.6;
@@ -113,7 +113,7 @@ style: |
     font-size: 20px;
     font-weight: 600;
   }
-  
+
   .arch-sub {
     font-size: 15px;
     color: #888888;
@@ -124,7 +124,7 @@ style: |
   }
 ---
 
-<!-- 
+<!--
 _class: lead
 _backgroundColor: #000000
 -->
@@ -216,10 +216,11 @@ Our proprietary stack executes highly concurrent LLM processing entirely offline
 Deploying massive LLMs on commercial hardware requires extreme restraint. We benchmarked 40+ local foundation models to synthesize the ultimate fallback ensemble.
 
 **The Phase 0 Hardware Loadout (16GB RAM Class):**
-*   **Speech-to-Text:** Whisper Large V3 `Turbo` (C++)
-      *   *Benchmark*: Processes a 30-second audio stream in exactly **0.58 seconds** (51.8x real-time).
-*   **Natural Language Processor:** Qwen 2.5 3B (MLX optimized)
-      *   *Benchmark*: Operates highly structured data expansion inside a 32k context window utilizing merely **2.2GB** of RAM footprint.
+
+- **Speech-to-Text:** Whisper Large V3 `Turbo` (C++)
+  - _Benchmark_: Processes a 30-second audio stream in exactly **0.58 seconds** (51.8x real-time).
+- **Natural Language Processor:** Qwen 2.5 3B (MLX optimized)
+  - _Benchmark_: Operates highly structured data expansion inside a 32k context window utilizing merely **2.2GB** of RAM footprint.
 
 <div class="footer">BLUEARKIVE / 04</div>
 
@@ -230,9 +231,10 @@ Deploying massive LLMs on commercial hardware requires extreme restraint. We ben
 Intelligence requires structured data. As a meeting progresses, the local engine identifies critical metadata in real-time.
 
 It automatically utilizes regex and local parsing arrays to extract:
-*   **Financial Thresholds & Budgets**
-*   **Assigned Tasks & Deadlines**
-*   **Key Personnel & Organizations**
+
+- **Financial Thresholds & Budgets**
+- **Assigned Tasks & Deadlines**
+- **Key Personnel & Organizations**
 
 These arrays are parsed into interactive "Smart Chips" inside the UI, letting the user instantly view every decision tied to a specific deadline across historical offline meetings.
 
@@ -253,6 +255,7 @@ How do you perform offline semantic search across multiple devices while keeping
 ---
 
 ## 7. The Technology Stack
+
 We didn't just connect APIs. We engineered a robust, 65,000+ line local intelligence fabric.
 
 <br>

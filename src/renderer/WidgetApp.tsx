@@ -1,6 +1,7 @@
 import React, { useEffect, useReducer } from 'react'
 import { createRoot } from 'react-dom/client'
 import { MiniWidget } from './components/meeting/MiniWidget'
+import { SovereignOrb } from './components/meeting/SovereignOrb'
 import './index.css'
 import type { ElectronAPI } from '../types/ipc'
 import { usePowerMode } from './hooks/usePowerMode'
@@ -27,6 +28,7 @@ interface WidgetState {
   activeMeetingId: string | null
   recordingStartTime?: number | null
   recordingTotalPausedMs?: number
+  handoffState: 'expanded' | 'orb' | 'hidden'
 }
 
 const initialState: WidgetState = {
@@ -43,6 +45,7 @@ const initialState: WidgetState = {
   activeMeetingId: 'mock-123',
   recordingStartTime: Date.now() - 5043000,
   recordingTotalPausedMs: 0,
+  handoffState: 'hidden',
 }
 
 type WidgetAction = { type: 'UPDATE'; payload: Partial<WidgetState> }
@@ -58,6 +61,7 @@ function widgetReducer(state: WidgetState, action: WidgetAction): WidgetState {
 
 export const WidgetApp: React.FC = () => {
   const [state, dispatch] = useReducer(widgetReducer, initialState)
+  const [isHoverExpanded, setIsHoverExpanded] = React.useState(false)
   // #24: Wire usePowerMode — disables spring animation when on battery
   const { isPowerSaveMode } = usePowerMode()
 
@@ -92,8 +96,15 @@ export const WidgetApp: React.FC = () => {
       dispatch({ type: 'UPDATE', payload: updates })
     })
 
+    const unsubscribeHandoff = window.electronAPI?.on?.spatialHandoff?.(
+      (data: { state: 'expanded' | 'orb' | 'hidden' }) => {
+        dispatch({ type: 'UPDATE', payload: { handoffState: data.state } })
+      }
+    )
+
     return () => {
       unsubscribe?.()
+      unsubscribeHandoff?.()
     }
   }, [])
 
@@ -148,35 +159,60 @@ export const WidgetApp: React.FC = () => {
     window.electronAPI?.widget?.triggerPauseToggle()
   }
 
+  const handleStartCapture = () => {
+    window.electronAPI?.widget?.triggerStartCapture?.()
+  }
+
   // #24: When on battery, use instant transition instead of spring physics
   const animationProps = isPowerSaveMode
     ? { type: 'tween' as const, duration: 0.15 }
     : { type: 'spring' as const, stiffness: 350, damping: 25, mass: 1.2, bounce: 0.4 }
 
+  const showOrb = state.handoffState === 'orb' && !isHoverExpanded
+  const isHidden = state.handoffState === 'hidden'
+
   return (
-    <div className="w-screen h-screen bg-transparent flex flex-col justify-start items-end p-6 widget-draggable overflow-hidden text-[var(--color-text-primary)]">
+    <div
+      className="w-screen h-screen bg-transparent flex flex-col justify-start items-end p-6 widget-draggable overflow-hidden text-[var(--color-text-primary)]"
+      onMouseLeave={() => setIsHoverExpanded(false)}
+    >
       <motion.div
         initial={{ y: -50, opacity: 0, scale: 0.85, filter: 'blur(10px)' }}
-        animate={{ y: 0, opacity: 1, scale: 1, filter: 'blur(0px)' }}
+        animate={{
+          y: isHidden ? 20 : 0,
+          opacity: isHidden ? 0 : 1,
+          scale: isHidden ? 0.85 : 1,
+          filter: isHidden ? 'blur(10px)' : 'blur(0px)',
+        }}
         transition={animationProps}
-        className="relative pointer-events-auto w-full flex justify-end"
+        className={`relative w-full flex justify-end ${isHidden ? 'pointer-events-none' : 'pointer-events-auto'}`}
       >
-        <MiniWidget
-          isRecording={state.isRecording}
-          isPaused={state.isPaused}
-          elapsedTime={state.elapsedTime}
-          lastTranscriptLine={state.lastTranscriptLine}
-          audioMode={state.audioMode}
-          syncStatus={state.syncStatus}
-          liveCoachTip={state.liveCoachTip}
-          entityCount={state.entityCount}
-          noteCount={state.noteCount}
-          onRestore={handleRestore}
-          onStop={handleStop}
-          onBookmark={handleBookmark}
-          onQuickNote={handleQuickNote}
-          onPauseToggle={handlePauseToggle}
-        />
+        {showOrb ? (
+          <SovereignOrb
+            isRecording={state.isRecording}
+            isPaused={state.isPaused}
+            onClick={() => setIsHoverExpanded(true)}
+            onHoverStart={() => setIsHoverExpanded(true)}
+          />
+        ) : (
+          <MiniWidget
+            isRecording={state.isRecording}
+            isPaused={state.isPaused}
+            elapsedTime={state.elapsedTime}
+            lastTranscriptLine={state.lastTranscriptLine}
+            audioMode={state.audioMode}
+            syncStatus={state.syncStatus}
+            liveCoachTip={state.liveCoachTip}
+            entityCount={state.entityCount}
+            noteCount={state.noteCount}
+            onRestore={handleRestore}
+            onStop={handleStop}
+            onBookmark={handleBookmark}
+            onQuickNote={handleQuickNote}
+            onPauseToggle={handlePauseToggle}
+            onStartCapture={handleStartCapture}
+          />
+        )}
       </motion.div>
     </div>
   )

@@ -1,13 +1,13 @@
 /**
  * Electron Test Runner for Audio Capture Tests
- * 
+ *
  * Usage: node run-audio-test.js
  */
 
-const { app, BrowserWindow } = require('electron');
-const path = require('path');
+const { app, BrowserWindow } = require('electron')
+const path = require('path')
 
-let mainWindow;
+let mainWindow
 
 function createWindow() {
   mainWindow = new BrowserWindow({
@@ -16,38 +16,38 @@ function createWindow() {
     webPreferences: {
       nodeIntegration: true,
       contextIsolation: false,
-      enableRemoteModule: true
+      enableRemoteModule: true,
     },
-    title: 'PiyAPI Notes - Audio Capture Test'
-  });
+    title: 'PiyAPI Notes - Audio Capture Test',
+  })
 
-  mainWindow.loadFile(path.join(__dirname, 'test-page.html'));
-  
+  mainWindow.loadFile(path.join(__dirname, 'test-page.html'))
+
   // Open DevTools for debugging
-  mainWindow.webContents.openDevTools();
+  mainWindow.webContents.openDevTools()
 
   mainWindow.on('closed', () => {
-    mainWindow = null;
-  });
+    mainWindow = null
+  })
 }
 
 app.whenReady().then(() => {
-  createWindow();
+  createWindow()
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) {
-      createWindow();
+      createWindow()
     }
-  });
-});
+  })
+})
 
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') {
-    app.quit();
+    app.quit()
   }
-});
+})
 
 // Handle any uncaught exceptions
-process.on('uncaughtException', (error) => {
-  console.error('Uncaught Exception:', error);
-});
+process.on('uncaughtException', error => {
+  console.error('Uncaught Exception:', error)
+})

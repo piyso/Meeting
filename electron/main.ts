@@ -184,6 +184,7 @@ app.on('second-instance', async (_event, argv) => {
   }
 })
 
+export let isQuitting = false
 let mainWindow: BrowserWindow | null = null
 let widgetWindow: BrowserWindow | null = null
 
@@ -258,10 +259,42 @@ const createWindow = () => {
     return { action: 'deny' }
   })
 
-  // Handle window closed
+  // Handle window close to background it instead of destroying it
+  mainWindow.on('close', event => {
+    if (!isQuitting) {
+      event.preventDefault()
+      mainWindow?.hide()
+    }
+  })
+
   mainWindow.on('closed', () => {
     mainWindow = null
     log.info('Main window closed')
+  })
+
+  // Handle spatial handoff to widget
+  const triggerHandoff = () => {
+    if (widgetWindow && !widgetWindow.isDestroyed()) {
+      widgetWindow.showInactive()
+      widgetWindow.webContents.send('widget:spatialHandoff', { state: 'orb' })
+    }
+  }
+
+  mainWindow.on('minimize', triggerHandoff)
+  mainWindow.on('hide', triggerHandoff)
+
+  // Ensure widget hides automatically if main window is shown
+  // (e.g. from dock icon, system tray, or deep link)
+  mainWindow.on('show', () => {
+    if (widgetWindow && !widgetWindow.isDestroyed()) {
+      widgetWindow.webContents.send('widget:spatialHandoff', { state: 'hidden' })
+      // Give the CSS fade out animation time before hiding the OS window
+      setTimeout(() => {
+        if (widgetWindow && !widgetWindow.isDestroyed()) {
+          widgetWindow.hide()
+        }
+      }, 250)
+    }
   })
 }
 
@@ -632,6 +665,22 @@ app
             }
           },
         },
+        {
+          label: 'Show Widget / Sovereign Orb',
+          click: () => {
+            if (widgetWindow && !widgetWindow.isDestroyed()) {
+              if (widgetWindow.isVisible()) {
+                widgetWindow.webContents.send('widget:spatialHandoff', { state: 'hidden' })
+                setTimeout(() => widgetWindow?.hide(), 250)
+              } else {
+                widgetWindow.showInactive()
+                widgetWindow.webContents.send('widget:spatialHandoff', { state: 'expanded' })
+              }
+            } else {
+              createWidgetWindow()
+            }
+          },
+        },
         { type: 'separator' },
         { label: `v${app.getVersion()}`, enabled: false },
         { type: 'separator' },
@@ -671,6 +720,32 @@ app
         log.error('Both primary and fallback global shortcuts failed to register')
       }
     }
+
+    // Register Widget toggle shortcut
+    const widgetShortcutHandler = () => {
+      log.info('Widget toggle shortcut triggered')
+      if (widgetWindow && !widgetWindow.isDestroyed()) {
+        const isMainOpen = mainWindow && !mainWindow.isDestroyed() && mainWindow.isVisible()
+
+        // If the main window is open, dismiss it and focus the widget
+        if (isMainOpen && mainWindow) {
+          mainWindow.hide()
+          widgetWindow.showInactive()
+          widgetWindow.webContents.send('widget:spatialHandoff', { state: 'expanded' })
+        }
+        // If the widget is visible AND main is closed, then hide the widget
+        else if (widgetWindow.isVisible()) {
+          widgetWindow.webContents.send('widget:spatialHandoff', { state: 'hidden' })
+          setTimeout(() => widgetWindow?.hide(), 250)
+        }
+        // Otherwise (both closed), just show the widget
+        else {
+          widgetWindow.showInactive()
+          widgetWindow.webContents.send('widget:spatialHandoff', { state: 'expanded' })
+        }
+      }
+    }
+    globalShortcut.register('CommandOrControl+Shift+W', widgetShortcutHandler)
 
     // On macOS, re-create window when dock icon is clicked and no windows are open
     app.on('activate', () => {
@@ -867,7 +942,6 @@ app.on('open-file', (event, filePath) => {
 // Handle app quit
 // CRITICAL: Electron does NOT await async before-quit handlers.
 // We must use event.preventDefault() to hold the quit, then app.exit() after cleanup.
-let isQuitting = false
 app.on('before-quit', event => {
   if (isQuitting) return // Prevent re-entrant calls
   isQuitting = true

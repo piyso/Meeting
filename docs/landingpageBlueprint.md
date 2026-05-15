@@ -1253,6 +1253,7 @@ Imagine a brilliant friend who works at Apple showing you something they built o
 ### The Specificity Principle
 
 **Vague = Untrustworthy.** Specific = Believable.
+
 - ❌ "Fast transcription" → ✅ "51.8× faster than real-time"
 - ❌ "Strong encryption" → ✅ "AES-256. Same standard as banks."
 - ❌ "Works with popular meeting tools" → ✅ "Zoom, Meet, Teams, Slack, WebEx, Discord"
@@ -1262,35 +1263,41 @@ Imagine a brilliant friend who works at Apple showing you something they built o
 
 # PART 12: INTERACTIVE COMMUNICATION & SUGGESTION ENGINE
 
-> The user asked: *"How can we communicate to people easily and provide suggestions? I want the best."*
-> 
+> The user asked: _"How can we communicate to people easily and provide suggestions? I want the best."_
+>
 > The answer isn't just better copywriting. **The best landing pages in the world don't just tell you what the product does; they let you FEEL it, and they tell you exactly how YOU specifically should use it.**
 
 ---
 
 ## 12.1 The Interactive "Aha!" Sandbox (Hero Section)
 
-Instead of a static video in the hero, give them a **mini, interactive version of PiyNotes right in the browser.** 
+Instead of a static video in the hero, give them a **mini, interactive version of PiyNotes right in the browser.**
 
 People learn by doing. Reduce the time to value from "5 minutes after downloading" to "5 seconds on the landing page."
 
 **How it works on the page:**
+
 1. Next to the main headline, there is a text box that looks exactly like the PiyNotes editor.
-2. **Instruction:** *"Try the AI expansion right now. Type a messy thought below and press ⌘+Enter."*
+2. **Instruction:** _"Try the AI expansion right now. Type a messy thought below and press ⌘+Enter."_
 3. **Pre-filled placeholder:** `budget 1.8m → 2.3m. need signoff from Sarah by friday. blocker: legal review.`
 4. The user clicks ⌘+Enter (or a "Generate" button on mobile).
 5. **The Magic:** A CSS animation triggers (a subtle violet/emerald glow), and the text transforms instantly into a beautifully formatted structured note:
+
    ```markdown
    ### Budget Update
+
    The project budget has been revised from $1.8M to $2.3M.
-   
+
    **Action Items:**
+
    - [ ] Get final budget signoff from Sarah (Due: Friday)
-   
+
    **Blockers:**
+
    - Pending legal review of the new budget allocation.
    ```
-6. **Subtext appears:** *"This happened 100% locally in your browser using web-assembly. Imagine what it can do during a 45-minute meeting. [Download Free]"*
+
+6. **Subtext appears:** _"This happened 100% locally in your browser using web-assembly. Imagine what it can do during a 45-minute meeting. [Download Free]"_
 
 ---
 
@@ -1303,14 +1310,14 @@ Use a pill-based toggle menu (`[Founders]` `[Engineers]` `[Sales]` `[Product Man
 
 When a user clicks their role, the UI below changes to show a specific suggestion and a visual proof:
 
-| Role Clicked | The Suggestion (What we communicate) | Visual Proof (What we show) |
-|:-------------|:-------------------------------------|:---------------------------|
-| **Founders** | **"Turn rambles into Investor Updates."**<br>Stop spending Sunday nights writing updates. PiyNotes extracts your weekly decisions into a structured format automatically. | **Visual:** A 3-on-1 co-founder sync transcript transforming into a clean "Weekly Investor Update" markdown template. |
-| **Engineers** | **"From Standup to Jira Tickets instantly."**<br>Let PiyNotes listen to your 15-minute daily sync. It will extract blockers, PR reviews, and format them perfectly for Jira. | **Visual:** A code-heavy conversation transforming into Markdown checklists and identified `[BLOCKER]` tags. |
-| **Sales** | **"Automate your CRM data entry."**<br>Never type a discovery call note again. PiyNotes identifies BANT (Budget, Authority, Need, Timeline) and formats it for Salesforce/HubSpot. | **Visual:** A transcript showing budget constraints automatically highlighting and dropping into a structured BANT table. |
-| **Product** | **"Never lose a feature request again."**<br>When a customer casually mentions a UX issue, the SilentPrompter catches it and tags it for your backlog automatically. | **Visual:** The Knowledge Graph showing a cluster of 5 different meetings where "Dark Mode" was requested by different clients. |
+| Role Clicked  | The Suggestion (What we communicate)                                                                                                                                               | Visual Proof (What we show)                                                                                                     |
+| :------------ | :--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | :------------------------------------------------------------------------------------------------------------------------------ |
+| **Founders**  | **"Turn rambles into Investor Updates."**<br>Stop spending Sunday nights writing updates. PiyNotes extracts your weekly decisions into a structured format automatically.          | **Visual:** A 3-on-1 co-founder sync transcript transforming into a clean "Weekly Investor Update" markdown template.           |
+| **Engineers** | **"From Standup to Jira Tickets instantly."**<br>Let PiyNotes listen to your 15-minute daily sync. It will extract blockers, PR reviews, and format them perfectly for Jira.       | **Visual:** A code-heavy conversation transforming into Markdown checklists and identified `[BLOCKER]` tags.                    |
+| **Sales**     | **"Automate your CRM data entry."**<br>Never type a discovery call note again. PiyNotes identifies BANT (Budget, Authority, Need, Timeline) and formats it for Salesforce/HubSpot. | **Visual:** A transcript showing budget constraints automatically highlighting and dropping into a structured BANT table.       |
+| **Product**   | **"Never lose a feature request again."**<br>When a customer casually mentions a UX issue, the SilentPrompter catches it and tags it for your backlog automatically.               | **Visual:** The Knowledge Graph showing a cluster of 5 different meetings where "Dark Mode" was requested by different clients. |
 
-**Psychological Impact:** The visitor immediately thinks, *"They built this specifically for me."*
+**Psychological Impact:** The visitor immediately thinks, _"They built this specifically for me."_
 
 ---
 
@@ -1319,9 +1326,10 @@ When a user clicks their role, the UI below changes to show a specific suggestio
 The Bento grid feature cards shouldn't just list features; they should **suggest actionable use-cases in the microcopy (the tiny gray text at the bottom of the card).**
 
 **Examples of Suggestion Microcopy:**
-- *On the 'Contradiction Detection' card:* "💡 **Try this:** Review your weekly digest to see if your design team's timeline shifted without you noticing."
-- *On the 'Knowledge Graph' card:* "💡 **Try this:** Search for 'Project Alpha' and see every person who ever mentioned it in the last 6 months."
-- *On the 'Smart Chips' card:* "💡 **Try this:** Type `@Sarah` in any note to instantly pull up all your previous 1-on-1 decisions with her."
+
+- _On the 'Contradiction Detection' card:_ "💡 **Try this:** Review your weekly digest to see if your design team's timeline shifted without you noticing."
+- _On the 'Knowledge Graph' card:_ "💡 **Try this:** Search for 'Project Alpha' and see every person who ever mentioned it in the last 6 months."
+- _On the 'Smart Chips' card:_ "💡 **Try this:** Type `@Sarah` in any note to instantly pull up all your previous 1-on-1 decisions with her."
 
 This communicates that PiyNotes isn't just a passive recorder; it is an active tool meant to be wielded.
 
@@ -1329,13 +1337,13 @@ This communicates that PiyNotes isn't just a passive recorder; it is an active t
 
 ## 12.4 The Magic Onboarding Handshake (Advanced)
 
-If you want to be truly the *best in the world*, the landing page communication should bridge into the actual app download.
+If you want to be truly the _best in the world_, the landing page communication should bridge into the actual app download.
 
 1. The user clicks "I am an Engineer" on the landing page.
 2. They click the Download button while viewing the Engineer suggestions.
 3. The download button attaches a silent URL parameter or cookie.
-4. When they install and open PiyNotes for the first time, the app *already knows* they are an engineer.
-5. **The App's First Message:** *"Welcome. We've pre-loaded the 'Daily Standup' and 'Architecture Review' templates for you."*
+4. When they install and open PiyNotes for the first time, the app _already knows_ they are an engineer.
+5. **The App's First Message:** _"Welcome. We've pre-loaded the 'Daily Standup' and 'Architecture Review' templates for you."_
 
 This creates an unbroken chain of personalized communication from the landing page directly into the product. It reduces cognitive load because the app is already tailored to them before they even create an account.
 
@@ -1351,6 +1359,7 @@ Static pages are boring. "God-Tier" pages tie the story to the user's scroll. We
 
 **The "Descent into Memory" Sequence:**
 As the user scrolls down from the Hero into the Features section:
+
 1. The background smoothly darkens to absolute `#000000`.
 2. A single vertical line (representing the "Memory Fabric") begins drawing itself down the center of the screen, tied directly to scroll progress.
 3. As the user scrolls past specific "depths," nodes illuminate on the line, expanding horizontally to reveal feature cards (Transcription → Expansion → Knowledge Graph).
@@ -1361,26 +1370,28 @@ As the user scrolls down from the Hero into the Features section:
 Don't just use a flat PNG to represent local privacy. Use a subtle WebGL element.
 
 **The '0 Bytes to Cloud' Visualizer:**
+
 - Render a sophisticated, glowing 3D wireframe of a laptop (or a geometric "node") using Three.js or Spline.
-- The laptop slowly rotates. Tiny, glowing particles (data) flow *inside* the geometry.
+- The laptop slowly rotates. Tiny, glowing particles (data) flow _inside_ the geometry.
 - None of the particles ever leave the boundary of the geometry.
 - When the user hovers over it, the particles speed up, but a crystalline shield materializes around the geometry.
-- **Why it works:** It visually "proves" the claim. It feels expensive and technically rigorous. 
+- **Why it works:** It visually "proves" the claim. It feels expensive and technically rigorous.
 
 ## 13.3 Vercel-Grade Micro-Interactions
 
 Every interaction on the page must feel impossibly precise.
 
-*   **The Magnetic Button:** CTAs (like the download button) should have subtle magnetic pull when the cursor gets close, snapping slightly to the mouse. (Use Framer Motion).
-*   **The Glass-Shine Sweep:** When a Bento card enters the viewport, a subtle, 45-degree angle white gradient "shines" across the glassmorphic border once.
-*   **Dynamic Typography Tracking:** For the main headers, as the page loads, the letter-spacing (tracking) should subtly contract from widespread to tight, giving a feeling of elements "locking in."
-*   **Zero-Delay Hover States:** Hover animations on buttons/cards should not feel slow or lazy. They should have a crisp spring physics curve (e.g., `type: "spring", stiffness: 400, damping: 25`).
+- **The Magnetic Button:** CTAs (like the download button) should have subtle magnetic pull when the cursor gets close, snapping slightly to the mouse. (Use Framer Motion).
+- **The Glass-Shine Sweep:** When a Bento card enters the viewport, a subtle, 45-degree angle white gradient "shines" across the glassmorphic border once.
+- **Dynamic Typography Tracking:** For the main headers, as the page loads, the letter-spacing (tracking) should subtly contract from widespread to tight, giving a feeling of elements "locking in."
+- **Zero-Delay Hover States:** Hover animations on buttons/cards should not feel slow or lazy. They should have a crisp spring physics curve (e.g., `type: "spring", stiffness: 400, damping: 25`).
 
 ## 13.4 The Stripe-Style Pricing Reveal
 
 Stripe is famous for seamless, immediate context switching.
 
 Instead of a long, scrolling pricing table, use an interactive slider or pill-toggle: `[Personal (Free)]` vs `[Team / Enterprise]`.
+
 - Click the toggle.
 - The card doesn't fade out; the numbers and text transform in place using staggered layout animations.
 - The $0 glows with an emerald hue. The $29/mo glows with the violet "Sovereign" hue.
@@ -1388,11 +1399,11 @@ Instead of a long, scrolling pricing table, use an interactive slider or pill-to
 
 ## 13.5 The "Impossible" Metric Counters
 
-In the Social Proof or Trust section, use dynamic metric counters that stop at specific, highly believable numbers (not just `10,000+`). 
+In the Social Proof or Trust section, use dynamic metric counters that stop at specific, highly believable numbers (not just `10,000+`).
 
-*   Instead of "Millions of API calls," the counter spins up to: **`2,405,192 API Requests Handled`**.
-*   Instead of "Fast Transcription," the text reads: **`Local Whisper processing at `<span class="glow">`51.8x`</span>` real-time`**.
-*   **Why it works:** Hyper-specificity is a psychological trigger for truth. It suggests we are measuring this live, adding to the "intelligent software" persona.
+- Instead of "Millions of API calls," the counter spins up to: **`2,405,192 API Requests Handled`**.
+- Instead of "Fast Transcription," the text reads: **`Local Whisper processing at `<span class="glow">`51.8x`</span>` real-time`**.
+- **Why it works:** Hyper-specificity is a psychological trigger for truth. It suggests we are measuring this live, adding to the "intelligent software" persona.
 
 ---
 
@@ -1411,7 +1422,10 @@ When someone shares `piynotes.com` on Slack, Twitter/X, or LinkedIn, you control
 ```html
 <!-- Open Graph -->
 <meta property="og:title" content="PiyNotes — Your meetings. Perfectly remembered." />
-<meta property="og:description" content="Private AI meeting notes that run 100% on your machine. Free forever. No bots. No cloud." />
+<meta
+  property="og:description"
+  content="Private AI meeting notes that run 100% on your machine. Free forever. No bots. No cloud."
+/>
 <meta property="og:image" content="https://piynotes.com/og-image.png" />
 <meta property="og:image:width" content="1200" />
 <meta property="og:image:height" content="630" />
@@ -1427,6 +1441,7 @@ When someone shares `piynotes.com` on Slack, Twitter/X, or LinkedIn, you control
 ```
 
 **OG Image Design (1200×630px):**
+
 - Background: `#020617` (Obsidian)
 - Left side: PiyNotes logo + tagline "Your meetings. Perfectly remembered."
 - Right side: A minimalist screenshot of the PiyNotes editor with a transcript
@@ -1442,12 +1457,17 @@ When someone shares `piynotes.com` on Slack, Twitter/X, or LinkedIn, you control
 The landing page needs structured data for Google to display rich results.
 
 **Required:**
+
 ```html
 <title>PiyNotes — Private AI Meeting Notes | Free & Local-First</title>
-<meta name="description" content="AI-powered meeting notes that run 100% on your machine. Free forever. Knowledge graph, live AI coach, semantic search — all offline. macOS, Windows, Linux." />
+<meta
+  name="description"
+  content="AI-powered meeting notes that run 100% on your machine. Free forever. Knowledge graph, live AI coach, semantic search — all offline. macOS, Windows, Linux."
+/>
 ```
 
 **Schema Markup (SoftwareApplication):**
+
 ```json
 {
   "@context": "https://schema.org",
@@ -1476,20 +1496,21 @@ The landing page needs structured data for Google to display rich results.
 
 Over **70% of SaaS site visits** come from mobile in 2025. The blueprint has ZERO mobile-specific rules.
 
-| Element | Desktop | Mobile |
-|:--------|:--------|:-------|
-| **Hero H1** | 64px | 36px |
-| **Sub-headline** | 20px | 16px |
-| **CTA button** | Width: auto, padding 16px 32px | **Full width**, padding 18px, min-height 56px (Apple touch target) |
-| **Bento Grid** | 3-column grid | **1-column stack**, 16px gap |
-| **Trust Table** | Full table | **Horizontally scrollable** with sticky first column |
-| **WebGL element** | Full 3D visualization | **Replace with static SVG** (saves battery + data) |
-| **Scrollytelling** | Full scroll-linked animations | **Simplified fade-in** (performance on older phones) |
-| **Pricing toggle** | Side-by-side cards | **Stacked cards** with swipe gesture |
-| **Section padding** | 80-120px | 48-64px |
-| **Navigation** | Horizontal nav bar | **Hamburger menu** with full-screen overlay |
+| Element             | Desktop                        | Mobile                                                             |
+| :------------------ | :----------------------------- | :----------------------------------------------------------------- |
+| **Hero H1**         | 64px                           | 36px                                                               |
+| **Sub-headline**    | 20px                           | 16px                                                               |
+| **CTA button**      | Width: auto, padding 16px 32px | **Full width**, padding 18px, min-height 56px (Apple touch target) |
+| **Bento Grid**      | 3-column grid                  | **1-column stack**, 16px gap                                       |
+| **Trust Table**     | Full table                     | **Horizontally scrollable** with sticky first column               |
+| **WebGL element**   | Full 3D visualization          | **Replace with static SVG** (saves battery + data)                 |
+| **Scrollytelling**  | Full scroll-linked animations  | **Simplified fade-in** (performance on older phones)               |
+| **Pricing toggle**  | Side-by-side cards             | **Stacked cards** with swipe gesture                               |
+| **Section padding** | 80-120px                       | 48-64px                                                            |
+| **Navigation**      | Horizontal nav bar             | **Hamburger menu** with full-screen overlay                        |
 
 **Performance Budget (Mobile):**
+
 - First Contentful Paint: < 1.2s
 - Largest Contentful Paint: < 2.5s
 - Cumulative Layout Shift: < 0.1
@@ -1502,6 +1523,7 @@ Over **70% of SaaS site visits** come from mobile in 2025. The blueprint has ZER
 Not everyone is ready to download on first visit. If the ONLY option is "Download," those visitors bounce with nothing.
 
 **Add a secondary CTA everywhere the primary CTA appears:**
+
 - Primary: `[Download Free]` (emerald, bold)
 - Secondary: `[See How It Works →]` (ghost outline, subtle)
 
@@ -1535,6 +1557,7 @@ The Sovereign Obsidian design system (dark backgrounds) creates an accessibility
 The landing page should be designed to be SHARED. Every section should have a shareable moment.
 
 **Suggestions:**
+
 1. **Shareable "$0 Pricing" Card**: Design the pricing section so screenshots crop perfectly to a single image that says "This should probably cost money. It doesn't. $0." — optimized for Twitter/X screenshots.
 2. **"How is this free?" Explainer**: Create a standalone `/free` page that explains the economics. This is linkable and shareable independently.
 3. **Comparison Screenshots**: The Trust Table should render as a clean 1200×630 image that can be downloaded or shared with one click. ("Share this comparison")
@@ -1544,6 +1567,7 @@ The landing page should be designed to be SHARED. Every section should have a sh
 ## 14.7 The Changelog as a Trust Signal (MISSING)
 
 Vercel, Linear, and Stripe all have beautifully designed changelogs. A visible changelog on the footer (or a "Recently shipped" badge) signals:
+
 1. The product is actively maintained
 2. The team ships fast
 3. It's not abandonware
@@ -1558,13 +1582,13 @@ The blueprint uses OUR words to describe the product. But the highest-converting
 
 **Suggestion:** Source exact phrases from real user feedback, support tickets, or beta testers and use them.
 
-| Our Language | Customer Language (More Powerful) |
-|:------------|:---------------------------------|
-| "AI-powered meeting notes" | "It's like having a brilliant intern who never misses anything." |
-| "100% local processing" | "I can finally use an AI tool without my IT team screaming at me." |
-| "Free forever" | "I kept waiting for the paywall. It never came." |
-| "Knowledge Graph" | "I asked it 'What did we decide about pricing?' and it pulled answers from three meetings I forgot about." |
-| "Battery-aware AI" | "It doesn't destroy my MacBook Air battery like Otter did." |
+| Our Language               | Customer Language (More Powerful)                                                                          |
+| :------------------------- | :--------------------------------------------------------------------------------------------------------- |
+| "AI-powered meeting notes" | "It's like having a brilliant intern who never misses anything."                                           |
+| "100% local processing"    | "I can finally use an AI tool without my IT team screaming at me."                                         |
+| "Free forever"             | "I kept waiting for the paywall. It never came."                                                           |
+| "Knowledge Graph"          | "I asked it 'What did we decide about pricing?' and it pulled answers from three meetings I forgot about." |
+| "Battery-aware AI"         | "It doesn't destroy my MacBook Air battery like Otter did."                                                |
 
 **Where to use:** Testimonials, FAQ answers, and as pull-quotes between sections.
 
@@ -1575,6 +1599,7 @@ The blueprint uses OUR words to describe the product. But the highest-converting
 The landing page might convince someone to download, but what happens when they open PiyNotes and have **zero meetings recorded?** The product feels empty and useless.
 
 **Suggestions for the landing page to address this proactively:**
+
 1. **"Your first meeting is 30 seconds away."** — In the FAQ or near the download CTA, set the expectation that the product requires a real meeting to show its value.
 2. **Include a "Quick Start" link** that opens after download: "Record a 2-minute test meeting with yourself → see the magic."
 3. **Pre-load a sample meeting** in the app (a fake "Product Sync" with example transcript, entities, and AI expansion) so the user sees what a filled-in PiyNotes looks like immediately.
@@ -1586,7 +1611,7 @@ The landing page might convince someone to download, but what happens when they 
 When a visitor moves their mouse toward the browser's close button (exit intent), show a subtle, non-annoying overlay:
 
 > **"Before you go — PiyNotes is free. Really."**
-> 
+>
 > No account. No credit card. Just download.
 >
 > `[Download Free]` · `[Maybe Later — email me a reminder]`
@@ -1599,13 +1624,13 @@ The "email me a reminder" option captures leads who aren't ready yet. This is st
 
 Don't launch the page and hope. Launch with a testing plan.
 
-| Test # | Element | Variant A | Variant B | Metric |
-|:-------|:--------|:----------|:----------|:-------|
-| 1 | Hero H1 | "Your meetings. Perfectly remembered." | "Stop losing critical decisions." | Click-through to download |
-| 2 | CTA Text | "Download Free" | "Start Recording — Free" | Download rate |
-| 3 | Pricing framing | "$0" large text | "Free Forever" large text | Scroll depth past pricing |
-| 4 | Social proof | Metric counters | User testimonial quotes | Time spent on section |
-| 5 | Feature cards | Story-driven copy | Feature + spec copy | Hover/engagement rate |
+| Test # | Element         | Variant A                              | Variant B                         | Metric                    |
+| :----- | :-------------- | :------------------------------------- | :-------------------------------- | :------------------------ |
+| 1      | Hero H1         | "Your meetings. Perfectly remembered." | "Stop losing critical decisions." | Click-through to download |
+| 2      | CTA Text        | "Download Free"                        | "Start Recording — Free"          | Download rate             |
+| 3      | Pricing framing | "$0" large text                        | "Free Forever" large text         | Scroll depth past pricing |
+| 4      | Social proof    | Metric counters                        | User testimonial quotes           | Time spent on section     |
+| 5      | Feature cards   | Story-driven copy                      | Feature + spec copy               | Hover/engagement rate     |
 
 **Tool:** Use Vercel Analytics + PostHog (free tier) for heatmaps, session recordings, and A/B tests.
 
@@ -1613,9 +1638,10 @@ Don't launch the page and hope. Launch with a testing plan.
 
 ## 14.12 The "Why Now?" Urgency (MISSING)
 
-The page currently has no urgency. There's no reason to download TODAY vs. next week. 
+The page currently has no urgency. There's no reason to download TODAY vs. next week.
 
 **Suggestions (choose one, not all):**
+
 1. **Early Adopter Badge:** "🏷️ First 10,000 users get 'Founding Member' status + lifetime Pro discount."
 2. **Feature Countdown:** "Knowledge Graph launches March 2026. Get in early."
 3. **Community Size:** A live counter: "2,847 meetings recorded this week by the PiyNotes community."
@@ -1633,6 +1659,7 @@ The page currently has no urgency. There's no reason to download TODAY vs. next 
 > `[vs Otter.ai]` `[vs Granola]` `[vs Fireflies]` `[vs Fathom]`
 
 Each pill expands to show a focused 3-row comparison:
+
 1. **Privacy:** "Otter uploads to AWS. PiyNotes stays on your laptop."
 2. **Price:** "Otter: $17/mo. PiyNotes: $0."
 3. **Intelligence:** "Otter: basic transcription. PiyNotes: Knowledge Graph + AI Coach + Contradiction Detection."

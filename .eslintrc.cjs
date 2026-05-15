@@ -7,7 +7,14 @@ module.exports = {
     'plugin:react-hooks/recommended',
     'plugin:prettier/recommended', // Enables eslint-plugin-prettier and displays prettier errors as ESLint errors
   ],
-  ignorePatterns: ['dist', 'dist-electron', '.eslintrc.cjs', 'node_modules', 'release', 'landing-web'],
+  ignorePatterns: [
+    'dist',
+    'dist-electron',
+    '.eslintrc.cjs',
+    'node_modules',
+    'release',
+    'landing-web',
+  ],
   parser: '@typescript-eslint/parser',
   parserOptions: {
     ecmaVersion: 'latest',

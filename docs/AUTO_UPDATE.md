@@ -77,119 +77,123 @@ In `package.json`:
 Create `src/main/updater.ts`:
 
 ```typescript
-import { autoUpdater } from 'electron-updater';
-import { app, BrowserWindow, dialog } from 'electron';
-import log from 'electron-log';
+import { autoUpdater } from 'electron-updater'
+import { app, BrowserWindow, dialog } from 'electron'
+import log from 'electron-log'
 
 // Configure logging
-autoUpdater.logger = log;
-autoUpdater.logger.transports.file.level = 'info';
+autoUpdater.logger = log
+autoUpdater.logger.transports.file.level = 'info'
 
 // Configure auto-download
-autoUpdater.autoDownload = false;
-autoUpdater.autoInstallOnAppQuit = true;
+autoUpdater.autoDownload = false
+autoUpdater.autoInstallOnAppQuit = true
 
 export class AppUpdater {
-  private mainWindow: BrowserWindow | null = null;
+  private mainWindow: BrowserWindow | null = null
 
   constructor(mainWindow: BrowserWindow) {
-    this.mainWindow = mainWindow;
-    this.setupEventHandlers();
+    this.mainWindow = mainWindow
+    this.setupEventHandlers()
   }
 
   private setupEventHandlers() {
     // Checking for updates
     autoUpdater.on('checking-for-update', () => {
-      log.info('Checking for updates...');
-      this.sendStatusToWindow('Checking for updates...');
-    });
+      log.info('Checking for updates...')
+      this.sendStatusToWindow('Checking for updates...')
+    })
 
     // Update available
-    autoUpdater.on('update-available', (info) => {
-      log.info('Update available:', info.version);
-      this.sendStatusToWindow(`Update available: ${info.version}`);
-      
+    autoUpdater.on('update-available', info => {
+      log.info('Update available:', info.version)
+      this.sendStatusToWindow(`Update available: ${info.version}`)
+
       // Ask user if they want to download
-      dialog.showMessageBox(this.mainWindow!, {
-        type: 'info',
-        title: 'Update Available',
-        message: `A new version (${info.version}) is available. Download now?`,
-        buttons: ['Download', 'Later'],
-        defaultId: 0,
-        cancelId: 1
-      }).then((result) => {
-        if (result.response === 0) {
-          autoUpdater.downloadUpdate();
-        }
-      });
-    });
+      dialog
+        .showMessageBox(this.mainWindow!, {
+          type: 'info',
+          title: 'Update Available',
+          message: `A new version (${info.version}) is available. Download now?`,
+          buttons: ['Download', 'Later'],
+          defaultId: 0,
+          cancelId: 1,
+        })
+        .then(result => {
+          if (result.response === 0) {
+            autoUpdater.downloadUpdate()
+          }
+        })
+    })
 
     // No update available
-    autoUpdater.on('update-not-available', (info) => {
-      log.info('Update not available:', info.version);
-      this.sendStatusToWindow('App is up to date');
-    });
+    autoUpdater.on('update-not-available', info => {
+      log.info('Update not available:', info.version)
+      this.sendStatusToWindow('App is up to date')
+    })
 
     // Download progress
-    autoUpdater.on('download-progress', (progressObj) => {
-      const message = `Downloading: ${Math.round(progressObj.percent)}%`;
-      log.info(message);
-      this.sendStatusToWindow(message);
-      
+    autoUpdater.on('download-progress', progressObj => {
+      const message = `Downloading: ${Math.round(progressObj.percent)}%`
+      log.info(message)
+      this.sendStatusToWindow(message)
+
       // Send progress to renderer
       this.mainWindow?.webContents.send('update-download-progress', {
         percent: progressObj.percent,
         transferred: progressObj.transferred,
         total: progressObj.total,
-        bytesPerSecond: progressObj.bytesPerSecond
-      });
-    });
+        bytesPerSecond: progressObj.bytesPerSecond,
+      })
+    })
 
     // Update downloaded
-    autoUpdater.on('update-downloaded', (info) => {
-      log.info('Update downloaded:', info.version);
-      this.sendStatusToWindow('Update ready to install');
-      
+    autoUpdater.on('update-downloaded', info => {
+      log.info('Update downloaded:', info.version)
+      this.sendStatusToWindow('Update ready to install')
+
       // Notify user
-      dialog.showMessageBox(this.mainWindow!, {
-        type: 'info',
-        title: 'Update Ready',
-        message: `Version ${info.version} has been downloaded. Restart now to install?`,
-        buttons: ['Restart Now', 'Later'],
-        defaultId: 0,
-        cancelId: 1
-      }).then((result) => {
-        if (result.response === 0) {
-          // Quit and install
-          setImmediate(() => autoUpdater.quitAndInstall());
-        }
-      });
-    });
+      dialog
+        .showMessageBox(this.mainWindow!, {
+          type: 'info',
+          title: 'Update Ready',
+          message: `Version ${info.version} has been downloaded. Restart now to install?`,
+          buttons: ['Restart Now', 'Later'],
+          defaultId: 0,
+          cancelId: 1,
+        })
+        .then(result => {
+          if (result.response === 0) {
+            // Quit and install
+            setImmediate(() => autoUpdater.quitAndInstall())
+          }
+        })
+    })
 
     // Error
-    autoUpdater.on('error', (err) => {
-      log.error('Update error:', err);
-      this.sendStatusToWindow('Update error');
-      
+    autoUpdater.on('error', err => {
+      log.error('Update error:', err)
+      this.sendStatusToWindow('Update error')
+
       // Only show error dialog if it's not a network error
       if (!err.message.includes('net::')) {
-        dialog.showErrorBox('Update Error', err.message);
+        dialog.showErrorBox('Update Error', err.message)
       }
-    });
+    })
   }
 
   private sendStatusToWindow(text: string) {
-    this.mainWindow?.webContents.send('update-status', text);
+    this.mainWindow?.webContents.send('update-status', text)
   }
 
   // Check for updates
   public checkForUpdates() {
-    autoUpdater.checkForUpdates();
+    autoUpdater.checkForUpdates()
   }
 
   // Check for updates and notify (silent if no update)
   public checkForUpdatesAndNotify() {
-    autoUpdater.checkForUpdatesAndNotify();
+    autoUpdater.checkForUpdatesAndNotify()
   }
 }
 ```
@@ -199,11 +203,11 @@ export class AppUpdater {
 In `src/main/index.ts`:
 
 ```typescript
-import { app, BrowserWindow } from 'electron';
-import { AppUpdater } from './updater';
+import { app, BrowserWindow } from 'electron'
+import { AppUpdater } from './updater'
 
-let mainWindow: BrowserWindow | null = null;
-let updater: AppUpdater | null = null;
+let mainWindow: BrowserWindow | null = null
+let updater: AppUpdater | null = null
 
 app.whenReady().then(() => {
   mainWindow = new BrowserWindow({
@@ -212,30 +216,33 @@ app.whenReady().then(() => {
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
-      preload: path.join(__dirname, 'preload.js')
-    }
-  });
+      preload: path.join(__dirname, 'preload.js'),
+    },
+  })
 
-  mainWindow.loadURL('http://localhost:5173');
+  mainWindow.loadURL('http://localhost:5173')
 
   // Initialize updater
-  updater = new AppUpdater(mainWindow);
+  updater = new AppUpdater(mainWindow)
 
   // Check for updates on launch (after 3 seconds)
   setTimeout(() => {
-    updater.checkForUpdatesAndNotify();
-  }, 3000);
+    updater.checkForUpdatesAndNotify()
+  }, 3000)
 
   // Check for updates every 4 hours
-  setInterval(() => {
-    updater.checkForUpdatesAndNotify();
-  }, 4 * 60 * 60 * 1000);
-});
+  setInterval(
+    () => {
+      updater.checkForUpdatesAndNotify()
+    },
+    4 * 60 * 60 * 1000
+  )
+})
 
 // Handle manual update check from renderer
 ipcMain.handle('check-for-updates', () => {
-  updater?.checkForUpdates();
-});
+  updater?.checkForUpdates()
+})
 ```
 
 ### 5. Add UI in Renderer
@@ -281,17 +288,17 @@ export const UpdateNotification: React.FC = () => {
   return (
     <div className="update-notification">
       {status && <p>{status}</p>}
-      
+
       {progress && (
         <div className="update-progress">
           <div className="progress-bar">
-            <div 
-              className="progress-fill" 
+            <div
+              className="progress-fill"
               style={{ width: `${progress.percent}%` }}
             />
           </div>
           <p>
-            {Math.round(progress.percent)}% - 
+            {Math.round(progress.percent)}% -
             {formatBytes(progress.transferred)} / {formatBytes(progress.total)}
             ({formatBytes(progress.bytesPerSecond)}/s)
           </p>
@@ -319,19 +326,19 @@ function formatBytes(bytes: number): string {
 In `src/main/preload.ts`:
 
 ```typescript
-import { contextBridge, ipcRenderer } from 'electron';
+import { contextBridge, ipcRenderer } from 'electron'
 
 contextBridge.exposeInMainWorld('electron', {
   checkForUpdates: () => ipcRenderer.invoke('check-for-updates'),
-  
+
   onUpdateStatus: (callback: (status: string) => void) => {
-    ipcRenderer.on('update-status', (_, status) => callback(status));
+    ipcRenderer.on('update-status', (_, status) => callback(status))
   },
-  
+
   onUpdateProgress: (callback: (progress: any) => void) => {
-    ipcRenderer.on('update-download-progress', (_, progress) => callback(progress));
-  }
-});
+    ipcRenderer.on('update-download-progress', (_, progress) => callback(progress))
+  },
+})
 ```
 
 ## Update Server Setup
@@ -441,6 +448,7 @@ AppImage supports differential updates by default.
 ### Local Testing
 
 1. **Build version 0.1.0:**
+
    ```bash
    npm version 0.1.0
    npm run build
@@ -449,23 +457,26 @@ AppImage supports differential updates by default.
 2. **Install and run the app**
 
 3. **Build version 0.2.0:**
+
    ```bash
    npm version 0.2.0
    npm run build
    ```
 
 4. **Set up local update server:**
+
    ```bash
    cd release
    python3 -m http.server 8080
    ```
 
 5. **Configure app to use local server:**
+
    ```typescript
    autoUpdater.setFeedURL({
      provider: 'generic',
-     url: 'http://localhost:8080'
-   });
+     url: 'http://localhost:8080',
+   })
    ```
 
 6. **Restart app** → Should detect and download update
@@ -475,14 +486,15 @@ AppImage supports differential updates by default.
 Before production, test on staging:
 
 ```typescript
-const updateServer = process.env.NODE_ENV === 'production'
-  ? 'https://updates.piyapi.cloud'
-  : 'https://staging-updates.piyapi.cloud';
+const updateServer =
+  process.env.NODE_ENV === 'production'
+    ? 'https://updates.piyapi.cloud'
+    : 'https://staging-updates.piyapi.cloud'
 
 autoUpdater.setFeedURL({
   provider: 'generic',
-  url: updateServer
-});
+  url: updateServer,
+})
 ```
 
 ## Rollback Strategy
@@ -556,26 +568,26 @@ Always use HTTPS for update server:
 Log update events to analytics:
 
 ```typescript
-autoUpdater.on('update-available', (info) => {
+autoUpdater.on('update-available', info => {
   analytics.track('Update Available', {
     version: info.version,
-    currentVersion: app.getVersion()
-  });
-});
+    currentVersion: app.getVersion(),
+  })
+})
 
-autoUpdater.on('update-downloaded', (info) => {
+autoUpdater.on('update-downloaded', info => {
   analytics.track('Update Downloaded', {
     version: info.version,
-    downloadTime: Date.now() - downloadStartTime
-  });
-});
+    downloadTime: Date.now() - downloadStartTime,
+  })
+})
 
-autoUpdater.on('error', (err) => {
+autoUpdater.on('error', err => {
   analytics.track('Update Error', {
     error: err.message,
-    version: app.getVersion()
-  });
-});
+    version: app.getVersion(),
+  })
+})
 ```
 
 ### Monitor Update Server
@@ -591,6 +603,7 @@ autoUpdater.on('error', (err) => {
 **Cause:** Update server not configured or files not uploaded
 
 **Solution:**
+
 1. Verify update server URL is correct
 2. Check files are uploaded to correct location
 3. Test URL in browser: `https://updates.piyapi.cloud/latest-mac.yml`
@@ -600,6 +613,7 @@ autoUpdater.on('error', (err) => {
 **Cause:** Network error or corrupted file
 
 **Solution:**
+
 1. Check internet connection
 2. Verify file exists on server
 3. Check SHA-512 checksum matches
@@ -609,6 +623,7 @@ autoUpdater.on('error', (err) => {
 **Cause:** Version comparison issue
 
 **Solution:**
+
 1. Verify version in `package.json` is incremented
 2. Check `latest.yml` has correct version
 3. Ensure version follows semver (e.g., 0.2.0, not 0.2)
@@ -618,6 +633,7 @@ autoUpdater.on('error', (err) => {
 **Cause:** Update not signed or signature doesn't match
 
 **Solution:**
+
 1. Verify update is code-signed
 2. Check signing certificate is valid
 3. Re-sign and re-upload update

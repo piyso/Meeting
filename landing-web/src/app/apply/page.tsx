@@ -21,14 +21,28 @@ export default function ApplyPage() {
           BlueArkive
         </Link>
         <div className="nav-links">
-          <Link href="/" className="btn-secondary liquid-glass" style={{ padding: '0.5rem 1.5rem', fontSize: '0.8125rem' }}>
+          <Link
+            href="/"
+            className="btn-secondary liquid-glass"
+            style={{ padding: '0.5rem 1.5rem', fontSize: '0.8125rem' }}
+          >
             Return to Core
           </Link>
         </div>
       </nav>
 
       {/* ═══ CONTENT ═══ */}
-      <div className="content-layer" style={{ padding: '8rem 2rem 4rem', minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
+      <div
+        className="content-layer"
+        style={{
+          padding: '8rem 2rem 4rem',
+          minHeight: '100vh',
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
+        }}
+      >
         <MembershipApplication />
       </div>
     </main>

@@ -328,6 +328,15 @@ body:has(.calm-landing) {
 }
 /* JS applies: style="animation-delay: ${index * 40}ms" per child. Max 12 staggered, rest instant. */
 
+/* ── Universal Scroll Behavior ── */
+* {
+  -webkit-overflow-scrolling: touch;
+}
+
+html, body {
+  overscroll-behavior-y: none; /* Prevent app-level bounce, keep it contained to scroll areas */
+}
+
 /* ── Overlay Scrollbars (Premium macOS Feel) ── */
 ::-webkit-scrollbar {
   width: 14px;
@@ -336,41 +345,60 @@ body:has(.calm-landing) {
 }
 ::-webkit-scrollbar-track {
   background: transparent;
+  margin: 4px; /* Add breathing room at track edges */
 }
 ::-webkit-scrollbar-thumb {
-  background-color: rgba(100, 100, 100, 0.3);
+  background-color: rgba(120, 120, 120, 0.3);
   border: 4px solid transparent;
   background-clip: padding-box;
   border-radius: var(--radius-full);
   min-height: 48px;
-  transition: background-color 300ms var(--ease-fluid);
 }
 ::-webkit-scrollbar-thumb:hover {
-  background-color: rgba(100, 100, 100, 0.5);
-  border: 4px solid transparent;
-  background-clip: padding-box;
+  background-color: rgba(140, 140, 140, 0.5);
+  border-width: 3px; /* Slightly expand thumb on hover */
 }
 ::-webkit-scrollbar-thumb:active {
-  background-color: rgba(100, 100, 100, 0.6);
+  background-color: rgba(160, 160, 160, 0.6);
+  border-width: 3px;
 }
 ::-webkit-scrollbar-corner {
   background: transparent;
 }
 
-/* For explicitly applying the premium scrollbar to nested overflow containers without relying solely on global pseudo-selectors */
+/* For explicitly applying the premium scrollbar to nested overflow containers */
+.sovereign-scrollbar {
+  scroll-behavior: smooth;
+  overscroll-behavior: contain;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sovereign-scrollbar,
+  * {
+    scroll-behavior: auto !important;
+  }
+}
 .sovereign-scrollbar::-webkit-scrollbar {
   width: 14px;
   height: 14px;
 }
+.sovereign-scrollbar::-webkit-scrollbar-track {
+  margin: 4px;
+}
 .sovereign-scrollbar::-webkit-scrollbar-thumb {
-  background-color: rgba(100, 100, 100, 0.3);
+  background-color: rgba(120, 120, 120, 0.3);
   border: 4px solid transparent;
   background-clip: padding-box;
   border-radius: var(--radius-full);
   min-height: 48px;
 }
 .sovereign-scrollbar::-webkit-scrollbar-thumb:hover {
-  background-color: rgba(100, 100, 100, 0.5);
+  background-color: rgba(140, 140, 140, 0.5);
+  border-width: 3px;
+}
+.sovereign-scrollbar::-webkit-scrollbar-thumb:active {
+  background-color: rgba(160, 160, 160, 0.6);
+  border-width: 3px;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -508,10 +536,10 @@ body:has(.calm-landing) {
 }
 
 /* ── Drag Region (macOS title bar) ── */
-.drag-region {
+.drag-region, .widget-draggable {
   -webkit-app-region: drag;
 }
-.no-drag {
+.no-drag, .widget-nodrag {
   -webkit-app-region: no-drag;
 }
 

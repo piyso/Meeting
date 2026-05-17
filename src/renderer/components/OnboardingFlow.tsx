@@ -354,7 +354,7 @@ export const OnboardingFlow: React.FC = () => {
                   {/* Subtle vertical line connecting icons */}
                   <div className="absolute left-[36px] top-8 bottom-8 w-px bg-gradient-to-b from-white/0 via-white/10 to-white/0 hidden sm:block"></div>
 
-                  <div 
+                  <div
                     className="group relative flex items-start gap-8 p-6 -ml-6 rounded-[2rem] border border-transparent transition-all duration-700 hover:bg-white/[0.02] hover:border-white/[0.05] hover:shadow-[0_20px_40px_-15px_rgba(0,0,0,0.5)] hover:-translate-y-1 hover:backdrop-blur-xl"
                     onMouseEnter={() => setThemeColor('emerald')}
                   >
@@ -386,7 +386,7 @@ export const OnboardingFlow: React.FC = () => {
                     </div>
                   </div>
 
-                  <div 
+                  <div
                     className="group relative flex items-start gap-8 p-6 -ml-6 rounded-[2rem] border border-transparent transition-all duration-700 hover:bg-white/[0.02] hover:border-white/[0.05] hover:shadow-[0_20px_40px_-15px_rgba(0,0,0,0.5)] hover:-translate-y-1 hover:backdrop-blur-xl"
                     onMouseEnter={() => setThemeColor('amber')}
                   >
@@ -418,7 +418,7 @@ export const OnboardingFlow: React.FC = () => {
                     </div>
                   </div>
 
-                  <div 
+                  <div
                     className="group relative flex items-start gap-8 p-6 -ml-6 rounded-[2rem] border border-transparent transition-all duration-700 hover:bg-white/[0.02] hover:border-white/[0.05] hover:shadow-[0_20px_40px_-15px_rgba(0,0,0,0.5)] hover:-translate-y-1 hover:backdrop-blur-xl"
                     onMouseEnter={() => setThemeColor('violet')}
                   >
@@ -450,7 +450,7 @@ export const OnboardingFlow: React.FC = () => {
                     </div>
                   </div>
 
-                  <div 
+                  <div
                     className="group relative flex items-start gap-8 p-6 -ml-6 rounded-[2rem] border border-transparent transition-all duration-700 hover:bg-white/[0.02] hover:border-white/[0.05] hover:shadow-[0_20px_40px_-15px_rgba(0,0,0,0.5)] hover:-translate-y-1 hover:backdrop-blur-xl"
                     onMouseEnter={() => setThemeColor('sky')}
                   >
@@ -483,8 +483,6 @@ export const OnboardingFlow: React.FC = () => {
                   </div>
                 </div>
               )}
-
-
 
               {step === 'recovery-key' && (
                 <div

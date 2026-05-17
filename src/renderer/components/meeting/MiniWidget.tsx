@@ -300,12 +300,6 @@ export const MiniWidget: React.FC<MiniWidgetProps> = ({
               title="Change Theme"
               active={showThemePicker}
             />
-
-            <DockButton
-              icon={<Maximize2 size={12} strokeWidth={2.5} />}
-              onClick={onRestore}
-              title="Expand to Full App"
-            />
           </div>
         </div>
 

@@ -14,6 +14,14 @@ interface AuditLogEntry {
 
 const PAGE_SIZE = 50
 
+const getOperationColor = (op: string) => {
+  if (op.includes('delete') || op.includes('deactivate')) return 'text-[var(--color-rose)]'
+  if (op.includes('create') || op.includes('login') || op.includes('register'))
+    return 'text-[var(--color-emerald)]'
+  if (op.includes('update') || op.includes('rename')) return 'text-[var(--color-amber)]'
+  return 'text-[var(--color-sky)]'
+}
+
 export const AuditLogViewer: React.FC = () => {
   const [logs, setLogs] = useState<AuditLogEntry[]>([])
   const [loading, setLoading] = useState(true)
@@ -53,15 +61,15 @@ export const AuditLogViewer: React.FC = () => {
     fetchLogs(0, false)
   }, [fetchLogs])
 
-  const handleLoadMore = () => {
+  const handleLoadMore = React.useCallback(() => {
     const nextOffset = offset + PAGE_SIZE
     setOffset(nextOffset)
     fetchLogs(nextOffset, true)
-  }
+  }, [offset, fetchLogs])
 
   const hasMore = logs.length < total
 
-  const handleExport = async () => {
+  const handleExport = React.useCallback(async () => {
     try {
       setExporting(true)
       const res = await window.electronAPI?.audit?.export()
@@ -83,15 +91,7 @@ export const AuditLogViewer: React.FC = () => {
     } finally {
       setExporting(false)
     }
-  }
-
-  const getOperationColor = (op: string) => {
-    if (op.includes('delete') || op.includes('deactivate')) return 'text-[var(--color-rose)]'
-    if (op.includes('create') || op.includes('login') || op.includes('register'))
-      return 'text-[var(--color-emerald)]'
-    if (op.includes('update') || op.includes('rename')) return 'text-[var(--color-amber)]'
-    return 'text-[var(--color-sky)]'
-  }
+  }, [])
 
   return (
     <div className="flex flex-col gap-4 h-[400px]">
@@ -110,7 +110,7 @@ export const AuditLogViewer: React.FC = () => {
         </Button>
       </div>
 
-      <div className="surface-glass-premium rounded-[var(--radius-lg)] border border-[var(--color-border-subtle)] flex-1 overflow-hidden flex flex-col">
+      <div className="surface-glass-premium border border-[var(--color-border-subtle)] rounded-3xl p-2 shadow-sm flex-1 overflow-hidden flex flex-col">
         {loading ? (
           <div className="p-6 text-center text-[var(--color-text-tertiary)] text-sm">
             Loading logs...
@@ -121,7 +121,7 @@ export const AuditLogViewer: React.FC = () => {
             No audit logs recorded yet.
           </div>
         ) : (
-          <div className="overflow-y-auto flex-1 sovereign-scrollbar p-1 text-[13px]">
+          <div className="overflow-y-auto flex-1 sovereign-scrollbar rounded-2xl overflow-hidden text-[13px] bg-[#1a1a1a]/40">
             <table className="w-full text-left">
               <thead className="bg-[#1a1a1a] sticky top-0 border-b border-[var(--color-border-subtle)] shadow-sm">
                 <tr>

@@ -969,11 +969,7 @@ export const MOCK_BILLING_CONFIG = {
       name: 'Sovereign Core',
       price: '$0',
       period: 'forever',
-      features: [
-        '100% Local Inference',
-        'Unlimited Encrypted Memory',
-        'Zero Telemetry',
-      ],
+      features: ['100% Local Inference', 'Unlimited Encrypted Memory', 'Zero Telemetry'],
     },
     {
       id: 'starter',
@@ -981,11 +977,7 @@ export const MOCK_BILLING_CONFIG = {
       price: '$9',
       yearlyPrice: '$7',
       period: 'month',
-      features: [
-        'End-to-End Encrypted Sync',
-        'Multi-Device Coherence',
-        '50 Agentic Actions / mo',
-      ],
+      features: ['End-to-End Encrypted Sync', 'Multi-Device Coherence', '50 Agentic Actions / mo'],
     },
     {
       id: 'pro',

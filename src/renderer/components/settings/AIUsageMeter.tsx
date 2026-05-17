@@ -14,7 +14,7 @@ export const AIUsageMeter: React.FC = () => {
 
   const [loading, setLoading] = useState(true)
 
-  const fetchQuota = async () => {
+  const fetchQuota = React.useCallback(async () => {
     try {
       setLoading(true)
       const res = await window.electronAPI?.quota?.check()
@@ -26,11 +26,11 @@ export const AIUsageMeter: React.FC = () => {
     } finally {
       setLoading(false)
     }
-  }
+  }, [])
 
   useEffect(() => {
     fetchQuota()
-  }, [])
+  }, [fetchQuota])
 
   if (loading && !quota) {
     return <div className="text-[var(--color-text-tertiary)] text-sm">Loading AI usage...</div>

@@ -11,17 +11,19 @@ interface Device {
   last_active_at: string
 }
 
+const getIcon = (platform: string) => {
+  if (platform.includes('mac') || platform.includes('win')) return <Monitor size={20} />
+  if (platform.includes('ios') || platform.includes('android')) return <Smartphone size={20} />
+  return <Laptop size={20} />
+}
+
 export const DeviceManagement: React.FC = () => {
   const [devices, setDevices] = useState<Device[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [currentDeviceId, setCurrentDeviceId] = useState<string | null>(null)
 
-  useEffect(() => {
-    fetchDevices()
-  }, [])
-
-  const fetchDevices = async () => {
+  const fetchDevices = React.useCallback(async () => {
     try {
       setLoading(true)
       const [listRes, currentRes] = await Promise.all([
@@ -41,9 +43,13 @@ export const DeviceManagement: React.FC = () => {
     } finally {
       setLoading(false)
     }
-  }
+  }, [])
 
-  const deactivateDevice = async (deviceId: string) => {
+  useEffect(() => {
+    fetchDevices()
+  }, [fetchDevices])
+
+  const deactivateDevice = React.useCallback(async (deviceId: string) => {
     if (deviceId === currentDeviceId) return // Safety guard
     try {
       const res = await window.electronAPI?.device?.deactivate({ deviceId, userId: 'current-user' })
@@ -55,13 +61,7 @@ export const DeviceManagement: React.FC = () => {
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to deactivate device')
     }
-  }
-
-  const getIcon = (platform: string) => {
-    if (platform.includes('mac') || platform.includes('win')) return <Monitor size={20} />
-    if (platform.includes('ios') || platform.includes('android')) return <Smartphone size={20} />
-    return <Laptop size={20} />
-  }
+  }, [currentDeviceId])
 
   return (
     <div className="flex flex-col gap-4">
@@ -70,9 +70,10 @@ export const DeviceManagement: React.FC = () => {
       ) : error ? (
         <div className="text-[var(--color-rose)] text-sm">{error}</div>
       ) : (
-        <div className="surface-glass-premium rounded-[var(--radius-lg)] border border-[var(--color-border-subtle)] overflow-hidden">
-          <table className="w-full text-left text-sm">
-            <thead className="bg-[#1a1a1a] border-b border-[var(--color-border-subtle)]">
+        <div className="surface-glass-premium border border-[var(--color-border-subtle)] rounded-3xl p-2 shadow-sm overflow-hidden">
+          <div className="rounded-2xl overflow-hidden bg-[#1a1a1a]/40">
+            <table className="w-full text-left text-sm">
+              <thead className="bg-[#1a1a1a] border-b border-[var(--color-border-subtle)]">
               <tr>
                 <th className="font-medium text-[var(--color-text-secondary)] p-3">Device</th>
                 <th className="font-medium text-[var(--color-text-secondary)] p-3">Last Active</th>
@@ -141,6 +142,7 @@ export const DeviceManagement: React.FC = () => {
               )}
             </tbody>
           </table>
+          </div>
         </div>
       )}
     </div>

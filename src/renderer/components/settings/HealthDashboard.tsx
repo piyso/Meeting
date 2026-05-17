@@ -25,6 +25,28 @@ interface SystemInfo {
   [key: string]: string
 }
 
+const getStatusIcon = (status: HealthResult['status']) => {
+  switch (status) {
+    case 'ok':
+      return <CheckCircle size={16} className="text-[var(--color-emerald)]" />
+    case 'warn':
+      return <AlertTriangle size={16} className="text-[var(--color-amber)]" />
+    case 'error':
+      return <XCircle size={16} className="text-[var(--color-rose)]" />
+  }
+}
+
+const getStatusDot = (status: HealthResult['status']) => {
+  const colors = {
+    ok: 'bg-[var(--color-emerald)]',
+    warn: 'bg-[var(--color-amber)]',
+    error: 'bg-[var(--color-rose)]',
+  }
+  return (
+    <div className={`w-2 h-2 rounded-full ${colors[status]} shadow-[0_0_6px_currentColor]`} />
+  )
+}
+
 export const HealthDashboard: React.FC = () => {
   const [results, setResults] = useState<HealthResult[]>([])
   const [systemInfo, setSystemInfo] = useState<SystemInfo>({})
@@ -34,7 +56,7 @@ export const HealthDashboard: React.FC = () => {
   const [fixingSystem, setFixingSystem] = useState<string | null>(null)
   const navigate = useAppStore(s => s.navigate)
 
-  const runHealthCheck = async () => {
+  const runHealthCheck = React.useCallback(async () => {
     setLoading(true)
     try {
       const res = await window.electronAPI?.diagnostic?.healthCheck()
@@ -48,7 +70,7 @@ export const HealthDashboard: React.FC = () => {
     } finally {
       setLoading(false)
     }
-  }
+  }, [])
 
   useEffect(() => {
     runHealthCheck()
@@ -61,9 +83,9 @@ export const HealthDashboard: React.FC = () => {
     return () => {
       unsub?.()
     }
-  }, [navigate])
+  }, [navigate, runHealthCheck])
 
-  const handleFix = async (result: HealthResult) => {
+  const handleFix = React.useCallback(async (result: HealthResult) => {
     if (!result.fixAction) return
 
     setFixingSystem(result.system)
@@ -101,34 +123,12 @@ export const HealthDashboard: React.FC = () => {
     } finally {
       setFixingSystem(null)
     }
-  }
+  }, [navigate, runHealthCheck])
 
-  const getStatusIcon = (status: HealthResult['status']) => {
-    switch (status) {
-      case 'ok':
-        return <CheckCircle size={16} className="text-[var(--color-emerald)]" />
-      case 'warn':
-        return <AlertTriangle size={16} className="text-[var(--color-amber)]" />
-      case 'error':
-        return <XCircle size={16} className="text-[var(--color-rose)]" />
-    }
-  }
+  const errorCount = React.useMemo(() => (results || []).filter(r => r.status === 'error').length, [results])
+  const warnCount = React.useMemo(() => (results || []).filter(r => r.status === 'warn').length, [results])
 
-  const getStatusDot = (status: HealthResult['status']) => {
-    const colors = {
-      ok: 'bg-[var(--color-emerald)]',
-      warn: 'bg-[var(--color-amber)]',
-      error: 'bg-[var(--color-rose)]',
-    }
-    return (
-      <div className={`w-2 h-2 rounded-full ${colors[status]} shadow-[0_0_6px_currentColor]`} />
-    )
-  }
-
-  const errorCount = (results || []).filter(r => r.status === 'error').length
-  const warnCount = (results || []).filter(r => r.status === 'warn').length
-
-  const copyReport = () => {
+  const copyReport = React.useCallback(() => {
     const lines = [
       '═══ BlueArkive Health Report ═══',
       '',
@@ -151,9 +151,9 @@ export const HealthDashboard: React.FC = () => {
       .catch(() => {
         /* clipboard unavailable */
       })
-  }
+  }, [results, systemInfo, lastChecked])
 
-  const emailReport = () => {
+  const emailReport = React.useCallback(() => {
     const body = results
       .map(r => {
         const icon = r.status === 'ok' ? '✅' : r.status === 'warn' ? '⚠️' : '❌'
@@ -165,11 +165,11 @@ export const HealthDashboard: React.FC = () => {
       .join('\n')
     const mailto = `mailto:support@bluearkive.com?subject=BlueArkive Health Report&body=${encodeURIComponent(`Health Check Results:\n\n${body}\n\nSystem Info:\n${sysInfo}`)}`
     window.electronAPI?.shell?.openExternal(mailto)
-  }
+  }, [results, systemInfo])
 
-  const handleExportDiagnostics = () => {
+  const handleExportDiagnostics = React.useCallback(() => {
     window.electronAPI?.diagnostic?.export()
-  }
+  }, [])
 
   return (
     <div className="flex flex-col gap-5">
@@ -224,11 +224,12 @@ export const HealthDashboard: React.FC = () => {
       )}
 
       {/* Results list */}
-      <div className="surface-glass-premium rounded-[var(--radius-lg)] border border-[var(--color-border-subtle)] overflow-hidden divide-y divide-[var(--color-border-subtle)]">
+      <div className="surface-glass-premium border border-[var(--color-border-subtle)] rounded-3xl p-2 shadow-sm overflow-hidden">
+        <div className="flex flex-col gap-1">
         {results.map((r, i) => (
           <div
             key={i}
-            className="flex items-center justify-between px-4 py-3 hover:bg-white/[0.02] transition-colors"
+            className="flex items-center justify-between px-4 py-3 rounded-2xl hover:bg-white/[0.02] transition-colors"
           >
             <div className="flex items-center gap-3 min-w-0">
               {getStatusIcon(r.status)}
@@ -282,6 +283,7 @@ export const HealthDashboard: React.FC = () => {
             Testing all systems...
           </div>
         )}
+        </div>
       </div>
 
       {/* Actions */}

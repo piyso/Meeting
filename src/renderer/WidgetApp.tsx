@@ -1,7 +1,6 @@
 import React, { useEffect, useReducer } from 'react'
 import { createRoot } from 'react-dom/client'
 import { MiniWidget } from './components/meeting/MiniWidget'
-import { SovereignOrb } from './components/meeting/SovereignOrb'
 import './index.css'
 import type { ElectronAPI } from '../types/ipc'
 import { usePowerMode } from './hooks/usePowerMode'
@@ -61,7 +60,6 @@ function widgetReducer(state: WidgetState, action: WidgetAction): WidgetState {
 
 export const WidgetApp: React.FC = () => {
   const [state, dispatch] = useReducer(widgetReducer, initialState)
-  const [isHoverExpanded, setIsHoverExpanded] = React.useState(false)
   // #24: Wire usePowerMode — disables spring animation when on battery
   const { isPowerSaveMode } = usePowerMode()
 
@@ -168,14 +166,10 @@ export const WidgetApp: React.FC = () => {
     ? { type: 'tween' as const, duration: 0.15 }
     : { type: 'spring' as const, stiffness: 350, damping: 25, mass: 1.2, bounce: 0.4 }
 
-  const showOrb = state.handoffState === 'orb' && !isHoverExpanded
   const isHidden = state.handoffState === 'hidden'
 
   return (
-    <div
-      className="w-screen h-screen bg-transparent flex flex-col justify-start items-end p-6 widget-draggable overflow-hidden text-[var(--color-text-primary)]"
-      onMouseLeave={() => setIsHoverExpanded(false)}
-    >
+    <div className="w-screen h-screen bg-transparent flex flex-col justify-start items-end p-6 widget-draggable overflow-hidden text-[var(--color-text-primary)]">
       <motion.div
         initial={{ y: -50, opacity: 0, scale: 0.85, filter: 'blur(10px)' }}
         animate={{
@@ -187,32 +181,23 @@ export const WidgetApp: React.FC = () => {
         transition={animationProps}
         className={`relative w-full flex justify-end ${isHidden ? 'pointer-events-none' : 'pointer-events-auto'}`}
       >
-        {showOrb ? (
-          <SovereignOrb
-            isRecording={state.isRecording}
-            isPaused={state.isPaused}
-            onClick={() => setIsHoverExpanded(true)}
-            onHoverStart={() => setIsHoverExpanded(true)}
-          />
-        ) : (
-          <MiniWidget
-            isRecording={state.isRecording}
-            isPaused={state.isPaused}
-            elapsedTime={state.elapsedTime}
-            lastTranscriptLine={state.lastTranscriptLine}
-            audioMode={state.audioMode}
-            syncStatus={state.syncStatus}
-            liveCoachTip={state.liveCoachTip}
-            entityCount={state.entityCount}
-            noteCount={state.noteCount}
-            onRestore={handleRestore}
-            onStop={handleStop}
-            onBookmark={handleBookmark}
-            onQuickNote={handleQuickNote}
-            onPauseToggle={handlePauseToggle}
-            onStartCapture={handleStartCapture}
-          />
-        )}
+        <MiniWidget
+          isRecording={state.isRecording}
+          isPaused={state.isPaused}
+          elapsedTime={state.elapsedTime}
+          lastTranscriptLine={state.lastTranscriptLine}
+          audioMode={state.audioMode}
+          syncStatus={state.syncStatus}
+          liveCoachTip={state.liveCoachTip}
+          entityCount={state.entityCount}
+          noteCount={state.noteCount}
+          onRestore={handleRestore}
+          onStop={handleStop}
+          onBookmark={handleBookmark}
+          onQuickNote={handleQuickNote}
+          onPauseToggle={handlePauseToggle}
+          onStartCapture={handleStartCapture}
+        />
       </motion.div>
     </div>
   )

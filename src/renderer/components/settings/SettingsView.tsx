@@ -236,7 +236,7 @@ export const SettingsView: React.FC = () => {
     [] // No deps — uses ref for settings
   )
 
-  const handleLogout = async () => {
+  const handleLogout = React.useCallback(async () => {
     try {
       await window.electronAPI?.auth?.logout()
       setUserInfo(null)
@@ -244,10 +244,10 @@ export const SettingsView: React.FC = () => {
     } catch (err) {
       log.error('Logout failed:', err)
     }
-  }
+  }, [])
 
   const [isExporting, setIsExporting] = React.useState(false)
-  const handleExportData = async () => {
+  const handleExportData = React.useCallback(async () => {
     setIsExporting(true)
     try {
       const res = await window.electronAPI?.meeting?.list({ limit: 999 })
@@ -270,7 +270,7 @@ export const SettingsView: React.FC = () => {
     } finally {
       setIsExporting(false)
     }
-  }
+  }, [])
 
   const tierDisplay = settings.hardwareTier
     ? settings.hardwareTier.charAt(0).toUpperCase() + settings.hardwareTier.slice(1)
@@ -282,41 +282,59 @@ export const SettingsView: React.FC = () => {
       title: 'Recording',
       icon: <Mic size={20} className="text-[var(--color-violet)]" />,
       content: (
-        <>
-          <div className="flex flex-wrap items-center justify-between gap-4 p-4 min-h-[56px] hover:bg-[rgba(255,255,255,0.02)] transition-colors">
-            <span className="text-[var(--text-sm)] text-[var(--color-text-secondary)]">
-              Audio source
-            </span>
-            <div className="w-full max-w-[16rem]">
-              <Select
-                value={settings.preferredAudioDevice}
-                onChange={e => updateSetting('preferredAudioDevice', e.target.value)}
-                options={[
-                  { label: 'System Audio (Default)', value: 'default' },
-                  { label: 'Built-in Microphone', value: 'internal' },
-                ]}
-              />
+        <div className="flex flex-col gap-8">
+          <div>
+            <h4 className="pl-4 mb-3 text-[11px] uppercase tracking-widest text-[var(--color-text-tertiary)] font-bold">
+              Audio Inputs
+            </h4>
+            <div className="surface-glass-premium border border-[var(--color-border-subtle)] rounded-3xl p-2 shadow-sm">
+              <div className="flex flex-col gap-1">
+                <div className="flex flex-wrap items-center justify-between gap-6 px-5 py-4 rounded-2xl hover:bg-[rgba(255,255,255,0.03)] transition-colors">
+                  <span className="text-[15px] font-medium text-[var(--color-text-primary)]">
+                    Audio source
+                  </span>
+                  <div className="w-full max-w-[16rem]">
+                    <Select
+                      value={settings.preferredAudioDevice}
+                      onChange={e => updateSetting('preferredAudioDevice', e.target.value)}
+                      options={[
+                        { label: 'System Audio (Default)', value: 'default' },
+                        { label: 'Built-in Microphone', value: 'internal' },
+                      ]}
+                    />
+                  </div>
+                </div>
+                <div className="flex flex-wrap items-center justify-between gap-6 px-5 py-4 rounded-2xl hover:bg-[rgba(255,255,255,0.03)] transition-colors">
+                  <span className="text-[15px] font-medium text-[var(--color-text-primary)]">
+                    Fallback to microphone
+                  </span>
+                  <Toggle
+                    checked={settings.audioFallbackEnabled}
+                    onChange={e => updateSetting('audioFallbackEnabled', e.target.checked)}
+                  />
+                </div>
+              </div>
             </div>
           </div>
-          <div className="flex flex-wrap items-center justify-between gap-4 p-4 min-h-[56px] hover:bg-[rgba(255,255,255,0.02)] transition-colors">
-            <span className="text-[var(--text-sm)] text-[var(--color-text-secondary)]">
-              Fallback to microphone
-            </span>
-            <Toggle
-              checked={settings.audioFallbackEnabled}
-              onChange={e => updateSetting('audioFallbackEnabled', e.target.checked)}
-            />
+          <div>
+            <h4 className="pl-4 mb-3 text-[11px] uppercase tracking-widest text-[var(--color-text-tertiary)] font-bold">
+              Local Storage
+            </h4>
+            <div className="surface-glass-premium border border-[var(--color-border-subtle)] rounded-3xl p-2 shadow-sm">
+              <div className="flex flex-col gap-1">
+                <div className="flex flex-wrap items-center justify-between gap-6 px-5 py-4 rounded-2xl hover:bg-[rgba(255,255,255,0.03)] transition-colors">
+                  <span className="text-[15px] font-medium text-[var(--color-text-primary)]">
+                    Keep audio files
+                  </span>
+                  <Toggle
+                    checked={settings.keepAudioFiles}
+                    onChange={e => updateSetting('keepAudioFiles', e.target.checked)}
+                  />
+                </div>
+              </div>
+            </div>
           </div>
-          <div className="flex flex-wrap items-center justify-between gap-4 p-4 min-h-[56px] hover:bg-[rgba(255,255,255,0.02)] transition-colors">
-            <span className="text-[var(--text-sm)] text-[var(--color-text-secondary)]">
-              Keep audio files
-            </span>
-            <Toggle
-              checked={settings.keepAudioFiles}
-              onChange={e => updateSetting('keepAudioFiles', e.target.checked)}
-            />
-          </div>
-        </>
+        </div>
       ),
     },
     {
@@ -324,69 +342,87 @@ export const SettingsView: React.FC = () => {
       title: 'Transcription',
       icon: <Type size={20} className="text-[var(--color-teal)]" />,
       content: (
-        <>
-          <div className="flex flex-wrap items-center justify-between gap-4 p-4 min-h-[56px] hover:bg-[rgba(255,255,255,0.02)] transition-colors">
-            <span className="text-[var(--text-sm)] text-[var(--color-text-secondary)]">
-              Hardware tier
-            </span>
-            <Badge variant={settings.hardwareTier === 'high' ? 'success' : 'default'}>
-              {tierDisplay}
-            </Badge>
+        <div className="flex flex-col gap-8">
+          <div>
+            <h4 className="pl-4 mb-3 text-[11px] uppercase tracking-widest text-[var(--color-text-tertiary)] font-bold">
+              Hardware & Models
+            </h4>
+            <div className="surface-glass-premium border border-[var(--color-border-subtle)] rounded-3xl p-2 shadow-sm">
+              <div className="flex flex-col gap-1">
+                <div className="flex flex-wrap items-center justify-between gap-6 px-5 py-4 rounded-2xl hover:bg-[rgba(255,255,255,0.03)] transition-colors">
+                  <span className="text-[15px] font-medium text-[var(--color-text-primary)]">
+                    Hardware tier
+                  </span>
+                  <Badge variant={settings.hardwareTier === 'high' ? 'success' : 'default'}>
+                    {tierDisplay}
+                  </Badge>
+                </div>
+                <div className="flex flex-wrap items-center justify-between gap-6 px-5 py-4 rounded-2xl hover:bg-[rgba(255,255,255,0.03)] transition-colors">
+                  <span className="text-[15px] font-medium text-[var(--color-text-primary)]">
+                    AI models
+                  </span>
+                  <Badge variant={modelStatus === 'Ready' ? 'success' : 'outline'}>{modelStatus}</Badge>
+                </div>
+              </div>
+            </div>
           </div>
-          <div className="flex flex-wrap items-center justify-between gap-4 p-4 min-h-[56px] hover:bg-[rgba(255,255,255,0.02)] transition-colors">
-            <span className="text-[var(--text-sm)] text-[var(--color-text-secondary)]">
-              AI models
-            </span>
-            <Badge variant={modelStatus === 'Ready' ? 'success' : 'outline'}>{modelStatus}</Badge>
+          <div>
+            <h4 className="pl-4 mb-3 text-[11px] uppercase tracking-widest text-[var(--color-text-tertiary)] font-bold">
+              Cloud Services
+            </h4>
+            <div className="surface-glass-premium border border-[var(--color-border-subtle)] rounded-3xl p-2 shadow-sm">
+              <div className="flex flex-col gap-1">
+                <div className="flex flex-wrap items-center justify-between gap-6 px-5 py-4 rounded-2xl hover:bg-[rgba(255,255,255,0.03)] transition-colors">
+                  <span className="text-[15px] font-medium text-[var(--color-text-primary)] flex items-center">
+                    Cloud transcription
+                    {currentTier === 'free' && (
+                      <Lock
+                        size={12}
+                        className="inline ml-1.5 opacity-60 text-[var(--color-amber)]"
+                      />
+                    )}
+                  </span>
+                  <Toggle
+                    checked={settings.useCloudTranscription}
+                    disabled={currentTier === 'free'}
+                    onChange={e => updateSetting('useCloudTranscription', e.target.checked)}
+                  />
+                </div>
+                <div className="flex flex-wrap items-center justify-between gap-6 px-5 py-4 rounded-2xl hover:bg-[rgba(255,255,255,0.03)] transition-colors">
+                  <span className="text-[15px] font-medium text-[var(--color-text-primary)]">
+                    Transcription language
+                  </span>
+                  <Select
+                    value={settings.language}
+                    onChange={value => {
+                      updateSetting('language', value)
+                      // Also persist as transcription_language for ASR + Deepgram wiring
+                      window.electronAPI?.settings?.update({
+                        key: 'transcription_language',
+                        value: value,
+                      })
+                    }}
+                    options={[
+                      { label: '🌐 Auto-detect', value: 'auto' },
+                      { label: '🇬🇧 English', value: 'en' },
+                      { label: '🇮🇳 हिन्दी (Hindi)', value: 'hi' },
+                      { label: '🇯🇵 日本語 (Japanese)', value: 'ja' },
+                      { label: '🇫🇷 Français (French)', value: 'fr' },
+                      { label: '🇪🇸 Español (Spanish)', value: 'es' },
+                      { label: '🇩🇪 Deutsch (German)', value: 'de' },
+                      { label: '🇧🇷 Português (Portuguese)', value: 'pt' },
+                      { label: '🇰🇷 한국어 (Korean)', value: 'ko' },
+                      { label: '🇸🇦 العربية (Arabic)', value: 'ar' },
+                      { label: '🇮🇹 Italiano (Italian)', value: 'it' },
+                      { label: '🇳🇱 Nederlands (Dutch)', value: 'nl' },
+                      { label: '🇨🇳 中文 (Chinese)', value: 'zh' },
+                    ]}
+                  />
+                </div>
+              </div>
+            </div>
           </div>
-          <div className="flex flex-wrap items-center justify-between gap-4 p-4 min-h-[56px] hover:bg-[rgba(255,255,255,0.02)] transition-colors">
-            <span className="text-[var(--text-sm)] text-[var(--color-text-secondary)]">
-              Cloud transcription
-              {currentTier === 'free' && (
-                <Lock
-                  size={12}
-                  className="inline ml-1.5 opacity-60 text-[var(--color-amber)] mb-0.5"
-                />
-              )}
-            </span>
-            <Toggle
-              checked={settings.useCloudTranscription}
-              disabled={currentTier === 'free'}
-              onChange={e => updateSetting('useCloudTranscription', e.target.checked)}
-            />
-          </div>
-          <div className="flex flex-wrap items-center justify-between gap-4 p-4 min-h-[56px] hover:bg-[rgba(255,255,255,0.02)] transition-colors">
-            <span className="text-[var(--text-sm)] text-[var(--color-text-secondary)]">
-              Transcription language
-            </span>
-            <Select
-              value={settings.language}
-              onChange={value => {
-                updateSetting('language', value)
-                // Also persist as transcription_language for ASR + Deepgram wiring
-                window.electronAPI?.settings?.update({
-                  key: 'transcription_language',
-                  value: value,
-                })
-              }}
-              options={[
-                { label: '🌐 Auto-detect', value: 'auto' },
-                { label: '🇬🇧 English', value: 'en' },
-                { label: '🇮🇳 हिन्दी (Hindi)', value: 'hi' },
-                { label: '🇯🇵 日本語 (Japanese)', value: 'ja' },
-                { label: '🇫🇷 Français (French)', value: 'fr' },
-                { label: '🇪🇸 Español (Spanish)', value: 'es' },
-                { label: '🇩🇪 Deutsch (German)', value: 'de' },
-                { label: '🇧🇷 Português (Portuguese)', value: 'pt' },
-                { label: '🇰🇷 한국어 (Korean)', value: 'ko' },
-                { label: '🇸🇦 العربية (Arabic)', value: 'ar' },
-                { label: '🇮🇹 Italiano (Italian)', value: 'it' },
-                { label: '🇳🇱 Nederlands (Dutch)', value: 'nl' },
-                { label: '🇨🇳 中文 (Chinese)', value: 'zh' },
-              ]}
-            />
-          </div>
-        </>
+        </div>
       ),
     },
     {
@@ -394,48 +430,66 @@ export const SettingsView: React.FC = () => {
       title: 'Intelligence',
       icon: <Brain size={20} className="text-[var(--color-sky)]" />,
       content: (
-        <>
-          <div className="flex flex-wrap items-center justify-between gap-4 p-4 min-h-[56px] hover:bg-[rgba(255,255,255,0.02)] transition-colors">
-            <span className="text-[var(--text-sm)] text-[var(--color-text-secondary)]">
-              Auto-expand notes
-              {currentTier === 'free' && (
-                <Lock
-                  size={12}
-                  className="inline ml-1.5 opacity-60 text-[var(--color-amber)] mb-0.5"
-                />
-              )}
-            </span>
-            <Toggle
-              checked={settings.autoExpandNotes}
-              disabled={currentTier === 'free'}
-              onChange={e => updateSetting('autoExpandNotes', e.target.checked)}
-            />
-          </div>
-          <div className="flex flex-wrap items-center justify-between gap-4 p-4 min-h-[56px] hover:bg-[rgba(255,255,255,0.02)] transition-colors">
-            <span className="text-[var(--text-sm)] text-[var(--color-text-secondary)]">
-              Intelligence engine
-            </span>
-            <div className="w-full max-w-[16rem]">
-              <Select
-                value={settings.llmEngine}
-                onChange={e => updateSetting('llmEngine', e.target.value)}
-                options={[
-                  { label: 'Local Runtime (node-llama-cpp)', value: 'local' },
-                  { label: 'Accelerated (Apple Silicon)', value: 'mlx' },
-                ]}
-              />
+        <div className="flex flex-col gap-8">
+          <div>
+            <h4 className="pl-4 mb-3 text-[11px] uppercase tracking-widest text-[var(--color-text-tertiary)] font-bold">
+              Automation
+            </h4>
+            <div className="surface-glass-premium border border-[var(--color-border-subtle)] rounded-3xl p-2 shadow-sm">
+              <div className="flex flex-col gap-1">
+                <div className="flex flex-wrap items-center justify-between gap-6 px-5 py-4 rounded-2xl hover:bg-[rgba(255,255,255,0.03)] transition-colors">
+                  <span className="text-[15px] font-medium text-[var(--color-text-primary)] flex items-center">
+                    Auto-expand notes
+                    {currentTier === 'free' && (
+                      <Lock
+                        size={12}
+                        className="inline ml-1.5 opacity-60 text-[var(--color-amber)]"
+                      />
+                    )}
+                  </span>
+                  <Toggle
+                    checked={settings.autoExpandNotes}
+                    disabled={currentTier === 'free'}
+                    onChange={e => updateSetting('autoExpandNotes', e.target.checked)}
+                  />
+                </div>
+              </div>
             </div>
           </div>
-          <div className="flex flex-wrap items-center justify-between gap-4 p-4 min-h-[56px] hover:bg-[rgba(255,255,255,0.02)] transition-colors">
-            <span className="text-[var(--text-sm)] text-[var(--color-text-secondary)]">
-              Show smart chips
-            </span>
-            <Toggle
-              checked={settings.showSmartChips}
-              onChange={e => updateSetting('showSmartChips', e.target.checked)}
-            />
+          <div>
+            <h4 className="pl-4 mb-3 text-[11px] uppercase tracking-widest text-[var(--color-text-tertiary)] font-bold">
+              Model Configuration
+            </h4>
+            <div className="surface-glass-premium border border-[var(--color-border-subtle)] rounded-3xl p-2 shadow-sm">
+              <div className="flex flex-col gap-1">
+                <div className="flex flex-wrap items-center justify-between gap-6 px-5 py-4 rounded-2xl hover:bg-[rgba(255,255,255,0.03)] transition-colors">
+                  <span className="text-[15px] font-medium text-[var(--color-text-primary)]">
+                    Intelligence engine
+                  </span>
+                  <div className="w-full max-w-[16rem]">
+                    <Select
+                      value={settings.llmEngine}
+                      onChange={e => updateSetting('llmEngine', e.target.value)}
+                      options={[
+                        { label: 'Local Runtime (node-llama-cpp)', value: 'local' },
+                        { label: 'Accelerated (Apple Silicon)', value: 'mlx' },
+                      ]}
+                    />
+                  </div>
+                </div>
+                <div className="flex flex-wrap items-center justify-between gap-6 px-5 py-4 rounded-2xl hover:bg-[rgba(255,255,255,0.03)] transition-colors">
+                  <span className="text-[15px] font-medium text-[var(--color-text-primary)]">
+                    Show smart chips
+                  </span>
+                  <Toggle
+                    checked={settings.showSmartChips}
+                    onChange={e => updateSetting('showSmartChips', e.target.checked)}
+                  />
+                </div>
+              </div>
+            </div>
           </div>
-        </>
+        </div>
       ),
     },
     {
@@ -443,94 +497,121 @@ export const SettingsView: React.FC = () => {
       title: 'Trust & Security',
       icon: <Shield size={20} className="text-[var(--color-amber)]" />,
       content: (
-        <>
-          <div className="flex flex-col">
-            <div className="p-6 bg-[rgba(0,0,0,0.15)] border-b border-[var(--color-border-subtle)]">
-              <h3 className="text-sm font-semibold text-[var(--color-text-primary)] mb-4">
-                Data Locality Report
-              </h3>
-              <div className="space-y-4">
-                <div className="flex justify-between items-center text-[var(--text-sm)]">
+        <div className="flex flex-col gap-8">
+          <div>
+            <h4 className="pl-4 mb-3 text-[11px] uppercase tracking-widest text-[var(--color-text-tertiary)] font-bold">
+              Data Locality Report
+            </h4>
+            <div className="surface-glass-premium border border-[var(--color-border-subtle)] rounded-3xl p-2 shadow-sm">
+              <div className="flex flex-col gap-1 p-3">
+                <div className="flex justify-between items-center text-[14px]">
                   <span className="text-[var(--color-text-secondary)]">Local meetings</span>
                   <span className="font-mono font-medium text-[var(--color-text-primary)]">
                     {localMeetingCount}
                   </span>
                 </div>
-                <div className="flex justify-between items-center text-[var(--text-sm)]">
+                <div className="flex justify-between items-center text-[14px] mt-3">
                   <span className="text-[var(--color-text-secondary)]">Synced (Encrypted)</span>
                   <span className="font-mono font-medium text-[var(--color-text-primary)]">
                     {syncedMeetingCount}
                   </span>
                 </div>
-                <div className="flex justify-between items-center text-[var(--text-sm)]">
+                <div className="flex justify-between items-center text-[14px] mt-3">
                   <span className="text-[var(--color-text-secondary)]">Data to 3rd parties</span>
                   <span className="font-mono font-medium text-[var(--color-emerald)]">0 bytes</span>
                 </div>
               </div>
             </div>
+          </div>
 
-            <div className="flex flex-col divide-y divide-[var(--color-border-subtle)]">
-              <div className="flex items-center justify-between p-4 min-h-[56px] hover:bg-[rgba(255,255,255,0.02)] transition-colors">
-                <span className="text-[var(--text-sm)] text-[var(--color-text-primary)] font-medium">
-                  Audio processed on-device
-                </span>
-                <Badge variant="success">✅ Verified</Badge>
-              </div>
-              <div className="flex items-center justify-between p-4 min-h-[56px] hover:bg-[rgba(255,255,255,0.02)] transition-colors">
-                <span className="text-[var(--text-sm)] text-[var(--color-text-primary)] font-medium">
-                  End-to-end encryption (AES-256-GCM)
-                </span>
-                <Toggle
-                  checked={settings.encryptionEnabled}
-                  onChange={e => updateSetting('encryptionEnabled', e.target.checked)}
-                />
-              </div>
-              <div className="flex items-center justify-between p-4 min-h-[56px] hover:bg-[rgba(255,255,255,0.02)] transition-colors">
-                <span className="text-[var(--text-sm)] text-[var(--color-text-primary)] font-medium">
-                  PHI auto-redaction
-                </span>
-                <Toggle
-                  checked={settings.phiDetectionEnabled}
-                  onChange={e => updateSetting('phiDetectionEnabled', e.target.checked)}
-                />
-              </div>
-              <div className="flex items-center justify-between p-4 min-h-[56px] hover:bg-[rgba(255,255,255,0.02)] transition-colors">
-                <span className="text-[var(--text-sm)] text-[var(--color-text-primary)] font-medium">
-                  Mask PHI before sync
-                </span>
-                <Toggle
-                  checked={settings.maskPHIBeforeSync}
-                  onChange={e => updateSetting('maskPHIBeforeSync', e.target.checked)}
-                />
-              </div>
-              <div className="flex items-center justify-between p-4 min-h-[56px] hover:bg-[rgba(255,255,255,0.02)] transition-colors">
-                <span className="text-[var(--text-sm)] text-[var(--color-text-primary)] font-medium">
-                  Immutable Audit logging
-                </span>
-                <Toggle
-                  checked={settings.auditLoggingEnabled}
-                  onChange={e => updateSetting('auditLoggingEnabled', e.target.checked)}
-                />
-              </div>
-              <div className="flex items-center justify-between p-4 min-h-[56px] hover:bg-[rgba(255,255,255,0.02)] transition-colors">
-                <span className="text-[var(--text-sm)] text-[var(--color-text-primary)] font-medium">
-                  Cloud Sync (E2EE)
-                  {currentTier === 'free' && (
-                    <Lock
-                      size={12}
-                      className="inline ml-1.5 opacity-60 text-[var(--color-amber)] mb-0.5"
-                    />
-                  )}
-                </span>
-                <Toggle
-                  checked={settings.syncEnabled}
-                  disabled={currentTier === 'free'}
-                  onChange={e => updateSetting('syncEnabled', e.target.checked)}
-                />
+          <div>
+            <h4 className="pl-4 mb-3 text-[11px] uppercase tracking-widest text-[var(--color-text-tertiary)] font-bold">
+              Local Processing
+            </h4>
+            <div className="surface-glass-premium border border-[var(--color-border-subtle)] rounded-3xl p-2 shadow-sm">
+              <div className="flex flex-col gap-1">
+                <div className="flex items-center justify-between px-5 py-4 rounded-2xl hover:bg-[rgba(255,255,255,0.03)] transition-colors">
+                  <span className="text-[15px] font-medium text-[var(--color-text-primary)]">
+                    Audio processed on-device
+                  </span>
+                  <Badge variant="success">✅ Verified</Badge>
+                </div>
+                <div className="flex items-center justify-between px-5 py-4 rounded-2xl hover:bg-[rgba(255,255,255,0.03)] transition-colors">
+                  <span className="text-[15px] font-medium text-[var(--color-text-primary)]">
+                    End-to-end encryption (AES-256-GCM)
+                  </span>
+                  <Toggle
+                    checked={settings.encryptionEnabled}
+                    onChange={e => updateSetting('encryptionEnabled', e.target.checked)}
+                  />
+                </div>
               </div>
             </div>
           </div>
-        </>
+
+          <div>
+            <h4 className="pl-4 mb-3 text-[11px] uppercase tracking-widest text-[var(--color-text-tertiary)] font-bold">
+              Privacy & Auditing
+            </h4>
+            <div className="surface-glass-premium border border-[var(--color-border-subtle)] rounded-3xl p-2 shadow-sm">
+              <div className="flex flex-col gap-1">
+                <div className="flex items-center justify-between px-5 py-4 rounded-2xl hover:bg-[rgba(255,255,255,0.03)] transition-colors">
+                  <span className="text-[15px] font-medium text-[var(--color-text-primary)]">
+                    PHI auto-redaction
+                  </span>
+                  <Toggle
+                    checked={settings.phiDetectionEnabled}
+                    onChange={e => updateSetting('phiDetectionEnabled', e.target.checked)}
+                  />
+                </div>
+                <div className="flex items-center justify-between px-5 py-4 rounded-2xl hover:bg-[rgba(255,255,255,0.03)] transition-colors">
+                  <span className="text-[15px] font-medium text-[var(--color-text-primary)]">
+                    Mask PHI before sync
+                  </span>
+                  <Toggle
+                    checked={settings.maskPHIBeforeSync}
+                    onChange={e => updateSetting('maskPHIBeforeSync', e.target.checked)}
+                  />
+                </div>
+                <div className="flex items-center justify-between px-5 py-4 rounded-2xl hover:bg-[rgba(255,255,255,0.03)] transition-colors">
+                  <span className="text-[15px] font-medium text-[var(--color-text-primary)]">
+                    Immutable Audit logging
+                  </span>
+                  <Toggle
+                    checked={settings.auditLoggingEnabled}
+                    onChange={e => updateSetting('auditLoggingEnabled', e.target.checked)}
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div>
+            <h4 className="pl-4 mb-3 text-[11px] uppercase tracking-widest text-[var(--color-text-tertiary)] font-bold">
+              Cloud Connectivity
+            </h4>
+            <div className="surface-glass-premium border border-[var(--color-border-subtle)] rounded-3xl p-2 shadow-sm">
+              <div className="flex flex-col gap-1">
+                <div className="flex items-center justify-between px-5 py-4 rounded-2xl hover:bg-[rgba(255,255,255,0.03)] transition-colors">
+                  <span className="text-[15px] font-medium text-[var(--color-text-primary)] flex items-center">
+                    Cloud Sync (E2EE)
+                    {currentTier === 'free' && (
+                      <Lock
+                        size={12}
+                        className="inline ml-1.5 opacity-60 text-[var(--color-amber)]"
+                      />
+                    )}
+                  </span>
+                  <Toggle
+                    checked={settings.syncEnabled}
+                    disabled={currentTier === 'free'}
+                    onChange={e => updateSetting('syncEnabled', e.target.checked)}
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
       ),
     },
     {
@@ -538,55 +619,73 @@ export const SettingsView: React.FC = () => {
       title: 'Storage',
       icon: <HardDrive size={20} className="text-[var(--color-text-secondary)]" />,
       content: (
-        <>
-          <div className="flex flex-wrap items-center justify-between gap-4 p-4 min-h-[56px] hover:bg-[rgba(255,255,255,0.02)] transition-colors">
-            <span className="text-[var(--text-sm)] text-[var(--color-text-secondary)]">
-              Max disk usage
-            </span>
-            <div className="w-full max-w-[16rem]">
-              <Select
-                value={String(settings.maxDiskUsage)}
-                onChange={e => updateSetting('maxDiskUsage', Number(e.target.value))}
-                options={[
-                  { label: '5 GB', value: '5' },
-                  { label: '10 GB', value: '10' },
-                  { label: '25 GB', value: '25' },
-                  { label: '50 GB', value: '50' },
-                  { label: 'Unlimited', value: '0' },
-                ]}
-              />
-            </div>
-          </div>
-          <div className="flex flex-wrap items-center justify-between gap-4 p-4 min-h-[56px] hover:bg-[rgba(255,255,255,0.02)] transition-colors">
-            <span className="text-[var(--text-sm)] text-[var(--color-text-secondary)]">
-              Auto-delete old meetings
-            </span>
-            <Toggle
-              checked={settings.autoDeleteOldMeetings}
-              onChange={e => updateSetting('autoDeleteOldMeetings', e.target.checked)}
-            />
-          </div>
-          {settings.autoDeleteOldMeetings && (
-            <div className="flex flex-wrap items-center justify-between gap-4 p-4 min-h-[56px] hover:bg-[rgba(255,255,255,0.02)] transition-colors">
-              <span className="text-[var(--text-sm)] text-[var(--color-text-secondary)]">
-                Delete after
-              </span>
-              <div className="w-full max-w-[16rem]">
-                <Select
-                  value={String(settings.autoDeleteAfterDays)}
-                  onChange={e => updateSetting('autoDeleteAfterDays', Number(e.target.value))}
-                  options={[
-                    { label: '30 days', value: '30' },
-                    { label: '60 days', value: '60' },
-                    { label: '90 days', value: '90' },
-                    { label: '180 days', value: '180' },
-                    { label: '1 year', value: '365' },
-                  ]}
-                />
+        <div className="flex flex-col gap-8">
+          <div>
+            <h4 className="pl-4 mb-3 text-[11px] uppercase tracking-widest text-[var(--color-text-tertiary)] font-bold">
+              Disk Management
+            </h4>
+            <div className="surface-glass-premium border border-[var(--color-border-subtle)] rounded-3xl p-2 shadow-sm">
+              <div className="flex flex-col gap-1">
+                <div className="flex flex-wrap items-center justify-between gap-6 px-5 py-4 rounded-2xl hover:bg-[rgba(255,255,255,0.03)] transition-colors">
+                  <span className="text-[15px] font-medium text-[var(--color-text-primary)]">
+                    Max disk usage
+                  </span>
+                  <div className="w-full max-w-[16rem]">
+                    <Select
+                      value={String(settings.maxDiskUsage)}
+                      onChange={e => updateSetting('maxDiskUsage', Number(e.target.value))}
+                      options={[
+                        { label: '5 GB', value: '5' },
+                        { label: '10 GB', value: '10' },
+                        { label: '25 GB', value: '25' },
+                        { label: '50 GB', value: '50' },
+                        { label: 'Unlimited', value: '0' },
+                      ]}
+                    />
+                  </div>
+                </div>
               </div>
             </div>
-          )}
-        </>
+          </div>
+          <div>
+            <h4 className="pl-4 mb-3 text-[11px] uppercase tracking-widest text-[var(--color-text-tertiary)] font-bold">
+              Retention Policy
+            </h4>
+            <div className="surface-glass-premium border border-[var(--color-border-subtle)] rounded-3xl p-2 shadow-sm">
+              <div className="flex flex-col gap-1">
+                <div className="flex flex-wrap items-center justify-between gap-6 px-5 py-4 rounded-2xl hover:bg-[rgba(255,255,255,0.03)] transition-colors">
+                  <span className="text-[15px] font-medium text-[var(--color-text-primary)]">
+                    Auto-delete old meetings
+                  </span>
+                  <Toggle
+                    checked={settings.autoDeleteOldMeetings}
+                    onChange={e => updateSetting('autoDeleteOldMeetings', e.target.checked)}
+                  />
+                </div>
+                {settings.autoDeleteOldMeetings && (
+                  <div className="flex flex-wrap items-center justify-between gap-6 px-5 py-4 rounded-2xl hover:bg-[rgba(255,255,255,0.03)] transition-colors">
+                    <span className="text-[15px] font-medium text-[var(--color-text-primary)]">
+                      Delete after
+                    </span>
+                    <div className="w-full max-w-[16rem]">
+                      <Select
+                        value={String(settings.autoDeleteAfterDays)}
+                        onChange={e => updateSetting('autoDeleteAfterDays', Number(e.target.value))}
+                        options={[
+                          { label: '30 days', value: '30' },
+                          { label: '60 days', value: '60' },
+                          { label: '90 days', value: '90' },
+                          { label: '180 days', value: '180' },
+                          { label: '1 year', value: '365' },
+                        ]}
+                      />
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
       ),
     },
     {
@@ -629,125 +728,144 @@ export const SettingsView: React.FC = () => {
       title: 'Account',
       icon: <User size={20} className="text-[var(--color-text-secondary)]" />,
       content: (
-        <>
+        <div className="flex flex-col gap-8">
           {userInfo ? (
-            <div className="flex flex-col gap-6">
-              <div className="flex flex-col gap-2">
-                <div className="flex items-center justify-between h-[40px]">
-                  <span className="text-[var(--text-sm)] text-[var(--color-text-secondary)]">
-                    Email
-                  </span>
-                  <span className="text-[var(--text-sm)] text-[var(--color-text-primary)]">
-                    {userInfo.email}
-                  </span>
-                </div>
-                <div className="flex items-center justify-between h-[40px]">
-                  <span className="text-[var(--text-sm)] text-[var(--color-text-secondary)]">
-                    Plan
-                  </span>
-                  <Badge variant={currentTier === 'pro' ? 'success' : 'default'}>
-                    {currentTier.charAt(0).toUpperCase() + currentTier.slice(1)}
-                  </Badge>
-                </div>
-                <div className="flex items-center justify-between min-h-[40px] gap-3">
-                  <span className="text-[var(--text-sm)] text-[var(--color-text-secondary)] whitespace-nowrap">
-                    License Key
-                  </span>
-                  <div className="flex gap-2 items-center">
-                    <input
-                      type="text"
-                      value={licenseKey}
-                      onChange={e => setLicenseKey(e.target.value.toUpperCase())}
-                      placeholder="BLUEARKIVE-PRO-XXXX-XXXX"
-                      className="px-3 py-1.5 text-[var(--text-sm)] bg-[var(--color-bg-elevated)] border border-[var(--color-border-subtle)] rounded-[var(--radius-md)] text-[var(--color-text-primary)] w-[220px] placeholder:text-[var(--color-text-tertiary)] focus:border-[var(--color-violet)] outline-none transition-colors"
-                      onKeyDown={e => e.key === 'Enter' && handleActivateLicense()}
-                    />
-                    <Button
-                      variant="primary"
-                      size="sm"
-                      onClick={handleActivateLicense}
-                      disabled={licenseStatus === 'loading' || !licenseKey.trim()}
-                    >
-                      {licenseStatus === 'loading' ? 'Activating...' : 'Activate'}
-                    </Button>
-                  </div>
-                </div>
-                {licenseStatus === 'error' && (
-                  <div className="text-[var(--text-xs)] text-red-400 text-right -mt-1">
-                    {licenseError}
-                  </div>
-                )}
-                {licenseStatus === 'success' && (
-                  <div className="text-[var(--text-xs)] text-green-400 text-right -mt-1">
-                    ✓ License activated successfully!
-                  </div>
-                )}
+            <>
+              <div>
+                <h4 className="pl-4 mb-3 text-[11px] uppercase tracking-widest text-[var(--color-text-tertiary)] font-bold">
+                  Profile
+                </h4>
+                <div className="surface-glass-premium border border-[var(--color-border-subtle)] rounded-3xl p-2 shadow-sm">
+                  <div className="flex flex-col gap-1">
+                    <div className="flex items-center justify-between px-5 py-4 rounded-2xl hover:bg-[rgba(255,255,255,0.03)] transition-colors">
+                      <span className="text-[15px] font-medium text-[var(--color-text-primary)]">
+                        Email
+                      </span>
+                      <span className="text-[14px] text-[var(--color-text-secondary)]">
+                        {userInfo.email}
+                      </span>
+                    </div>
+                    <div className="flex items-center justify-between px-5 py-4 rounded-2xl hover:bg-[rgba(255,255,255,0.03)] transition-colors">
+                      <span className="text-[15px] font-medium text-[var(--color-text-primary)]">
+                        Plan
+                      </span>
+                      <Badge variant={currentTier === 'pro' ? 'success' : 'default'}>
+                        {currentTier.charAt(0).toUpperCase() + currentTier.slice(1)}
+                      </Badge>
+                    </div>
+                    <div className="flex flex-col px-5 py-4 rounded-2xl hover:bg-[rgba(255,255,255,0.03)] transition-colors justify-center gap-3">
+                      <div className="flex items-center justify-between gap-3">
+                        <span className="text-[15px] font-medium text-[var(--color-text-primary)] whitespace-nowrap">
+                          License Key
+                        </span>
+                        <div className="flex gap-2 items-center">
+                          <input
+                            type="text"
+                            value={licenseKey}
+                            onChange={e => setLicenseKey(e.target.value.toUpperCase())}
+                            placeholder="BLUEARKIVE-PRO-XXXX-XXXX"
+                            className="px-3 py-1.5 text-[var(--text-sm)] bg-[var(--color-bg-elevated)] border border-[var(--color-border-subtle)] rounded-[var(--radius-md)] text-[var(--color-text-primary)] w-[220px] placeholder:text-[var(--color-text-tertiary)] focus:border-[var(--color-violet)] outline-none transition-colors"
+                            onKeyDown={e => e.key === 'Enter' && handleActivateLicense()}
+                          />
+                          <Button
+                            variant="primary"
+                            size="sm"
+                            onClick={handleActivateLicense}
+                            disabled={licenseStatus === 'loading' || !licenseKey.trim()}
+                          >
+                            {licenseStatus === 'loading' ? 'Activating...' : 'Activate'}
+                          </Button>
+                        </div>
+                      </div>
+                      {licenseStatus === 'error' && (
+                        <div className="text-[var(--text-xs)] text-red-400 text-right -mt-1">
+                          {licenseError}
+                        </div>
+                      )}
+                      {licenseStatus === 'success' && (
+                        <div className="text-[var(--text-xs)] text-green-400 text-right -mt-1">
+                          ✓ License activated successfully!
+                        </div>
+                      )}
 
-                {/* Billing Status Warning */}
-                {userInfo.billingStatus === 'past_due' && (
-                  <div className="mt-2 p-3 rounded-md bg-red-500/10 border border-red-500/20 text-red-400 text-sm">
-                    ⚠️ Your subscription payment is past due. To continue enjoying premium features,
-                    please update your payment method.
+                      {/* Billing Status Warning */}
+                      {userInfo.billingStatus === 'past_due' && (
+                        <div className="mt-2 p-3 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 text-sm">
+                          ⚠️ Your subscription payment is past due. To continue enjoying premium features,
+                          please update your payment method.
+                        </div>
+                      )}
+                      {userInfo.billingStatus === 'cancelled' && (
+                        <div className="mt-2 p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-400 text-sm">
+                          Your subscription has been cancelled and will end soon. Resubscribe to retain
+                          premium access.
+                        </div>
+                      )}
+                    </div>
                   </div>
-                )}
-                {userInfo.billingStatus === 'cancelled' && (
-                  <div className="mt-2 p-3 rounded-md bg-amber-500/10 border border-amber-500/20 text-amber-400 text-sm">
-                    Your subscription has been cancelled and will end soon. Resubscribe to retain
-                    premium access.
-                  </div>
-                )}
-
-                <div className="flex items-center justify-between h-[40px]">
-                  <span className="text-[var(--text-sm)] text-[var(--color-text-secondary)]">
-                    Manage Subscription
-                  </span>
-                  <Button variant="secondary" size="sm" onClick={() => openUpgrade()}>
-                    Manage
-                  </Button>
-                </div>
-
-                <div className="flex items-center justify-between h-[40px]">
-                  <span className="text-[var(--text-sm)] text-[var(--color-text-secondary)]">
-                    Export data (GDPR)
-                  </span>
-                  <Button
-                    variant="secondary"
-                    size="sm"
-                    onClick={handleExportData}
-                    disabled={isExporting}
-                  >
-                    <Download size={14} className="mr-1" />{' '}
-                    {isExporting ? 'Exporting...' : 'Export'}
-                  </Button>
-                </div>
-                <div className="flex items-center justify-between h-[40px]">
-                  <span className="text-[var(--text-sm)] text-[var(--color-text-secondary)]">
-                    Sign out
-                  </span>
-                  <Button variant="danger" size="sm" onClick={handleLogout}>
-                    Logout
-                  </Button>
                 </div>
               </div>
-            </div>
+
+              <div>
+                <h4 className="pl-4 mb-3 text-[11px] uppercase tracking-widest text-[var(--color-text-tertiary)] font-bold">
+                  Actions
+                </h4>
+                <div className="surface-glass-premium border border-[var(--color-border-subtle)] rounded-3xl p-2 shadow-sm">
+                  <div className="flex flex-col gap-1">
+                    <div className="flex items-center justify-between px-5 py-4 rounded-2xl hover:bg-[rgba(255,255,255,0.03)] transition-colors">
+                      <span className="text-[15px] font-medium text-[var(--color-text-primary)]">
+                        Manage Subscription
+                      </span>
+                      <Button variant="secondary" size="sm" onClick={() => openUpgrade()}>
+                        Manage
+                      </Button>
+                    </div>
+
+                    <div className="flex items-center justify-between px-5 py-4 rounded-2xl hover:bg-[rgba(255,255,255,0.03)] transition-colors">
+                      <span className="text-[15px] font-medium text-[var(--color-text-primary)]">
+                        Export data (GDPR)
+                      </span>
+                      <Button
+                        variant="secondary"
+                        size="sm"
+                        onClick={handleExportData}
+                        disabled={isExporting}
+                      >
+                        <Download size={14} className="mr-1" /> {isExporting ? 'Exporting...' : 'Export'}
+                      </Button>
+                    </div>
+                    <div className="flex items-center justify-between px-5 py-4 rounded-2xl hover:bg-[rgba(255,255,255,0.03)] transition-colors">
+                      <span className="text-[15px] font-medium text-[var(--color-text-primary)]">
+                        Sign out
+                      </span>
+                      <Button variant="danger" size="sm" onClick={handleLogout}>
+                        Logout
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </>
           ) : (
-            <div className="flex items-center justify-between h-[40px]">
-              <span className="text-[var(--text-sm)] text-[var(--color-text-secondary)]">
-                Not signed in
-              </span>
-              <Button
-                variant="primary"
-                size="sm"
-                onClick={() => {
-                  const { navigate } = useAppStore.getState()
-                  navigate('onboarding')
-                }}
-              >
-                Sign In
-              </Button>
+            <div className="surface-glass-premium border border-[var(--color-border-subtle)] rounded-3xl p-2 shadow-sm">
+              <div className="flex items-center justify-between px-5 py-4 rounded-2xl hover:bg-[rgba(255,255,255,0.03)] transition-colors">
+                <span className="text-[15px] font-medium text-[var(--color-text-primary)]">
+                  Not signed in
+                </span>
+                <Button
+                  variant="primary"
+                  size="sm"
+                  onClick={() => {
+                    const { navigate } = useAppStore.getState()
+                    navigate('onboarding')
+                  }}
+                >
+                  Sign In
+                </Button>
+              </div>
             </div>
           )}
-        </>
+        </div>
       ),
     },
   ]
@@ -827,15 +945,7 @@ export const SettingsView: React.FC = () => {
             {sec.icon}
             <h2 className="text-[var(--text-lg)] font-semibold tracking-tight">{sec.title}</h2>
           </div>
-          {sec.isCustomLayout ? (
-            sec.content
-          ) : (
-            <div className="surface-glass-premium border border-[var(--color-border-subtle)] rounded-2xl overflow-hidden shadow-sm">
-              <div className="flex flex-col divide-y divide-[var(--color-border-subtle)]">
-                {sec.content}
-              </div>
-            </div>
-          )}
+          {sec.content}
         </section>
       ))}
 
@@ -859,7 +969,7 @@ export const SettingsView: React.FC = () => {
       )}
 
       <div className="text-center text-[var(--text-xs)] text-[var(--color-text-tertiary)] pt-[var(--space-16)] font-mono tracking-wide opacity-80">
-        BlueArkive · Phase 0 · Sovereign Memory Fabric
+        BlueArkive Beta
       </div>
     </div>
   )

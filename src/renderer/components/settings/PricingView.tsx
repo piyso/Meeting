@@ -140,13 +140,19 @@ export const PricingView: React.FC<{ onPlanSelect?: (plan: string) => void }> = 
                 </div>
               )}
 
-              <h3 className="text-[0.75rem] font-bold tracking-[0.2em] uppercase text-slate-400 mb-3 transition-colors duration-500 group-hover:text-slate-200">{t.name}</h3>
+              <h3 className="text-[0.75rem] font-bold tracking-[0.2em] uppercase text-slate-400 mb-3 transition-colors duration-500 group-hover:text-slate-200">
+                {t.name}
+              </h3>
 
               <div className="mb-8 border-b border-white/10 pb-6 flex items-end">
-                <span className={`text-[2.75rem] leading-none font-extralight tracking-tight transition-colors duration-500 ${t.recommended ? 'text-emerald-300' : 'text-white group-hover:text-emerald-300'}`}>
+                <span
+                  className={`text-[2.75rem] leading-none font-extralight tracking-tight transition-colors duration-500 ${t.recommended ? 'text-emerald-300' : 'text-white group-hover:text-emerald-300'}`}
+                >
                   {currency === 'INR' && t.priceINR ? t.priceINR : t.price}
                 </span>
-                <span className="text-[0.7rem] tracking-widest uppercase text-slate-500 ml-2 mb-1.5 font-medium">/ {t.period}</span>
+                <span className="text-[0.7rem] tracking-widest uppercase text-slate-500 ml-2 mb-1.5 font-medium">
+                  / {t.period}
+                </span>
               </div>
 
               <ul className="space-y-4 flex-1 mb-8">
@@ -155,7 +161,9 @@ export const PricingView: React.FC<{ onPlanSelect?: (plan: string) => void }> = 
                     key={j}
                     className="flex gap-4 items-start text-[0.95rem] text-slate-300 font-light leading-snug transition-colors duration-500 group-hover:text-slate-200"
                   >
-                    <div className={`mt-0.5 shrink-0 flex items-center justify-center w-5 h-5 rounded-full border transition-all duration-500 ${t.recommended ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-400' : 'border-white/10 bg-white/5 text-slate-400 group-hover:border-emerald-500/30 group-hover:bg-emerald-500/10 group-hover:text-emerald-400'}`}>
+                    <div
+                      className={`mt-0.5 shrink-0 flex items-center justify-center w-5 h-5 rounded-full border transition-all duration-500 ${t.recommended ? 'border-emerald-500/30 bg-emerald-500/10 text-emerald-400' : 'border-white/10 bg-white/5 text-slate-400 group-hover:border-emerald-500/30 group-hover:bg-emerald-500/10 group-hover:text-emerald-400'}`}
+                    >
                       <Check size={12} strokeWidth={2.5} />
                     </div>
                     <span>{f}</span>
@@ -166,8 +174,8 @@ export const PricingView: React.FC<{ onPlanSelect?: (plan: string) => void }> = 
               <Button
                 variant={t.variant}
                 className={`w-full py-4 mt-auto rounded-2xl font-bold tracking-[0.15em] uppercase text-[0.7rem] transition-all duration-500 ${
-                  t.recommended 
-                    ? 'bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 shadow-[0_0_20px_rgba(16,185,129,0.15)] hover:shadow-[0_0_30px_rgba(16,185,129,0.3)]' 
+                  t.recommended
+                    ? 'bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 shadow-[0_0_20px_rgba(16,185,129,0.15)] hover:shadow-[0_0_30px_rgba(16,185,129,0.3)]'
                     : 'bg-white/5 hover:bg-white/10 text-slate-300 border border-white/10 hover:border-white/20'
                 }`}
                 onClick={() => onPlanSelect?.(t.name)}

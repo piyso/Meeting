@@ -4,7 +4,9 @@
 .ui-view-meeting-list {
   width: 100%;
   height: 100%;
+  overflow-y: overlay;
   overflow-y: auto;
+  overscroll-behavior: contain;
   padding: 0 clamp(var(--space-16), 4vw, var(--space-48)) 8rem;
   position: relative;
   min-width: 0;
@@ -325,7 +327,9 @@
   width: 100%;
   height: 100%;
   padding: clamp(var(--space-12), 2vw, var(--space-24));
+  overflow-y: overlay;
   overflow-y: auto;
+  overscroll-behavior: contain;
   min-width: 0;
 }
 
@@ -406,7 +410,9 @@
 
 .ui-entity-content {
   flex-grow: 1;
+  overflow-y: overlay;
   overflow-y: auto;
+  overscroll-behavior: contain;
   padding: 6px 0;
 }
 
@@ -661,7 +667,9 @@
   flex: 1;
   min-height: 0;
   min-width: 0;
+  overflow-y: overlay;
   overflow-y: auto;
+  overscroll-behavior: contain;
   padding: var(--space-24) clamp(var(--space-16), 3vw, var(--space-32)) var(--space-48);
   /* Use Instrument Sans per latest design guidelines */
   font-family: var(--font-heading);
@@ -1522,7 +1530,9 @@
 .ui-digest-action-list,
 .ui-digest-decision-list {
   max-height: 480px;
+  overflow-y: overlay;
   overflow-y: auto;
+  overscroll-behavior: contain;
 }
 
 /* Base columns for main digest */

@@ -242,14 +242,13 @@ export default function MeetingDetailView() {
         onBookmark={() => window.dispatchEvent(new CustomEvent('quick-bookmark'))}
       />
 
-      {/* Silent Prompter Absolute Positioned in this container */}
-      <div className="relative z-50 inline-block mt-4 ml-4 sm:ml-[72px]">
+      <div className="flex justify-center z-50 pointer-events-none mb-4 shrink-0">
         <Tooltip
           content="Live AI Coach: Automatically suggests questions and actions during your meeting"
           position="bottom"
           delay={300}
         >
-          <div>
+          <div className="pointer-events-auto">
             <SilentPrompter suggestion={suggestion} onDismiss={dismissSuggestion} />
           </div>
         </Tooltip>

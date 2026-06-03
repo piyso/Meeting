@@ -7,10 +7,12 @@ const log = rendererLog.create('AiExpansion')
 
 export const AiExpansionView: React.FC<NodeViewProps> = props => {
   const { node, deleteNode, editor, getPos, updateAttributes } = props
-  const { sourceText, expandedText, meetingId, noteId } = node.attrs
+  const { sourceText, expandedText, meetingId, noteId, sourceContext } = node.attrs
 
   const [isGenerating, setIsGenerating] = useState(!expandedText)
   const [hasError, setHasError] = useState(false)
+  const [errorCode, setErrorCode] = useState<string | null>(null)
+  const [errorMessage, setErrorMessage] = useState<string | null>(null)
   const hasFetched = useRef(false)
 
   const [isSlow, setIsSlow] = useState(false)
@@ -38,6 +40,8 @@ export const AiExpansionView: React.FC<NodeViewProps> = props => {
       try {
         setIsGenerating(true)
         setHasError(false)
+        setErrorCode(null)
+        setErrorMessage(null)
         setIsSlow(false)
 
         // 60s timeout to prevent infinite spinner on slow hardware
@@ -67,13 +71,19 @@ export const AiExpansionView: React.FC<NodeViewProps> = props => {
         if (isMounted && res?.success && res.data) {
           updateAttributes({
             expandedText: res.data.expandedText,
+            sourceContext: res.data.sourceSegments ? JSON.stringify(res.data.sourceSegments) : '',
           })
         } else if (isMounted) {
           setHasError(true)
+          if (res?.error?.code) setErrorCode(res.error.code)
+          if (res?.error?.message) setErrorMessage(res.error.message)
         }
       } catch (err) {
         log.error('AI Expansion failed:', err)
-        if (isMounted) setHasError(true)
+        if (isMounted) {
+          setHasError(true)
+          setErrorCode(null)
+        }
       } finally {
         if (isMounted) setIsGenerating(false)
         clearTimeout(slowTimer)
@@ -101,6 +111,9 @@ export const AiExpansionView: React.FC<NodeViewProps> = props => {
         .deleteRange({ from: pos, to: pos + node.nodeSize })
         .insertContent({
           type: 'paragraph',
+          attrs: {
+            sourceContext: sourceContext || '',
+          },
           content: [{ type: 'text', text: expandedText }],
         })
         .run()
@@ -114,9 +127,27 @@ export const AiExpansionView: React.FC<NodeViewProps> = props => {
   const handleRetry = () => {
     hasFetched.current = false
     setHasError(false)
+    setErrorCode(null)
+    setErrorMessage(null)
     setIsGenerating(true)
     // Clear expandedText to re-trigger the useEffect
-    updateAttributes({ expandedText: '' })
+    updateAttributes({ expandedText: '', sourceContext: '' })
+  }
+
+  const handleHighlightSource = () => {
+    if (!sourceContext) return
+    try {
+      const segments = JSON.parse(sourceContext)
+      const event = new CustomEvent('highlight-source-segments', { detail: { segments } })
+      window.dispatchEvent(event)
+    } catch (e) {
+      log.error('Failed to parse sourceContext for highlighting', e)
+    }
+  }
+
+  const clearHighlight = () => {
+    const event = new CustomEvent('highlight-source-segments', { detail: { segments: [] } })
+    window.dispatchEvent(event)
   }
 
   return (
@@ -125,18 +156,28 @@ export const AiExpansionView: React.FC<NodeViewProps> = props => {
         {isGenerating ? (
           <Loader2 size={16} className="ui-ai-spin-icon" />
         ) : hasError ? (
-          <AlertCircle size={16} />
+          <AlertCircle
+            size={16}
+            className={errorCode === 'UNGROUNDED_NOTE' ? 'text-amber-500' : ''}
+          />
         ) : (
           <Sparkles size={16} />
         )}
-        {hasError ? 'Expansion Failed' : 'AI Expansion'}
+        {hasError
+          ? errorCode === 'UNGROUNDED_NOTE'
+            ? 'Forensic Guardrail Triggered'
+            : 'Expansion Failed'
+          : 'AI Expansion'}
       </h4>
       <div className="ui-ai-expansion-body">
         {expandedText ? (
           <p>{expandedText}</p>
         ) : hasError ? (
           <p className="ui-ai-expansion-error-text">
-            Could not generate expansion. Check your connection or try again.
+            {errorCode === 'UNGROUNDED_NOTE'
+              ? errorMessage ||
+                'Cannot correlate this note with the surrounding transcript. Expansion aborted to preserve forensic integrity.'
+              : 'Could not generate expansion. Check your connection or try again.'}
           </p>
         ) : (
           <div className="ui-ai-shimmer-container">
@@ -153,33 +194,49 @@ export const AiExpansionView: React.FC<NodeViewProps> = props => {
       </div>
 
       {!isGenerating && expandedText && (
-        <div className="ui-ai-expansion-actions">
-          <button
-            type="button"
-            className="ui-ai-expansion-btn ui-ai-expansion-btn-accept"
-            onClick={handleAccept}
-          >
-            <Check size={12} /> Accept
-          </button>
-          <button
-            type="button"
-            className="ui-ai-expansion-btn ui-ai-expansion-btn-reject"
-            onClick={handleReject}
-          >
-            <X size={12} /> Reject
-          </button>
+        <div className="ui-ai-expansion-actions flex justify-between items-center w-full">
+          {sourceContext && sourceContext !== '[]' && (
+            <button
+              type="button"
+              className="ui-ai-expansion-btn text-[var(--color-text-tertiary)] hover:text-[var(--color-text-secondary)]"
+              onMouseEnter={handleHighlightSource}
+              onMouseLeave={clearHighlight}
+              onClick={handleHighlightSource}
+            >
+              <Sparkles size={12} className="mr-1 inline" /> View Source Context
+            </button>
+          )}
+          <div className="flex gap-2 ml-auto">
+            <button
+              type="button"
+              className="ui-ai-expansion-btn ui-ai-expansion-btn-accept"
+              onClick={handleAccept}
+            >
+              <Check size={12} /> Accept
+            </button>
+            <button
+              type="button"
+              className="ui-ai-expansion-btn ui-ai-expansion-btn-reject"
+              onClick={handleReject}
+            >
+              <X size={12} /> Reject
+            </button>
+          </div>
         </div>
       )}
 
       {!isGenerating && hasError && (
         <div className="ui-ai-expansion-actions">
-          <button
-            type="button"
-            className="ui-ai-expansion-btn ui-ai-expansion-btn-accept"
-            onClick={handleRetry}
-          >
-            <Loader2 size={12} /> Retry
-          </button>
+          {/* Hide Retry for UNGROUNDED_NOTE — re-requesting gibberish will always fail */}
+          {errorCode !== 'UNGROUNDED_NOTE' && (
+            <button
+              type="button"
+              className="ui-ai-expansion-btn ui-ai-expansion-btn-accept"
+              onClick={handleRetry}
+            >
+              <Loader2 size={12} /> Retry
+            </button>
+          )}
           <button
             type="button"
             className="ui-ai-expansion-btn ui-ai-expansion-btn-reject"

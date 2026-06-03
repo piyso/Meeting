@@ -16,6 +16,7 @@ declare module '@tiptap/core' {
       insertAiExpansion: (options: {
         expandedText?: string
         sourceText?: string
+        sourceContext?: string
         meetingId?: string
         noteId?: string
       }) => ReturnType
@@ -59,6 +60,15 @@ export const AiExpansionNode = Node.create<AiExpansionOptions>({
           }
         },
       },
+      sourceContext: {
+        default: '',
+        parseHTML: element => element.getAttribute('data-source-context'),
+        renderHTML: attributes => {
+          return {
+            'data-source-context': attributes.sourceContext,
+          }
+        },
+      },
       meetingId: {
         default: '',
       },
@@ -77,6 +87,7 @@ export const AiExpansionNode = Node.create<AiExpansionOptions>({
           return {
             expandedText: el.getAttribute('data-expanded-text') || el.textContent || '',
             sourceText: el.getAttribute('data-source-text') || '',
+            sourceContext: el.getAttribute('data-source-context') || '',
           }
         },
       },
@@ -94,6 +105,7 @@ export const AiExpansionNode = Node.create<AiExpansionOptions>({
       mergeAttributes(HTMLAttributes, {
         'data-type': 'ai-expansion',
         'data-source-text': node.attrs.sourceText || '',
+        'data-source-context': node.attrs.sourceContext || '',
         'data-expanded-text': text,
         class: 'ai-expansion-export',
       }),
@@ -107,6 +119,7 @@ export const AiExpansionNode = Node.create<AiExpansionOptions>({
         (options: {
           expandedText?: string
           sourceText?: string
+          sourceContext?: string
           meetingId?: string
           noteId?: string
         }) =>

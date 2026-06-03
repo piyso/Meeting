@@ -12,6 +12,7 @@ export interface TranscriptSegmentProps {
   isPinned: boolean
   isEdited: boolean
   isLive: boolean // currently streaming
+  isHighlighted?: boolean
   entities?: Array<{
     type: 'PERSON' | 'DATE' | 'AMOUNT' | 'ACTION_ITEM'
     text: string
@@ -32,7 +33,7 @@ const COLOR_MAP = {
 }
 
 export const TranscriptSegment = memo<TranscriptSegmentProps>(
-  ({ id, speakerName, speakerColor, timestamp, text, isPinned, isEdited, isLive, onPin }) => {
+  ({ id, speakerName, speakerColor, timestamp, text, isPinned, isEdited, isLive, isHighlighted, onPin }) => {
     const colorHex = COLOR_MAP[speakerColor]
 
     // Mock entity replacement for Phase 1 visual shell
@@ -46,10 +47,12 @@ export const TranscriptSegment = memo<TranscriptSegmentProps>(
 
     return (
       <div
-        className={`flex gap-[var(--space-12)] py-[var(--space-8)] min-h-[36px] group transition-colors px-2 -mx-2 rounded ${
-          isPinned
-            ? 'bg-[var(--color-bg-panel)] border border-[var(--color-amber)]'
-            : 'hover:bg-[rgba(255,255,255,0.02)] border border-transparent'
+        className={`flex gap-[var(--space-12)] py-[var(--space-8)] min-h-[36px] group transition-all duration-300 px-2 -mx-2 rounded ${
+          isHighlighted
+            ? 'bg-[var(--color-bg-panel)] shadow-[0_0_15px_rgba(255,255,255,0.05)] border border-[rgba(255,255,255,0.1)] scale-[1.01] z-10 relative'
+            : isPinned
+              ? 'bg-[var(--color-bg-panel)] border border-[var(--color-amber)]'
+              : 'hover:bg-[rgba(255,255,255,0.02)] border border-transparent'
         }`}
       >
         <div className="flex items-start gap-[var(--space-8)] w-[min(140px,25%)] shrink-0 mt-[2px]">
@@ -99,7 +102,8 @@ export const TranscriptSegment = memo<TranscriptSegmentProps>(
       prev.id === next.id &&
       prev.isLive === next.isLive &&
       prev.text === next.text &&
-      prev.isPinned === next.isPinned
+      prev.isPinned === next.isPinned &&
+      prev.isHighlighted === next.isHighlighted
     )
   }
 )

@@ -142,7 +142,7 @@
   width: max-content;
   min-width: 120px;
   max-width: 600px;
-  z-index: var(--z-overlay-base); /* Must be ≥ drag region (50) to receive hover events */
+  z-index: var(--z-popover); /* Elevate above command palettes and modals */
   display: flex;
   align-items: flex-start;
   justify-content: center;
@@ -592,10 +592,7 @@ body[data-platform='win32'] .ui-dynamic-island {
    Silent Prompter
    ========================================================================== */
 .ui-silent-prompter {
-  position: absolute;
-  left: 50%;
-  top: 16px;
-  transform: translateX(-50%) translateY(-10px);
+  position: relative;
   z-index: var(--z-overlay-base);
   background: rgba(15, 15, 17, 0.85);
   backdrop-filter: blur(24px);
@@ -610,6 +607,7 @@ body[data-platform='win32'] .ui-dynamic-island {
     0 8px 32px rgba(0, 0, 0, 0.4),
     0 0 0 1px rgba(139, 92, 246, 0.1) inset;
   opacity: 0;
+  transform: translateY(-8px) scale(0.96);
   pointer-events: none;
   transition:
     opacity 400ms var(--ease-spring),
@@ -621,14 +619,14 @@ body[data-platform='win32'] .ui-dynamic-island {
 
 .ui-silent-prompter.is-visible {
   opacity: 1;
-  transform: translateX(-50%) translateY(0);
+  transform: translateY(0);
   pointer-events: auto;
 }
 
 .ui-silent-prompter:hover {
   background: var(--color-bg-panel);
   border-color: rgba(139, 92, 246, 0.3);
-  transform: translateX(-50%) translateY(2px) scale(1.02);
+  transform: translateY(2px) scale(1.02);
   box-shadow:
     0 12px 48px rgba(0, 0, 0, 0.3),
     0 0 16px rgba(139, 92, 246, 0.1);

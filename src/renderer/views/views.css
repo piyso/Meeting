@@ -47,7 +47,7 @@
   gap: 12px;
 
   /* Padding delegated from container ensures full width without fractional pixel rounding errors */
-  padding: 48px clamp(var(--space-16), 4vw, var(--space-48)) var(--space-20);
+  padding: 24px 24px var(--space-20);
   margin-bottom: var(--space-16);
   background: transparent;
   min-width: 0;
@@ -57,7 +57,6 @@
   content: '';
   position: absolute;
   inset: 0;
-  bottom: -4px;
   z-index: -1;
   /* Deep Solid Glass - Avoids mask-image clipping bugs on backdrop-filter which cause color overlap/cut sides */
   background: linear-gradient(180deg, rgba(2, 2, 3, 0.8) 0%, rgba(2, 2, 3, 0.4) 100%);
@@ -95,10 +94,6 @@
   text-align: left;
   outline: none;
   overflow: hidden;
-  /* Fix WebKit border-radius clipping bug causing bleed */
-  -webkit-mask-image: -webkit-radial-gradient(white, black);
-  mask-image: radial-gradient(white, black);
-  isolation: isolate;
   transition:
     transform 400ms var(--ease-spring),
     box-shadow 400ms var(--ease-spring),
@@ -257,8 +252,8 @@
   margin-bottom: var(--space-12);
   padding-bottom: var(--space-8);
   /* Apply horizontal layout padding delegated from parent */
-  padding-left: clamp(var(--space-16), 4vw, var(--space-48));
-  padding-right: clamp(var(--space-16), 4vw, var(--space-48));
+  padding-left: 24px;
+  padding-right: 24px;
   display: flex;
   align-items: center;
 }
@@ -277,10 +272,18 @@
   height: 100%;
   display: flex;
   flex-direction: column;
-  gap: var(--space-8);
-  padding: var(--space-16) clamp(var(--space-12), 2vw, var(--space-24)) var(--space-24);
   min-width: 0;
   overflow: hidden;
+}
+
+/* Wrapper for the two-column structure */
+.ui-view-meeting-detail-columns {
+  display: flex;
+  gap: var(--space-8);
+  flex: 1;
+  min-height: 0;
+  min-width: 0;
+  padding: var(--space-16) clamp(var(--space-12), 2vw, var(--space-24)) var(--space-24);
 }
 
 /* The new parent wrapper for the dual-column layout */
@@ -453,30 +456,28 @@
   border-radius: 999px;
   padding: 0 5px 0 16px;
   width: max-content;
+  align-self: center;
   box-shadow:
     0 4px 24px -4px rgba(0, 0, 0, 0.4),
     inset 0 1px 0 rgba(255, 255, 255, 0.05);
   opacity: 0;
-  transform: translateX(-50%) translateY(-8px);
+  transform: translateY(-8px);
   animation: slide-down-fade 500ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
 
   /* ── Viewport-center alignment (matches DynamicIsland) ── */
-  /* Content area starts at left:104px due to ZenRail (20px offset + 68px width + 16px gap).
-     DynamicIsland is fixed at left:50% of viewport. To match, we position
-     relative to content area but offset by half the sidebar: 104/2 = 52px. */
-  position: relative;
-  left: calc(50% - 52px);
-  margin: 4px 0 12px 0;
+  /* Replaced legacy offset hack with align-self: center as AppLayout handles boundaries */
+  margin: 4px auto 12px auto;
+  align-self: center;
 }
 
 @keyframes slide-down-fade {
   from {
     opacity: 0;
-    transform: translateX(-50%) translateY(-8px) scale(0.98);
+    transform: translateY(-8px) scale(0.98);
   }
   to {
     opacity: 1;
-    transform: translateX(-50%) translateY(0) scale(1);
+    transform: translateY(0) scale(1);
   }
 }
 
@@ -1587,8 +1588,6 @@
     background 200ms ease,
     border-color 200ms ease,
     box-shadow 200ms ease;
-  /* Ensure clean compositing without nested blur bugs */
-  transform: translateZ(0);
 }
 
 .ui-meeting-search-input::placeholder {

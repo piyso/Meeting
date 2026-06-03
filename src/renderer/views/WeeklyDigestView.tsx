@@ -489,7 +489,7 @@ export default function WeeklyDigestView() {
               className="flex flex-col items-center justify-center p-20 gap-4 ui-stagger-enter sovereign-glass-panel rounded-[var(--radius-xl)] max-w-lg mx-auto mt-12 text-center relative overflow-hidden"
               style={{
                 animationDelay: '80ms',
-                padding: 'clamp(32px, 5vw, 64px) clamp(16px, 3vw, 32px)',
+                padding: 'clamp(32px, 5vw, 64px) 24px',
               }}
             >
               <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-48 h-48 bg-[var(--color-violet)] rounded-full mix-blend-screen opacity-[0.12] blur-[64px] pointer-events-none" />
@@ -987,7 +987,7 @@ export default function WeeklyDigestView() {
             className="flex flex-col items-center justify-center p-20 gap-4 ui-stagger-enter sovereign-glass-panel rounded-[var(--radius-xl)] max-w-lg mx-auto mt-12 text-center relative overflow-hidden"
             style={{
               animationDelay: '80ms',
-              padding: 'clamp(32px, 5vw, 64px) clamp(16px, 3vw, 32px)',
+              padding: 'clamp(32px, 5vw, 64px) 24px',
             }}
           >
             <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-48 h-48 bg-[var(--color-violet)] rounded-full mix-blend-screen opacity-[0.12] blur-[64px] pointer-events-none" />

@@ -558,7 +558,7 @@ export default function AskMeetingsView() {
         {messages.length === 0 ? (
           <div
             className="flex flex-col items-center justify-center h-full max-w-lg mx-auto text-center"
-            style={{ padding: '0 20px', animation: 'fadeInUp 0.6s ease-out forwards' }}
+            style={{ padding: '0 24px', animation: 'fadeInUp 0.6s ease-out forwards' }}
           >
             <div className="w-16 h-16 rounded-2xl bg-[var(--color-violet)]/10 text-[var(--color-violet)] flex items-center justify-center mb-6 shadow-[0_0_30px_rgba(139,92,246,0.15)] ring-1 ring-[var(--color-violet)]/20">
               <svg

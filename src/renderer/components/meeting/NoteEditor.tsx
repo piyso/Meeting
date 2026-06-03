@@ -7,6 +7,7 @@ import Collaboration from '@tiptap/extension-collaboration'
 import Placeholder from '@tiptap/extension-placeholder'
 import * as Y from 'yjs'
 import { AiExpansionNode } from './extensions/AiExpansionNode'
+import { AiVerifiedParagraph } from './extensions/AiVerifiedParagraph'
 
 import { IndexeddbPersistence } from 'y-indexeddb'
 import { useNotes } from '../../hooks/queries/useNotes'
@@ -58,7 +59,9 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({ meetingId }) => {
       extensions: [
         StarterKit.configure({
           bulletList: false, // Disabling default to override
+          paragraph: false,
         }),
+        AiVerifiedParagraph,
         BulletList,
         Placeholder.configure({
           placeholder: `Start typing your notes... (${modLabel}+Enter to expand via AI)`,
@@ -84,6 +87,40 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({ meetingId }) => {
         attributes: {
           class: 'ui-note-editor-content sovereign-scrollbar',
         },
+        handleDOMEvents: {
+          mouseover: (view, event) => {
+            const target = event.target as HTMLElement
+            const p = target.closest('.ai-verified-paragraph')
+            if (p) {
+              const context = p.getAttribute('data-source-context')
+              if (context && context !== '[]') {
+                try {
+                  const sourceSegments = JSON.parse(context)
+                  window.dispatchEvent(
+                    new CustomEvent('highlight-source-segments', {
+                      detail: { segments: sourceSegments }
+                    })
+                  )
+                } catch (e) {
+                  // ignore
+                }
+              }
+            }
+            return false
+          },
+          mouseout: (view, event) => {
+            const target = event.target as HTMLElement
+            // If leaving the verified paragraph, clear highlight
+            if (target.classList.contains('ai-verified-paragraph') || target.closest('.ai-verified-paragraph')) {
+              window.dispatchEvent(
+                new CustomEvent('highlight-source-segments', {
+                  detail: { segments: [] }
+                })
+              )
+            }
+            return false
+          }
+        }
       },
       onUpdate: ({ editor }) => {
         if (saveTimeoutRef.current) {

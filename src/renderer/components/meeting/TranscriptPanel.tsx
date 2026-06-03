@@ -18,6 +18,36 @@ export const TranscriptPanel: React.FC<TranscriptPanelProps> = ({
 }) => {
   const parentRef = useRef<HTMLDivElement>(null)
   const [autoScroll, setAutoScroll] = useState(true)
+  const [highlightedIds, setHighlightedIds] = useState<Set<string>>(new Set())
+
+  useEffect(() => {
+    const handleHighlight = (e: CustomEvent<{ segments: string[] }>) => {
+      const ids = e.detail?.segments || []
+      setHighlightedIds(new Set(ids))
+      
+      if (ids.length > 0) {
+        setAutoScroll(false)
+        // Find the index of the first highlighted segment
+        const firstIndex = segments.findIndex(s => ids.includes(s.id))
+        if (firstIndex !== -1 && rowVirtualizer) {
+          // Add a slight delay to allow React state to settle before scrolling
+          setTimeout(() => {
+            rowVirtualizer.scrollToIndex(firstIndex, { align: 'center' })
+          }, 50)
+        }
+      } else {
+        // Clearing highlight
+        if (segments.length > 0) {
+          setAutoScroll(true)
+        }
+      }
+    }
+
+    window.addEventListener('highlight-source-segments', handleHighlight as EventListener)
+    return () => {
+      window.removeEventListener('highlight-source-segments', handleHighlight as EventListener)
+    }
+  }, [segments])
 
   const rowVirtualizer = useVirtualizer({
     count: segments.length,
@@ -111,7 +141,7 @@ export const TranscriptPanel: React.FC<TranscriptPanelProps> = ({
                   transform: `translateY(${virtualRow.start}px)`,
                 }}
               >
-                <TranscriptSegment {...segment} />
+                <TranscriptSegment {...segment} isHighlighted={highlightedIds.has(segment.id)} />
               </div>
             )
           })}

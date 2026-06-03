@@ -42,8 +42,8 @@ export default function MeetingListView() {
     if (!scrollRef.current) return
     const observer = new ResizeObserver(entries => {
       for (const entry of entries) {
-        // Scroll container has padding: 48px on left/right
-        const availableWidth = entry.contentRect.width - 96
+        // Grid items have 24px padding on left/right (total 48px)
+        const availableWidth = entry.contentRect.width - 48
         // Grid: minmax(280px, 1fr) with 20px gap
         const cols = Math.max(1, Math.floor((availableWidth + 20) / 300))
         setColumns(cols)
@@ -428,7 +428,7 @@ export default function MeetingListView() {
       </motion.div>
 
       {/* --- TIMELINE STRIP --- */}
-      <div className="px-6 mb-2 mt-[-8px] flex justify-center">
+      <div className="px-6 mb-2 mt-2 flex justify-center">
         <CalendarStrip
           selectedDate={selectedDate}
           onSelectDate={date => {
@@ -456,10 +456,7 @@ export default function MeetingListView() {
         }}
       >
         {meetings.length === 0 ? (
-          <div
-            className="mt-8 animate-fade-in"
-            style={{ padding: '0 clamp(var(--space-16), 4vw, var(--space-48))' }}
-          >
+          <div className="mt-8 animate-fade-in" style={{ padding: '0 24px' }}>
             <EmptyState
               icon={MicOff}
               title="No Meetings Recorded Yet"
@@ -472,10 +469,7 @@ export default function MeetingListView() {
             />
           </div>
         ) : filteredMeetings.length === 0 ? (
-          <div
-            className="mt-8 animate-fade-in"
-            style={{ padding: '0 clamp(var(--space-16), 4vw, var(--space-48))' }}
-          >
+          <div className="mt-8 animate-fade-in" style={{ padding: '0 24px' }}>
             <EmptyState
               icon={Search}
               title={
@@ -534,6 +528,7 @@ export default function MeetingListView() {
                       display: 'grid',
                       gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))`,
                       gap: '20px',
+                      padding: '0 24px',
                     }}
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}

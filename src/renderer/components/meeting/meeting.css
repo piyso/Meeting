@@ -6,8 +6,8 @@
   gap: var(--space-20);
   perspective: 1000px;
   /* Apply horizontal layout padding delegated from parent */
-  padding-left: clamp(var(--space-16), 4vw, var(--space-48));
-  padding-right: clamp(var(--space-16), 4vw, var(--space-48));
+  padding-left: 24px;
+  padding-right: 24px;
 }
 
 .ui-meeting-card {
@@ -626,3 +626,35 @@
   background: rgba(255, 255, 255, 0.1);
   color: var(--color-text-primary);
 }
+
+/* ── Cognitive Traces (AI Verified Paragraph) ── */
+.ai-verified-paragraph {
+  position: relative;
+  transition: background 200ms var(--ease-snappy, ease-out);
+  padding: 2px 4px;
+  margin-left: -4px;
+  border-radius: 4px;
+}
+
+.ai-verified-paragraph:hover {
+  background: rgba(167, 139, 250, 0.06); /* Sovereign Violet */
+}
+
+.ai-verified-paragraph::before {
+  content: '✨';
+  position: absolute;
+  left: -20px;
+  top: 2px;
+  font-size: 12px;
+  opacity: 0;
+  transform: translateX(-4px) scale(0.9);
+  transition: all 200ms cubic-bezier(0.16, 1, 0.3, 1);
+  pointer-events: none;
+  filter: drop-shadow(0 0 6px rgba(167, 139, 250, 0.5));
+}
+
+.ai-verified-paragraph:hover::before {
+  opacity: 1;
+  transform: translateX(0) scale(1);
+}
+

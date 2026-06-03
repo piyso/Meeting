@@ -6,6 +6,91 @@ import { v4 as uuidv4 } from 'uuid'
 import { createNote, getNotesByMeetingId, updateNote, deleteNote } from '../../database/crud/notes'
 import { getTranscriptService } from '../../services/TranscriptService'
 
+// ── Shared Prompt & Response Helpers ──────────────────────────────────────────
+// DRY: These were previously copy-pasted 3× (cloud, local, batch). A single
+// source of truth means forensic guardrail changes propagate everywhere.
+
+function buildExpansionPrompt(contextText: string, noteText: string): string {
+  return `You are an executive assistant helping write meeting notes. Respond in the same language as the context and user's note.
+
+CONTEXT (what was being discussed):
+${contextText}
+
+USER'S BRIEF NOTE:
+<user_note>${noteText}</user_note>
+
+INSTRUCTIONS:
+1. Expand the user's note into 1-2 clear, professional sentences
+2. Include specific details from the context (numbers, names, deadlines)
+3. Write in third person ("The team decided..." not "We decided...")
+4. Be concise - maximum 50 words
+5. Do not add information not present in the context
+6. Use the same language as the transcript context
+7. FORENSIC GUARDRAIL: If the user's note is gibberish, unintelligible, or cannot be semantically correlated with the provided context, you MUST reject it.
+8. OUTPUT FORMAT: You must respond ONLY with a valid JSON object in this format: { "expandedText": "Your generated sentence here" } OR if rejected: { "error": "UNGROUNDED_NOTE", "message": "Cannot correlate note with transcript context." }
+
+EXPANDED NOTE:`
+}
+
+/**
+ * Parse the LLM's raw output, extracting the expanded text or detecting
+ * UNGROUNDED_NOTE rejection.
+ *
+ * Returns:
+ *   { type: 'expanded', text: string }   — successful expansion
+ *   { type: 'ungrounded' }               — forensic guardrail triggered
+ *   { type: 'fallback', text: string }    — JSON parse failed, best-effort text
+ */
+function parseExpansionResponse(
+  raw: string,
+  originalNoteText: string
+):
+  | { type: 'expanded'; text: string }
+  | { type: 'ungrounded' }
+  | { type: 'fallback'; text: string } {
+  try {
+    // BUG-1 FIX: Use lazy quantifier to match the *smallest* JSON object,
+    // not the largest. Greedy [\s\S]* would span across multiple objects.
+    const jsonMatch = raw.match(/\{[\s\S]*?\}/)
+    if (jsonMatch) {
+      const parsed = JSON.parse(jsonMatch[0])
+      if (parsed.error === 'UNGROUNDED_NOTE') {
+        return { type: 'ungrounded' }
+      }
+      if (parsed.expandedText) {
+        return { type: 'expanded', text: parsed.expandedText }
+      }
+    }
+  } catch {
+    // JSON parse failed — fall through to regex stripping
+  }
+
+  // Fallback: aggressive regex stripping
+  let cleaned = raw
+  cleaned = cleaned.replace(/^\*\*(AI )?Expansion:\*\*\s*/i, '').trim()
+  cleaned = cleaned.replace(/^(AI )?Expansion:\s*/i, '').trim()
+  if (cleaned.startsWith(originalNoteText.trim())) {
+    cleaned = cleaned.substring(originalNoteText.trim().length).trim()
+  }
+  cleaned = cleaned.replace(/^\*\*(AI )?Expansion:\*\*\s*/i, '').trim()
+
+  return { type: 'fallback', text: cleaned }
+}
+
+/**
+ * Build the standard UNGROUNDED_NOTE error response payload.
+ */
+function makeUngroundedResponse(message?: string) {
+  return {
+    success: false as const,
+    error: {
+      code: 'UNGROUNDED_NOTE',
+      message: message || 'Cannot correlate note with transcript context.',
+      timestamp: Date.now(),
+    },
+  }
+}
+
 export function registerNoteHandlers(): void {
   // note:create — Create a new note for a meeting
   ipcMain.handle('note:create', async (_, params) => {
@@ -137,6 +222,18 @@ export function registerNoteHandlers(): void {
       const transcriptService = getTranscriptService()
       const context = transcriptService.getContext(params.meetingId, params.timestamp, 60, 10)
 
+      // BUG-2 FIX: If there's no transcript context at all, reject deterministically.
+      // Sending an empty CONTEXT block to the LLM is a hallucination vector —
+      // the model will invent context. This is a pre-LLM guardrail.
+      if (!context.contextText || !context.contextText.trim()) {
+        log.debug(
+          '[note:expand] No transcript context available — deterministic UNGROUNDED rejection'
+        )
+        return makeUngroundedResponse(
+          'No transcript context available around this timestamp. Cannot ground expansion.'
+        )
+      }
+
       // 2. Dual-path: Pro+online → PiyAPI Context Sessions, otherwise → local node-llama-cpp
       const cloudStatus = await cam.getCloudAccessStatus()
       if (cloudStatus.hasAccess && features.contextSessions) {
@@ -160,7 +257,8 @@ export function registerNoteHandlers(): void {
             const health = await backend.healthCheck()
             if (health.status !== 'healthy') {
               log.debug('[note:expand] Cloud unhealthy, falling back to local AI')
-              // Fall through to local path below
+              // Fall through: exits this `if` block, skips `else`, exits outer `try`,
+              // continues to LOCAL PATH at bottom of handler.
             } else {
               // Blueprint §2.4: Use Context Sessions for semantic context retrieval
               const sessionResult = await backend.createContextSession({
@@ -185,17 +283,32 @@ export function registerNoteHandlers(): void {
               }
 
               // Use /ask endpoint with enriched context
-              const result = await backend.ask(
-                `You are an executive assistant helping write meeting notes. Respond in the same language as the context and user's note.\n\nCONTEXT (what was being discussed):\n${cloudContext}\n\nUSER'S BRIEF NOTE:\n${params.text}\n\nINSTRUCTIONS:\n1. Expand the user's note into 1-2 clear, professional sentences\n2. Include specific details from the context (numbers, names, deadlines)\n3. Write in third person ("The team decided..." not "We decided...")\n4. Be concise - maximum 50 words\n5. Do not add information not present in the context\n6. Use the same language as the transcript context\n\nEXPANDED NOTE:`
-              )
+              const prompt = buildExpansionPrompt(cloudContext, params.text)
+              const result = await backend.ask(prompt)
 
-              // Record cloud AI usage AFTER confirmed success (not before)
-              quotaManager.recordUsage()
+              const parsed = parseExpansionResponse(result.answer, params.text)
+
+              if (parsed.type === 'ungrounded') {
+                return makeUngroundedResponse()
+              }
+
+              const finalExpandedText =
+                parsed.type === 'expanded'
+                  ? parsed.text
+                  : parsed.type === 'fallback'
+                    ? parsed.text
+                    : ''
+
+              // BUG-3 FIX: Only charge quota if we actually produced valid output.
+              // Previously, quota was charged even when the fallback regex produced garbage.
+              if (finalExpandedText) {
+                quotaManager.recordUsage()
+              }
 
               return {
                 success: true,
                 data: {
-                  expandedText: result.answer,
+                  expandedText: finalExpandedText,
                   context: cloudContext,
                   tokensUsed: 0,
                   inferenceTime: 0,
@@ -216,23 +329,7 @@ export function registerNoteHandlers(): void {
       const modelManager = getModelManager()
       const localStartTime = Date.now()
 
-      const prompt = `You are an executive assistant helping write meeting notes. Respond in the same language as the context and user's note.
-
-CONTEXT (what was being discussed):
-${context.contextText}
-
-USER'S BRIEF NOTE:
-${params.text}
-
-INSTRUCTIONS:
-1. Expand the user's note into 1-2 clear, professional sentences
-2. Include specific details from the context (numbers, names, deadlines)
-3. Write in third person ("The team decided..." not "We decided...")
-4. Be concise - maximum 50 words
-5. Do not add information not present in the context
-6. Use the same language as the transcript context
-
-EXPANDED NOTE:`
+      const prompt = buildExpansionPrompt(context.contextText, params.text)
 
       const expandedText = await modelManager.generate(
         {
@@ -245,11 +342,21 @@ EXPANDED NOTE:`
         },
         'noteExpand'
       )
+
+      const parsed = parseExpansionResponse(expandedText, params.text)
+
+      if (parsed.type === 'ungrounded') {
+        return makeUngroundedResponse()
+      }
+
+      const finalLocalExpandedText =
+        parsed.type === 'expanded' ? parsed.text : parsed.type === 'fallback' ? parsed.text : ''
+
       const inferenceTime = Date.now() - localStartTime
       return {
         success: true,
         data: {
-          expandedText,
+          expandedText: finalLocalExpandedText,
           context: context.contextText,
           tokensUsed: Math.ceil(expandedText.length / 4),
           inferenceTime,
@@ -293,7 +400,8 @@ EXPANDED NOTE:`
       const transcriptService = getTranscriptService()
       const results: Array<{ noteId: string; expandedText: string; error?: string }> = []
 
-      const { getNotesByMeetingId } = await import('../../database/crud/notes')
+      // BUG-7 FIX: Use the static import at the top of the file instead of
+      // a redundant dynamic import. getNotesByMeetingId is already imported.
       const allNotes = getNotesByMeetingId(params.meetingId)
 
       // Process sequentially to prevent GPU overload (Blueprint §2.4)
@@ -313,7 +421,18 @@ EXPANDED NOTE:`
             10
           )
 
-          const prompt = `You are an executive assistant helping write meeting notes. Respond in the same language as the context and user's note.\n\nCONTEXT:\n${context.contextText}\n\nUSER'S BRIEF NOTE:\n${(note as { original_text?: string }).original_text ?? ''}\n\nINSTRUCTIONS:\n1. Expand into 1-2 professional sentences\n2. Include specific details from context\n3. Third person, max 50 words\n4. Do not fabricate information\n5. Use the same language as the transcript context\n\nEXPANDED NOTE:`
+          // BUG-2 FIX (batch path): Empty context → deterministic rejection
+          if (!context.contextText || !context.contextText.trim()) {
+            results.push({
+              noteId,
+              expandedText: '',
+              error: 'No transcript context available around this timestamp.',
+            })
+            continue
+          }
+
+          const originalText = (note as { original_text?: string }).original_text ?? ''
+          const prompt = buildExpansionPrompt(context.contextText, originalText)
 
           const expandedText = await modelManager.generate(
             {
@@ -324,13 +443,34 @@ EXPANDED NOTE:`
             'noteExpand'
           )
 
-          // Persist expanded text to DB — without this, augmented_text stays NULL
-          if (expandedText) {
-            const { updateNote: updateNoteDb } = await import('../../database/crud/notes')
-            updateNoteDb(noteId, { augmented_text: expandedText })
+          // BUG-4 FIX: Use parseExpansionResponse instead of manual throw-rethrow.
+          // The previous throw-new-Error('UNGROUNDED_NOTE') → catch → throw-again
+          // pattern was fragile and produced misleading error strings.
+          const parsed = parseExpansionResponse(expandedText, originalText)
+
+          if (parsed.type === 'ungrounded') {
+            results.push({
+              noteId,
+              expandedText: '',
+              error: 'UNGROUNDED_NOTE: Cannot correlate note with transcript context.',
+            })
+            continue
           }
 
-          results.push({ noteId, expandedText })
+          const finalExpandedText =
+            parsed.type === 'expanded' ? parsed.text : parsed.type === 'fallback' ? parsed.text : ''
+
+          // Persist expanded text to DB — without this, augmented_text stays NULL
+          if (finalExpandedText) {
+            // BUG-5 FIX: Also set is_augmented: true so getAugmentedNotes()
+            // and downstream logic that checks this flag can find batch-expanded notes.
+            updateNote(noteId, {
+              augmented_text: finalExpandedText,
+              is_augmented: true,
+            })
+          }
+
+          results.push({ noteId, expandedText: finalExpandedText })
 
           // Emit progress event to renderer — C6 fix: avoid circular require('electron/main')
           // BrowserWindow.getAllWindows() queries Electron's window registry directly

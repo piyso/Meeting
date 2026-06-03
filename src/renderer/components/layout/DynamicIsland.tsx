@@ -1,19 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import {
-  ChevronLeft,
-  Square,
-  Loader2,
-  Mic,
-  Monitor,
-  Cloud,
-  Info,
-  Pause,
-  Play,
-  Sparkles,
-} from 'lucide-react'
+import { Square, Loader2, Mic, Monitor, Cloud, Info, Pause, Play, Sparkles } from 'lucide-react'
 import { modKey } from '../../utils/platformShortcut'
-import { IconButton } from '../ui/IconButton'
 import { AudioIndicator } from '../meeting/AudioIndicator'
 import { SyncStatusBadge } from '../ui/SyncStatusBadge'
 import { useAppStore } from '../../store/appStore'
@@ -31,7 +19,6 @@ declare global {
 interface DynamicIslandProps {
   recordingState: 'idle' | 'starting' | 'recording' | 'paused' | 'stopping' | 'processing'
   syncStatus: 'idle' | 'syncing' | 'error'
-  onBack?: () => void
   onStopRecording?: () => void
   onPauseRecording?: () => void
 }
@@ -208,10 +195,7 @@ const IslandExpandedContent: React.FC<{ hasTranscript: boolean; hasCoachTip: boo
     <>
       {/* Neural Stem */}
       {hasTranscript && hasCoachTip && (
-        <div
-          className="flex flex-col items-center mr-3 mt-2"
-          style={{ transform: 'translateZ(0)' }}
-        >
+        <div className="flex flex-col items-center mr-3 mt-2">
           <div className="w-1.5 h-1.5 rounded-full bg-[var(--color-text-tertiary)]" />
           <motion.div
             initial={{ height: 0 }}
@@ -280,7 +264,6 @@ const IslandExpandedContent: React.FC<{ hasTranscript: boolean; hasCoachTip: boo
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.3, delay: 0.15 }}
             className="flex flex-col gap-1 items-start w-full backdrop-blur-2xl bg-[rgba(139,92,246,0.04)] border border-[rgba(139,92,246,0.2)] rounded-2xl p-3.5 relative overflow-hidden group shadow-[inset_0_1px_0_rgba(255,255,255,0.15)]"
-            style={{ transform: 'translateZ(0)' }}
           >
             {/* Shimmer effect */}
             <div className="absolute inset-0 w-full h-full">
@@ -306,7 +289,6 @@ const IslandExpandedContent: React.FC<{ hasTranscript: boolean; hasCoachTip: boo
 export const DynamicIsland: React.FC<DynamicIslandProps> = ({
   recordingState,
   syncStatus,
-  onBack,
   onStopRecording,
   onPauseRecording,
 }) => {
@@ -685,16 +667,6 @@ export const DynamicIsland: React.FC<DynamicIslandProps> = ({
         activeMeetingId={activeMeetingId}
         isRecording={isRecording}
       />
-
-      {onBack && (
-        <motion.div layout="position" className="ui-dynamic-island-left no-drag">
-          <IconButton
-            icon={<ChevronLeft size={18} className="pointer-events-none" />}
-            onClick={onBack}
-            size="sm"
-          />
-        </motion.div>
-      )}
 
       <div className="ui-dynamic-island-center no-drag">
         <AnimatePresence mode="popLayout" initial={false}>

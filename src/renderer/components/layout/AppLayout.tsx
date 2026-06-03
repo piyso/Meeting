@@ -511,7 +511,6 @@ export const AppLayout: React.FC = () => {
         <DynamicIsland
           recordingState={recordingState}
           syncStatus={syncStatus}
-          onBack={activeView === 'meeting-detail' ? () => navigate('meeting-list') : undefined}
           onStopRecording={handleStopRecording}
           onPauseRecording={handlePauseRecording}
         />

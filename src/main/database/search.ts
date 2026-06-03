@@ -300,48 +300,67 @@ export function countSearchResults(
 
 /**
  * Rebuild FTS5 indexes
- * Should be run if indexes become corrupted or after bulk operations
+ * Should be run if indexes become corrupted or after bulk operations.
+ * Each table is independently guarded — one failure won't block the rest.
  */
 export function rebuildSearchIndexes(): void {
   const db = getDatabase()
 
   log.info('Rebuilding FTS5 indexes...')
 
-  // Rebuild transcripts index
-  db.exec("INSERT INTO transcripts_fts(transcripts_fts) VALUES('rebuild')")
+  const tables = [
+    { name: 'transcripts_fts', label: 'transcripts' },
+    { name: 'notes_fts', label: 'notes' },
+    { name: 'entities_fts', label: 'entities' },
+    { name: 'action_items_fts', label: 'action items' },
+  ]
 
-  // Rebuild notes index
-  db.exec("INSERT INTO notes_fts(notes_fts) VALUES('rebuild')")
+  let succeeded = 0
+  for (const table of tables) {
+    try {
+      db.exec(`INSERT INTO ${table.name}(${table.name}) VALUES('rebuild')`)
+      succeeded++
+    } catch (err) {
+      log.error(`Failed to rebuild ${table.label} FTS index:`, err)
+      // Try to drop and recreate the corrupted FTS table
+      try {
+        db.exec(`DROP TABLE IF EXISTS ${table.name}`)
+        log.warn(`Dropped corrupted ${table.name} — will be recreated on next schema init`)
+      } catch {
+        /* ignore — table may not exist */
+      }
+    }
+  }
 
-  // Rebuild entities index
-  db.exec("INSERT INTO entities_fts(entities_fts) VALUES('rebuild')")
-
-  // P3-6 FIX: Rebuild action items index (was missing — stale after VACUUM/crash)
-  db.exec("INSERT INTO action_items_fts(action_items_fts) VALUES('rebuild')")
-
-  log.info('FTS5 indexes rebuilt successfully')
+  log.info(`FTS5 indexes rebuilt: ${succeeded}/${tables.length} succeeded`)
 }
 
 /**
  * Optimize FTS5 indexes
- * Should be run periodically to maintain search performance
+ * Should be run periodically to maintain search performance.
+ * Each table is independently guarded — one failure won't block the rest.
  */
 export function optimizeSearchIndexes(): void {
   const db = getDatabase()
 
   log.info('Optimizing FTS5 indexes...')
 
-  // Optimize transcripts index
-  db.exec("INSERT INTO transcripts_fts(transcripts_fts) VALUES('optimize')")
+  const tables = [
+    { name: 'transcripts_fts', label: 'transcripts' },
+    { name: 'notes_fts', label: 'notes' },
+    { name: 'entities_fts', label: 'entities' },
+    { name: 'action_items_fts', label: 'action items' },
+  ]
 
-  // Optimize notes index
-  db.exec("INSERT INTO notes_fts(notes_fts) VALUES('optimize')")
+  let succeeded = 0
+  for (const table of tables) {
+    try {
+      db.exec(`INSERT INTO ${table.name}(${table.name}) VALUES('optimize')`)
+      succeeded++
+    } catch (err) {
+      log.error(`Failed to optimize ${table.label} FTS index:`, err)
+    }
+  }
 
-  // Optimize entities index
-  db.exec("INSERT INTO entities_fts(entities_fts) VALUES('optimize')")
-
-  // Optimize action items index
-  db.exec("INSERT INTO action_items_fts(action_items_fts) VALUES('optimize')")
-
-  log.info('FTS5 indexes optimized successfully')
+  log.info(`FTS5 indexes optimized: ${succeeded}/${tables.length} succeeded`)
 }

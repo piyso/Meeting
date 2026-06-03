@@ -50,6 +50,12 @@ interface ServiceContainer {
 
   /** Lazy getter for CloudAccessManager */
   get cloudAccess(): ReturnType<typeof import('./CloudAccessManager').getCloudAccessManager>
+
+  /** Lazy getter for LocalEmbeddingService */
+  get embedding(): ReturnType<typeof import('./LocalEmbeddingService').getLocalEmbeddingService>
+
+  /** Lazy getter for HardwareTierService */
+  get hardwareTier(): ReturnType<typeof import('./HardwareTierService').getHardwareTierService>
 }
 
 // ── Singleton container ──
@@ -107,6 +113,16 @@ export function initServiceContainer(config: AppConfig): ServiceContainer {
     get cloudAccess() {
       const { getCloudAccessManager } = require('./CloudAccessManager')
       return getCloudAccessManager()
+    },
+
+    get embedding() {
+      const { getLocalEmbeddingService } = require('./LocalEmbeddingService')
+      return getLocalEmbeddingService()
+    },
+
+    get hardwareTier() {
+      const { getHardwareTierService } = require('./HardwareTierService')
+      return getHardwareTierService()
     },
   }
 

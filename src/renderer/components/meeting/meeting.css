@@ -5,6 +5,9 @@
   grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
   gap: var(--space-20);
   perspective: 1000px;
+  /* Apply horizontal layout padding delegated from parent */
+  padding-left: clamp(var(--space-16), 4vw, var(--space-48));
+  padding-right: clamp(var(--space-16), 4vw, var(--space-48));
 }
 
 .ui-meeting-card {

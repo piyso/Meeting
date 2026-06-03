@@ -12,6 +12,7 @@
  */
 
 import { createClient, SupabaseClient, Session } from '@supabase/supabase-js'
+import WebSocket from 'ws'
 import { Logger } from './Logger'
 import { config } from '../config/environment'
 
@@ -55,7 +56,11 @@ export class AuthService {
     const supabaseUrl = config.SUPABASE_URL
     const supabaseKey = config.SUPABASE_ANON_KEY
     if (supabaseUrl && supabaseKey && !supabaseUrl.includes('placeholder')) {
-      this.supabase = createClient(supabaseUrl, supabaseKey)
+      this.supabase = createClient(supabaseUrl, supabaseKey, {
+        realtime: {
+          transport: WebSocket as unknown as typeof globalThis.WebSocket,
+        },
+      })
     } else {
       // Create a client that will fail gracefully — no real network requests
       this.supabase = null as unknown as SupabaseClient

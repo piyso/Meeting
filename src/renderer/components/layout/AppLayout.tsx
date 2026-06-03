@@ -543,7 +543,7 @@ export const AppLayout: React.FC = () => {
         style={{
           position: 'absolute',
           left: focusMode ? 0 : 104, // 20px float + 68px pill width + 16px gap
-          right: 0,
+          right: focusMode ? 0 : 104, // Symmetrical margin to keep content center aligned with screen center (and Dynamic Island)
           top: 72 + (statusBannerVisible ? 36 : 0), // Shift down when health banner is visible
           bottom: 0,
         }}

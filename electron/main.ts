@@ -219,9 +219,23 @@ const createWindow = () => {
       nodeIntegration: false,
       contextIsolation: true,
       sandbox: false,
+      webSecurity: true, // SECURITY: Enforce same-origin policy (Cluely CVE #1 defense)
     },
     title: 'BlueArkive',
     show: false,
+  })
+
+  // SECURITY: Set Content-Security-Policy header to prevent XSS and postMessage exploits
+  // This is a defense-in-depth measure on top of contextIsolation and webSecurity.
+  mainWindow.webContents.session.webRequest.onHeadersReceived((details, callback) => {
+    callback({
+      responseHeaders: {
+        ...details.responseHeaders,
+        'Content-Security-Policy': [
+          "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self' https://*.supabase.co https://api.piyapi.com wss://*.supabase.co;",
+        ],
+      },
+    })
   })
 
   // Show window when ready to prevent visual flash
@@ -250,6 +264,22 @@ const createWindow = () => {
     mainWindow.loadFile(path.join(__dirname, '../dist/index.html'))
     log.info('Loaded production bundle')
   }
+
+  // SECURITY: Block navigation to external URLs (CVE-class defense)
+  // This prevents malicious links from navigating the entire Electron window
+  // to an attacker-controlled page, which would give full renderer control.
+  // Cluely lacks this handler — it's attack vector #2 in our forensic audit.
+  mainWindow.webContents.on('will-navigate', (event, url) => {
+    const devServer = process.env.VITE_DEV_SERVER_URL
+    // Allow navigation to our own dev server or production bundle
+    if (devServer && url.startsWith(devServer)) return
+    if (url.startsWith('file://')) return
+
+    // Block all other navigation — open in external browser instead
+    log.warn('Blocked navigation attempt to:', url)
+    event.preventDefault()
+    require('electron').shell.openExternal(url)
+  })
 
   // Open external links securely in the default OS browser
   mainWindow.webContents.setWindowOpenHandler(({ url }) => {
@@ -1034,6 +1064,25 @@ app.on('before-quit', event => {
     } catch {
       /* ignore */
     }
+
+    // SECURITY: Zero encryption key material from V8 heap before exit.
+    // Without this, PBKDF2-derived keys persist in memory until GC,
+    // which may never happen before the process core-dumps.
+    try {
+      const { EncryptionService } = require('../src/main/services/EncryptionService')
+      EncryptionService.clearKeyCache()
+    } catch {
+      /* ignore — module may not have been loaded */
+    }
+
+    // Clear backend state (auth tokens, cached sessions)
+    try {
+      const { resetBackend } = require('../src/main/services/backend/BackendSingleton')
+      resetBackend()
+    } catch {
+      /* ignore */
+    }
+
     try {
       closeDatabase()
     } catch {

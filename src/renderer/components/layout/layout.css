@@ -60,22 +60,22 @@
   gap: var(--space-16);
   border-radius: 34px; /* Perfect pill shape */
 
-  /* Sovereign Obsidian Glass */
-  background: rgba(10, 10, 12, 0.4);
+  /* Sovereign Obsidian Glass - Perfectly blended with background */
+  background: rgba(2, 2, 3, 0.4);
   @supports ((-webkit-backdrop-filter: none) or (backdrop-filter: none)) {
     background: linear-gradient(
       145deg,
-      rgba(255, 255, 255, 0.05) 0%,
+      rgba(255, 255, 255, 0.04) 0%,
       rgba(255, 255, 255, 0.01) 100%
     );
-    backdrop-filter: blur(64px) saturate(160%);
-    -webkit-backdrop-filter: blur(64px) saturate(160%);
+    backdrop-filter: blur(64px) saturate(200%);
+    -webkit-backdrop-filter: blur(64px) saturate(200%);
   }
-  border: 1px solid var(--color-border-subtle);
+  border: 1px solid rgba(255, 255, 255, 0.04);
   box-shadow:
-    0 16px 48px -12px rgba(0, 0, 0, 0.4),
-    inset 0 1px 0 rgba(255, 255, 255, 0.1),
-    inset 0 0 0 1px rgba(255, 255, 255, 0.02);
+    0 16px 48px -12px rgba(0, 0, 0, 0.8),
+    inset 0 1px 0 rgba(255, 255, 255, 0.08),
+    inset 0 0 0 1px rgba(255, 255, 255, 0.01);
   transition:
     transform var(--transition-bounce),
     opacity var(--transition-base);
@@ -144,12 +144,11 @@
   max-width: 600px;
   z-index: var(--z-overlay-base); /* Must be ≥ drag region (50) to receive hover events */
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: center;
   gap: var(--space-16);
   padding: var(--space-8) var(--space-16);
-  border-radius: 44px;
-  overflow: hidden;
+  border-radius: 20px;
 
   /* Explicit compositor-safe transitions for aesthetics (layout managed by Framer Motion) */
   transition:
@@ -159,11 +158,10 @@
   /* will-change removed — FM v12 auto-promotes layout-animated elements.
      Double-compositing with backdrop-filter causes blur rendering artifacts. */
 
-  /* Deep premium frost glass for best readability and aesthetics */
-  background: linear-gradient(180deg, rgba(20, 20, 24, 0.35) 0%, rgba(10, 10, 12, 0.55) 100%);
-  backdrop-filter: blur(20px) saturate(180%);
-  -webkit-backdrop-filter: blur(20px) saturate(180%);
-  transform: translateZ(0); /* Force hardware compositing to prevent layout lag */
+  /* Glass aesthetic is provided by .surface-glass-premium (blur(64px)).
+     Removed redundant backdrop-filter and translateZ(0) — they fought
+     Framer Motion's inline transforms during FLIP scale, causing
+     per-frame blur recomputation and compositor layer flicker. */
   border: 1px solid var(--color-border-subtle);
   box-shadow:
     0 16px 48px -12px rgba(0, 0, 0, 0.35),
@@ -348,6 +346,24 @@ body[data-platform='win32'] .ui-dynamic-island {
   color: var(--color-text-secondary);
   white-space: normal;
   line-height: 1.5;
+
+  /* Volumetric text fade for perfect multi-line truncation */
+  -webkit-mask-image: linear-gradient(to bottom, black 60%, transparent 100%);
+  mask-image: linear-gradient(to bottom, black 60%, transparent 100%);
+}
+
+.ui-di-neural-stem {
+  background-size: 100% 200%;
+  animation: neural-flow 2s linear infinite;
+}
+
+@keyframes neural-flow {
+  0% {
+    background-position: 0% 0%;
+  }
+  100% {
+    background-position: 0% 200%;
+  }
 }
 
 .ui-dynamic-island-left {
@@ -649,6 +665,31 @@ body[data-platform='win32'] .ui-dynamic-island {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+/* ==========================================================================
+   Sovereign HUD Styles
+   ========================================================================== */
+
+.ui-di-glow-ambient {
+  box-shadow:
+    0 0 0 1px rgba(255, 255, 255, 0.05),
+    0 20px 40px -10px rgba(139, 92, 246, 0.15),
+    0 8px 16px -8px rgba(139, 92, 246, 0.1);
+  transition: box-shadow 0.4s ease-out;
+}
+
+@keyframes shimmer-border {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(100%);
+  }
+}
+
+.ui-di-shimmer-border {
+  animation: shimmer-border 2.5s infinite linear;
 }
 
 /* ==========================================================================

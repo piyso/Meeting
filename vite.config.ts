@@ -47,7 +47,15 @@ for (const key of criticalKeys) {
 const nodeBuiltins = [...builtinModules, ...builtinModules.map(m => `node:${m}`)]
 
 // Native addons and packages that must not be bundled
-const nativeModules = ['electron', 'better-sqlite3', 'onnxruntime-node', 'node-llama-cpp', 'keytar']
+const nativeModules = [
+  'electron',
+  'better-sqlite3',
+  'onnxruntime-node',
+  'node-llama-cpp',
+  'keytar',
+  'bufferutil',
+  'utf-8-validate',
+]
 
 const allExternals = [...nativeModules, ...nodeBuiltins]
 

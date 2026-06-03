@@ -133,6 +133,15 @@ export interface IBackendProvider {
   createMemory(memory: Memory): Promise<Memory>
 
   /**
+   * Create multiple memories in a single batch.
+   * Used by SyncManager for efficient batch uploads.
+   *
+   * @param memories - Array of memories to create
+   * @returns Created memories with IDs
+   */
+  batchCreateMemories(memories: Memory[]): Promise<Memory[]>
+
+  /**
    * Update an existing memory
    *
    * @param id - Memory ID
@@ -226,4 +235,85 @@ export interface IBackendProvider {
    * @returns Base URL
    */
   getBaseUrl(): string
+
+  // ── PiyAPI-specific extensions ──────────────────────────────────
+  // Signatures match PiyAPIBackend. MockBackend provides no-op stubs.
+
+  /** Extract entities from text using PiyAPI KG */
+  extractEntities(
+    text: string,
+    namespace?: string
+  ): Promise<
+    Array<{
+      type: string
+      text: string
+      confidence: number
+      start_offset?: number
+      end_offset?: number
+    }>
+  >
+
+  /** Ingest content into knowledge graph */
+  kgIngest(content: string, memoryId?: string): Promise<{ entities: number; facts: number } | null>
+
+  /** Fuzzy/typo-tolerant search */
+  fuzzySearch(query: string, namespace?: string, limit?: number): Promise<SearchResult[]>
+
+  /** Record positive feedback for memories */
+  feedbackPositive(memoryIds: string[]): Promise<boolean>
+
+  /** Record negative feedback for memories */
+  feedbackNegative(memoryIds: string[]): Promise<boolean>
+
+  /** Find and merge duplicate memories */
+  deduplicate(
+    namespace?: string,
+    dryRun?: boolean
+  ): Promise<{ duplicates: number; merged: number } | null>
+
+  /** Search knowledge graph */
+  searchGraph(
+    query: string,
+    namespace?: string,
+    limit?: number
+  ): Promise<
+    Array<{
+      id: string
+      label: string
+      type: string
+      score: number
+    }>
+  >
+
+  /** Get knowledge graph statistics */
+  getGraphStats(
+    namespace?: string
+  ): Promise<{ totalNodes: number; totalEdges: number; clusters: number }>
+
+  /** Create a context session for delta tracking */
+  createContextSession(params: {
+    namespace: string
+    token_budget: number
+    time_range: { start: number; end: number }
+    filters?: Record<string, string>
+  }): Promise<{ context_session_id: string; expires_at: number } | null>
+
+  /** Token-budget-aware context retrieval */
+  retrieveContext(
+    sessionId: string,
+    query: string
+  ): Promise<{
+    context: string
+    tokens_used: number
+    segments: Array<{ content: string; timestamp: number; meeting_id: string }>
+  } | null>
+
+  /** Export all user data (GDPR compliance) */
+  exportAll(type?: string): Promise<{ download_url: string } | null>
+
+  /** Delete all user data */
+  deleteAllData(): Promise<boolean>
+
+  /** Set access token for authenticated requests */
+  setAccessToken(token: string, userId: string): void
 }

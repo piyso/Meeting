@@ -332,4 +332,24 @@ export class EncryptionService {
       return false
     }
   }
+
+  /**
+   * SECURITY: Clear the key cache — zero key material from heap memory.
+   * Must be called on:
+   *   1. User logout
+   *   2. App lock (screen lock / idle timeout)
+   *   3. Graceful shutdown (app.on('before-quit'))
+   *
+   * Without this, PBKDF2-derived key material remains in V8 heap
+   * and could be recovered from a core dump or memory forensics.
+   */
+  public static clearKeyCache(): void {
+    if (this.keyCache) {
+      // Zero the key buffer before releasing reference
+      this.keyCache.key.fill(0)
+      this.keyCache.salt.fill(0)
+      this.keyCache = null
+      log.info('Encryption key cache cleared (key material zeroed)')
+    }
+  }
 }

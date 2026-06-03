@@ -42,9 +42,7 @@ const getStatusDot = (status: HealthResult['status']) => {
     warn: 'bg-[var(--color-amber)]',
     error: 'bg-[var(--color-rose)]',
   }
-  return (
-    <div className={`w-2 h-2 rounded-full ${colors[status]} shadow-[0_0_6px_currentColor]`} />
-  )
+  return <div className={`w-2 h-2 rounded-full ${colors[status]} shadow-[0_0_6px_currentColor]`} />
 }
 
 export const HealthDashboard: React.FC = () => {
@@ -85,48 +83,57 @@ export const HealthDashboard: React.FC = () => {
     }
   }, [navigate, runHealthCheck])
 
-  const handleFix = React.useCallback(async (result: HealthResult) => {
-    if (!result.fixAction) return
+  const handleFix = React.useCallback(
+    async (result: HealthResult) => {
+      if (!result.fixAction) return
 
-    setFixingSystem(result.system)
-    try {
-      // Special case: auth fix navigates directly
-      if (result.fixAction === 'open-auth') {
-        navigate('onboarding')
-        return
-      }
+      setFixingSystem(result.system)
+      try {
+        // Special case: auth fix navigates directly
+        if (result.fixAction === 'open-auth') {
+          navigate('onboarding')
+          return
+        }
 
-      const res = await window.electronAPI?.diagnostic?.healthFix?.(result.fixAction)
+        const res = await window.electronAPI?.diagnostic?.healthFix?.(result.fixAction)
 
-      if (res?.success) {
-        const msg = res.data?.message || 'Fix applied'
-        useAppStore.getState().addToast({
-          type: res.data?.granted === false ? 'warning' : 'success',
-          title: msg,
-          duration: 3000,
-        })
-        // Re-run health check after fix to refresh statuses
-        setTimeout(runHealthCheck, 1500)
-      } else {
+        if (res?.success) {
+          const msg = res.data?.message || 'Fix applied'
+          useAppStore.getState().addToast({
+            type: res.data?.granted === false ? 'warning' : 'success',
+            title: msg,
+            duration: 3000,
+          })
+          // Re-run health check after fix to refresh statuses
+          setTimeout(runHealthCheck, 1500)
+        } else {
+          useAppStore.getState().addToast({
+            type: 'error',
+            title: 'Fix failed — try manually',
+            duration: 4000,
+          })
+        }
+      } catch {
         useAppStore.getState().addToast({
           type: 'error',
-          title: 'Fix failed — try manually',
-          duration: 4000,
+          title: 'Fix action failed',
+          duration: 3000,
         })
+      } finally {
+        setFixingSystem(null)
       }
-    } catch {
-      useAppStore.getState().addToast({
-        type: 'error',
-        title: 'Fix action failed',
-        duration: 3000,
-      })
-    } finally {
-      setFixingSystem(null)
-    }
-  }, [navigate, runHealthCheck])
+    },
+    [navigate, runHealthCheck]
+  )
 
-  const errorCount = React.useMemo(() => (results || []).filter(r => r.status === 'error').length, [results])
-  const warnCount = React.useMemo(() => (results || []).filter(r => r.status === 'warn').length, [results])
+  const errorCount = React.useMemo(
+    () => (results || []).filter(r => r.status === 'error').length,
+    [results]
+  )
+  const warnCount = React.useMemo(
+    () => (results || []).filter(r => r.status === 'warn').length,
+    [results]
+  )
 
   const copyReport = React.useCallback(() => {
     const lines = [
@@ -226,63 +233,63 @@ export const HealthDashboard: React.FC = () => {
       {/* Results list */}
       <div className="surface-glass-premium border border-[var(--color-border-subtle)] rounded-3xl p-2 shadow-sm overflow-hidden">
         <div className="flex flex-col gap-1">
-        {results.map((r, i) => (
-          <div
-            key={i}
-            className="flex items-center justify-between px-4 py-3 rounded-2xl hover:bg-white/[0.02] transition-colors"
-          >
-            <div className="flex items-center gap-3 min-w-0">
-              {getStatusIcon(r.status)}
-              <div className="min-w-0">
-                <span className="text-[var(--text-sm)] font-medium text-[var(--color-text-primary)]">
-                  {r.system}
-                </span>
-                <p className="text-[11px] text-[var(--color-text-tertiary)] truncate">
-                  {r.message}
-                </p>
+          {results.map((r, i) => (
+            <div
+              key={i}
+              className="flex items-center justify-between px-4 py-3 rounded-2xl hover:bg-white/[0.02] transition-colors"
+            >
+              <div className="flex items-center gap-3 min-w-0">
+                {getStatusIcon(r.status)}
+                <div className="min-w-0">
+                  <span className="text-[var(--text-sm)] font-medium text-[var(--color-text-primary)]">
+                    {r.system}
+                  </span>
+                  <p className="text-[11px] text-[var(--color-text-tertiary)] truncate">
+                    {r.message}
+                  </p>
+                </div>
               </div>
-            </div>
-            <div className="flex items-center gap-2 flex-shrink-0">
-              {getStatusDot(r.status)}
-              {r.fixAction && r.status !== 'ok' ? (
-                <button
-                  onClick={() => handleFix(r)}
-                  disabled={fixingSystem === r.system}
-                  className="flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11px] font-medium
+              <div className="flex items-center gap-2 flex-shrink-0">
+                {getStatusDot(r.status)}
+                {r.fixAction && r.status !== 'ok' ? (
+                  <button
+                    onClick={() => handleFix(r)}
+                    disabled={fixingSystem === r.system}
+                    className="flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11px] font-medium
                     bg-[var(--color-sky)]/10 text-[var(--color-sky)] border border-[var(--color-sky)]/20
                     hover:bg-[var(--color-sky)]/20 hover:border-[var(--color-sky)]/30
                     disabled:opacity-50 disabled:cursor-not-allowed
                     transition-all duration-200 cursor-pointer whitespace-nowrap"
-                >
-                  {fixingSystem === r.system ? (
-                    <RefreshCw size={10} className="animate-spin" />
-                  ) : (
-                    <Wrench size={10} />
-                  )}
-                  {fixingSystem === r.system ? 'Fixing...' : 'Fix'}
-                </button>
-              ) : (
-                r.fix &&
-                r.status !== 'ok' && (
-                  <span className="text-[11px] text-[var(--color-text-quaternary)] font-medium whitespace-nowrap">
-                    {r.fix}
-                  </span>
-                )
-              )}
+                  >
+                    {fixingSystem === r.system ? (
+                      <RefreshCw size={10} className="animate-spin" />
+                    ) : (
+                      <Wrench size={10} />
+                    )}
+                    {fixingSystem === r.system ? 'Fixing...' : 'Fix'}
+                  </button>
+                ) : (
+                  r.fix &&
+                  r.status !== 'ok' && (
+                    <span className="text-[11px] text-[var(--color-text-quaternary)] font-medium whitespace-nowrap">
+                      {r.fix}
+                    </span>
+                  )
+                )}
+              </div>
             </div>
-          </div>
-        ))}
-        {results.length === 0 && !loading && (
-          <div className="px-4 py-8 text-center text-[var(--color-text-tertiary)] text-sm">
-            Click "Run Diagnostics" to check all systems
-          </div>
-        )}
-        {loading && results.length === 0 && (
-          <div className="px-4 py-8 text-center text-[var(--color-text-tertiary)] text-sm">
-            <RefreshCw size={16} className="animate-spin inline-block mr-2" />
-            Testing all systems...
-          </div>
-        )}
+          ))}
+          {results.length === 0 && !loading && (
+            <div className="px-4 py-8 text-center text-[var(--color-text-tertiary)] text-sm">
+              Click "Run Diagnostics" to check all systems
+            </div>
+          )}
+          {loading && results.length === 0 && (
+            <div className="px-4 py-8 text-center text-[var(--color-text-tertiary)] text-sm">
+              <RefreshCw size={16} className="animate-spin inline-block mr-2" />
+              Testing all systems...
+            </div>
+          )}
         </div>
       </div>
 

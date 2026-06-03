@@ -33,6 +33,7 @@ export default function MeetingListView() {
   const [ctxMenu, setCtxMenu] = useState<{ x: number; y: number; id: string } | null>(null)
   const [searchQuery, setSearchQuery] = useState('')
   const [renamingMeetingId, setRenamingMeetingId] = useState<string | null>(null)
+  const [selectedDate, setSelectedDate] = useState<Date | null>(null)
   const scrollRef = useRef<HTMLDivElement>(null)
   const [columns, setColumns] = useState(3)
 
@@ -237,12 +238,24 @@ export default function MeetingListView() {
   }, []) // Empty deps because it doesn't depend on external props, just a helper
 
   const filteredMeetings = useMemo(() => {
-    return meetings.filter(m => {
-      if (!searchQuery) return true
-      const q = searchQuery.toLowerCase()
-      return m.title && m.title.toLowerCase().includes(q)
+    return meetings.filter((m: MeetingItem) => {
+      if (searchQuery) {
+        const q = searchQuery.toLowerCase()
+        if (!m.title || !m.title.toLowerCase().includes(q)) return false
+      }
+      if (selectedDate) {
+        const mDate = new Date(m.start_time * 1000)
+        if (
+          mDate.getFullYear() !== selectedDate.getFullYear() ||
+          mDate.getMonth() !== selectedDate.getMonth() ||
+          mDate.getDate() !== selectedDate.getDate()
+        ) {
+          return false
+        }
+      }
+      return true
     })
-  }, [meetings, searchQuery])
+  }, [meetings, searchQuery, selectedDate])
 
   const dateGroups = useMemo(() => {
     return groupMeetingsByDate(filteredMeetings as MeetingItem[])
@@ -317,7 +330,7 @@ export default function MeetingListView() {
   }
 
   return (
-    <div ref={scrollRef} className="ui-view-meeting-list sovereign-scrollbar">
+    <div ref={scrollRef} className="ui-view-meeting-list">
       <motion.div
         className="ui-view-meeting-list-header"
         initial={{ opacity: 0, y: -20 }}
@@ -415,11 +428,23 @@ export default function MeetingListView() {
       </motion.div>
 
       {/* --- TIMELINE STRIP --- */}
-      <div className="px-6 mb-2 mt-[-8px]">
+      <div className="px-6 mb-2 mt-[-8px] flex justify-center">
         <CalendarStrip
-          selectedDate={new Date()}
-          onSelectDate={() => {}}
-          meetingDates={meetings.map(m => new Date(m.start_time * 1000))}
+          selectedDate={selectedDate}
+          onSelectDate={date => {
+            setSelectedDate(prev => {
+              if (
+                prev &&
+                prev.getFullYear() === date.getFullYear() &&
+                prev.getMonth() === date.getMonth() &&
+                prev.getDate() === date.getDate()
+              ) {
+                return null
+              }
+              return date
+            })
+          }}
+          meetings={meetings}
         />
       </div>
 
@@ -431,7 +456,10 @@ export default function MeetingListView() {
         }}
       >
         {meetings.length === 0 ? (
-          <div className="mt-8 animate-fade-in mx-6">
+          <div
+            className="mt-8 animate-fade-in"
+            style={{ padding: '0 clamp(var(--space-16), 4vw, var(--space-48))' }}
+          >
             <EmptyState
               icon={MicOff}
               title="No Meetings Recorded Yet"
@@ -444,11 +472,28 @@ export default function MeetingListView() {
             />
           </div>
         ) : filteredMeetings.length === 0 ? (
-          <div className="mt-8 animate-fade-in mx-6">
+          <div
+            className="mt-8 animate-fade-in"
+            style={{ padding: '0 clamp(var(--space-16), 4vw, var(--space-48))' }}
+          >
             <EmptyState
               icon={Search}
-              title="No search results"
-              description={`We couldn't find any meetings matching "${searchQuery}".`}
+              title={
+                selectedDate && !searchQuery
+                  ? new Date(selectedDate.getTime()).setHours(0, 0, 0, 0) >
+                    new Date().setHours(0, 0, 0, 0)
+                    ? 'Nothing scheduled'
+                    : 'No recordings found'
+                  : 'No search results'
+              }
+              description={
+                selectedDate && !searchQuery
+                  ? new Date(selectedDate.getTime()).setHours(0, 0, 0, 0) >
+                    new Date().setHours(0, 0, 0, 0)
+                    ? `You have no meetings scheduled for ${selectedDate.toLocaleDateString()}.`
+                    : `You have no meetings recorded for ${selectedDate.toLocaleDateString()}.`
+                  : `We couldn't find any meetings matching "${searchQuery}".`
+              }
             />
           </div>
         ) : (

@@ -169,6 +169,9 @@ export class PHIDetectionService {
       'jp_my_number',
       'intl_phone',
       'jp_phone',
+      'iban',
+      'uk_nino',
+      'de_tax_id',
     ]
     const genericTypes = ['ssn']
     const detectedIdentifiers = allMatches.filter(match => {
@@ -218,9 +221,22 @@ export class PHIDetectionService {
       case 'MRN':
         // High confidence if explicitly labeled
         return value.toLowerCase().includes('mrn') ? 0.9 : 0.7
-      case 'CREDIT_CARD':
-        // Medium confidence (could be other numbers)
-        return 0.7
+      case 'CREDIT_CARD': {
+        // Luhn algorithm validation — eliminates false positives
+        const digits = value.replace(/[\s-]/g, '')
+        let sum = 0
+        let alternate = false
+        for (let i = digits.length - 1; i >= 0; i--) {
+          let n = parseInt(digits[i]!, 10)
+          if (alternate) {
+            n *= 2
+            if (n > 9) n -= 9
+          }
+          sum += n
+          alternate = !alternate
+        }
+        return sum % 10 === 0 ? 0.85 : 0.4 // Luhn pass → high confidence
+      }
       case 'IP_ADDRESS':
         // Medium confidence (common in tech discussions)
         return 0.6
@@ -270,7 +286,7 @@ export class PHIDetectionService {
     }
 
     // High risk: SSN, MRN, or multiple high-confidence identifiers
-    const highRiskTypes = ['ssn', 'mrn', 'credit_card']
+    const highRiskTypes = ['ssn', 'mrn', 'credit_card', 'iban']
     const hasHighRisk = identifiers.some(id => highRiskTypes.includes(id.type))
     if (hasHighRisk) {
       return 'high'

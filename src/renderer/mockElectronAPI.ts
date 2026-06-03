@@ -41,7 +41,6 @@ import type { AppSettings } from '../types/ipc'
 // ============================================================================
 
 const MOCK_DELAY_MS = 200 // Simulate network latency
-const STREAM_INTERVAL_MS = 80 // Token/chunk emit interval
 
 // ============================================================================
 // Helpers
@@ -948,27 +947,9 @@ function createMockElectronAPI() {
         // Simulate streaming by emitting tokens, then return full answer
         const answer = `Based on your meeting history, here's what I found:\n\n**Regarding "${params.question}":**\n\nIn the Product Standup (2 hours ago), the team discussed the CI/CD pipeline fix and component library migration progress. Sarah reported 80% completion of the UI migration. Alex confirmed API v2 is deployed to staging with cursor-based pagination.\n\nIn the Design Systems Deep Dive (5 hours ago), the team decided to switch from Inter to Instrument Sans for better readability. The glassmorphism effects were reviewed with performance optimizations using \`will-change: transform\`.\n\nKey action items include:\n- Prepare quarterly demo slides by Wednesday\n- Complete Badge and Tooltip components by Thursday\n- Merge cursor pagination PR by tomorrow\n\n*Sources: meet-001, meet-002, meet-003*`
 
-        // Emit stream tokens via the event system
-        const words = answer.split(' ')
-        let emitted = ''
-        let tokenIndex = 0
-        const streamInterval = setInterval(() => {
-          if (tokenIndex >= words.length) {
-            clearInterval(streamInterval)
-            return
-          }
-          emitted += (tokenIndex > 0 ? ' ' : '') + words[tokenIndex]
-          const cbs = listeners['intelligence:streamToken'] || []
-          for (const cb of cbs) {
-            cb({ token: words[tokenIndex], fullText: emitted })
-          }
-          tokenIndex++
-        }, STREAM_INTERVAL_MS)
-
-        // Wait for stream to finish, then return full answer
-        await new Promise(r => setTimeout(r, words.length * STREAM_INTERVAL_MS + 200))
         return ok({ answer })
       },
+      cancelAsk: async () => delayedVoid(),
     },
 
     // ── Model ─────────────────────────────────────────────────────────
@@ -1085,6 +1066,7 @@ function createMockElectronAPI() {
       triggerBookmark: async () => delayedVoid(),
       submitQuickNote: async () => delayedVoid(),
       triggerPauseToggle: async () => delayedVoid(),
+      triggerStartCapture: async () => delayedVoid(),
     },
 
     // ── Highlight ─────────────────────────────────────────────────────
@@ -1126,6 +1108,10 @@ function createMockElectronAPI() {
     _listeners: listeners,
 
     on: {
+      actionItemDetected: () => () => {},
+      sentimentUpdate: () => () => {},
+      calendarEventSoon: () => () => {},
+      spatialHandoff: () => () => {},
       transcriptChunk: (callback: (...args: unknown[]) => void) => {
         if (!listeners['transcriptChunk']) listeners['transcriptChunk'] = []
         listeners['transcriptChunk'].push(callback)
@@ -1417,8 +1403,9 @@ function createMockElectronAPI() {
       delete: async (_params: { id: string }) => delayedVoid(),
       extract: async (_params: { meetingId: string }) => {
         await new Promise(r => setTimeout(r, MOCK_DELAY_MS * 3))
-        return ok({ extracted: 2, items: [] })
+        return ok([]) // Return array of ActionItems
       },
+      extractRealTime: async (_params: { text: string; meetingId: string }) => delayed([]),
       getOverdue: async () => delayed([]),
       stats: async () => delayed({ total: 3, open: 2, completed: 1, overdue: 0 }),
     },

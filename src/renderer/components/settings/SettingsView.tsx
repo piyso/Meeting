@@ -361,7 +361,9 @@ export const SettingsView: React.FC = () => {
                   <span className="text-[15px] font-medium text-[var(--color-text-primary)]">
                     AI models
                   </span>
-                  <Badge variant={modelStatus === 'Ready' ? 'success' : 'outline'}>{modelStatus}</Badge>
+                  <Badge variant={modelStatus === 'Ready' ? 'success' : 'outline'}>
+                    {modelStatus}
+                  </Badge>
                 </div>
               </div>
             </div>
@@ -791,14 +793,14 @@ export const SettingsView: React.FC = () => {
                       {/* Billing Status Warning */}
                       {userInfo.billingStatus === 'past_due' && (
                         <div className="mt-2 p-3 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 text-sm">
-                          ⚠️ Your subscription payment is past due. To continue enjoying premium features,
-                          please update your payment method.
+                          ⚠️ Your subscription payment is past due. To continue enjoying premium
+                          features, please update your payment method.
                         </div>
                       )}
                       {userInfo.billingStatus === 'cancelled' && (
                         <div className="mt-2 p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-400 text-sm">
-                          Your subscription has been cancelled and will end soon. Resubscribe to retain
-                          premium access.
+                          Your subscription has been cancelled and will end soon. Resubscribe to
+                          retain premium access.
                         </div>
                       )}
                     </div>
@@ -831,7 +833,8 @@ export const SettingsView: React.FC = () => {
                         onClick={handleExportData}
                         disabled={isExporting}
                       >
-                        <Download size={14} className="mr-1" /> {isExporting ? 'Exporting...' : 'Export'}
+                        <Download size={14} className="mr-1" />{' '}
+                        {isExporting ? 'Exporting...' : 'Export'}
                       </Button>
                     </div>
                     <div className="flex items-center justify-between px-5 py-4 rounded-2xl hover:bg-[rgba(255,255,255,0.03)] transition-colors">

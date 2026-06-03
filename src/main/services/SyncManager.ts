@@ -18,7 +18,7 @@
 
 import { v4 as uuidv4 } from 'uuid'
 import { EncryptionService } from './EncryptionService'
-import { PiyAPIBackend } from './backend/PiyAPIBackend'
+import type { IBackendProvider } from './backend/IBackendProvider'
 import { KeyStorageService } from './KeyStorageService'
 import { Logger } from './Logger'
 import type { Memory } from './backend/IBackendProvider'
@@ -104,12 +104,12 @@ export class SyncManager {
   // P1-2 FIX: Use lazy getter via BackendSingleton instead of storing a direct
   // reference. When resetBackend() is called on logout, a stored reference goes
   // stale (token cleared) while the 30-second retry timer may still fire.
-  private _backendOverride: PiyAPIBackend | null = null
-  private get backend(): PiyAPIBackend {
+  private _backendOverride: IBackendProvider | null = null
+  private get backend(): IBackendProvider {
     if (this._backendOverride) return this._backendOverride
     // Dynamic import would create circular deps, so import at top-level
     const { getBackend } = require('./backend/BackendSingleton')
-    return getBackend() as PiyAPIBackend
+    return getBackend() as IBackendProvider
   }
   private userId: string | null = null
   // C-1 AUDIT: Raw password is NOT stored as a class field.
@@ -123,7 +123,7 @@ export class SyncManager {
   private cachedPlanTier: string | null = null
   private log = Logger.create('SyncManager')
 
-  constructor(backend?: PiyAPIBackend) {
+  constructor(backend?: IBackendProvider) {
     this._backendOverride = backend || null
   }
 

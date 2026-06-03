@@ -33,48 +33,51 @@ export const RecoveryKeySettings: React.FC<RecoveryKeySettingsProps> = ({ userId
     setError('')
   }, [])
 
-  const handlePasswordSubmit = useCallback(async (e: React.FormEvent) => {
-    e.preventDefault()
-    setError('')
-    setIsVerifying(true)
+  const handlePasswordSubmit = useCallback(
+    async (e: React.FormEvent) => {
+      e.preventDefault()
+      setError('')
+      setIsVerifying(true)
 
-    try {
-      if (password.length < 8) {
-        setError('Invalid password')
+      try {
+        if (password.length < 8) {
+          setError('Invalid password')
+          setIsVerifying(false)
+          return
+        }
+
+        const res = await window.electronAPI?.auth?.generateRecoveryKey()
+
+        if (!res?.success || !res.data?.phrase) {
+          setError(res?.error?.message || 'Failed to generate recovery key')
+          setIsVerifying(false)
+          return
+        }
+
+        setRecoveryPhrase(res.data.phrase)
+        setShowRecoveryKey(true)
+        setShowPasswordPrompt(false)
+        setPassword('')
+      } catch (err) {
+        log.error('Recovery key generation failed:', err)
+        setError('An unexpected error occurred. Please try again.')
+      } finally {
         setIsVerifying(false)
-        return
       }
-
-      const res = await window.electronAPI?.auth?.generateRecoveryKey()
-
-      if (!res?.success || !res.data?.phrase) {
-        setError(res?.error?.message || 'Failed to generate recovery key')
-        setIsVerifying(false)
-        return
-      }
-
-      setRecoveryPhrase(res.data.phrase)
-      setShowRecoveryKey(true)
-      setShowPasswordPrompt(false)
-      setPassword('')
-    } catch (err) {
-      log.error('Recovery key generation failed:', err)
-      setError('An unexpected error occurred. Please try again.')
-    } finally {
-      setIsVerifying(false)
-    }
-  }, [password])
+    },
+    [password]
+  )
 
   const handleCopyToClipboard = useCallback(async () => {
     const phrase = recoveryPhrase.join(' ')
     try {
       await navigator.clipboard.writeText(phrase)
       setCopied(true)
-      
+
       // Clear any existing timers so rapid clicking doesn't cause glitching
       timerRefs.current.forEach(clearTimeout)
       timerRefs.current = []
-      
+
       const timer = setTimeout(() => setCopied(false), 3000)
       timerRefs.current.push(timer)
     } catch (error) {
@@ -113,7 +116,7 @@ export const RecoveryKeySettings: React.FC<RecoveryKeySettingsProps> = ({ userId
     setError('')
   }, [])
 
-   return (
+  return (
     <div className="flex flex-col gap-8">
       <div>
         <div className="flex justify-between items-center pl-4 pr-2 mb-3">
@@ -129,7 +132,6 @@ export const RecoveryKeySettings: React.FC<RecoveryKeySettingsProps> = ({ userId
 
         <div className="surface-glass-premium border border-[var(--color-border-subtle)] rounded-3xl p-2 shadow-sm">
           <div className="flex flex-col gap-2">
-            
             {!showPasswordPrompt && !showRecoveryKey && (
               <>
                 <div className="px-6 py-5 border border-[var(--color-border-subtle)] bg-white/[0.01] hover:bg-white/[0.03] rounded-[var(--radius-xl)] flex items-center justify-between gap-4 transition-all duration-300 shadow-sm animate-slide-up">
@@ -146,7 +148,7 @@ export const RecoveryKeySettings: React.FC<RecoveryKeySettingsProps> = ({ userId
                       </div>
                     </div>
                   </div>
-                  
+
                   <div className="flex items-center gap-3 flex-shrink-0">
                     <Button variant="secondary" size="sm" onClick={handleExportClick}>
                       Export Key
@@ -175,7 +177,7 @@ export const RecoveryKeySettings: React.FC<RecoveryKeySettingsProps> = ({ userId
                     Confirm Your Password
                   </h4>
                 </div>
-                
+
                 <p className="text-[12px] text-[var(--color-text-secondary)]">
                   Enter your password to view your recovery key.
                 </p>
@@ -200,10 +202,21 @@ export const RecoveryKeySettings: React.FC<RecoveryKeySettingsProps> = ({ userId
                   )}
 
                   <div className="flex justify-end items-center gap-2 mt-2">
-                    <Button type="button" variant="secondary" size="sm" onClick={handleCancelPassword} disabled={isVerifying}>
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      size="sm"
+                      onClick={handleCancelPassword}
+                      disabled={isVerifying}
+                    >
                       Cancel
                     </Button>
-                    <Button type="submit" variant="primary" size="sm" disabled={!password || isVerifying}>
+                    <Button
+                      type="submit"
+                      variant="primary"
+                      size="sm"
+                      disabled={!password || isVerifying}
+                    >
                       {isVerifying ? 'Verifying...' : 'Confirm'}
                     </Button>
                   </div>
@@ -232,8 +245,12 @@ export const RecoveryKeySettings: React.FC<RecoveryKeySettingsProps> = ({ userId
                     <AlertCircle size={18} className="text-amber-600 dark:text-amber-500" />
                   </div>
                   <div className="min-w-0 flex-1 pt-0.5 text-[12px] leading-relaxed">
-                    <strong className="block mb-0.5 font-semibold text-amber-700 dark:text-amber-400">Keep this safe!</strong>
-                    <span className="opacity-90 text-amber-700/80 dark:text-amber-500/80">Anyone with this recovery key can access your encrypted data.</span>
+                    <strong className="block mb-0.5 font-semibold text-amber-700 dark:text-amber-400">
+                      Keep this safe!
+                    </strong>
+                    <span className="opacity-90 text-amber-700/80 dark:text-amber-500/80">
+                      Anyone with this recovery key can access your encrypted data.
+                    </span>
                   </div>
                 </div>
 

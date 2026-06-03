@@ -1,0 +1,35 @@
+flowchart LR
+    subgraph App["BlueArkive (Native Client)"]
+        direction TB
+        UI["🖥️ Renderer UI<br/>(React + Zustand)"]
+        
+        subgraph Core["Main Process Engine"]
+            direction TB
+            Audio["🎙️ ASR Pipeline"]
+            Search["🔍 FTS & Vector Search"]
+            Sec["🔐 E2E Encryption"]
+            Sync["🔄 P2P CRDT Sync"]
+            KG["🧠 Local Knowledge Graph"]
+        end
+        
+        DB[("🗄️ Local Datastore<br/>SQLite + Vectors")]
+        
+        UI <==>|IPC Bridge| Core
+        Core <==> DB
+    end
+    
+    Cloud(("☁️ Cognitive Cloud<br/><br/>• Temporal KG<br/>• Conflict Engine<br/>• Cognitive RAG"))
+    
+    DB -.->|Optional E2EE Sync| Cloud
+    
+    %% Styling
+    classDef default fill:#f9f9f9,stroke:#333,stroke-width:1px
+    classDef component fill:#e1f5fe,stroke:#03a9f4,stroke-width:2px,color:#000
+    classDef database fill:#ffe0b2,stroke:#ff9800,stroke-width:2px,color:#000
+    classDef external fill:#e8f5e9,stroke:#4caf50,stroke-width:2px,stroke-dasharray: 5 5,color:#000
+    classDef wrapper fill:#ffffff,stroke:#9e9e9e,stroke-width:2px,stroke-dasharray: 5 5
+    
+    class UI,Audio,Search,Sec,Sync,KG component
+    class DB database
+    class Cloud external
+    class App,Core wrapper

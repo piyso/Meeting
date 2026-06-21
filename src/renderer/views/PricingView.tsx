@@ -1,9 +1,11 @@
+import { useAppStore } from '../store/appStore'
+import { useNavigationStore } from '../store/navigationStore'
 import React, { useEffect, useState } from 'react'
 import { motion } from 'framer-motion'
 import { Check, X, ArrowLeft, Shield, Zap, Key } from 'lucide-react'
 import { Button } from '../components/ui/Button'
 import { IconButton } from '../components/ui/IconButton'
-import { useAppStore } from '../store/appStore'
+
 import { openUpgrade } from '../utils/openUpgrade'
 import './pricing.css'
 
@@ -30,7 +32,7 @@ interface BillingConfig {
 }
 
 export const PricingView: React.FC = () => {
-  const navigate = useAppStore(s => s.navigate)
+  const navigate = useNavigationStore(s => s.navigate)
   const addToast = useAppStore(s => s.addToast)
   const currentTier = useAppStore(s => s.currentTier)
   const setGlobalTier = useAppStore(s => s.setCurrentTier)

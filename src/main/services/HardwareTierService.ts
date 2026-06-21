@@ -243,15 +243,8 @@ export class HardwareTierService {
    * Detect Apple Silicon GPU for MLX model acceleration
    */
   private detectAppleSiliconGPU(): boolean {
-    if (os.platform() !== 'darwin' || os.arch() !== 'arm64') return false
-    try {
-      const gpuCores = execSync('sysctl -n machdep.cpu.core_count', { timeout: 2000 })
-        .toString()
-        .trim()
-      return parseInt(gpuCores, 10) > 0
-    } catch {
-      return false
-    }
+    // Apple Silicon Macs: arm64 + darwin = always has Apple GPU (M1/M2/M3/M4)
+    return os.platform() === 'darwin' && os.arch() === 'arm64'
   }
 
   // ─── Battery-Aware AI Scheduling ─────────────────────────────

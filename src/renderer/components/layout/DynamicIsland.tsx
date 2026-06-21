@@ -1,10 +1,14 @@
+import { useAppStore } from '../../store/appStore'
+import { useRecordingStore } from '../../store/recordingStore'
+import { useNavigationStore } from '../../store/navigationStore'
+
 import React, { useState, useEffect, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Square, Loader2, Mic, Monitor, Cloud, Info, Pause, Play, Sparkles } from 'lucide-react'
 import { modKey } from '../../utils/platformShortcut'
 import { AudioIndicator } from '../meeting/AudioIndicator'
 import { SyncStatusBadge } from '../ui/SyncStatusBadge'
-import { useAppStore } from '../../store/appStore'
+
 import { useShallow } from 'zustand/react/shallow'
 import { useAudioStatus } from '../../hooks/queries/useAudioStatus'
 import { useRecordingTimer } from '../../hooks/useRecordingTimer'
@@ -64,7 +68,7 @@ const IslandWidgetSync: React.FC<{
     noteCount,
     recordingStartTime,
     recordingTotalPausedMs,
-  } = useAppStore(
+  } = useRecordingStore(
     useShallow(s => ({
       lastTranscriptLine: s.lastTranscriptLine,
       audioMode: s.audioMode,
@@ -182,7 +186,7 @@ const IslandExpandedContent: React.FC<{ hasTranscript: boolean; hasCoachTip: boo
   hasTranscript,
   hasCoachTip,
 }) => {
-  const { lastTranscriptLine, liveCoachTip, entityCount, noteCount } = useAppStore(
+  const { lastTranscriptLine, liveCoachTip, entityCount, noteCount } = useRecordingStore(
     useShallow(s => ({
       lastTranscriptLine: s.lastTranscriptLine,
       liveCoachTip: s.liveCoachTip,
@@ -292,21 +296,18 @@ export const DynamicIsland: React.FC<DynamicIslandProps> = ({
   onStopRecording,
   onPauseRecording,
 }) => {
-  const activeMeetingId = useAppStore(s => s.activeMeetingId)
+  const activeMeetingId = useRecordingStore(s => s.activeMeetingId)
   const isRecording = recordingState === 'recording'
 
-  const { activeView, audioMode, currentTier, quotaData, focusMode, hasTranscript, hasCoachTip } =
-    useAppStore(
-      useShallow(s => ({
-        activeView: s.activeView,
-        audioMode: s.audioMode,
-        currentTier: s.currentTier,
-        quotaData: s.quotaData,
-        focusMode: s.focusMode,
-        hasTranscript: !!s.lastTranscriptLine,
-        hasCoachTip: !!s.liveCoachTip,
-      }))
-    )
+  const { activeView, audioMode, currentTier, quotaData, focusMode, hasTranscript, hasCoachTip } = {
+    currentTier: useAppStore(s => s.currentTier),
+    quotaData: useAppStore(s => s.quotaData),
+    focusMode: useAppStore(s => s.focusMode),
+    activeView: useNavigationStore(s => s.activeView),
+    audioMode: useRecordingStore(s => s.audioMode),
+    hasTranscript: useRecordingStore(s => !!s.lastTranscriptLine),
+    hasCoachTip: useRecordingStore(s => !!s.liveCoachTip),
+  }
 
   // ── Hover Expansion (Debounced Grace Period) ──
   const [isHovered, setIsHovered] = useState(false)

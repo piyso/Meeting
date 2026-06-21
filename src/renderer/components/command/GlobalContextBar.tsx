@@ -1,8 +1,9 @@
+import { useNavigationStore } from '../../store/navigationStore'
 import React, { useEffect, useRef, useState, useDeferredValue } from 'react'
 import { createPortal } from 'react-dom'
 import { Sparkles, FileText, Loader2 } from 'lucide-react'
 import { useSemanticSearch } from '../../hooks/queries/useSearch'
-import { useAppStore } from '../../store/appStore'
+
 import './command.css'
 
 interface GlobalContextBarProps {
@@ -15,7 +16,7 @@ export const GlobalContextBar: React.FC<GlobalContextBarProps> = ({ open, onClos
   const queryRef = useRef(query)
   queryRef.current = query
   const deferredQuery = useDeferredValue(query)
-  const navigate = useAppStore(s => s.navigate)
+  const navigate = useNavigationStore(s => s.navigate)
 
   const searchParams = React.useMemo(() => ({ query: deferredQuery }), [deferredQuery])
   const { data: results, isLoading, isFetching } = useSemanticSearch(searchParams)

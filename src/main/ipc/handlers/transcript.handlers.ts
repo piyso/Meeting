@@ -164,6 +164,29 @@ export function registerTranscriptHandlers(): void {
 function setupTranscriptEventForwarding(
   transcriptService: ReturnType<typeof getTranscriptService>
 ): void {
+  let chunkBuffer: TranscriptChunk[] = []
+  let flushTimeout: NodeJS.Timeout | null = null
+
+  const flushBuffer = () => {
+    if (chunkBuffer.length === 0) return
+
+    const allWindows = BrowserWindow.getAllWindows()
+    const mainWindow: BrowserWindow | null =
+      allWindows.find((w: BrowserWindow) => !w.isDestroyed() && w.getBounds().width > 400) ||
+      allWindows[0] ||
+      null
+
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      // Send buffered chunks back-to-back synchronously so Electron batches them
+      chunkBuffer.forEach(chunk => {
+        mainWindow.webContents.send('event:transcriptChunk', chunk)
+      })
+    }
+
+    chunkBuffer = []
+    flushTimeout = null
+  }
+
   transcriptService.on(
     'transcript',
     (data: {
@@ -176,18 +199,6 @@ function setupTranscriptEventForwarding(
       speakerId?: string
       speakerName?: string
     }) => {
-      // C6 fix: avoid circular require('electron/main') which can cause getMainWindow()
-      // to return undefined during module initialization. Use Electron's window registry.
-      const allWindows = BrowserWindow.getAllWindows()
-      const mainWindow: BrowserWindow | null =
-        allWindows.find((w: BrowserWindow) => !w.isDestroyed() && w.getBounds().width > 400) ||
-        allWindows[0] ||
-        null
-
-      if (!mainWindow || mainWindow.isDestroyed()) {
-        return
-      }
-
       // Transform to TranscriptChunk format expected by renderer
       const chunk: TranscriptChunk = {
         meetingId: data.meetingId,
@@ -200,8 +211,12 @@ function setupTranscriptEventForwarding(
         isFinal: true, // Transcripts saved to DB are always final
       }
 
-      // Send to renderer via IPC event
-      mainWindow.webContents.send('event:transcriptChunk', chunk)
+      chunkBuffer.push(chunk)
+
+      // Throttle IPC emission with a 100ms coalescing buffer
+      if (!flushTimeout) {
+        flushTimeout = setTimeout(flushBuffer, 100)
+      }
     }
   )
 }

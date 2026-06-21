@@ -45,5 +45,24 @@ export function registerShellHandlers(): void {
     }
   })
 
+  // shell:showItemInFolder — Show file in system file manager
+  ipcMain.handle('shell:showItemInFolder', async (_event, path: string): Promise<IPCResponse<void>> => {
+    try {
+      const { shell } = await import('electron')
+      shell.showItemInFolder(path)
+      return { success: true, data: undefined }
+    } catch (error) {
+      log.error('Failed to show item in folder:', error)
+      return {
+        success: false,
+        error: {
+          code: 'SHOW_ITEM_FAILED',
+          message: error instanceof Error ? error.message : 'Unknown error',
+          timestamp: Date.now(),
+        },
+      }
+    }
+  })
+
   log.info('Shell handlers registered')
 }

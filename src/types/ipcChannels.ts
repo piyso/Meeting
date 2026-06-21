@@ -292,6 +292,56 @@ export const IPC_CHANNELS = {
     calendarEventSoon: 'event:calendarEventSoon',
     webhookDelivery: 'event:webhookDelivery',
   },
+
+  // ── New Services (backup, screen, filesystem, crossapp, provenance, notification, podcast) ──
+  backup: {
+    create: 'backup:create',
+    list: 'backup:list',
+    restore: 'backup:restore',
+    delete: 'backup:delete',
+  },
+  screen: {
+    startCapture: 'screen:startCapture',
+    stopCapture: 'screen:stopCapture',
+    storeSnapshot: 'screen:storeSnapshot',
+    query: 'screen:query',
+    search: 'screen:search',
+  },
+  filesystem: {
+    mount: 'filesystem:mount',
+    unmount: 'filesystem:unmount',
+    tree: 'filesystem:tree',
+    ingest: 'filesystem:ingest',
+  },
+  crossapp: {
+    start: 'crossapp:start',
+    stop: 'crossapp:stop',
+    query: 'crossapp:query',
+  },
+  provenance: {
+    sign: 'provenance:sign',
+    list: 'provenance:list',
+    verify: 'provenance:verify',
+    report: 'provenance:report',
+  },
+  notification: {
+    scheduleMeeting: 'notification:scheduleMeeting',
+    scheduleDeadline: 'notification:scheduleDeadline',
+    dismiss: 'notification:dismiss',
+    pending: 'notification:pending',
+  },
+  podcast: {
+    generate: 'podcast:generate',
+    synthesize: 'podcast:synthesize',
+    latest: 'podcast:latest',
+  },
+  exportMeeting: {
+    meeting: 'export:meeting',
+  },
+  entityExtract: {
+    extractFromMeeting: 'entity:extractFromMeeting',
+    query: 'entity:query',
+  },
 } as const
 
 // ── Helper types ──

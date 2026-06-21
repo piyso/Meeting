@@ -1,5 +1,6 @@
+import { useRecordingStore } from '../store/recordingStore'
 import { useState, useCallback } from 'react'
-import { useAppStore } from '../store/appStore'
+
 import type { ScreenRecordingGuidance } from '../../types/ipc'
 
 import { rendererLog } from '../utils/logger'
@@ -14,7 +15,7 @@ export type PermissionStatus =
   | 'unknown'
 
 export function useAudioSession(meetingId: string | null) {
-  const setRecordingStartTime = useAppStore(s => s.setRecordingStartTime)
+  const setRecordingStartTime = useRecordingStore(s => s.setRecordingStartTime)
   const [isCapturing, setIsCapturing] = useState(false)
   const [captureMode, setCaptureMode] = useState<CaptureMode>('system')
   const [permissionStatus, setPermissionStatus] = useState<PermissionStatus>('unknown')

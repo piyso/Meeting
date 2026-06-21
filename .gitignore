@@ -58,6 +58,13 @@ resources/models/*.gguf
 lint_output.txt
 suggestion.md
 suggrestion.md
+codemod*.js
+fix-*.js
+final-fix*.js
+final-fixes*.js
+test-electron.js
+type-check-output.txt
+db.sqlite
 
 # Stale TypeScript declaration files (build artifacts emitted into source)
 src/main/**/*.d.ts

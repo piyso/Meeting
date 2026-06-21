@@ -24,17 +24,21 @@ const isSameDay = (d1: Date | null, d2: Date | null) => {
 
 const CalendarDay = React.memo(
   ({
-    date,
+    dateStr,
+    dayNum,
+    weekday,
     isSelected,
     isToday,
     stats,
     onSelect,
   }: {
-    date: Date
+    dateStr: string
+    dayNum: number
+    weekday: string
     isSelected: boolean
     isToday: boolean
     stats?: { past: number; future: number }
-    onSelect: (d: Date) => void
+    onSelect: (dateStr: string) => void
   }) => {
     const hasPast = stats && stats.past > 0
     const hasFuture = stats && stats.future > 0
@@ -49,7 +53,13 @@ const CalendarDay = React.memo(
 
     return (
       <motion.button
-        onClick={() => onSelect(date)}
+        onClick={() => onSelect(dateStr)}
+        onKeyDown={e => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault()
+            onSelect(dateStr)
+          }
+        }}
         data-selected={isSelected}
         data-today={isToday}
         title={tooltipText}
@@ -75,14 +85,14 @@ const CalendarDay = React.memo(
               : 'text-secondary group-hover:text-primary transition-colors'
           }`}
         >
-          {date.toLocaleDateString(undefined, { weekday: 'short' })}
+          {weekday}
         </span>
         <span
           className={`text-[16px] font-medium leading-none mt-1 relative z-10 ${
             isSelected ? 'text-violet font-semibold' : 'text-primary'
           }`}
         >
-          {date.getDate()}
+          {dayNum}
         </span>
 
         {/* Semantic Meeting Indicators */}
@@ -203,9 +213,10 @@ export const CalendarStrip: React.FC<CalendarStripProps> = ({
     })
   }, [])
 
-  const handleSelectDate = useCallback(
-    (d: Date) => {
-      onSelectDate(d)
+  const handleSelectDateString = useCallback(
+    (ds: string) => {
+      const [y = '0', m = '1', day = '1'] = ds.split('-')
+      onSelectDate(new Date(parseInt(y, 10), parseInt(m, 10) - 1, parseInt(day, 10)))
     },
     [onSelectDate]
   )
@@ -230,7 +241,17 @@ export const CalendarStrip: React.FC<CalendarStripProps> = ({
   }, [days])
 
   return (
-    <div className={`flex flex-col items-center py-2 ${className}`}>
+    <div
+      className={`flex flex-col items-center py-2 outline-none ${className}`}
+      tabIndex={0}
+      onKeyDown={e => {
+        if (e.key === 'ArrowLeft') {
+          handlePrevWeek()
+        } else if (e.key === 'ArrowRight') {
+          handleNextWeek()
+        }
+      }}
+    >
       {/* Month / Year Header */}
       <div className="relative h-8 w-full flex justify-center items-center mb-2">
         <AnimatePresence mode="popLayout">
@@ -258,16 +279,21 @@ export const CalendarStrip: React.FC<CalendarStripProps> = ({
         </motion.button>
 
         <div className="flex items-center gap-1">
-          {days.map(d => (
-            <CalendarDay
-              key={d.toISOString()}
-              date={d}
-              isSelected={isSameDay(d, selectedDate)}
-              isToday={isSameDay(d, today)}
-              stats={meetingDateStats.get(formatDateString(d))}
-              onSelect={handleSelectDate}
-            />
-          ))}
+          {days.map(d => {
+            const dateStr = formatDateString(d)
+            return (
+              <CalendarDay
+                key={dateStr}
+                dateStr={dateStr}
+                dayNum={d.getDate()}
+                weekday={d.toLocaleDateString(undefined, { weekday: 'short' })}
+                isSelected={isSameDay(d, selectedDate)}
+                isToday={isSameDay(d, today)}
+                stats={meetingDateStats.get(dateStr)}
+                onSelect={handleSelectDateString}
+              />
+            )
+          })}
         </div>
 
         <motion.button

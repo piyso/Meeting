@@ -1,5 +1,4 @@
 import Paragraph from '@tiptap/extension-paragraph'
-import { mergeAttributes } from '@tiptap/core'
 
 export const AiVerifiedParagraph = Paragraph.extend({
   addAttributes() {

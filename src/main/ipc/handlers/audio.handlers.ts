@@ -951,7 +951,7 @@ export function registerAudioHandlers(): void {
 
         // Match normal startCapture — prevent sleep & elevate priority
         if (sleepBlockerId === null) {
-          sleepBlockerId = powerSaveBlocker.start('prevent-display-sleep')
+          sleepBlockerId = powerSaveBlocker.start('prevent-app-suspension')
           log.info(`powerSaveBlocker started via fallback (id: ${sleepBlockerId})`)
         }
         try {

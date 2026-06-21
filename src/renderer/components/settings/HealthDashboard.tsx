@@ -1,3 +1,5 @@
+import { useAppStore } from '../../store/appStore'
+import { useNavigationStore } from '../../store/navigationStore'
 import React, { useState, useEffect } from 'react'
 import {
   Activity,
@@ -11,7 +13,6 @@ import {
   Wrench,
 } from 'lucide-react'
 import { Button } from '../ui/Button'
-import { useAppStore } from '../../store/appStore'
 
 interface HealthResult {
   system: string
@@ -52,7 +53,7 @@ export const HealthDashboard: React.FC = () => {
   const [copied, setCopied] = useState(false)
   const [lastChecked, setLastChecked] = useState<Date | null>(null)
   const [fixingSystem, setFixingSystem] = useState<string | null>(null)
-  const navigate = useAppStore(s => s.navigate)
+  const navigate = useNavigationStore(s => s.navigate)
 
   const runHealthCheck = React.useCallback(async () => {
     setLoading(true)

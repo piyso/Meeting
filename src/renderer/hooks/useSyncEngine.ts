@@ -1,18 +1,19 @@
+import { useConnectivityStore } from '../store/connectivityStore'
+
 import { useEffect, useRef } from 'react'
-import { useAppStore } from '../store/appStore'
 
 export function useSyncEngine() {
   // Use individual selectors to avoid re-renders from unrelated store changes
-  const setSyncStatus = useAppStore(s => s.setSyncStatus)
-  const setIsOnline = useAppStore(s => s.setIsOnline)
-  const setLastSyncTimestamp = useAppStore(s => s.setLastSyncTimestamp)
+  const setSyncStatus = useConnectivityStore(s => s.setSyncStatus)
+  const setIsOnline = useConnectivityStore(s => s.setIsOnline)
+  const setLastSyncTimestamp = useConnectivityStore(s => s.setLastSyncTimestamp)
 
   // Use a ref for isOnline to avoid the effect re-firing when it changes
-  const isOnlineRef = useRef(useAppStore.getState().isOnline)
+  const isOnlineRef = useRef(useConnectivityStore.getState().isOnline)
 
   // Keep the ref in sync without triggering effects
   useEffect(() => {
-    const unsub = useAppStore.subscribe(state => {
+    const unsub = useConnectivityStore.subscribe(state => {
       isOnlineRef.current = state.isOnline
     })
     return unsub
@@ -45,7 +46,11 @@ export function useSyncEngine() {
         } else {
           setSyncStatus('idle')
         }
-      } catch {
+      } catch (err) {
+        console.debug(
+          '[useSyncEngine] Sync status check failed:',
+          err instanceof Error ? err.message : String(err)
+        )
         setSyncStatus('idle')
       }
     }, 15_000) // 15s — responsive enough for status indicators without IPC spam

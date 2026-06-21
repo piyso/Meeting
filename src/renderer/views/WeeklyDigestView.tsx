@@ -1,5 +1,8 @@
-import { useEffect, useState, useRef } from 'react'
 import { useAppStore } from '../store/appStore'
+import { useNavigationStore } from '../store/navigationStore'
+import { useState } from 'react'
+import { useQuery, useMutation } from '@tanstack/react-query'
+
 import type { WeeklyDigest } from '../../types/ipc'
 import {
   Calendar,
@@ -39,187 +42,20 @@ const formatRelativeTime = (ts: number) => {
   return `${days}d ago`
 }
 
-/* ── Source Context Popover ── */
-interface SourcePopoverData {
-  meetingTitle: string
-  meetingDate?: number
-  sourceContext?: string
-  meetingId: string
-}
-
-const SourceContextPopover = ({
-  data,
-  anchorRect,
-  onClose,
-  onOpenMeeting,
-}: {
-  data: SourcePopoverData
-  anchorRect: DOMRect
-  onClose: () => void
-  onOpenMeeting: (id: string) => void
-}) => {
-  const popoverRef = useRef<HTMLDivElement>(null)
-
-  useEffect(() => {
-    const handleClickOutside = (e: MouseEvent) => {
-      if (popoverRef.current && !popoverRef.current.contains(e.target as Node)) {
-        onClose()
-      }
-    }
-    const handleEsc = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose()
-    }
-    const handleScroll = () => onClose()
-    document.addEventListener('mousedown', handleClickOutside)
-    document.addEventListener('keydown', handleEsc)
-    document.addEventListener('scroll', handleScroll, true)
-    return () => {
-      document.removeEventListener('mousedown', handleClickOutside)
-      document.removeEventListener('keydown', handleEsc)
-      document.removeEventListener('scroll', handleScroll, true)
-    }
-  }, [onClose])
-
-  // Position popover above or below the anchor depending on available space
-  const spaceAbove = anchorRect.top
-  const spaceBelow = window.innerHeight - anchorRect.bottom
-  const positionAbove = spaceAbove > 200 || spaceAbove > spaceBelow
-  const style: React.CSSProperties = {
-    position: 'fixed',
-    ...(positionAbove
-      ? { bottom: window.innerHeight - anchorRect.top + 8 }
-      : { top: anchorRect.bottom + 8 }),
-    left: Math.max(
-      16,
-      Math.min(anchorRect.left + anchorRect.width / 2 - 160, window.innerWidth - 336)
-    ),
-    zIndex: 999,
-  }
-
-  return (
-    <div ref={popoverRef} className="ui-digest-source-popover" style={style}>
-      <div className="ui-digest-source-popover-header">
-        <span className="ui-digest-source-popover-title">{data.meetingTitle}</span>
-        {data.meetingDate && (
-          <span className="ui-digest-source-popover-date">{formatDate(data.meetingDate)}</span>
-        )}
-      </div>
-      {data.sourceContext && (
-        <blockquote className="ui-digest-source-popover-quote">{data.sourceContext}</blockquote>
-      )}
-      <button
-        className="ui-digest-source-popover-open"
-        onClick={() => {
-          onOpenMeeting(data.meetingId)
-          onClose()
-        }}
-      >
-        Open Full Meeting →
-      </button>
-    </div>
-  )
-}
-
-const StatItem = ({
-  title,
-  value,
-  icon: Icon,
-}: {
-  title: string
-  value: string | number
-  icon: React.ElementType
-}) => (
-  <div className="ui-digest-stat-item">
-    <div className="ui-digest-stat-squircle">
-      <Icon size={20} />
-    </div>
-    <div className="ui-digest-stat-info">
-      <div className="ui-digest-stat-card-title">{title}</div>
-      <div className="ui-digest-stat-card-val">{value}</div>
-    </div>
-  </div>
-)
-
-const TopParticipantItem = ({
-  name,
-  count,
-  isLast,
-  meetingTitles,
-  maxCount,
-}: {
-  name: string
-  count: number
-  isLast: boolean
-  meetingTitles?: string[]
-  maxCount: number
-}) => (
-  <div className={`ui-digest-participant-item${isLast ? ' is-last' : ''}`}>
-    <div className="ui-digest-participant-info">
-      <span className="ui-digest-participant-name">{name}</span>
-      {meetingTitles && meetingTitles.length > 0 && (
-        <span className="ui-digest-participant-meetings">
-          {meetingTitles.slice(0, 2).join(', ')}
-          {meetingTitles.length > 2 ? ` +${meetingTitles.length - 2}` : ''}
-        </span>
-      )}
-    </div>
-    <div className="ui-digest-participant-bar-container">
-      <div className="ui-digest-participant-bar">
-        <div
-          className="ui-digest-participant-bar-fill"
-          style={{ width: `${maxCount > 0 ? (count / maxCount) * 100 : 0}%` }}
-        />
-      </div>
-    </div>
-    <span className="ui-digest-participant-count">{count} mtgs</span>
-  </div>
-)
-
-const TopTopicItem = ({
-  topic,
-  count,
-  meetingTitles,
-  maxCount,
-}: {
-  topic: string
-  count: number
-  meetingTitles?: string[]
-  maxCount: number
-}) => (
-  <div className="ui-digest-topic-item">
-    <div className="ui-digest-topic-item-info">
-      <div className="ui-digest-topic-item-name">{topic}</div>
-      {meetingTitles && meetingTitles.length > 0 && (
-        <div className="ui-digest-topic-item-meetings">
-          {meetingTitles.slice(0, 2).join(', ')}
-          {meetingTitles.length > 2 ? ` +${meetingTitles.length - 2}` : ''}
-        </div>
-      )}
-    </div>
-    <div className="ui-digest-topic-bar-container">
-      <div className="ui-digest-topic-bar">
-        <div
-          className="ui-digest-topic-bar-fill"
-          style={{ width: `${maxCount > 0 ? (count / maxCount) * 100 : 0}%` }}
-        />
-      </div>
-    </div>
-    <span className="ui-digest-topic-count">{count}</span>
-  </div>
-)
+import {
+  SourceContextPopover,
+  type SourcePopoverData,
+} from '../components/digest/SourceContextPopover'
+import { StatItem } from '../components/digest/StatItem'
+import { TopParticipantItem } from '../components/digest/TopParticipantItem'
+import { TopTopicItem } from '../components/digest/TopTopicItem'
 
 export default function WeeklyDigestView() {
-  const navigate = useAppStore(s => s.navigate)
+  const navigate = useNavigationStore(s => s.navigate)
   const currentTier = useAppStore(s => s.currentTier)
   // Only free tier is fully locked — Starter has weeklyDigest: true in TierMappingService
   // Digest uses local Qwen LLM, not cloud AI, so no cloud gate needed
   const isAiLocked = currentTier === 'free'
-  const [digest, setDigest] = useState<WeeklyDigest | null>(null)
-  const [isLoading, setIsLoading] = useState(true)
-  const [isGenerating, setIsGenerating] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-  const [aiReady, setAiReady] = useState<boolean | null>(null)
-  const [aiStatusText, setAiStatusText] = useState<string>('')
   const [activePeriod, setActivePeriod] = useState<'daily' | 'weekly' | 'monthly'>('weekly')
   // Sections default to collapsed — user expands what they need
   const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set(['actions']))
@@ -227,6 +63,71 @@ export default function WeeklyDigestView() {
     data: SourcePopoverData
     rect: DOMRect
   } | null>(null)
+
+  const { data: aiStatusData } = useQuery({
+    queryKey: ['aiStatus'],
+    queryFn: async () => {
+      const res = await window.electronAPI?.intelligence?.getEngineStatus()
+      if (res?.success && res.data) {
+        const modelsLoaded = res.data.models.some(m => m.isLoaded)
+        return {
+          ready: modelsLoaded,
+          text: modelsLoaded ? '' : 'AI engine is loading — generation may take longer',
+        }
+      }
+      return { ready: false, text: 'AI engine unavailable' }
+    },
+    enabled: !isAiLocked,
+    refetchInterval: query => (query.state.data?.ready ? false : 2000),
+  })
+
+  const aiReady = aiStatusData?.ready ?? null
+  const aiStatusText = aiStatusData?.text ?? ''
+
+  const {
+    data: digest = null,
+    isLoading,
+    error: queryError,
+    refetch,
+  } = useQuery<WeeklyDigest, Error>({
+    queryKey: ['weeklyDigest', activePeriod],
+    queryFn: async () => {
+      const res = await window.electronAPI?.digest?.getLatest({ periodType: activePeriod })
+      if (!res?.success) throw new Error(res?.error?.message || 'Failed to fetch digest')
+      return res.data as WeeklyDigest
+    },
+    enabled: !isAiLocked,
+  })
+
+  const {
+    mutateAsync: generateDigest,
+    isPending: isGenerating,
+    error: mutationError,
+  } = useMutation({
+    mutationFn: async () => {
+      const { start, end } = getDateRange(activePeriod)
+      const res = await window.electronAPI?.digest?.generate({
+        startDate: start.getTime(),
+        endDate: end.getTime(),
+        periodType: activePeriod,
+      })
+      if (!res?.success) {
+        const errorMsg = res?.error?.message || 'Failed to generate digest.'
+        const errorCode = res?.error?.code || ''
+        if (errorCode === 'LLM_NOT_LOADED' || errorMsg.toLowerCase().includes('ai engine')) {
+          throw new Error('AI engine is still loading. Please wait a moment and try again.')
+        }
+        throw new Error(errorMsg)
+      }
+      return res.data as WeeklyDigest
+    },
+    onSuccess: () => {
+      refetch()
+      setExpandedSections(new Set(['actions']))
+    },
+  })
+
+  const error = (queryError as Error)?.message || (mutationError as Error)?.message || null
 
   const toggleSection = (section: string) => {
     setExpandedSections(prev => {
@@ -290,82 +191,11 @@ export default function WeeklyDigestView() {
   const periodAdj =
     activePeriod === 'daily' ? 'daily' : activePeriod === 'weekly' ? 'weekly' : 'monthly'
 
-  // Check AI engine readiness on mount — ONLY for paying users
-  useEffect(() => {
-    if (isAiLocked) return // Free users never need AI status
-    async function checkAIStatus() {
-      try {
-        const res = await window.electronAPI?.intelligence?.getEngineStatus()
-        if (res?.success && res.data) {
-          const modelsLoaded = res.data.models.some(m => m.isLoaded)
-          setAiReady(modelsLoaded)
-          if (!modelsLoaded) {
-            setAiStatusText('AI engine is loading — generation may take longer')
-          } else {
-            setAiStatusText('')
-          }
-        } else {
-          setAiReady(false)
-          setAiStatusText('AI engine unavailable')
-        }
-      } catch {
-        setAiReady(false)
-        setAiStatusText('AI engine status unknown')
-      }
-    }
-    checkAIStatus()
-  }, [isAiLocked])
-
-  useEffect(() => {
-    if (isAiLocked) return
-    fetchDigest()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isAiLocked, activePeriod])
-
-  async function fetchDigest() {
-    setIsLoading(true)
-    try {
-      const res = await window.electronAPI?.digest?.getLatest({ periodType: activePeriod })
-      if (res?.success && res.data) {
-        setDigest(res.data)
-      }
-      // Don't auto-generate — just show empty state with Generate button
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Unknown error')
-    } finally {
-      setIsLoading(false)
-    }
-  }
-
   async function handleGenerate() {
-    setIsGenerating(true)
-    setError(null)
     try {
-      const { start, end } = getDateRange(activePeriod)
-
-      const res = await window.electronAPI?.digest?.generate({
-        startDate: start.getTime(),
-        endDate: end.getTime(),
-        periodType: activePeriod,
-      })
-
-      if (res?.success && res.data) {
-        setDigest(res.data)
-        // Reset expand states for fresh data — keep action items expanded
-        setExpandedSections(new Set(['actions']))
-      } else {
-        const errorMsg = res?.error?.message || 'Failed to generate digest.'
-        const errorCode = res?.error?.code || ''
-        if (errorCode === 'LLM_NOT_LOADED' || errorMsg.toLowerCase().includes('ai engine')) {
-          setError('AI engine is still loading. Please wait a moment and try again.')
-        } else {
-          setError(errorMsg)
-        }
-      }
+      await generateDigest()
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Unknown error during generation')
-    } finally {
-      setIsGenerating(false)
+      // Error handled by the mutation or can be caught here
     }
   }
 
@@ -428,8 +258,6 @@ export default function WeeklyDigestView() {
                 className={`ui-digest-period-btn${activePeriod === period ? ' is-active' : ''}`}
                 onClick={() => {
                   setActivePeriod(period)
-                  setDigest(null)
-                  setError(null)
                   setExpandedSections(new Set(['actions']))
                 }}
               >

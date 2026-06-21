@@ -5,10 +5,10 @@ import { Logger } from '../../services/Logger'
 
 const log = Logger.create('IntelligenceHandlers')
 
-// P1-2 FIX: Active AbortController for the in-flight askMeetings request.
-// Allows the renderer to cancel a stuck or unwanted generation mid-stream
-// via the intelligence:cancelAsk IPC channel.
-let activeAskController: AbortController | null = null
+// P1-2 FIX: Per-sender AbortController map to prevent cross-window interference.
+// If two windows (main + widget) both call askMeetings, aborting one
+// should not affect the other.
+const activeAskControllers = new Map<number, AbortController>()
 
 export function registerIntelligenceHandlers(): void {
   // intelligence:getHardwareTier — Detect hardware capabilities
@@ -251,6 +251,8 @@ export function registerIntelligenceHandlers(): void {
   // Free/fallback: Local Qwen 2.5 3B via ModelManager
   // Uses event.sender.send for real-time token streaming (ChatGPT-like typewriter)
   ipcMain.handle('intelligence:askMeetings', async (event, params) => {
+    // P1-2 FIX: Per-sender AbortController — declared outside try for finally access
+    const senderId = event.sender.id
     try {
       if (!params?.question || !params?.context) {
         return {
@@ -263,13 +265,15 @@ export function registerIntelligenceHandlers(): void {
         }
       }
 
-      // P1-2 FIX: Create a new AbortController per request.
-      // If a previous request is still running, abort it first.
-      if (activeAskController) {
-        activeAskController.abort()
+      // P1-2 FIX: Create a new AbortController per request, keyed by sender.
+      // If a previous request from the same sender is still running, abort it first.
+      const prev = activeAskControllers.get(senderId)
+      if (prev) {
+        prev.abort()
       }
-      activeAskController = new AbortController()
-      const { signal } = activeAskController
+      const controller = new AbortController()
+      activeAskControllers.set(senderId, controller)
+      const { signal } = controller
 
       // ── Check cloud availability + quota ──
       const { getCloudAccessManager } = await import('../../services/CloudAccessManager')
@@ -426,7 +430,7 @@ ANSWER:`
         },
       }
     } finally {
-      activeAskController = null
+      activeAskControllers.delete(senderId)
     }
   })
 
@@ -434,10 +438,11 @@ ANSWER:`
   // Called by the renderer when the user clicks Cancel or navigates away.
   // Triggers the AbortController which interrupts ModelManager.generate()
   // via the signal check in onTextChunk, freeing GPU resources immediately.
-  ipcMain.handle('intelligence:cancelAsk', async () => {
-    if (activeAskController) {
-      activeAskController.abort()
-      activeAskController = null
+  ipcMain.handle('intelligence:cancelAsk', async (event) => {
+    const controller = activeAskControllers.get(event.sender.id)
+    if (controller) {
+      controller.abort()
+      activeAskControllers.delete(event.sender.id)
       log.debug('Active askMeetings generation cancelled via IPC')
     }
     return { success: true, data: undefined }

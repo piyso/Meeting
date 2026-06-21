@@ -83,6 +83,7 @@ export interface UpdateMeetingParams {
 
 export interface DeleteMeetingParams {
   meetingId: string
+  purgeAfterSec?: number
 }
 
 export interface ExportMeetingParams {
@@ -691,7 +692,10 @@ export interface ElectronAPI {
     get: (params: GetMeetingParams) => Promise<IPCResponse<Meeting>>
     list: (params: ListMeetingsParams) => Promise<IPCResponse<PaginatedResponse<Meeting>>>
     update: (params: UpdateMeetingParams) => Promise<IPCResponse<Meeting>>
-    delete: (params: DeleteMeetingParams) => Promise<IPCResponse<void>>
+    delete: (
+      params: DeleteMeetingParams
+    ) => Promise<IPCResponse<{ deleted: boolean; meetingId: string }>>
+    restore: (params: { meetingId: string }) => Promise<IPCResponse<Meeting>>
     export: (params: ExportMeetingParams) => Promise<IPCResponse<ExportMeetingResponse>>
     onGlobalShortcutStart?: (callback: () => void) => () => void
   }
@@ -853,6 +857,7 @@ export interface ElectronAPI {
   // Shell operations
   shell: {
     openExternal: (url: string) => Promise<IPCResponse<void>>
+    showItemInFolder: (path: string) => Promise<IPCResponse<void>>
   }
 
   // Intelligence operations
@@ -949,6 +954,7 @@ export interface ElectronAPI {
   // Window operations
   window: {
     restoreMain: () => Promise<IPCResponse<void>>
+    resize: (width: number, height: number) => Promise<IPCResponse<void>>
   }
 
   // Widget operations
@@ -1146,6 +1152,7 @@ export interface ElectronAPI {
     windowMaximized: (callback: () => void) => () => void
     windowUnmaximized: (callback: () => void) => () => void
     navigateOnboarding: (callback: () => void) => () => void
+    powerStateChanged: (callback: (state: { isOnBattery: boolean }) => void) => () => void
   }
 
   // IPC Renderer (for audio capture module)

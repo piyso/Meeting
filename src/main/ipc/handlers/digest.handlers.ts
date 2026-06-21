@@ -17,6 +17,31 @@ export function registerDigestHandlers(): void {
 
       // ── Single meeting summary ──
       if (params.meetingId) {
+        // Check cache first to avoid re-running LLM
+        const cachedDigest = db
+          .prepare(
+            "SELECT summary, highlights FROM digests WHERE id = ? AND period_type = 'single'"
+          )
+          .get(`single_${params.meetingId}`) as { summary: string; highlights: string } | undefined
+
+        if (cachedDigest) {
+          try {
+            const parsedHighlights = JSON.parse(cachedDigest.highlights || '{}')
+            return {
+              success: true,
+              data: {
+                summary: cachedDigest.summary,
+                actionItems: parsedHighlights.actionItems || '',
+                decisions: parsedHighlights.decisions || '',
+                generatedAt: Date.now(),
+                cached: true,
+              },
+            }
+          } catch (e) {
+            log.warn('Failed to parse cached highlights, regenerating...', e)
+          }
+        }
+
         const transcripts = db
           .prepare(
             'SELECT text, speaker_name AS speaker FROM transcripts WHERE meeting_id = ? ORDER BY start_time ASC'
@@ -63,6 +88,25 @@ export function registerDigestHandlers(): void {
             generateText(actionsPrompt, 300),
             generateText(decisionsPrompt, 300),
           ])
+        }
+
+        // Save to cache
+        try {
+          db.prepare(
+            `INSERT OR REPLACE INTO digests (id, user_id, period_type, start_date, end_date, summary, highlights, meeting_count)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
+          ).run(
+            `single_${params.meetingId}`,
+            'local_user',
+            'single',
+            Math.floor(Date.now() / 1000), // Dummy start/end date for single meeting cache
+            Math.floor(Date.now() / 1000),
+            summary,
+            JSON.stringify({ actionItems: actions, decisions }),
+            1
+          )
+        } catch (dbErr) {
+          log.error('Failed to cache single meeting digest', dbErr)
         }
 
         return {

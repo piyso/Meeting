@@ -23,7 +23,8 @@ CREATE TABLE IF NOT EXISTS meetings (
   namespace TEXT DEFAULT 'default',
   created_at INTEGER DEFAULT (strftime('%s', 'now')),
   synced_at INTEGER DEFAULT 0,
-  performance_tier TEXT
+  performance_tier TEXT,
+  deleted_at INTEGER
 );
 
 -- Transcripts table
@@ -74,6 +75,8 @@ CREATE TABLE IF NOT EXISTS entities (
   start_offset INTEGER,
   end_offset INTEGER,
   transcript_id TEXT,
+  segment_index INTEGER DEFAULT 0,
+  metadata TEXT DEFAULT '{}',
   created_at INTEGER DEFAULT (strftime('%s', 'now')),
   FOREIGN KEY (meeting_id) REFERENCES meetings(id) ON DELETE CASCADE,
   FOREIGN KEY (transcript_id) REFERENCES transcripts(id) ON DELETE CASCADE

@@ -33,7 +33,18 @@ const COLOR_MAP = {
 }
 
 export const TranscriptSegment = memo<TranscriptSegmentProps>(
-  ({ id, speakerName, speakerColor, timestamp, text, isPinned, isEdited, isLive, isHighlighted, onPin }) => {
+  ({
+    id,
+    speakerName,
+    speakerColor,
+    timestamp,
+    text,
+    isPinned,
+    isEdited,
+    isLive,
+    isHighlighted,
+    onPin,
+  }) => {
     const colorHex = COLOR_MAP[speakerColor]
 
     // Mock entity replacement for Phase 1 visual shell
@@ -47,32 +58,32 @@ export const TranscriptSegment = memo<TranscriptSegmentProps>(
 
     return (
       <div
-        className={`flex gap-[var(--space-12)] py-[var(--space-8)] min-h-[36px] group transition-all duration-300 px-2 -mx-2 rounded ${
+        className={`flex gap-3 py-2.5 min-h-[44px] group transition-all duration-300 px-3 -mx-3 rounded-[16px] ${
           isHighlighted
-            ? 'bg-[var(--color-bg-panel)] shadow-[0_0_15px_rgba(255,255,255,0.05)] border border-[rgba(255,255,255,0.1)] scale-[1.01] z-10 relative'
+            ? 'surface-glass-premium bg-[rgba(255,255,255,0.08)] shadow-[0_8px_30px_rgba(0,0,0,0.12),inset_0_1px_1px_rgba(255,255,255,0.1)] border border-[rgba(255,255,255,0.1)] scale-[1.01] z-10 relative'
             : isPinned
-              ? 'bg-[var(--color-bg-panel)] border border-[var(--color-amber)]'
-              : 'hover:bg-[rgba(255,255,255,0.02)] border border-transparent'
+              ? 'bg-[rgba(255,255,255,0.04)] border border-[var(--color-amber)] shadow-[0_4px_20px_rgba(251,191,36,0.1)]'
+              : 'hover:bg-[rgba(255,255,255,0.03)] border border-transparent'
         }`}
       >
-        <div className="flex items-start gap-[var(--space-8)] w-[min(140px,25%)] shrink-0 mt-[2px]">
+        <div className="flex items-start gap-3 w-[min(140px,25%)] shrink-0 mt-[2px]">
           <div
-            className="w-2 h-2 rounded-full mt-[6px] shrink-0"
-            style={{ backgroundColor: colorHex }}
+            className="w-2 h-2 rounded-full mt-[6px] shrink-0 shadow-[0_0_8px_currentColor]"
+            style={{ backgroundColor: colorHex, color: colorHex }}
           />
-          <div className="flex flex-col">
+          <div className="flex flex-col gap-0.5">
             <span
-              className="text-[var(--text-xs)] font-medium leading-tight"
+              className="text-[var(--text-sm)] font-medium leading-none tracking-tight"
               style={{ color: colorHex }}
             >
               {speakerName}
             </span>
-            <span className="font-mono text-[10px] text-[var(--color-text-tertiary)] flex items-center gap-1">
+            <span className="font-mono text-[11px] text-[var(--color-text-tertiary)] tracking-wide flex items-center gap-1">
               {timestamp}
               {isEdited && (
                 <Badge
                   variant="outline"
-                  className="scale-[0.8] origin-left border-none bg-[var(--color-bg-glass)] px-1"
+                  className="scale-[0.8] origin-left border-none bg-[var(--color-bg-glass)] px-1 text-[var(--color-text-tertiary)]"
                 >
                   Edited
                 </Badge>
@@ -81,7 +92,7 @@ export const TranscriptSegment = memo<TranscriptSegmentProps>(
           </div>
         </div>
 
-        <div className="flex-1 text-[var(--text-base)] text-[var(--color-text-primary)] leading-relaxed">
+        <div className="flex-1 text-[var(--text-base)] text-[var(--color-text-primary)] leading-relaxed tracking-tight">
           {renderText()}
         </div>
 

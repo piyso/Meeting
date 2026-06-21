@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import './ui.css'
 
 interface SplitPaneProps {
@@ -35,60 +35,54 @@ export const SplitPane: React.FC<SplitPaneProps> = ({
     }
   }, [])
 
-  const handlePointerDown = (e: React.PointerEvent) => {
+  const handlePointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
     e.preventDefault()
+    e.currentTarget.setPointerCapture(e.pointerId)
     dragState.current.isDragging = true
     document.body.style.cursor = 'row-resize'
     document.body.style.userSelect = 'none'
   }
 
-  const handlePointerUp = useCallback(() => {
+  const handlePointerUp = (e: React.PointerEvent<HTMLDivElement>) => {
     if (dragState.current.isDragging) {
       dragState.current.isDragging = false
       document.body.style.cursor = ''
       document.body.style.userSelect = ''
+      
+      if (e.currentTarget.hasPointerCapture(e.pointerId)) {
+        e.currentTarget.releasePointerCapture(e.pointerId)
+      }
+
       // Sync React state and save
       const finalRatio = dragState.current.currentRatio
       setRatio(finalRatio)
       localStorage.setItem('bluearkive-split-ratio', finalRatio.toString())
     }
-  }, [])
+  }
 
-  const handlePointerMove = useCallback(
-    (e: PointerEvent) => {
-      if (!dragState.current.isDragging || !containerRef.current) return
+  const handlePointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (!dragState.current.isDragging || !containerRef.current) return
 
-      const rect = containerRef.current.getBoundingClientRect()
-      let newRatio = (e.clientY - rect.top) / rect.height
+    const rect = containerRef.current.getBoundingClientRect()
+    let newRatio = (e.clientY - rect.top) / rect.height
 
-      const topPx = newRatio * rect.height
-      const bottomPx = (1 - newRatio) * rect.height
+    const topPx = newRatio * rect.height
+    const bottomPx = (1 - newRatio) * rect.height
 
-      if (topPx < minTopHeight) {
-        newRatio = minTopHeight / rect.height
-      } else if (bottomPx < minBottomHeight) {
-        newRatio = 1 - minBottomHeight / rect.height
-      }
-
-      dragState.current.currentRatio = newRatio
-
-      // Direct DOM mutation for 60fps
-      if (topRef.current && bottomRef.current) {
-        topRef.current.style.height = `${newRatio * 100}%`
-        bottomRef.current.style.height = `${(1 - newRatio) * 100}%`
-      }
-    },
-    [minTopHeight, minBottomHeight]
-  )
-
-  useEffect(() => {
-    window.addEventListener('pointerup', handlePointerUp)
-    window.addEventListener('pointermove', handlePointerMove)
-    return () => {
-      window.removeEventListener('pointerup', handlePointerUp)
-      window.removeEventListener('pointermove', handlePointerMove)
+    if (topPx < minTopHeight) {
+      newRatio = minTopHeight / rect.height
+    } else if (bottomPx < minBottomHeight) {
+      newRatio = 1 - minBottomHeight / rect.height
     }
-  }, [handlePointerUp, handlePointerMove])
+
+    dragState.current.currentRatio = newRatio
+
+    // Direct DOM mutation for 60fps
+    if (topRef.current && bottomRef.current) {
+      topRef.current.style.height = `${newRatio * 100}%`
+      bottomRef.current.style.height = `${(1 - newRatio) * 100}%`
+    }
+  }
 
   // Flex basis for mathematical smoothness
   const topStyle = { flexBasis: `calc(${ratio * 100}% - 4px)` } // Account for half the 8px divider
@@ -100,7 +94,13 @@ export const SplitPane: React.FC<SplitPaneProps> = ({
         {top}
       </div>
 
-      <div className="ui-split-divider" onPointerDown={handlePointerDown}>
+      <div 
+        className="ui-split-divider" 
+        onPointerDown={handlePointerDown}
+        onPointerMove={handlePointerMove}
+        onPointerUp={handlePointerUp}
+        onPointerCancel={handlePointerUp}
+      >
         <div className="ui-split-handle" />
       </div>
 

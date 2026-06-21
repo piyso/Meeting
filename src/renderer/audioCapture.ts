@@ -24,6 +24,12 @@ class AudioCaptureManager {
   private sourceNode: MediaStreamAudioSourceNode | null = null
   private isCapturing: boolean = false
 
+  // 3s ring-buffer coalescing properties
+  private chunkBuffer: Float32Array[] = []
+  private chunkBufferLength: number = 0
+  private chunkBufferTimestamp: number = 0
+  private readonly COALESCE_SECONDS: number = 3
+
   /**
    * Start audio capture from system audio
    *
@@ -301,6 +307,27 @@ class AudioCaptureManager {
 
       this.isCapturing = true
 
+      // Handle track ended (e.g. bluetooth disconnect)
+      stream.getTracks().forEach(track => {
+        track.onended = () => {
+          log.warn(`Audio track ended unexpectedly: ${track.kind} - ${track.label}`)
+          if (this.isCapturing) {
+            log.info('Attempting to reconnect audio capture...')
+            if (window.electronAPI?.ipcRenderer) {
+              window.electronAPI.ipcRenderer.send('audio:fallbackUsed', {
+                type: 'microphone',
+                reason: 'track_ended',
+              })
+            }
+            this.cleanup().then(() => {
+              this.startMicrophoneCapture(sampleRate, channelCount).catch(err => {
+                log.error('Failed to reconnect via microphone:', err)
+              })
+            })
+          }
+        }
+      })
+
       log.info('Audio pipeline setup complete')
     } catch (error) {
       this.cleanup()
@@ -319,6 +346,25 @@ class AudioCaptureManager {
     timestamp: number
     sampleRate: number
   }): void {
+    if (this.chunkBufferLength === 0) {
+      this.chunkBufferTimestamp = data.timestamp
+    }
+
+    this.chunkBuffer.push(data.data)
+    this.chunkBufferLength += data.data.length
+
+    // Coalesce up to 3 seconds to reduce main-thread CPU spikes from IPC traffic
+    if (this.chunkBufferLength >= data.sampleRate * this.COALESCE_SECONDS) {
+      this.flushAudioBuffer(data.sampleRate)
+    }
+  }
+
+  /**
+   * Flush accumulated audio buffer to main process
+   */
+  private flushAudioBuffer(sampleRate?: number): void {
+    if (this.chunkBufferLength === 0) return
+
     // OPT-15: Send raw Float32Array via ipcRenderer.send — Electron's structured clone
     // handles TypedArrays natively without copying. The original code used Array.from()
     // which converted Float32Array → regular number[], doubling memory and creating
@@ -326,13 +372,23 @@ class AudioCaptureManager {
     //
     // NOTE: ipcRenderer.postMessage's transfer only supports MessagePort[], NOT
     // ArrayBuffer[], so zero-copy transfer is not available in Electron IPC.
+    const coalesced = new Float32Array(this.chunkBufferLength)
+    let offset = 0
+    for (const chunk of this.chunkBuffer) {
+      coalesced.set(chunk, offset)
+      offset += chunk.length
+    }
+
     if (window.electronAPI?.ipcRenderer) {
       window.electronAPI?.ipcRenderer?.send('audio:chunk', {
-        data: data.data,
-        timestamp: data.timestamp,
-        sampleRate: data.sampleRate,
+        data: coalesced,
+        timestamp: this.chunkBufferTimestamp,
+        sampleRate: sampleRate ?? 16000,
       })
     }
+
+    this.chunkBuffer = []
+    this.chunkBufferLength = 0
   }
 
   /**
@@ -352,6 +408,9 @@ class AudioCaptureManager {
    * Clean up audio resources
    */
   private async cleanup(): Promise<void> {
+    // Flush any remaining audio in buffer before stopping
+    this.flushAudioBuffer()
+
     // Stop media stream tracks
     if (this.mediaStream) {
       this.mediaStream.getTracks().forEach(track => track.stop())

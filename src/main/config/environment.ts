@@ -83,15 +83,15 @@ export type AppConfig = typeof config
  */
 export const FEATURE_FLAG_DEFAULTS: Record<string, boolean> = {
   /** Enable Knowledge Graph view */
-  knowledge_graph: true,
+  knowledge_graph: false,
   /** Enable Weekly Digest generation */
-  weekly_digest: true,
+  weekly_digest: false,
   /** Enable Entity Extraction sidebar */
-  entity_extraction: true,
+  entity_extraction: false,
   /** Enable Silent Prompter during meetings */
-  silent_prompter: true,
+  silent_prompter: false,
   /** Enable Semantic Search in Command Palette */
-  semantic_search: true,
+  semantic_search: false,
   /**
    * Enable local PHI auto-detection and masking before upload.
    * NOTE: PiyAPI performs server-side PHI detection automatically on store_memory
@@ -106,7 +106,7 @@ export const FEATURE_FLAG_DEFAULTS: Record<string, boolean> = {
   /** Enable Action Item extraction from transcripts */
   action_items: true,
   /** Enable Sentiment Analysis on transcript segments */
-  sentiment_analysis: true,
+  sentiment_analysis: false,
   /** Enable Calendar Integration (Apple ICS / Google Calendar) */
   calendar_integration: false,
   /** Enable Webhook dispatching for external integrations */

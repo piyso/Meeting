@@ -1,3 +1,6 @@
+import { useAppStore } from '../../store/appStore'
+import { useNavigationStore } from '../../store/navigationStore'
+
 import React, { useState, useEffect, useCallback } from 'react'
 import {
   Mic,
@@ -19,7 +22,6 @@ import { Select } from '../ui/Select'
 import { Toggle } from '../ui/Toggle'
 import { Badge } from '../ui/Badge'
 import { Button } from '../ui/Button'
-import { useAppStore } from '../../store/appStore'
 
 import { DeviceManagement } from './DeviceManagement'
 import { AIUsageMeter } from './AIUsageMeter'
@@ -240,7 +242,7 @@ export const SettingsView: React.FC = () => {
     try {
       await window.electronAPI?.auth?.logout()
       setUserInfo(null)
-      useAppStore.getState().navigate('onboarding')
+      useNavigationStore.getState().navigate('onboarding')
     } catch (err) {
       log.error('Logout failed:', err)
     }
@@ -859,7 +861,7 @@ export const SettingsView: React.FC = () => {
                   variant="primary"
                   size="sm"
                   onClick={() => {
-                    const { navigate } = useAppStore.getState()
+                    const navigate = useNavigationStore.getState().navigate
                     navigate('onboarding')
                   }}
                 >

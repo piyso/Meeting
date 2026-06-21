@@ -1,6 +1,6 @@
+import { useNavigationStore } from '../../store/navigationStore'
 import React, { useState, useEffect, useCallback } from 'react'
 import { AlertTriangle, X, ChevronRight } from 'lucide-react'
-import { useAppStore } from '../../store/appStore'
 
 interface StatusBannerProps {
   onViewDetails?: () => void
@@ -17,7 +17,7 @@ export const StatusBanner: React.FC<StatusBannerProps> = ({
   })
   const [dismissed, setDismissed] = useState(false)
   const [visible, setVisible] = useState(false)
-  const navigate = useAppStore(s => s.navigate)
+  const navigate = useNavigationStore(s => s.navigate)
 
   const runCheck = useCallback(async () => {
     try {

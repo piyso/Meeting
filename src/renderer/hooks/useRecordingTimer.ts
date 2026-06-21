@@ -1,5 +1,5 @@
+import { useRecordingStore } from '../store/recordingStore'
 import { useState, useEffect } from 'react'
-import { useAppStore } from '../store/appStore'
 
 /**
  * Shared recording timer hook — eliminates duplicate timer logic
@@ -10,10 +10,10 @@ import { useAppStore } from '../store/appStore'
  * - `elapsedStr`: formatted string like "00:05:32"
  */
 export function useRecordingTimer() {
-  const recordingState = useAppStore(s => s.recordingState)
-  const recordingStartTime = useAppStore(s => s.recordingStartTime)
-  const recordingPausedAt = useAppStore(s => s.recordingPausedAt)
-  const recordingTotalPausedMs = useAppStore(s => s.recordingTotalPausedMs)
+  const recordingState = useRecordingStore(s => s.recordingState)
+  const recordingStartTime = useRecordingStore(s => s.recordingStartTime)
+  const recordingPausedAt = useRecordingStore(s => s.recordingPausedAt)
+  const recordingTotalPausedMs = useRecordingStore(s => s.recordingTotalPausedMs)
 
   const [elapsed, setElapsed] = useState(0)
 

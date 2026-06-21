@@ -1,6 +1,6 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import { modKey } from '../../utils/platformShortcut'
-import { motion, AnimatePresence } from 'framer-motion'
+import { motion, AnimatePresence, MotionValue } from 'framer-motion'
 import {
   Square,
   Maximize2,
@@ -21,60 +21,17 @@ import {
   StickyNote,
   Palette,
 } from 'lucide-react'
-
-type ThemeName = 'monochrome' | 'ocean' | 'neon' | 'emerald'
-
-const THEMES = {
-  monochrome: {
-    aurora:
-      'radial-gradient(circle at 20% 20%, rgba(255, 255, 255, 0.05) 0%, transparent 55%), radial-gradient(circle at 80% 80%, rgba(255, 255, 255, 0.03) 0%, transparent 55%), radial-gradient(circle at 50% 50%, rgba(255, 255, 255, 0.02) 0%, transparent 65%)',
-    viz: 'rgba(255,255,255,0.95)',
-    vizShadow: '0 0 10px rgba(255,255,255,0.5)',
-    chipBg: 'bg-white/[0.04]',
-    chipBorder: 'border-white/[0.08]',
-    chipIcon: 'text-white/50',
-    chipText: 'text-white/80',
-    pickerBg: 'bg-white',
-  },
-  ocean: {
-    aurora:
-      'radial-gradient(circle at 20% 20%, rgba(59, 130, 246, 0.18) 0%, transparent 55%), radial-gradient(circle at 80% 80%, rgba(56, 189, 248, 0.15) 0%, transparent 55%), radial-gradient(circle at 50% 50%, rgba(96, 165, 250, 0.12) 0%, transparent 65%)',
-    viz: '#38bdf8',
-    vizShadow: '0 0 10px rgba(56, 189, 248, 0.6)',
-    chipBg: 'bg-blue-500/10',
-    chipBorder: 'border-blue-500/20',
-    chipIcon: 'text-blue-400',
-    chipText: 'text-blue-100',
-    pickerBg: 'bg-sky-400',
-  },
-  neon: {
-    aurora:
-      'radial-gradient(circle at 20% 20%, rgba(167, 139, 250, 0.15) 0%, transparent 50%), radial-gradient(circle at 80% 80%, rgba(244, 63, 94, 0.12) 0%, transparent 50%), radial-gradient(circle at 50% 50%, rgba(56, 189, 248, 0.08) 0%, transparent 60%)',
-    viz: '#a78bfa',
-    vizShadow: '0 0 10px rgba(167, 139, 250, 0.6)',
-    chipBg: 'bg-fuchsia-500/10',
-    chipBorder: 'border-fuchsia-500/20',
-    chipIcon: 'text-fuchsia-400',
-    chipText: 'text-fuchsia-100',
-    pickerBg: 'bg-fuchsia-400',
-  },
-  emerald: {
-    aurora:
-      'radial-gradient(circle at 20% 20%, rgba(16, 185, 129, 0.15) 0%, transparent 50%), radial-gradient(circle at 80% 80%, rgba(52, 211, 153, 0.12) 0%, transparent 50%), radial-gradient(circle at 50% 50%, rgba(110, 231, 183, 0.08) 0%, transparent 60%)',
-    viz: '#34d399',
-    vizShadow: '0 0 10px rgba(52, 211, 153, 0.6)',
-    chipBg: 'bg-emerald-500/10',
-    chipBorder: 'border-emerald-500/20',
-    chipIcon: 'text-emerald-400',
-    chipText: 'text-emerald-100',
-    pickerBg: 'bg-emerald-400',
-  },
-}
+import { ThemeName, THEMES } from './mini-widget/Theme'
+import { DockButton } from './mini-widget/DockButton'
+import { Chip } from './mini-widget/Chip'
+import { RecordingPulse } from './mini-widget/RecordingPulse'
+import { WidgetTimer } from './mini-widget/WidgetTimer'
 
 interface MiniWidgetProps {
   isRecording: boolean
   isPaused?: boolean
-  elapsedTime: string
+  recordingStartTime?: number | null
+  recordingTotalPausedMs?: number
   lastTranscriptLine: string
   audioMode?: 'system' | 'microphone' | 'none'
   syncStatus?: 'idle' | 'syncing' | 'error'
@@ -87,15 +44,19 @@ interface MiniWidgetProps {
   onPauseToggle?: () => void
   onQuickNote: (text: string) => void
   onStartCapture?: () => void
+  elapsedTime?: string
+  audioRms?: MotionValue<number>
 }
 
 export const MiniWidget: React.FC<MiniWidgetProps> = ({
   isRecording,
   isPaused,
-  elapsedTime,
+  recordingStartTime,
+  recordingTotalPausedMs,
   lastTranscriptLine,
   audioMode = 'none',
   syncStatus = 'idle',
+  elapsedTime,
   liveCoachTip,
   entityCount = 0,
   noteCount = 0,
@@ -105,12 +66,29 @@ export const MiniWidget: React.FC<MiniWidgetProps> = ({
   onPauseToggle,
   onQuickNote,
   onStartCapture,
+  audioRms,
 }) => {
   const [isNoteExpanded, setIsNoteExpanded] = useState(false)
   const [noteText, setNoteText] = useState('')
   const [isHovered, setIsHovered] = useState(false)
-  const [theme, setTheme] = useState<ThemeName>('monochrome')
+  const [theme, setTheme] = useState<ThemeName>(() => {
+    try {
+      const saved = localStorage.getItem('widgetTheme')
+      if (saved && saved in THEMES) return saved as ThemeName
+    } catch {
+      // localStorage unavailable
+    }
+    return 'monochrome'
+  })
   const [showThemePicker, setShowThemePicker] = useState(false)
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('widgetTheme', theme)
+    } catch {
+      // localStorage unavailable
+    }
+  }, [theme])
 
   const AudioIcon = audioMode === 'system' ? Monitor : audioMode === 'microphone' ? Mic : MicOff
   const SyncIcon = syncStatus === 'syncing' ? RefreshCw : syncStatus === 'error' ? CloudOff : Cloud
@@ -127,51 +105,45 @@ export const MiniWidget: React.FC<MiniWidgetProps> = ({
   }
 
   // Ultra-fluid Apple-esque physics for layout transitions
-  const spring = { type: 'spring' as const, stiffness: 350, damping: 32, mass: 1.1 }
+  const spring = { type: 'spring' as const, stiffness: 400, damping: 30, mass: 1 }
   const isActive = isRecording || isPaused
 
-  // ── Subtle Recording Pulse (replaces distracting 5-bar visualizer) ──
-  const RecordingPulse = () => {
-    return (
-      <div className="flex items-center justify-center w-3 h-3 ml-1">
-        <motion.div
-          className="w-2 h-2 rounded-full"
-          style={{
-            background: isPaused ? 'var(--color-amber)' : THEMES[theme].viz,
-            boxShadow: !isPaused ? THEMES[theme].vizShadow : 'none',
-          }}
-          animate={{
-            scale: isPaused ? 1 : [1, 1.35, 1],
-            opacity: isPaused ? 0.6 : [0.6, 1, 0.6],
-          }}
-          transition={{
-            duration: 3, // Slow, calm 3-second breathing cycle
-            repeat: Infinity,
-            ease: 'easeInOut',
-          }}
-        />
-      </div>
-    )
+  let widgetState: 'orb' | 'pill' | 'panel' = 'pill'
+  if (isNoteExpanded || liveCoachTip || lastTranscriptLine) {
+    widgetState = 'panel'
+  } else if (!isHovered && isActive) {
+    // If active and not hovered, shrink to a compact orb to save space
+    widgetState = 'orb'
   }
+
+  // Predefined widths for the 3 morph states
+  const widthClass =
+    widgetState === 'orb'
+      ? 'w-max min-w-[80px]'
+      : widgetState === 'pill'
+        ? 'w-max min-w-[260px]'
+        : 'w-[360px]'
 
   return (
     <motion.div
       layout
+      initial={{ opacity: 0, scale: 0.9, y: 20 }}
+      animate={{ opacity: 1, scale: 1, y: 0 }}
       transition={spring}
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
       className={`
-        relative ${isNoteExpanded || liveCoachTip || lastTranscriptLine ? 'w-[360px]' : 'w-max'} rounded-[32px]
-        surface-glass-premium p-[4px] ml-auto
-        flex flex-col widget-draggable overflow-hidden cursor-default
-        ${isRecording && !isPaused ? 'widget-glow-border' : ''}
+        relative ${widthClass} rounded-[32px]
+        widget-surface-premium p-[4px] ml-auto
+        flex flex-col widget-draggable overflow-hidden cursor-default antialiased
+        ${isRecording && !isPaused ? 'widget-glow-border ring-1 ring-white/10' : 'ring-1 ring-white/5'}
       `}
       style={{
         boxShadow:
           isRecording && !isPaused
-            ? '0 24px 80px -16px rgba(0,0,0,0.6), 0 0 60px -20px rgba(255,255,255,0.15), inset 0 1px 1px rgba(255,255,255,0.15)'
-            : '0 24px 80px -16px rgba(0,0,0,0.6), inset 0 1px 1px rgba(255,255,255,0.12)',
+            ? '0 16px 32px -8px rgba(0,0,0,0.6), 0 0 20px -5px rgba(255,255,255,0.15), inset 0 1px 1px rgba(255,255,255,0.15)'
+            : '0 16px 32px -8px rgba(0,0,0,0.6), inset 0 1px 1px rgba(255,255,255,0.12)',
       }}
-      onMouseEnter={() => setIsHovered(true)}
-      onMouseLeave={() => setIsHovered(false)}
     >
       {/* Noise Texture */}
       <div className="absolute inset-0 rounded-[inherit] pointer-events-none with-noise" />
@@ -195,7 +167,7 @@ export const MiniWidget: React.FC<MiniWidgetProps> = ({
           {/* Left: Visualizer + Timer */}
           <div className="flex items-center gap-3">
             {isActive ? (
-              <RecordingPulse />
+              <RecordingPulse isPaused={!!isPaused} theme={theme} audioRms={audioRms} />
             ) : (
               <div className="w-2 h-2 rounded-full bg-white/40 shadow-[0_0_10px_rgba(255,255,255,0.2)] ml-1" />
             )}
@@ -208,99 +180,122 @@ export const MiniWidget: React.FC<MiniWidgetProps> = ({
                 textShadow: isRecording && !isPaused ? 'none' : '0 1px 3px rgba(0,0,0,0.8)',
               }}
             >
-              {isPaused ? 'PAUSED' : isActive ? elapsedTime : 'SOVEREIGN'}
+              {isPaused ? (
+                'PAUSED'
+              ) : isActive ? (
+                elapsedTime ? (
+                  elapsedTime
+                ) : (
+                  <WidgetTimer
+                    recordingStartTime={recordingStartTime}
+                    recordingTotalPausedMs={recordingTotalPausedMs}
+                  />
+                )
+              ) : (
+                'SOVEREIGN'
+              )}
             </span>
           </div>
 
           {/* Right: Floating Control Dock */}
-          <div className="flex items-center gap-[3px] bg-black/50 backdrop-blur-xl rounded-full p-[3px] border border-white/[0.08] shadow-[inset_0_1px_2px_rgba(0,0,0,0.4)]">
-            {isActive ? (
-              <>
-                <DockButton
-                  icon={<PenLine size={12} strokeWidth={2.5} />}
-                  active={isNoteExpanded}
-                  onClick={() => setIsNoteExpanded(!isNoteExpanded)}
-                  title="Quick Note"
-                />
-                <DockButton
-                  icon={<BookmarkPlus size={12} strokeWidth={2.5} />}
-                  onClick={onBookmark}
-                  title={`Bookmark (${modKey}+Shift+B)`}
-                  hoverColor="violet"
-                />
-                <DockButton
-                  icon={
-                    isPaused ? (
-                      <Play size={11} fill="currentColor" />
-                    ) : (
-                      <Pause size={11} fill="currentColor" />
-                    )
-                  }
-                  onClick={() => onPauseToggle?.()}
-                  title={isPaused ? `Resume (${modKey}+Shift+P)` : `Pause (${modKey}+Shift+P)`}
-                />
-                <DockButton
-                  icon={<Square size={10} fill="currentColor" />}
-                  onClick={onStop}
-                  title="Stop Archiving"
-                  hoverColor="rose"
-                />
-                <div className="w-[1px] h-3.5 bg-white/[0.12] mx-[2px] rounded-full" />
-                <DockButton
-                  icon={<Maximize2 size={12} strokeWidth={2.5} />}
-                  onClick={onRestore}
-                  title="Open Sovereign App"
-                  hoverColor="emerald"
-                />
-                <div className="w-[1px] h-3.5 bg-white/[0.12] mx-[2px] rounded-full" />
-              </>
-            ) : (
-              <>
-                <DockButton
-                  icon={<div className="w-2.5 h-2.5 bg-rose-500 rounded-full" />}
-                  onClick={() => onStartCapture?.()}
-                  title={`Start Recording (${modKey}+Shift+Space)`}
-                  hoverColor="rose"
-                />
-                <div className="w-[1px] h-3.5 bg-white/[0.12] mx-[2px] rounded-full" />
-                <DockButton
-                  icon={<Maximize2 size={12} strokeWidth={2.5} />}
-                  onClick={onRestore}
-                  title="Open Sovereign App"
-                  hoverColor="emerald"
-                />
-                <div className="w-[1px] h-3.5 bg-white/[0.12] mx-[2px] rounded-full" />
-              </>
-            )}
-
-            {showThemePicker && (
+          <AnimatePresence>
+            {widgetState !== 'orb' && (
               <motion.div
-                initial={{ opacity: 0, width: 0 }}
-                animate={{ opacity: 1, width: 'auto' }}
-                className="flex items-center gap-[3px] pr-1 overflow-hidden"
+                initial={{ opacity: 0, width: 0, scale: 0.8 }}
+                animate={{ opacity: 1, width: 'auto', scale: 1 }}
+                exit={{ opacity: 0, width: 0, scale: 0.8 }}
+                transition={{ duration: 0.2 }}
+                className="flex items-center gap-[3px] bg-black/50 backdrop-blur-xl rounded-full p-[3px] border border-white/[0.08] shadow-[inset_0_1px_2px_rgba(0,0,0,0.4)] ml-2"
               >
-                {(Object.keys(THEMES) as ThemeName[]).map(t => (
-                  <button
-                    key={t}
-                    onClick={e => {
-                      e.stopPropagation()
-                      setTheme(t)
-                      setShowThemePicker(false)
-                    }}
-                    className={`w-[14px] h-[14px] rounded-full ${THEMES[t].pickerBg} widget-nodrag outline-none transition-all hover:scale-125 ${theme === t ? 'ring-2 ring-white/50 ring-offset-1 ring-offset-black' : 'opacity-40 hover:opacity-100'}`}
-                    title={`Theme: ${t}`}
-                  />
-                ))}
-                <div className="w-[1px] h-3.5 bg-white/[0.12] mx-[2px] rounded-full" />
+                {isActive ? (
+                  <>
+                    <DockButton
+                      icon={<PenLine size={12} strokeWidth={2.5} />}
+                      active={isNoteExpanded}
+                      onClick={() => setIsNoteExpanded(!isNoteExpanded)}
+                      title="Quick Note"
+                    />
+                    <DockButton
+                      icon={<BookmarkPlus size={12} strokeWidth={2.5} />}
+                      onClick={onBookmark}
+                      title={`Bookmark (${modKey}+Shift+B)`}
+                      hoverColor="violet"
+                    />
+                    <DockButton
+                      icon={
+                        isPaused ? (
+                          <Play size={11} fill="currentColor" />
+                        ) : (
+                          <Pause size={11} fill="currentColor" />
+                        )
+                      }
+                      onClick={() => onPauseToggle?.()}
+                      title={isPaused ? `Resume (${modKey}+Shift+P)` : `Pause (${modKey}+Shift+P)`}
+                    />
+                    <DockButton
+                      icon={<Square size={10} fill="currentColor" />}
+                      onClick={onStop}
+                      title="Stop Archiving"
+                      hoverColor="rose"
+                    />
+                    <div className="w-[1px] h-3.5 bg-white/[0.12] mx-[2px] rounded-full" />
+                    <DockButton
+                      icon={<Maximize2 size={12} strokeWidth={2.5} />}
+                      onClick={onRestore}
+                      title="Open Sovereign App"
+                      hoverColor="emerald"
+                    />
+                    <div className="w-[1px] h-3.5 bg-white/[0.12] mx-[2px] rounded-full" />
+                  </>
+                ) : (
+                  <>
+                    <DockButton
+                      icon={<div className="w-2.5 h-2.5 bg-rose-500 rounded-full" />}
+                      onClick={() => onStartCapture?.()}
+                      title={`Start Recording (${modKey}+Shift+Space)`}
+                      hoverColor="rose"
+                    />
+                    <div className="w-[1px] h-3.5 bg-white/[0.12] mx-[2px] rounded-full" />
+                    <DockButton
+                      icon={<Maximize2 size={12} strokeWidth={2.5} />}
+                      onClick={onRestore}
+                      title="Open Sovereign App"
+                      hoverColor="emerald"
+                    />
+                    <div className="w-[1px] h-3.5 bg-white/[0.12] mx-[2px] rounded-full" />
+                  </>
+                )}
+
+                {showThemePicker && (
+                  <motion.div
+                    initial={{ opacity: 0, width: 0 }}
+                    animate={{ opacity: 1, width: 'auto' }}
+                    className="flex items-center gap-[3px] pr-1 overflow-hidden"
+                  >
+                    {(Object.keys(THEMES) as ThemeName[]).map(t => (
+                      <button
+                        key={t}
+                        onClick={e => {
+                          e.stopPropagation()
+                          setTheme(t)
+                          setShowThemePicker(false)
+                        }}
+                        className={`w-[14px] h-[14px] rounded-full ${THEMES[t].pickerBg} widget-nodrag outline-none transition-all hover:scale-125 ${theme === t ? 'ring-2 ring-white/50 ring-offset-1 ring-offset-black' : 'opacity-40 hover:opacity-100'}`}
+                        title={`Theme: ${t}`}
+                      />
+                    ))}
+                    <div className="w-[1px] h-3.5 bg-white/[0.12] mx-[2px] rounded-full" />
+                  </motion.div>
+                )}
+                <DockButton
+                  icon={<Palette size={12} strokeWidth={2.5} />}
+                  onClick={() => setShowThemePicker(!showThemePicker)}
+                  title="Change Theme"
+                  active={showThemePicker}
+                />
               </motion.div>
             )}
-            <DockButton
-              icon={<Palette size={12} strokeWidth={2.5} />}
-              onClick={() => setShowThemePicker(!showThemePicker)}
-              title="Change Theme"
-              active={showThemePicker}
-            />
-          </div>
+          </AnimatePresence>
         </div>
 
         {/* ── Dynamic Content Area ── */}
@@ -319,18 +314,26 @@ export const MiniWidget: React.FC<MiniWidgetProps> = ({
               <div className="relative">
                 <input
                   type="text"
-                  autoFocus
-                  className="w-full bg-black/50 border border-white/[0.1] text-white text-[13px] pl-4 pr-11 py-2.5 rounded-[20px] outline-none focus:border-[var(--color-violet)]/40 focus:shadow-[0_0_0_2px_rgba(167,139,250,0.15)] placeholder:text-white/40 widget-nodrag transition-all shadow-[inset_0_2px_4px_rgba(0,0,0,0.5)] backdrop-blur-md"
-                  placeholder="Jot down a quick thought..."
+                  placeholder="Type a quick note..."
                   value={noteText}
                   onChange={e => setNoteText(e.target.value)}
+                  className="w-full bg-white/[0.06] border border-white/10 text-[13px] text-white placeholder-white/30 rounded-full pl-3 pr-[32px] py-[5.5px] outline-none focus:border-white/20 focus:bg-white/10 transition-colors shadow-inner"
+                  autoFocus
                   onClick={e => e.stopPropagation()}
-                  onKeyDown={e => e.stopPropagation()}
+                  onKeyDown={e => {
+                    e.stopPropagation()
+                    if (e.key === 'Escape') {
+                      setIsNoteExpanded(false)
+                    } else if (e.key === 'Enter' && !e.shiftKey) {
+                      e.preventDefault()
+                      handleSubmitNote(e)
+                    }
+                  }}
                 />
                 <button
                   type="submit"
                   onClick={e => e.stopPropagation()}
-                  className="absolute right-1.5 top-1/2 -translate-y-1/2 w-7 h-7 flex items-center justify-center bg-white text-black rounded-full hover:bg-white/90 hover:shadow-[0_0_16px_rgba(255,255,255,0.3)] transition-all duration-300 widget-nodrag disabled:opacity-30 disabled:bg-white/20 disabled:text-white"
+                  className="absolute right-1.5 top-1/2 -translate-y-1/2 w-[28px] h-[28px] flex items-center justify-center bg-white text-black rounded-full hover:bg-[var(--color-violet)] hover:text-white hover:shadow-[0_0_20px_rgba(167,139,250,0.6)] transition-all duration-300 widget-nodrag disabled:opacity-30 disabled:bg-white/20 disabled:text-white"
                   disabled={!noteText.trim()}
                 >
                   <Send size={11} strokeWidth={2.5} className="ml-[1px]" />
@@ -347,7 +350,7 @@ export const MiniWidget: React.FC<MiniWidgetProps> = ({
               transition={spring}
               className="px-1 pb-1 overflow-hidden"
             >
-              <div className="relative bg-black/20 rounded-[22px] p-3.5 border border-white/[0.06] transition-colors duration-500 shadow-[inset_0_1px_3px_rgba(0,0,0,0.3)] overflow-hidden backdrop-blur-md">
+              <div className="relative bg-white/5 rounded-[22px] p-3.5 border border-white/10 transition-colors duration-500 shadow-[inset_0_1px_3px_rgba(0,0,0,0.3)] overflow-hidden backdrop-blur-md">
                 {/* Coach tip internal glow */}
                 {liveCoachTip && (
                   <motion.div
@@ -364,16 +367,25 @@ export const MiniWidget: React.FC<MiniWidgetProps> = ({
                       <div className="flex items-center gap-1.5">
                         <Sparkles
                           size={11}
-                          className="text-white/80 animate-pulse drop-shadow-[0_0_6px_rgba(255,255,255,0.4)]"
+                          className="text-violet-400 animate-pulse drop-shadow-[0_0_6px_rgba(167,139,250,0.6)]"
                         />
-                        <span className="text-[9.5px] font-bold uppercase tracking-[0.12em] text-white/80">
+                        <span className="text-[9.5px] font-bold uppercase tracking-[0.12em] text-violet-100">
                           AI Insight
                         </span>
                       </div>
                       <motion.p
                         layout="position"
-                        className={`text-[13px] text-[#f0ecff] font-medium leading-[1.45] tracking-tight transition-colors duration-300 ${isHovered ? '' : 'line-clamp-3'}`}
-                        style={{ textShadow: '0 1px 4px rgba(0,0,0,0.9)' }}
+                        className={`text-[13px] font-medium leading-[1.45] tracking-tight ${isHovered ? '' : 'line-clamp-3'}`}
+                        style={{
+                          backgroundImage:
+                            'linear-gradient(to right, #fff 20%, #e9d5ff 50%, #fff 80%)',
+                          backgroundSize: '200% auto',
+                          WebkitBackgroundClip: 'text',
+                          WebkitTextFillColor: 'transparent',
+                          textShadow: '0 2px 10px rgba(167,139,250,0.4)',
+                        }}
+                        animate={{ backgroundPosition: ['200% center', '-200% center'] }}
+                        transition={{ duration: 4, repeat: Infinity, ease: 'linear' }}
                       >
                         {liveCoachTip}
                       </motion.p>
@@ -442,68 +454,6 @@ export const MiniWidget: React.FC<MiniWidgetProps> = ({
           ) : null}
         </AnimatePresence>
       </div>
-    </motion.div>
-  )
-}
-
-/* ══════════════════════════════════════════════
-   Sub-components (tree-shaking friendly)
-   ══════════════════════════════════════════════ */
-
-/** Individual dock button — extracted for consistency and reduced JSX noise */
-const DockButton: React.FC<{
-  icon: React.ReactNode
-  onClick: () => void
-  title: string
-  active?: boolean
-  hoverColor?: 'violet' | 'rose' | 'emerald'
-}> = ({ icon, onClick, title, active, hoverColor }) => {
-  const hoverMap = {
-    violet: 'hover:text-[var(--color-violet)] hover:bg-[var(--color-violet)]/15',
-    rose: 'hover:text-[var(--color-rose)] hover:bg-[var(--color-rose)]/15',
-    emerald: 'hover:text-[var(--color-emerald)] hover:bg-[var(--color-emerald)]/15',
-  }
-  const hoverClass = hoverColor ? hoverMap[hoverColor] : 'hover:text-white hover:bg-white/10'
-
-  return (
-    <motion.button
-      whileHover={{ scale: 1.12 }}
-      whileTap={{ scale: 0.88 }}
-      onClick={e => {
-        e.stopPropagation()
-        onClick()
-      }}
-      className={`w-[26px] h-[26px] rounded-full flex items-center justify-center transition-all duration-200 widget-nodrag outline-none ${
-        active
-          ? 'bg-[var(--color-violet)] text-white shadow-[0_0_14px_rgba(167,139,250,0.5)]'
-          : `text-white/55 ${hoverClass}`
-      }`}
-      title={title}
-    >
-      {icon}
-    </motion.button>
-  )
-}
-
-/** Status chip — dynamically themed */
-const Chip: React.FC<{ theme: ThemeName; label: string; icon: React.ReactNode }> = ({
-  theme,
-  label,
-  icon,
-}) => {
-  const c = THEMES[theme]
-  return (
-    <motion.div
-      initial={{ scale: 0.8, opacity: 0 }}
-      animate={{ scale: 1, opacity: 1 }}
-      className={`flex items-center gap-1.5 ${c.chipBg} border ${c.chipBorder} px-2 py-[3px] rounded-full transition-colors duration-500`}
-    >
-      <span className={`${c.chipIcon} transition-colors duration-500`}>{icon}</span>
-      <span
-        className={`text-[9.5px] ${c.chipText} font-bold tracking-[0.08em] uppercase drop-shadow-sm transition-colors duration-500`}
-      >
-        {label}
-      </span>
     </motion.div>
   )
 }

@@ -1,9 +1,5 @@
-import { useState, useEffect, useCallback, useRef } from 'react'
-
-/**
- * Hook that drives PostMeetingDigest by calling the digest:generate IPC handler.
- * Auto-generates summary, action items, and decisions when meeting stops.
- */
+import { useCallback } from 'react'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 
 /** Normalizes a timestamp value (string or number) into an ISO string. */
 function extractTimestamp(value: unknown): string | undefined {
@@ -12,47 +8,28 @@ function extractTimestamp(value: unknown): string | undefined {
   return undefined
 }
 
-export function useDigest(meetingId: string | null, skip = false) {
-  interface DigestData {
-    summary?: string
-    actionItems?: string
-    decisions?: string
-    generatedAt?: string
-  }
+interface DigestData {
+  summary?: string
+  actionItems?: string
+  decisions?: string
+  generatedAt?: string
+}
 
-  const [digest, setDigest] = useState<DigestData | null>(null)
-  const [isGenerating, setIsGenerating] = useState(false)
-  const [error, setError] = useState<string | null>(null)
+export function useDigest(meetingId: string | null, isLocked = false) {
+  const queryClient = useQueryClient()
 
-  // P3-9 FIX: Shared isMounted ref protects BOTH the useEffect auto-generate
-  // AND the manual regenerate() callback from setState-on-unmounted.
-  // Previously, only the useEffect had a mount guard; the generate callback
-  // could still fire after unmount if called from a stale closure.
-  const isMountedRef = useRef(true)
-
-  useEffect(() => {
-    isMountedRef.current = true
-    return () => {
-      isMountedRef.current = false
-    }
-  }, [])
-
-  /** Shared digest generation logic */
-  const generateDigest = useCallback(async () => {
-    if (!meetingId) return
-    if (!isMountedRef.current) return
-    setIsGenerating(true)
-    setError(null)
-
-    try {
-      const result = await window.electronAPI?.digest?.generate?.({
-        meetingId,
-      })
-      if (!isMountedRef.current) return
+  const {
+    data: digest = null,
+    isFetching: isGenerating,
+    error: queryError,
+  } = useQuery({
+    queryKey: ['digest', meetingId],
+    queryFn: async (): Promise<DigestData | null> => {
+      if (!meetingId) return null
+      const result = await window.electronAPI?.digest?.generate?.({ meetingId })
       if (result?.success && result.data) {
-        // Extract fields explicitly instead of unsafe `as unknown as` cast
         const raw = result.data as unknown as Record<string, unknown>
-        setDigest({
+        return {
           summary: typeof raw.summary === 'string' ? raw.summary : undefined,
           actionItems:
             typeof raw.actionItems === 'string'
@@ -62,23 +39,23 @@ export function useDigest(meetingId: string | null, skip = false) {
                 : undefined,
           decisions: typeof raw.decisions === 'string' ? raw.decisions : undefined,
           generatedAt: extractTimestamp(raw.generatedAt) ?? extractTimestamp(raw.generated_at),
-        })
-      } else {
-        setError(result?.error?.message || 'Failed to generate digest')
+        }
       }
-    } catch (err) {
-      if (isMountedRef.current) setError((err as Error).message)
-    } finally {
-      if (isMountedRef.current) setIsGenerating(false)
-    }
-  }, [meetingId])
+      throw new Error(result?.error?.message || 'Failed to generate digest')
+    },
+    enabled: !!meetingId && !isLocked,
+    staleTime: Infinity, // Keep cached for the session
+  })
 
-  // H-10 AUDIT: Auto-generate on mount/meeting change
-  useEffect(() => {
-    if (meetingId && !skip) {
-      generateDigest()
-    }
-  }, [meetingId, skip, generateDigest])
+  const regenerate = useCallback(async () => {
+    if (!meetingId) return
+    await queryClient.invalidateQueries({ queryKey: ['digest', meetingId] })
+  }, [meetingId, queryClient])
 
-  return { digest, isGenerating, error, regenerate: generateDigest }
+  return {
+    digest,
+    isGenerating,
+    error: queryError ? (queryError as Error).message : null,
+    regenerate,
+  }
 }

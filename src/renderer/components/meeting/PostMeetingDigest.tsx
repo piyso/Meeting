@@ -54,6 +54,9 @@ export const PostMeetingDigest: React.FC<PostMeetingDigestProps> = ({
           message: `Saved as ${res.data.filename || format.toUpperCase()}`,
           duration: 4000,
         })
+        if (res.data.filePath) {
+          window.electronAPI?.shell?.showItemInFolder?.(res.data.filePath)
+        }
       } else {
         log.error('Export failed:', res?.error)
         addToast({
@@ -237,86 +240,6 @@ export const PostMeetingDigest: React.FC<PostMeetingDigestProps> = ({
                   No action items detected in this meeting.
                 </motion.div>
               )}
-              <motion.div variants={itemVariants} className="mt-6">
-                <h4 className="text-xs font-semibold text-[var(--color-text-secondary)] uppercase tracking-wider mb-3 px-1">
-                  Sync Integrations
-                </h4>
-                <div className="flex flex-col gap-3">
-                  {/* Linear Integration Row */}
-                  <button className="surface-glass-premium flex items-center justify-between px-3.5 py-3 rounded-[var(--radius-lg)] border border-[rgba(255,255,255,0.06)] hover:-translate-y-[1px] hover:border-indigo-500/30 hover:shadow-[0_4px_20px_rgba(99,102,241,0.15)] transition-all duration-300 group">
-                    <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 rounded-lg bg-[#5E6AD2]/20 flex items-center justify-center text-[#5E6AD2]">
-                        <svg
-                          width="16"
-                          height="16"
-                          viewBox="0 0 24 24"
-                          fill="none"
-                          stroke="currentColor"
-                          strokeWidth="2.5"
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                        >
-                          <path d="M3 12a9 9 0 1 0 18 0 9 9 0 0 0-18 0" />
-                          <path d="M12 7v5l3 3" />
-                        </svg>
-                      </div>
-                      <span className="text-[14px] font-medium text-[var(--color-text-primary)] group-hover:text-white transition-colors">
-                        Linear
-                      </span>
-                    </div>
-                    <div className="opacity-0 translate-x-1 group-hover:translate-x-0 group-hover:opacity-100 transition-all duration-300 bg-[rgba(255,255,255,0.03)] p-1.5 rounded-md">
-                      <TrendingUp size={14} className="text-[#5E6AD2]" />
-                    </div>
-                  </button>
-
-                  {/* Notion Integration Row */}
-                  <button className="surface-glass-premium flex items-center justify-between px-3.5 py-3 rounded-[var(--radius-lg)] border border-[rgba(255,255,255,0.06)] hover:-translate-y-[1px] hover:border-slate-400/30 hover:shadow-[0_4px_20px_rgba(255,255,255,0.05)] transition-all duration-300 group">
-                    <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 rounded-lg bg-slate-200/20 flex items-center justify-center text-slate-300">
-                        <svg
-                          width="16"
-                          height="16"
-                          viewBox="0 0 24 24"
-                          fill="none"
-                          stroke="currentColor"
-                          strokeWidth="2.5"
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                        >
-                          <path d="M4 4h16v16H4z" />
-                          <path d="M4 8h16" />
-                          <path d="M8 4v16" />
-                        </svg>
-                      </div>
-                      <span className="text-[14px] font-medium text-[var(--color-text-primary)] group-hover:text-white transition-colors">
-                        Notion
-                      </span>
-                    </div>
-                    <div className="opacity-0 translate-x-1 group-hover:translate-x-0 group-hover:opacity-100 transition-all duration-300 bg-[rgba(255,255,255,0.03)] p-1.5 rounded-md">
-                      <TrendingUp size={14} className="text-slate-300" />
-                    </div>
-                  </button>
-
-                  {/* Connect More Sub-Action */}
-                  <button className="flex items-center gap-2 px-3 py-2.5 rounded-lg border border-dashed border-[rgba(255,255,255,0.1)] text-[var(--color-text-tertiary)] hover:text-[var(--color-text-primary)] hover:bg-[rgba(255,255,255,0.02)] transition-colors group mt-1">
-                    <div className="w-5 h-5 rounded flex items-center justify-center">
-                      <svg
-                        width="12"
-                        height="12"
-                        viewBox="0 0 24 24"
-                        fill="none"
-                        stroke="currentColor"
-                        strokeWidth="2"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                      >
-                        <path d="M12 5v14M5 12h14" />
-                      </svg>
-                    </div>
-                    <span className="text-[12px] font-medium">Connect more tools...</span>
-                  </button>
-                </div>
-              </motion.div>
             </motion.div>
           )}
 

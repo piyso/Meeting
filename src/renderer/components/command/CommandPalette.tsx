@@ -1,3 +1,5 @@
+import { useAppStore } from '../../store/appStore'
+import { useNavigationStore } from '../../store/navigationStore'
 import React, { useState, useEffect, useDeferredValue } from 'react'
 import { motion } from 'framer-motion'
 import { modLabel } from '../../utils/platformShortcut'
@@ -17,7 +19,7 @@ import {
   Pause,
   Bookmark,
 } from 'lucide-react'
-import { useAppStore } from '../../store/appStore'
+
 import { Badge } from '../ui/Badge'
 import { useSearch, useSemanticSearch } from '../../hooks/queries/useSearch'
 import { useMeetings } from '../../hooks/queries/useMeetings'
@@ -37,7 +39,7 @@ export const CommandPalette: React.FC = () => {
   const commandPaletteOpen = useAppStore(s => s.commandPaletteOpen)
   const toggleCommandPalette = useAppStore(s => s.toggleCommandPalette)
   const toggleFocusMode = useAppStore(s => s.toggleFocusMode)
-  const navigate = useAppStore(s => s.navigate)
+  const navigate = useNavigationStore(s => s.navigate)
   const [query, setQuery] = useState('')
   const deferredQuery = useDeferredValue(query)
   const [selectedIndex, setSelectedIndex] = useState(0)

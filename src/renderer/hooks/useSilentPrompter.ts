@@ -1,5 +1,5 @@
+import { useRecordingStore } from '../store/recordingStore'
 import { useState, useEffect, useCallback, useRef } from 'react'
-import { useAppStore } from '../store/appStore'
 
 /** Prompt modes that rotate during a meeting */
 const PROMPT_MODES = ['question', 'action', 'decision', 'title'] as const
@@ -33,6 +33,7 @@ export function useSilentPrompter(
     // P1-13 FIX: Guard against race where interval fires just as isRecording
     // transitions to false. Without this, a suggestion fires after recording stops.
     if (!meetingId || !isRecordingRef.current || currentTranscripts.length === 0) return
+    if (document.visibilityState === 'hidden') return
 
     // Get last 5 minutes of transcript
     const now =
@@ -52,12 +53,20 @@ export function useSilentPrompter(
     modeIndexRef.current++
 
     try {
+      // Safely slice the last 1000 characters without breaking words
+      let contextSlice = recentText.length > 1000 ? recentText.slice(-1000) : recentText
+      if (recentText.length > 1000) {
+        const firstSpace = contextSlice.indexOf(' ')
+        if (firstSpace > 0) {
+          contextSlice = contextSlice.substring(firstSpace + 1)
+        }
+      }
+
       const result = await window.electronAPI?.intelligence?.meetingSuggestion?.({
         meetingId,
         // P1-4 FIX: Slice from END to capture the most recent context.
-        // Previously .slice(0, 1000) sent the oldest chars of the 5-min window,
-        // causing the AI coach to generate suggestions based on stale discussion.
-        recentContext: recentText.slice(-1000),
+        // Prevent mid-word token slicing.
+        recentContext: contextSlice,
         promptMode: currentMode,
       })
 
@@ -66,13 +75,13 @@ export function useSilentPrompter(
         if (!text.startsWith('⚠️') && !text.toLowerCase().includes('error')) {
           setSuggestion(text)
           setSuggestionMode(currentMode ?? null)
-          useAppStore.getState().setLiveCoachTip(text)
+          useRecordingStore.getState().setLiveCoachTip(text)
           // Auto-dismiss stale tips after 30 seconds
           if (dismissTimerRef.current) clearTimeout(dismissTimerRef.current)
           dismissTimerRef.current = setTimeout(() => {
             setSuggestion(null)
             setSuggestionMode(null)
-            useAppStore.getState().setLiveCoachTip(null)
+            useRecordingStore.getState().setLiveCoachTip(null)
           }, 30_000)
         }
       }
@@ -85,10 +94,15 @@ export function useSilentPrompter(
     if (isRecording && meetingId) {
       // Reset mode rotation on new recording
       modeIndexRef.current = 0
-      // Generate first suggestion after 2 minutes
-      intervalRef.current = setInterval(generateSuggestion, 2 * 60 * 1000)
+      
+      // Generate first suggestion after 45s, then every 120s
+      const timeoutId = setTimeout(() => {
+        generateSuggestion()
+        intervalRef.current = setInterval(generateSuggestion, 120 * 1000)
+      }, 45 * 1000)
 
       return () => {
+        clearTimeout(timeoutId)
         if (intervalRef.current) clearInterval(intervalRef.current)
         if (dismissTimerRef.current) clearTimeout(dismissTimerRef.current)
       }
@@ -97,7 +111,7 @@ export function useSilentPrompter(
       if (dismissTimerRef.current) clearTimeout(dismissTimerRef.current)
       setSuggestion(null)
       setSuggestionMode(null)
-      useAppStore.getState().setLiveCoachTip(null)
+      useRecordingStore.getState().setLiveCoachTip(null)
       return undefined
     }
   }, [isRecording, meetingId, generateSuggestion])
@@ -105,7 +119,7 @@ export function useSilentPrompter(
   const dismiss = useCallback(() => {
     setSuggestion(null)
     setSuggestionMode(null)
-    useAppStore.getState().setLiveCoachTip(null)
+    useRecordingStore.getState().setLiveCoachTip(null)
   }, [])
 
   return { suggestion, suggestionMode, dismiss }

@@ -1,4 +1,4 @@
-import React, { useEffect, useReducer } from 'react'
+import React, { useEffect, useReducer, useRef, useLayoutEffect } from 'react'
 import { createRoot } from 'react-dom/client'
 import { MiniWidget } from './components/meeting/MiniWidget'
 import './index.css'
@@ -11,13 +11,12 @@ declare global {
   }
 }
 
-import { motion } from 'framer-motion'
+import { motion, useMotionValue } from 'framer-motion'
 
 // #21: Consolidated widget state into single useReducer (was 10 separate useState calls)
 interface WidgetState {
   isRecording: boolean
   isPaused: boolean
-  elapsedTime: string
   lastTranscriptLine: string
   audioMode: 'system' | 'microphone' | 'none'
   syncStatus: 'idle' | 'syncing' | 'error'
@@ -33,7 +32,6 @@ interface WidgetState {
 const initialState: WidgetState = {
   isRecording: true,
   isPaused: false,
-  elapsedTime: '01:24:03',
   lastTranscriptLine:
     'So if we integrate the new API with the existing auth layer, we should be able to bypass the latency issue.',
   audioMode: 'microphone',
@@ -44,7 +42,7 @@ const initialState: WidgetState = {
   activeMeetingId: 'mock-123',
   recordingStartTime: Date.now() - 5043000,
   recordingTotalPausedMs: 0,
-  handoffState: 'hidden',
+  handoffState: 'expanded',
 }
 
 type WidgetAction = { type: 'UPDATE'; payload: Partial<WidgetState> }
@@ -60,15 +58,49 @@ function widgetReducer(state: WidgetState, action: WidgetAction): WidgetState {
 
 export const WidgetApp: React.FC = () => {
   const [state, dispatch] = useReducer(widgetReducer, initialState)
+  const containerRef = useRef<HTMLDivElement>(null)
+  
+  // Use ResizeObserver to dynamically resize the Electron window
+  useLayoutEffect(() => {
+    if (!containerRef.current || !window.electronAPI?.window?.resize) return
+
+    const resizeObserver = new ResizeObserver((entries) => {
+      for (const entry of entries) {
+        const width = entry.borderBoxSize?.[0]?.inlineSize ?? entry.contentRect.width
+        const height = entry.borderBoxSize?.[0]?.blockSize ?? entry.contentRect.height
+        // Send actual pixel dimensions to Electron to resize the window
+        window.electronAPI.window.resize(width, height)
+      }
+    })
+
+    resizeObserver.observe(containerRef.current)
+    return () => resizeObserver.disconnect()
+  }, [])
+  
   // #24: Wire usePowerMode — disables spring animation when on battery
   const { isPowerSaveMode } = usePowerMode()
+  const audioRms = useMotionValue(0)
+
+  // Fast-path audio tracker: updates MotionValue directly (bypasses React render)
+  useEffect(() => {
+    const unsubscribeAudio = window.electronAPI?.on?.audioEvent?.(event => {
+      if (state.activeMeetingId && event.meetingId !== state.activeMeetingId) return
+
+      if (event.type === 'level' && event.level) {
+        const levelVal = event.level.level || 0
+        audioRms.set(levelVal > 0 ? levelVal : 0)
+      } else if (event.type === 'stopped' || event.type === 'error') {
+        audioRms.set(0)
+      }
+    })
+    return () => unsubscribeAudio?.()
+  }, [state.activeMeetingId, audioRms])
 
   useEffect(() => {
     const unsubscribe = window.electronAPI?.on?.widgetStateUpdated?.(incoming => {
       const updates: Partial<WidgetState> = {
         isRecording: incoming.isRecording,
         isPaused: !!incoming.isPaused,
-        elapsedTime: incoming.elapsedTime,
         lastTranscriptLine: incoming.lastTranscriptLine,
       }
       // W7 fix: Use nullish check (!= null) instead of truthiness check.
@@ -105,28 +137,6 @@ export const WidgetApp: React.FC = () => {
       unsubscribeHandoff?.()
     }
   }, [])
-
-  // W16 fix: Local high-precision timer computation
-  // Decouples the widget UI from the main process IPC loop
-  useEffect(() => {
-    if (!state.isRecording || state.isPaused || !state.recordingStartTime) {
-      return
-    }
-
-    const interval = setInterval(() => {
-      if (!state.recordingStartTime) return
-      const ms = Date.now() - state.recordingStartTime - (state.recordingTotalPausedMs || 0)
-      const totalSec = Math.max(0, Math.floor(ms / 1000))
-      const h = Math.floor(totalSec / 3600)
-      const m = Math.floor((totalSec % 3600) / 60)
-      const s = totalSec % 60
-      const currentElapsedStr = `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`
-
-      dispatch({ type: 'UPDATE', payload: { elapsedTime: currentElapsedStr } })
-    }, 1000)
-
-    return () => clearInterval(interval)
-  }, [state.isRecording, state.isPaused, state.recordingStartTime, state.recordingTotalPausedMs])
 
   const handleRestore = () => {
     window.electronAPI?.window?.restoreMain()
@@ -169,7 +179,7 @@ export const WidgetApp: React.FC = () => {
   const isHidden = state.handoffState === 'hidden'
 
   return (
-    <div className="w-screen h-screen bg-transparent flex flex-col justify-start items-end p-6 widget-draggable overflow-hidden text-[var(--color-text-primary)]">
+    <div ref={containerRef} className="w-max h-max bg-transparent flex flex-col justify-start items-end p-10 overflow-hidden text-[var(--color-text-primary)] pointer-events-none">
       <motion.div
         initial={{ y: -50, opacity: 0, scale: 0.85, filter: 'blur(10px)' }}
         animate={{
@@ -184,11 +194,12 @@ export const WidgetApp: React.FC = () => {
         <MiniWidget
           isRecording={state.isRecording}
           isPaused={state.isPaused}
-          elapsedTime={state.elapsedTime}
+          recordingStartTime={state.recordingStartTime}
+          recordingTotalPausedMs={state.recordingTotalPausedMs}
           lastTranscriptLine={state.lastTranscriptLine}
           audioMode={state.audioMode}
           syncStatus={state.syncStatus}
-          liveCoachTip={state.liveCoachTip}
+          liveCoachTip={state.liveCoachTip || "✨ You've been speaking for 5 minutes. Try asking an open-ended question to engage the client."}
           entityCount={state.entityCount}
           noteCount={state.noteCount}
           onRestore={handleRestore}
@@ -197,6 +208,7 @@ export const WidgetApp: React.FC = () => {
           onQuickNote={handleQuickNote}
           onPauseToggle={handlePauseToggle}
           onStartCapture={handleStartCapture}
+          audioRms={audioRms}
         />
       </motion.div>
     </div>

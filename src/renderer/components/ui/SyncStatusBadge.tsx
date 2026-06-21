@@ -1,9 +1,10 @@
 import React, { useEffect, useState } from 'react'
 import { CloudOff, RefreshCw, AlertTriangle } from 'lucide-react'
 import type { SyncProgress } from '../../../types/ipc'
+import { useConnectivityStore } from '../../store/connectivityStore'
 
 export const SyncStatusBadge: React.FC = () => {
-  const [isOnline, setIsOnline] = useState(true)
+  const isOnline = useConnectivityStore(s => s.isOnline)
   const [isSyncing, setIsSyncing] = useState(false)
   const [queuedEvents, setQueuedEvents] = useState(0)
   const [error, setError] = useState<string | null>(null)
@@ -15,7 +16,6 @@ export const SyncStatusBadge: React.FC = () => {
       ?.getStatus()
       ?.then(res => {
         if (mounted && res?.success && res.data) {
-          setIsOnline(res.data.isOnline)
           setIsSyncing(res.data.isSyncing)
           setQueuedEvents(res.data.queuedEvents)
           setError(res.data.lastSyncError)

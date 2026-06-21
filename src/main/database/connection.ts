@@ -354,8 +354,10 @@ export function backupDatabase(backupPath: string): void {
     fs.mkdirSync(backupDir, { recursive: true })
   }
 
-  // Use SQLite backup API
-  database.backup(backupPath)
+  // Use VACUUM INTO for a clean copy (SQLite 3.27+).
+  // better-sqlite3's .backup() takes a destination Database object, not a file path.
+  database.pragma('wal_checkpoint(TRUNCATE)')
+  database.exec(`VACUUM INTO '${backupPath.replace(/'/g, "''")}'`)
 
   log.info('Database backup complete')
 }

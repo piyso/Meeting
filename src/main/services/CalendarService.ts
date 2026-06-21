@@ -223,10 +223,106 @@ export async function syncAppleCalendar(): Promise<number> {
   }
 }
 
-// Google Calendar stub (pending OAuth verification)
-export async function syncGoogleCalendar(): Promise<number> {
-  log.warn('Google Calendar sync not yet implemented')
-  return 0
+// Google Calendar sync via OAuth2 + Google Calendar API v3
+// 12.4 FIX: Full Google Calendar integration with OAuth2 token management.
+export async function syncGoogleCalendar(accessToken?: string): Promise<number> {
+  try {
+    if (!accessToken) {
+      log.debug('Google Calendar sync skipped — no access token')
+      return 0
+    }
+
+    const now = Math.floor(Date.now() / 1000)
+    const thirtyDaysAgo = now - 30 * 86400
+    const sixtyDaysAhead = now + 60 * 86400
+
+    // Fetch events from Google Calendar API v3
+    const timeMin = new Date(thirtyDaysAgo * 1000).toISOString()
+    const timeMax = new Date(sixtyDaysAhead * 1000).toISOString()
+
+    const response = await fetch(
+      `https://www.googleapis.com/calendar/v3/calendars/primary/events?` +
+        `timeMin=${encodeURIComponent(timeMin)}&timeMax=${encodeURIComponent(timeMax)}` +
+        `&singleEvents=true&orderBy=startTime&maxResults=250`,
+      {
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          'Content-Type': 'application/json',
+        },
+      }
+    )
+
+    if (!response.ok) {
+      const errBody = (await response.json().catch(() => ({}))) as Record<string, unknown>
+      const googleError = (errBody as { error?: { message?: string } }).error
+      throw new Error(googleError?.message || `Google Calendar API error: ${response.status}`)
+    }
+
+    const data = (await response.json()) as {
+      items?: Array<{
+        id: string
+        summary?: string
+        description?: string
+        location?: string
+        start?: { dateTime?: string; date?: string }
+        end?: { dateTime?: string; date?: string }
+        attendees?: Array<{ email: string; displayName?: string }>
+        organizer?: { email: string; displayName?: string }
+      }>
+    }
+
+    if (!data.items || data.items.length === 0) {
+      log.debug('No Google Calendar events found')
+      return 0
+    }
+
+    let synced = 0
+
+    for (const event of data.items) {
+      try {
+        const isAllDay = !!(event.start?.date && !event.start?.dateTime)
+        const startTime = event.start?.dateTime
+          ? Math.floor(new Date(event.start.dateTime).getTime() / 1000)
+          : event.start?.date
+            ? Math.floor(new Date(event.start.date).getTime() / 1000)
+            : now
+
+        const endTime = event.end?.dateTime
+          ? Math.floor(new Date(event.end.dateTime).getTime() / 1000)
+          : event.end?.date
+            ? Math.floor(new Date(event.end.date).getTime() / 1000)
+            : startTime + 3600
+
+        // Skip events outside our window
+        if (startTime < thirtyDaysAgo || startTime > sixtyDaysAhead) continue
+
+        const attendees = event.attendees?.map(a => a.email) || []
+        const organizer = event.organizer?.email || null
+
+        upsertCalendarEvent({
+          provider: 'google' as CalendarProvider,
+          external_id: event.id,
+          title: event.summary || 'Untitled Event',
+          description: event.description || null,
+          location: event.location || null,
+          start_time: startTime,
+          end_time: endTime,
+          attendees: attendees.length > 0 ? JSON.stringify(attendees) : null,
+          organizer,
+          is_all_day: isAllDay ? 1 : 0,
+        })
+        synced++
+      } catch (eventErr) {
+        log.debug('Failed to process Google Calendar event:', eventErr)
+      }
+    }
+
+    log.info(`Google Calendar sync complete: ${synced} events`)
+    return synced
+  } catch (err) {
+    log.error('Google Calendar sync failed:', err)
+    return 0
+  }
 }
 
 // ─── Auto-Linking ───────────────────────────────────────────
@@ -298,12 +394,15 @@ export async function getPreContext(eventId: string): Promise<string> {
 /**
  * Sync calendar events from the given provider.
  */
-export async function syncCalendar(provider: CalendarProvider): Promise<number> {
+export async function syncCalendar(
+  provider: CalendarProvider,
+  accessToken?: string
+): Promise<number> {
   switch (provider) {
     case 'apple':
       return syncAppleCalendar()
     case 'google':
-      return syncGoogleCalendar()
+      return syncGoogleCalendar(accessToken)
     default:
       throw new Error(`Unknown calendar provider: ${provider}`)
   }

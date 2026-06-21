@@ -8,7 +8,7 @@
  * - Runs on dedicated audio thread (prevents glitches)
  * - Processes audio in 128-sample frames
  * - Forwards audio chunks to main thread for VAD processing
- * - Implements buffering for 10-second chunks (reduced from 30s for lower latency)
+ * - Implements zero-allocation Float32Array buffering to minimize GC churn
  */
 
 /* global sampleRate, currentTime */
@@ -17,17 +17,13 @@ class AudioCaptureProcessor extends AudioWorkletProcessor {
   constructor() {
     super()
 
-    // Buffer to accumulate audio samples
-    this.buffer = []
-
     // Target buffer size for 10-second chunks at 16kHz
     // 16000 samples/sec * 10 sec = 160,000 samples
-    // Reduced from 30s to 10s based on benchmarks (3x lower latency)
     this.targetBufferSize = 16000 * 10
 
-    // Maximum number of chunks to buffer (5 chunks = 50 seconds)
-    this.maxChunks = 5
-    this.chunksBuffered = 0
+    // Pre-allocated Float32Array buffer to avoid GC churn
+    this.buffer = new Float32Array(this.targetBufferSize)
+    this.bufferIndex = 0
 
     // Track if we've logged the sample rate (only log once)
     this.hasLoggedSampleRate = false
@@ -35,8 +31,7 @@ class AudioCaptureProcessor extends AudioWorkletProcessor {
     // Listen for messages from main thread
     this.port.onmessage = event => {
       if (event.data.type === 'reset') {
-        this.buffer = []
-        this.chunksBuffered = 0
+        this.bufferIndex = 0
       }
     }
   }
@@ -77,37 +72,24 @@ class AudioCaptureProcessor extends AudioWorkletProcessor {
 
     // Add samples to buffer
     for (let i = 0; i < channelData.length; i++) {
-      this.buffer.push(channelData[i])
-    }
+      this.buffer[this.bufferIndex++] = channelData[i]
 
-    // Check if we've accumulated enough samples for a chunk
-    if (this.buffer.length >= this.targetBufferSize) {
-      // Check if we've exceeded max chunks buffered
-      if (this.chunksBuffered >= this.maxChunks) {
-        // Drop oldest chunk by clearing buffer
+      // Check if we've accumulated enough samples for a chunk
+      if (this.bufferIndex >= this.targetBufferSize) {
+        // Extract chunk. We MUST copy it because this.buffer is reused.
+        const chunk = new Float32Array(this.buffer)
+
+        // Send chunk to main thread
         this.port.postMessage({
-          type: 'warning',
-          message: 'Audio buffer full, dropping oldest chunk',
+          type: 'audioChunk',
+          data: chunk,
+          timestamp: currentTime,
+          sampleRate: sampleRate,
         })
-        this.buffer = this.buffer.slice(this.targetBufferSize)
-        this.chunksBuffered--
+
+        // Reset buffer index for next chunk
+        this.bufferIndex = 0
       }
-
-      // Extract chunk
-      const chunk = new Float32Array(this.buffer.slice(0, this.targetBufferSize))
-
-      // Remove processed samples from buffer
-      this.buffer = this.buffer.slice(this.targetBufferSize)
-
-      // Send chunk to main thread
-      this.port.postMessage({
-        type: 'audioChunk',
-        data: chunk,
-        timestamp: currentTime,
-        sampleRate: sampleRate,
-      })
-
-      this.chunksBuffered++
     }
 
     return true // Keep processor alive
@@ -116,3 +98,4 @@ class AudioCaptureProcessor extends AudioWorkletProcessor {
 
 // Register the processor
 registerProcessor('audio-capture-processor', AudioCaptureProcessor)
+

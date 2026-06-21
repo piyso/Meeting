@@ -80,6 +80,9 @@ import { getAuthService } from '../src/main/services/AuthService'
 import { getAudioPipelineService } from '../src/main/services/AudioPipelineService'
 import { getASRService } from '../src/main/services/ASRService'
 import { getModelManager } from '../src/main/services/ModelManager'
+import { getDatabaseMigrationService } from '../src/main/services/DatabaseMigrationService'
+import { getPowerMonitorService } from '../src/main/services/PowerMonitorService'
+import { getAudioProvenanceService } from '../src/main/services/AudioProvenanceService'
 
 const log = Logger.create('Main')
 
@@ -225,19 +228,6 @@ const createWindow = () => {
     show: false,
   })
 
-  // SECURITY: Set Content-Security-Policy header to prevent XSS and postMessage exploits
-  // This is a defense-in-depth measure on top of contextIsolation and webSecurity.
-  mainWindow.webContents.session.webRequest.onHeadersReceived((details, callback) => {
-    callback({
-      responseHeaders: {
-        ...details.responseHeaders,
-        'Content-Security-Policy': [
-          "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self' https://*.supabase.co https://api.piyapi.com wss://*.supabase.co;",
-        ],
-      },
-    })
-  })
-
   // Show window when ready to prevent visual flash
   let readyToShowFired = false
   mainWindow.once('ready-to-show', () => {
@@ -332,7 +322,7 @@ const createWidgetWindow = () => {
   try {
     const primaryDisplay = screen.getPrimaryDisplay()
     const { width: screenWidth, height: screenHeight } = primaryDisplay.workArea
-    const widgetWidth = 380
+    const widgetWidth = 480
     const widgetHeight = 800
     const padding = 24 // Distance from the right/bottom edge of the screen
 
@@ -344,11 +334,10 @@ const createWidgetWindow = () => {
       y: screenHeight - widgetHeight - padding,
       frame: false,
       transparent: true,
-      backgroundColor: '#00000000', // Issue 16: DWM fallback — prevents solid black when compositing is disabled
       ...(process.platform === 'win32' ? { backgroundMaterial: 'acrylic' as const } : {}), // OPT-12: Win11 acrylic blur
       alwaysOnTop: true,
+      focusable: false,
       hasShadow: false, // We render the drop shadow in CSS for better border-radius control
-      ...(process.platform === 'darwin' ? { type: 'panel' as const } : {}), // macOS: floating utility panel without vibrancy to allow CSS glassmorphism
       resizable: false,
       show: true, // Show by default for testing visibility
       webPreferences: {
@@ -360,10 +349,14 @@ const createWidgetWindow = () => {
       title: 'BlueArkive Widget',
     })
 
+    // Force remove shadow after creation to workaround macOS bug where transparent windows still render a faint ghost shadow
+    widgetWindow.setHasShadow(false)
+
     // Make widget visible on all macOS Spaces and over fullscreen apps
     if (process.platform === 'darwin') {
       widgetWindow.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true })
     }
+    widgetWindow.setAlwaysOnTop(true, 'screen-saver')
 
     // Load the separate WidgetApp HTML entry point
     if (process.env.VITE_DEV_SERVER_URL) {
@@ -541,6 +534,14 @@ app
 
     // Schedule database maintenance
     if (!dbInitFailed) {
+      // Run versioned schema migrations (picks up where connection.ts left off)
+      try {
+        const applied = await getDatabaseMigrationService().runMigrations()
+        if (applied > 0) log.info(`Applied ${applied} database migrations`)
+      } catch (migErr) {
+        log.warn('Database migrations failed (non-fatal):', migErr)
+      }
+
       const dbPath = getDatabasePath()
       const walHealthInterval = setInterval(
         () => {
@@ -576,6 +577,20 @@ app
     setupIPC()
     CrashReporter.addBreadcrumb('lifecycle', 'IPC handlers registered')
     log.info('IPC handlers registered')
+
+    // Initialize event-driven services (non-blocking)
+    try {
+      getPowerMonitorService().initialize()
+      log.info('PowerMonitorService initialized')
+    } catch (e) {
+      log.debug('PowerMonitorService init skipped:', e)
+    }
+    try {
+      await getAudioProvenanceService().initialize()
+      log.info('AudioProvenanceService initialized')
+    } catch (e) {
+      log.debug('AudioProvenanceService init skipped:', e)
+    }
 
     // ─── Application Menu (macOS keyboard shortcuts) ───────────
     // On macOS, standard shortcuts (Cmd+C/V/X/A/Z) are bound through

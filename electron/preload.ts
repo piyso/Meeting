@@ -39,6 +39,7 @@ const electronAPI: ElectronAPI = {
     list: params => ipcRenderer.invoke('meeting:list', params),
     update: params => ipcRenderer.invoke('meeting:update', params),
     delete: params => ipcRenderer.invoke('meeting:delete', params),
+    restore: params => ipcRenderer.invoke('meeting:restore', params),
     export: params => ipcRenderer.invoke('meeting:export', params),
     onGlobalShortcutStart: createEventListener('global-shortcut:start-recording'),
   },
@@ -266,6 +267,7 @@ const electronAPI: ElectronAPI = {
   // ============================================================================
   shell: {
     openExternal: (url: string) => ipcRenderer.invoke('shell:openExternal', url),
+    showItemInFolder: (path: string) => ipcRenderer.invoke('shell:showItemInFolder', path),
   },
 
   // ============================================================================
@@ -349,6 +351,7 @@ const electronAPI: ElectronAPI = {
     windowMaximized: createEventListener<void>('window:maximized'),
     windowUnmaximized: createEventListener<void>('window:unmaximized'),
     navigateOnboarding: createEventListener<void>('navigate:onboarding'),
+    powerStateChanged: createEventListener<{ isOnBattery: boolean }>('power:stateChanged'),
   },
 
   // ============================================================================

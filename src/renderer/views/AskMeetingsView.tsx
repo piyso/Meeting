@@ -1,3 +1,5 @@
+import { useAppStore } from '../store/appStore'
+import { useNavigationStore } from '../store/navigationStore'
 /**
  * Ask Your Meetings — Conversational AI Chat View
  *
@@ -7,7 +9,7 @@
  */
 
 import React, { useState, useRef, useEffect, useCallback } from 'react'
-import { useAppStore } from '../store/appStore'
+
 import { ChevronLeft, Send, Trash2, Square } from 'lucide-react'
 import { IconButton } from '../components/ui/IconButton'
 import { AISourceBadge } from '../components/ui/AISourceBadge'
@@ -203,7 +205,7 @@ const loadHistory = (userId: string): ChatMessage[] => {
 }
 
 export default function AskMeetingsView() {
-  const navigate = useAppStore(s => s.navigate)
+  const navigate = useNavigationStore(s => s.navigate)
   const currentTier = useAppStore(s => s.currentTier)
   const [userId, setUserId] = useState<string>('default')
   const [messages, setMessages] = useState<ChatMessage[]>([])

@@ -1,6 +1,6 @@
+import { useNavigationStore } from '../../store/navigationStore'
 import React, { useEffect, useRef } from 'react'
 import { Lock } from 'lucide-react'
-import { useAppStore } from '../../store/appStore'
 
 interface ProTeaseOverlayProps {
   title?: string
@@ -13,26 +13,28 @@ export const ProTeaseOverlay: React.FC<ProTeaseOverlayProps> = ({
   description = 'Upgrade to access this feature.',
   targetTier = 'pro',
 }) => {
-  const navigate = useAppStore(s => s.navigate)
+  const navigate = useNavigationStore(s => s.navigate)
   const ctaRef = useRef<HTMLButtonElement>(null)
 
   // Auto-focus the upgrade button so keyboard users land inside the overlay
+  // and trap focus/escape globally since the modal might not retain focus
   useEffect(() => {
     ctaRef.current?.focus()
-  }, [])
 
-  // Trap focus inside the overlay — prevent tabbing behind it
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'Escape') {
-      // Escape navigates back to meetings (the only way "out" for locked users)
-      navigate('meeting-list')
+    const handleGlobalKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        // Escape navigates back to meetings (the only way "out" for locked users)
+        navigate('meeting-list')
+      } else if (e.key === 'Tab') {
+        // Only one focusable element — keep focus on the button
+        e.preventDefault()
+        ctaRef.current?.focus()
+      }
     }
-    if (e.key === 'Tab') {
-      // Only one focusable element — keep focus on the button
-      e.preventDefault()
-      ctaRef.current?.focus()
-    }
-  }
+
+    document.addEventListener('keydown', handleGlobalKeyDown)
+    return () => document.removeEventListener('keydown', handleGlobalKeyDown)
+  }, [navigate])
 
   return (
     <div
@@ -41,7 +43,6 @@ export const ProTeaseOverlay: React.FC<ProTeaseOverlayProps> = ({
       aria-modal="true"
       aria-labelledby="pro-tease-title"
       aria-describedby="pro-tease-desc"
-      onKeyDown={handleKeyDown}
       style={{
         background: 'rgba(5, 5, 5, 0.4)',
         backdropFilter: 'blur(32px) saturate(160%)',

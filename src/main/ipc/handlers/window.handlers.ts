@@ -50,6 +50,47 @@ export function registerWindowHandlers(): void {
     return { success: true, data: win ? win.isMaximized() : false }
   })
 
+  // ── Widget Mouse Events (Fixes transparent layer click-through) ──
+  ipcMain.handle('window:setIgnoreMouseEvents', (_event, ignore: boolean) => {
+    const win = getWidgetWindow()
+    if (win && !win.isDestroyed()) {
+      win.setIgnoreMouseEvents(ignore, { forward: true })
+    }
+    return { success: true, data: undefined }
+  })
+
+  // ── Dynamic Window Resizing ──
+  ipcMain.handle('window:resize', (_event, { width, height }: { width: number; height: number }) => {
+    const win = getWidgetWindow()
+    if (win && !win.isDestroyed()) {
+      const { screen } = require('electron')
+      const primaryDisplay = screen.getPrimaryDisplay()
+      const { width: screenWidth } = primaryDisplay.workArea
+      const padding = 24 // Must match padding in main.ts
+      
+      const bounds = win.getBounds()
+      
+      let newX = bounds.x
+      // If the window's right edge is near the screen's right edge, keep it right-anchored
+      const isRightAnchored = Math.abs((bounds.x + bounds.width) - screenWidth) < 50
+      
+      if (isRightAnchored) {
+        newX = screenWidth - width - padding
+      }
+
+      console.log(`[Window Resize] Received: ${width}x${height} | isRightAnchored: ${isRightAnchored} | bounds: ${JSON.stringify(bounds)} | newX: ${newX}`)
+      
+      win.setBounds({
+        x: Math.ceil(newX),
+        y: Math.ceil(bounds.y), // Keep top anchored where it is
+        width: Math.ceil(width),
+        height: Math.ceil(height)
+      })
+    }
+    return { success: true, data: undefined }
+  })
+
+  // ── Restoring & Navigation ──────────────────────────────────
   // Forward maximize/unmaximize events to renderer for title bar state
   const setupMaximizeEvents = () => {
     const win = getMainWindow()

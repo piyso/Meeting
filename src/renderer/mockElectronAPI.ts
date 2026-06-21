@@ -1,3 +1,5 @@
+import { useAppStore } from './store/appStore'
+import { useConnectivityStore } from './store/connectivityStore'
 /**
  * Mock ElectronAPI — Complete mock layer that intercepts ALL IPC calls.
  *
@@ -9,7 +11,6 @@
  * Toggle via USE_MOCK_DATA in main.tsx
  */
 
-import { useAppStore } from './store/appStore'
 import {
   MOCK_MEETINGS,
   MOCK_TRANSCRIPTS,
@@ -1627,10 +1628,10 @@ export function installMockElectronAPI() {
 
   // Set store to pro tier SYNCHRONOUSLY — must run before React renders
   // to prevent race conditions with useSystemState, useSyncEngine hooks.
+  useConnectivityStore.setState({ isOnline: true, syncStatus: 'idle' })
+
   useAppStore.setState({
     currentTier: 'pro',
-    isOnline: true,
-    syncStatus: 'idle',
     quotaData: {
       used: MOCK_QUOTA.used,
       limit: MOCK_QUOTA.limit,

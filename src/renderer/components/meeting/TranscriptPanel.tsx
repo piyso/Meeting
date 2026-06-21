@@ -20,24 +20,46 @@ export const TranscriptPanel: React.FC<TranscriptPanelProps> = ({
   const [autoScroll, setAutoScroll] = useState(true)
   const [highlightedIds, setHighlightedIds] = useState<Set<string>>(new Set())
 
+  const segmentsRef = useRef(segments)
+  useEffect(() => {
+    segmentsRef.current = segments
+  }, [segments])
+
+  const rowVirtualizer = useVirtualizer({
+    count: segments.length,
+    getScrollElement: () => parentRef.current,
+    // Dynamic estimate based on content length — reduces scroll jumping vs fixed 64px
+    estimateSize: index => {
+      const seg = segments[index]
+      const charCount = seg?.text?.length || 0
+      return Math.max(64, 40 + Math.ceil(charCount / 60) * 24)
+    },
+    overscan: 10,
+  })
+
+  const virtualizerRef = useRef(rowVirtualizer)
+  useEffect(() => {
+    virtualizerRef.current = rowVirtualizer
+  }, [rowVirtualizer])
+
   useEffect(() => {
     const handleHighlight = (e: CustomEvent<{ segments: string[] }>) => {
       const ids = e.detail?.segments || []
       setHighlightedIds(new Set(ids))
-      
+
       if (ids.length > 0) {
         setAutoScroll(false)
         // Find the index of the first highlighted segment
-        const firstIndex = segments.findIndex(s => ids.includes(s.id))
-        if (firstIndex !== -1 && rowVirtualizer) {
+        const firstIndex = segmentsRef.current.findIndex(s => ids.includes(s.id))
+        if (firstIndex !== -1 && virtualizerRef.current) {
           // Add a slight delay to allow React state to settle before scrolling
           setTimeout(() => {
-            rowVirtualizer.scrollToIndex(firstIndex, { align: 'center' })
+            virtualizerRef.current.scrollToIndex(firstIndex, { align: 'center' })
           }, 50)
         }
       } else {
         // Clearing highlight
-        if (segments.length > 0) {
+        if (segmentsRef.current.length > 0) {
           setAutoScroll(true)
         }
       }
@@ -47,21 +69,7 @@ export const TranscriptPanel: React.FC<TranscriptPanelProps> = ({
     return () => {
       window.removeEventListener('highlight-source-segments', handleHighlight as EventListener)
     }
-  }, [segments])
-
-  const rowVirtualizer = useVirtualizer({
-    count: segments.length,
-    getScrollElement: () => parentRef.current,
-    // Dynamic estimate based on content length — reduces scroll jumping vs fixed 64px
-    estimateSize: index => {
-      const seg = segments[index]
-      const textLen = seg?.text?.length ?? 0
-      if (textLen < 80) return 48
-      if (textLen < 200) return 72
-      return 96
-    },
-    overscan: 10,
-  })
+  }, [])
 
   // Auto-scroll logic — use virtualizer's scrollToIndex for correct behavior with dynamic heights
   useEffect(() => {
@@ -149,7 +157,10 @@ export const TranscriptPanel: React.FC<TranscriptPanelProps> = ({
       </div>
 
       {!autoScroll && segments.length > 5 && (
-        <button onClick={jumpToLatest} className="ui-transcript-jump-btn animate-slide-up">
+        <button
+          onClick={jumpToLatest}
+          className="ui-transcript-jump-btn animate-slide-up sovereign-glass premium-hover"
+        >
           <ArrowDown size={14} />
           <span className="ui-transcript-jump-text">Jump to latest</span>
         </button>

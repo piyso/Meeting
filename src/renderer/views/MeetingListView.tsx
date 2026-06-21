@@ -1,8 +1,11 @@
+import { useAppStore } from '../store/appStore'
+import { useRecordingStore } from '../store/recordingStore'
+import { useNavigationStore } from '../store/navigationStore'
 import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import { modKey } from '../utils/platformShortcut'
 import '../views/views.css'
 import { Plus, FileText, Search, MicOff } from 'lucide-react'
-import { useAppStore } from '../store/appStore'
+
 import { MeetingCard } from '../components/meeting/MeetingCard'
 import { NewMeetingDialog } from '../components/meeting/NewMeetingDialog'
 import { CalendarStrip } from '../components/calendar/CalendarStrip'
@@ -20,10 +23,10 @@ import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useVirtualizer } from '@tanstack/react-virtual'
 
 export default function MeetingListView() {
-  const navigate = useAppStore(s => s.navigate)
-  const setRecordingState = useAppStore(s => s.setRecordingState)
-  const recordingState = useAppStore(s => s.recordingState)
-  const activeMeetingId = useAppStore(s => s.activeMeetingId)
+  const navigate = useNavigationStore(s => s.navigate)
+  const setRecordingState = useRecordingStore(s => s.setRecordingState)
+  const recordingState = useRecordingStore(s => s.recordingState)
+  const activeMeetingId = useRecordingStore(s => s.activeMeetingId)
   const queryClient = useQueryClient()
   const { data: response, isLoading } = useMeetings()
   const meetingsData = response?.items
@@ -40,17 +43,24 @@ export default function MeetingListView() {
   // Measure container width to determine grid columns dynamically
   useEffect(() => {
     if (!scrollRef.current) return
+    let timeoutId: ReturnType<typeof setTimeout>
     const observer = new ResizeObserver(entries => {
-      for (const entry of entries) {
-        // Grid items have 24px padding on left/right (total 48px)
-        const availableWidth = entry.contentRect.width - 48
-        // Grid: minmax(280px, 1fr) with 20px gap
-        const cols = Math.max(1, Math.floor((availableWidth + 20) / 300))
-        setColumns(cols)
-      }
+      clearTimeout(timeoutId)
+      timeoutId = setTimeout(() => {
+        for (const entry of entries) {
+          // Grid items have 24px padding on left/right (total 48px)
+          const availableWidth = entry.contentRect.width - 48
+          // Grid: minmax(280px, 1fr) with 20px gap
+          const cols = Math.max(1, Math.floor((availableWidth + 20) / 300))
+          setColumns(cols)
+        }
+      }, 150)
     })
     observer.observe(scrollRef.current)
-    return () => observer.disconnect()
+    return () => {
+      clearTimeout(timeoutId)
+      observer.disconnect()
+    }
   }, [])
 
   const deleteMeeting = useMutation({
@@ -74,10 +84,10 @@ export default function MeetingListView() {
       const res = await window.electronAPI?.meeting?.start({})
       if (res?.success && res.data) {
         log.info('Meeting created:', res.data.meeting.id)
-        useAppStore.getState().setActiveMeetingId(res.data.meeting.id)
+        useRecordingStore.getState().setActiveMeetingId(res.data.meeting.id)
         // P12 fix: Set recording start time immediately so DynamicIsland timer
         // starts without waiting for audio capture initialization
-        useAppStore.getState().setRecordingStartTime(Date.now())
+        useRecordingStore.getState().setRecordingStartTime(Date.now())
         queryClient.invalidateQueries({ queryKey: ['meetings'] })
         navigate('meeting-detail', res.data.meeting.id)
       } else {
@@ -120,8 +130,8 @@ export default function MeetingListView() {
         title: typeof title === 'string' ? title : undefined,
       })
       if (res?.success && res.data) {
-        useAppStore.getState().setActiveMeetingId(res.data.meeting.id)
-        useAppStore.getState().setRecordingStartTime(Date.now())
+        useRecordingStore.getState().setActiveMeetingId(res.data.meeting.id)
+        useRecordingStore.getState().setRecordingStartTime(Date.now())
         queryClient.invalidateQueries({ queryKey: ['meetings'] })
         navigate('meeting-detail', res.data.meeting.id)
       } else {

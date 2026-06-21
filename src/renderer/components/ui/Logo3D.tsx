@@ -1,4 +1,43 @@
-import React from 'react'
+import React, { Component, ErrorInfo, ReactNode } from 'react'
+import { rendererLog } from '../../utils/logger'
+
+/** Error boundary so WebGL / 3D failures don't crash onboarding */
+export class Logo3DErrorBoundary extends Component<{ children: ReactNode }, { hasError: boolean }> {
+  state = { hasError: false }
+  static getDerivedStateFromError() {
+    return { hasError: true }
+  }
+  componentDidCatch(error: Error, _info: ErrorInfo) {
+    rendererLog.create('Logo3D').warn('Rendering failed, using CSS fallback:', error.message)
+  }
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div
+          style={{
+            width: 192,
+            height: 192,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            margin: '0 auto',
+          }}
+        >
+          <div
+            style={{
+              width: 96,
+              height: 96,
+              borderRadius: 24,
+              background: 'linear-gradient(135deg, #0ea5e9, #0284c7)',
+              boxShadow: '0 10px 25px -5px rgba(14, 165, 233, 0.4)',
+            }}
+          />
+        </div>
+      )
+    }
+    return this.props.children
+  }
+}
 
 interface Logo3DProps {
   className?: string

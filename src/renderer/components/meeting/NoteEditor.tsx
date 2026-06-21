@@ -17,19 +17,9 @@ interface NoteEditorProps {
 }
 
 export const NoteEditor: React.FC<NoteEditorProps> = ({ meetingId }) => {
-  const { data: notes, createNote, updateNote } = useNotes(meetingId)
   const [providerOrDoc, setProviderOrDoc] = useState<Y.Doc | null>(null)
-  const saveTimeoutRef = React.useRef<NodeJS.Timeout | null>(null)
-
-  // Cleanup debounced save on unmount to prevent stale mutations
-  React.useEffect(() => {
-    return () => {
-      if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current)
-    }
-  }, [])
 
   useEffect(() => {
-    // Generate isolated Y doc per meeting ID
     const ydoc = new Y.Doc()
     const provider = new IndexeddbPersistence(`bluearkive-${meetingId}`, ydoc)
 
@@ -43,7 +33,30 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({ meetingId }) => {
     }
   }, [meetingId])
 
-  // Use refs for values needed in onUpdate callback — avoids unstable deps in useEditor
+  if (!providerOrDoc) {
+    return <div className="p-4 text-[var(--color-text-tertiary)]">Initializing Note Editor...</div>
+  }
+
+  return <NoteEditorInner meetingId={meetingId} providerOrDoc={providerOrDoc} />
+}
+
+interface NoteEditorInnerProps {
+  meetingId: string
+  providerOrDoc: Y.Doc
+}
+
+const NoteEditorInner: React.FC<NoteEditorInnerProps> = ({ meetingId, providerOrDoc }) => {
+  const { data: notes, createNote, updateNote } = useNotes(meetingId)
+  const saveTimeoutRef = React.useRef<NodeJS.Timeout | null>(null)
+
+  // Cleanup debounced save on unmount
+  React.useEffect(() => {
+    return () => {
+      if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current)
+    }
+  }, [])
+
+  // Use refs for values needed in onUpdate callback
   const notesRef = React.useRef(notes)
   const createNoteRef = React.useRef(createNote)
   const updateNoteRef = React.useRef(updateNote)
@@ -55,10 +68,10 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({ meetingId }) => {
 
   const editor = useEditor(
     {
-      immediatelyRender: false, // Required for @tiptap/react v3 — prevents infinite re-render loop
+      immediatelyRender: false,
       extensions: [
         StarterKit.configure({
-          bulletList: false, // Disabling default to override
+          bulletList: false,
           paragraph: false,
         }),
         AiVerifiedParagraph,
@@ -73,22 +86,18 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({ meetingId }) => {
             noteId: notesRef.current?.[0]?.id,
           }),
         }),
-        ...(providerOrDoc
-          ? [
-              Collaboration.configure({
-                document: providerOrDoc,
-              }),
-            ]
-          : []),
+        Collaboration.configure({
+          document: providerOrDoc,
+        }),
       ],
-      content: providerOrDoc ? undefined : '', // Content is managed by Yjs if active
+      // Content is managed by Yjs
       editable: true,
       editorProps: {
         attributes: {
           class: 'ui-note-editor-content sovereign-scrollbar',
         },
         handleDOMEvents: {
-          mouseover: (view, event) => {
+          mouseover: (_view, event) => {
             const target = event.target as HTMLElement
             const p = target.closest('.ai-verified-paragraph')
             if (p) {
@@ -98,7 +107,7 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({ meetingId }) => {
                   const sourceSegments = JSON.parse(context)
                   window.dispatchEvent(
                     new CustomEvent('highlight-source-segments', {
-                      detail: { segments: sourceSegments }
+                      detail: { segments: sourceSegments },
                     })
                   )
                 } catch (e) {
@@ -108,19 +117,21 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({ meetingId }) => {
             }
             return false
           },
-          mouseout: (view, event) => {
+          mouseout: (_view, event) => {
             const target = event.target as HTMLElement
-            // If leaving the verified paragraph, clear highlight
-            if (target.classList.contains('ai-verified-paragraph') || target.closest('.ai-verified-paragraph')) {
+            if (
+              target.classList.contains('ai-verified-paragraph') ||
+              target.closest('.ai-verified-paragraph')
+            ) {
               window.dispatchEvent(
                 new CustomEvent('highlight-source-segments', {
-                  detail: { segments: [] }
+                  detail: { segments: [] },
                 })
               )
             }
             return false
-          }
-        }
+          },
+        },
       },
       onUpdate: ({ editor }) => {
         if (saveTimeoutRef.current) {
@@ -129,10 +140,8 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({ meetingId }) => {
 
         saveTimeoutRef.current = setTimeout(async () => {
           const text = editor.getHTML()
-          // Update dedup ref so periodic save skips duplicate
           lastSavedHtmlRef.current = text
           const currentNotes = notesRef.current
-          // Map to central note or create one if none exists
           if (currentNotes && currentNotes.length > 0) {
             updateNoteRef.current.mutate({
               noteId: currentNotes[0]?.id ?? '',
@@ -148,28 +157,22 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({ meetingId }) => {
         }, 1500)
       },
     },
-    [providerOrDoc, meetingId] // Only stable deps — editor recreated only when doc or meeting changes
+    [providerOrDoc, meetingId]
   )
 
-  // Keep editorRef in sync for the periodic auto-save timer
   const editorRef = React.useRef<ReturnType<typeof useEditor> | null>(null)
   React.useEffect(() => {
     editorRef.current = editor
   }, [editor])
 
-  // ── Periodic auto-save timer ─────────────────────────────────
-  // Separate from the debounced save-on-edit (1500ms).
-  // This ensures content is flushed to DB even if the user stops typing,
-  // protecting against data loss on crash.
   const lastSavedHtmlRef = React.useRef('')
   useEffect(() => {
-    const autoSaveIntervalMs = 30_000 // 30s
+    const autoSaveIntervalMs = 30_000
     const timer = setInterval(() => {
       const ed = editorRef.current
-      if (!ed || ed.isEmpty) return
+      if (!ed) return // Removed ed.isEmpty check to allow saving cleared documents
 
       const text = ed.getHTML()
-      // Skip save if content hasn't changed since last save (prevents race with debounced save)
       if (text === lastSavedHtmlRef.current) return
       lastSavedHtmlRef.current = text
 
@@ -182,10 +185,47 @@ export const NoteEditor: React.FC<NoteEditorProps> = ({ meetingId }) => {
       }
     }, autoSaveIntervalMs)
 
-    return () => clearInterval(timer)
-  }, []) // No deps — refs are stable
+    const handleBeforeUnload = () => {
+      const ed = editorRef.current
+      if (!ed) return // Removed ed.isEmpty check
+      const text = ed.getHTML()
+      if (text === lastSavedHtmlRef.current) return
+      lastSavedHtmlRef.current = text
+      try {
+        localStorage.setItem(`note-draft-${meetingId}`, text)
+      } catch {
+        // full
+      }
+      const cn = notesRef.current
+      if (cn?.length) {
+        try {
+          window.electronAPI?.note?.update({
+            noteId: cn[0]?.id ?? '',
+            updates: { original_text: text },
+          })
+        } catch {
+          // best-effort
+        }
+      }
+    }
+    window.addEventListener('beforeunload', handleBeforeUnload)
 
-  if (!editor || !providerOrDoc) {
+    try {
+      const draft = localStorage.getItem(`note-draft-${meetingId}`)
+      if (draft) {
+        localStorage.removeItem(`note-draft-${meetingId}`)
+      }
+    } catch {
+      // unavailable
+    }
+
+    return () => {
+      clearInterval(timer)
+      window.removeEventListener('beforeunload', handleBeforeUnload)
+    }
+  }, [meetingId])
+
+  if (!editor) {
     return <div className="p-4 text-[var(--color-text-tertiary)]">Initializing Note Editor...</div>
   }
 

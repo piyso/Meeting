@@ -222,6 +222,8 @@ export class ASRService extends EventEmitter {
         data: {
           id,
           audioBuffer: audioBuffer.buffer,
+          byteOffset: audioBuffer.byteOffset,
+          byteLength: audioBuffer.byteLength,
         },
       })
     })
@@ -316,6 +318,11 @@ export class ASRService extends EventEmitter {
       case 'error':
         log.error('[ASR Service] Worker error:', response.error)
         this.emit('error', new Error(response.error))
+        // Reject all pending requests — worker is in an unknown state
+        for (const pending of this.pendingRequests.values()) {
+          pending.reject(new Error(response.error || 'ASR worker error'))
+        }
+        this.pendingRequests.clear()
         break
 
       case 'unloaded':

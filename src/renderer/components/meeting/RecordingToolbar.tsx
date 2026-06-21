@@ -1,7 +1,8 @@
+import { useRecordingStore } from '../../store/recordingStore'
 import React, { useCallback } from 'react'
 import { Square, Pause, Play, Mic, Monitor, Circle, BookmarkPlus } from 'lucide-react'
 import { modKey } from '../../utils/platformShortcut'
-import { useAppStore } from '../../store/appStore'
+
 import { useRecordingTimer } from '../../hooks/useRecordingTimer'
 
 interface RecordingToolbarProps {
@@ -17,8 +18,8 @@ export const RecordingToolbar: React.FC<RecordingToolbarProps> = ({
   onResume,
   onBookmark,
 }) => {
-  const recordingState = useAppStore(s => s.recordingState)
-  const audioMode = useAppStore(s => s.audioMode)
+  const recordingState = useRecordingStore(s => s.recordingState)
+  const audioMode = useRecordingStore(s => s.audioMode)
   const { elapsedStr } = useRecordingTimer()
 
   const isPaused = recordingState === 'paused'

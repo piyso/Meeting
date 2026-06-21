@@ -26,6 +26,8 @@ const widgetAPI = {
   // ============================================================================
   window: {
     restoreMain: () => ipcRenderer.invoke('window:restoreMain'),
+    setIgnoreMouseEvents: (ignore: boolean) => ipcRenderer.invoke('window:setIgnoreMouseEvents', ignore),
+    resize: (width: number, height: number) => ipcRenderer.invoke('window:resize', { width, height }),
   },
 
   // ============================================================================
@@ -53,6 +55,7 @@ const widgetAPI = {
   on: {
     widgetStateUpdated: createEventListener('widget:stateUpdated'),
     spatialHandoff: createEventListener('widget:spatialHandoff'),
+    audioEvent: createEventListener('event:audioEvent'),
   },
 
   // ============================================================================

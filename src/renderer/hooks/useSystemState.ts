@@ -57,8 +57,11 @@ export function useSystemState() {
             }
           )
         }
-      } catch {
-        /* ignore */
+      } catch (err) {
+        console.debug(
+          '[useSystemState] Quota refresh failed:',
+          err instanceof Error ? err.message : String(err)
+        )
       }
     }, 60_000) // Every 60 seconds
 
@@ -91,8 +94,11 @@ export function useSystemState() {
         if (res?.success && res.data) {
           window.dispatchEvent(new CustomEvent('tier-refreshed', { detail: res.data }))
         }
-      } catch {
-        // Ignore — user may not be logged in or offline
+      } catch (err) {
+        console.debug(
+          '[useSystemState] Profile refresh on focus failed:',
+          err instanceof Error ? err.message : String(err)
+        )
       }
     }
 

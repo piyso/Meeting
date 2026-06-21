@@ -13,6 +13,7 @@ import { KeyStorageService as _KeyStorageService } from './KeyStorageService'
 import { config } from '../config/environment'
 import { Logger } from './Logger'
 import { keytarSafe } from './keytarSafe'
+import WebSocket from 'ws'
 const log = Logger.create('CloudTranscription')
 
 interface TranscriptSegment {
@@ -111,7 +112,7 @@ export class CloudTranscriptionService extends EventEmitter {
     // Set monthly limits based on tier
     switch (tier) {
       case 'free':
-        this.usageStats.monthlyLimit = 36000 // 10 hours
+        this.usageStats.monthlyLimit = 0 // Strict local-only enforcement
         break
       case 'starter':
         this.usageStats.monthlyLimit = 72000 // 20 hours
@@ -257,10 +258,7 @@ export class CloudTranscriptionService extends EventEmitter {
       this.language === 'auto' ? 'detect_language=true' : `language=${this.language}`
     const wsUrl = `wss://api.deepgram.com/v1/listen?punctuate=true&diarize=false&model=nova-2&${langParam}`
 
-    // Node.js WebSocket (ws) accepts options with headers, but browser WebSocket doesn't.
-    // In Electron main process, this uses the ws library which supports headers.
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    this.ws = new (WebSocket as any)(wsUrl, {
+    this.ws = new WebSocket(wsUrl, {
       headers: {
         Authorization: `Token ${this.apiKey}`,
       },
@@ -273,14 +271,14 @@ export class CloudTranscriptionService extends EventEmitter {
     this._stopRequested = false
     this._reconnectAttempts = 0
 
-    ws.addEventListener('open', () => {
+    ws.on('open', () => {
       log.info('[Cloud Transcription] Streaming connection opened')
       this.emit('connected')
     })
 
-    ws.addEventListener('message', (event: MessageEvent) => {
+    ws.on('message', (data: Buffer) => {
       try {
-        const result = JSON.parse(event.data.toString())
+        const result = JSON.parse(data.toString())
         if (result.channel?.alternatives?.[0]?.transcript) {
           const transcript = result.channel.alternatives[0].transcript
           this.emit('transcript', transcript)
@@ -290,19 +288,19 @@ export class CloudTranscriptionService extends EventEmitter {
       }
     })
 
-    ws.addEventListener('error', (event: Event) => {
-      log.error('[Cloud Transcription] WebSocket error:', event)
-      this.emit('error', event)
+    ws.on('error', (error: Error) => {
+      log.error('[Cloud Transcription] WebSocket error:', error)
+      this.emit('error', error)
     })
 
-    ws.addEventListener('close', (event: CloseEvent) => {
-      log.info(`[Cloud Transcription] Connection closed (code: ${event.code})`)
+    ws.on('close', (code: number) => {
+      log.info(`[Cloud Transcription] Connection closed (code: ${code})`)
       this.ws = null
       this.emit('disconnected')
 
       // Auto-reconnect with exponential backoff — but only for abnormal closures
       // Normal close (1000) or explicit stop won't reconnect
-      if (event.code !== 1000 && !this._stopRequested) {
+      if (code !== 1000 && !this._stopRequested) {
         this._reconnectAttempts = (this._reconnectAttempts || 0) + 1
         const maxAttempts = 5
         if (this._reconnectAttempts <= maxAttempts) {

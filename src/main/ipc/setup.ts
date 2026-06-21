@@ -40,6 +40,7 @@ import { registerActionItemHandlers } from './handlers/action-item.handlers'
 import { registerSentimentHandlers } from './handlers/sentiment.handlers'
 import { registerCalendarHandlers } from './handlers/calendar.handlers'
 import { registerWebhookHandlers } from './handlers/webhook.handlers'
+import { registerNewServiceHandlers } from './handlers/new-services.handlers'
 
 /**
  * Register all IPC handlers
@@ -78,8 +79,9 @@ export function setupIPC(): void {
   registerSentimentHandlers()
   registerCalendarHandlers()
   registerWebhookHandlers()
+  registerNewServiceHandlers()
 
-  log.info('All 28 IPC handler groups registered successfully')
+  log.info('All 29 IPC handler groups registered successfully')
 
   // P4-7 FIX: Register 'error' channel listener for ErrorBoundary crash reports.
   // ErrorBoundary.tsx sends crash data via ipcRenderer.send('error', {...}),

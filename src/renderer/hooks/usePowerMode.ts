@@ -20,8 +20,11 @@ export function usePowerMode() {
         // Enable power save mode if running on battery
         setIsPowerSaveMode(onBattery)
       }
-    } catch {
-      // Fallback: try Web Battery API (may work in some Electron versions)
+    } catch (err) {
+      console.debug(
+        '[usePowerMode] IPC power check failed, trying Web Battery API:',
+        err instanceof Error ? err.message : String(err)
+      )
       if ('getBattery' in navigator) {
         try {
           const battery = await (
@@ -31,8 +34,11 @@ export function usePowerMode() {
           ).getBattery()
           setIsOnBattery(!battery.charging)
           setIsPowerSaveMode(!battery.charging && battery.level < 0.3)
-        } catch {
-          // Neither method works — assume plugged in
+        } catch (batteryErr) {
+          console.debug(
+            '[usePowerMode] Web Battery API also failed:',
+            batteryErr instanceof Error ? batteryErr.message : String(batteryErr)
+          )
           setIsPowerSaveMode(false)
         }
       }
@@ -43,10 +49,17 @@ export function usePowerMode() {
     // Initial check
     checkPowerStatus()
 
-    // Poll every 30 seconds for power status changes
-    const interval = setInterval(checkPowerStatus, 30_000)
+    // Listen for power state changes from the main process
+    const unsubscribe = window.electronAPI?.on?.powerStateChanged?.(state => {
+      setIsOnBattery(state.isOnBattery)
+      setIsPowerSaveMode(state.isOnBattery)
+    })
 
-    return () => clearInterval(interval)
+    return () => {
+      if (unsubscribe) {
+        unsubscribe()
+      }
+    }
   }, [checkPowerStatus])
 
   return { isPowerSaveMode, isOnBattery }

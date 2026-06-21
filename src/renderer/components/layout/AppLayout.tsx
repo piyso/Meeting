@@ -1,7 +1,12 @@
+import { useAppStore } from '../../store/appStore'
+import { useRecordingStore } from '../../store/recordingStore'
+import { useNavigationStore } from '../../store/navigationStore'
+import { useConnectivityStore } from '../../store/connectivityStore'
+
 import React, { Suspense, lazy } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { WindowsTitleBar } from './WindowsTitleBar'
-import { useAppStore } from '../../store/appStore'
+
 import { ZenRail } from './ZenRail'
 import { DynamicIsland } from './DynamicIsland'
 import { ErrorBoundary } from './ErrorBoundary'
@@ -76,8 +81,8 @@ const PricingView = lazy(() =>
 )
 
 export const AppLayout: React.FC = () => {
-  const activeView = useAppStore(s => s.activeView)
-  const navigate = useAppStore(s => s.navigate)
+  const activeView = useNavigationStore(s => s.activeView)
+  const navigate = useNavigationStore(s => s.navigate)
 
   // ── Platform CSS Injection ─────────────────────────────────
   React.useEffect(() => {
@@ -88,11 +93,11 @@ export const AppLayout: React.FC = () => {
   useKeyboardShortcuts()
 
   const focusMode = useAppStore(s => s.focusMode)
-  const recordingState = useAppStore(s => s.recordingState)
-  const isOnline = useAppStore(s => s.isOnline)
-  const syncStatus = useAppStore(s => s.syncStatus)
-  const setRecordingState = useAppStore(s => s.setRecordingState)
-  const selectedMeetingId = useAppStore(s => s.selectedMeetingId)
+  const recordingState = useRecordingStore(s => s.recordingState)
+  const isOnline = useConnectivityStore(s => s.isOnline)
+  const syncStatus = useConnectivityStore(s => s.syncStatus)
+  const setRecordingState = useRecordingStore(s => s.setRecordingState)
+  const selectedMeetingId = useNavigationStore(s => s.selectedMeetingId)
   const globalContextOpen = useAppStore(s => s.globalContextOpen)
   const toggleGlobalContext = useAppStore(s => s.toggleGlobalContext)
 
@@ -150,8 +155,8 @@ export const AppLayout: React.FC = () => {
       try {
         const res = await window.electronAPI?.meeting?.start({})
         if (res?.success && res.data) {
-          useAppStore.getState().setActiveMeetingId(res.data.meeting.id)
-          useAppStore.getState().setRecordingStartTime(Date.now())
+          useRecordingStore.getState().setActiveMeetingId(res.data.meeting.id)
+          useRecordingStore.getState().setRecordingStartTime(Date.now())
           navigate('meeting-detail', res.data.meeting.id)
         } else {
           useAppStore.getState().addToast({
@@ -174,21 +179,21 @@ export const AppLayout: React.FC = () => {
 
     // toggle-recording: start if idle, stop if recording
     const handleToggleRecording = async () => {
-      const state = useAppStore.getState()
-      if (state.recordingState === 'recording' || state.recordingState === 'paused') {
+      const recStore = useRecordingStore.getState()
+      if (recStore.recordingState === 'recording' || recStore.recordingState === 'paused') {
         // Finalize pause accounting before stopping (mirrors handleStopRecording)
-        if (state.recordingState === 'paused' && state.recordingPausedAt) {
-          state.setRecordingTotalPausedMs(
-            state.recordingTotalPausedMs + (Date.now() - state.recordingPausedAt)
+        if (recStore.recordingState === 'paused' && recStore.recordingPausedAt) {
+          recStore.setRecordingTotalPausedMs(
+            recStore.recordingTotalPausedMs + (Date.now() - recStore.recordingPausedAt)
           )
-          state.setRecordingPausedAt(null)
+          recStore.setRecordingPausedAt(null)
         }
         setRecordingState('processing')
         try {
-          if (state.activeMeetingId) {
+          if (recStore.activeMeetingId) {
             // meeting:stop saves end_time/duration AND stops audio internally (L159-164
             // of meeting.handlers.ts) — no need to call audio:stopCapture separately
-            await window.electronAPI?.meeting?.stop?.({ meetingId: state.activeMeetingId })
+            await window.electronAPI?.meeting?.stop?.({ meetingId: recStore.activeMeetingId })
           }
         } catch {
           useAppStore.getState().addToast({
@@ -198,23 +203,26 @@ export const AppLayout: React.FC = () => {
             duration: 5000,
           })
         }
-        useAppStore.getState().setActiveMeetingId(null)
+        useRecordingStore.getState().setActiveMeetingId(null)
         setTimeout(() => setRecordingState('idle'), 2000)
-      } else if (state.recordingState === 'idle') {
+      } else if (recStore.recordingState === 'idle') {
         handleGlobalShortcut()
       }
     }
 
     // quick-export: export current meeting as markdown
     const handleQuickExport = async () => {
-      const state = useAppStore.getState()
-      const mid = state.selectedMeetingId || state.activeMeetingId
+      const recStore = useRecordingStore.getState()
+      const navStore = useNavigationStore.getState()
+      const mid = navStore.selectedMeetingId || recStore.activeMeetingId
       if (!mid) return
       try {
         await window.electronAPI?.meeting?.export?.({ meetingId: mid, format: 'markdown' })
-        state.addToast({ type: 'success', title: '📄 Exported as Markdown', duration: 2000 })
+        useAppStore
+          .getState()
+          .addToast({ type: 'success', title: '📄 Exported as Markdown', duration: 2000 })
       } catch {
-        state.addToast({ type: 'error', title: 'Export failed', duration: 3000 })
+        useAppStore.getState().addToast({ type: 'error', title: 'Export failed', duration: 3000 })
       }
     }
 
@@ -268,24 +276,33 @@ export const AppLayout: React.FC = () => {
 
   // ── Bookmark Execution Logic ────────────────────────────
   const executeBookmark = React.useCallback(async () => {
-    const state = useAppStore.getState()
-    if (state.recordingState !== 'recording' || !state.activeMeetingId || !state.recordingStartTime)
+    const recStore = useRecordingStore.getState()
+
+    if (
+      recStore.recordingState !== 'recording' ||
+      !recStore.activeMeetingId ||
+      !recStore.recordingStartTime
+    )
       return
 
-    const elapsedMs = Date.now() - state.recordingStartTime
+    const elapsedMs = Date.now() - recStore.recordingStartTime
     const endTimeSec = elapsedMs / 1000
     const startTimeSec = Math.max(0, endTimeSec - 30) // Last 30 seconds
 
     try {
       await window.electronAPI?.highlight?.create({
-        meetingId: state.activeMeetingId,
+        meetingId: recStore.activeMeetingId,
         startTime: startTimeSec,
         endTime: endTimeSec,
         label: '📌 Bookmarked moment',
       })
-      state.addToast({ type: 'success', title: '📌 Moment bookmarked', duration: 2000 })
+      useAppStore
+        .getState()
+        .addToast({ type: 'success', title: '📌 Moment bookmarked', duration: 2000 })
     } catch {
-      state.addToast({ type: 'error', title: 'Failed to bookmark', duration: 3000 })
+      useAppStore
+        .getState()
+        .addToast({ type: 'error', title: 'Failed to bookmark', duration: 3000 })
     }
   }, [])
 
@@ -363,7 +380,7 @@ export const AppLayout: React.FC = () => {
     checkFirstLaunch()
   }, [navigate])
 
-  const activeMeetingIdForAudio = useAppStore(s => s.activeMeetingId)
+  const activeMeetingIdForAudio = useRecordingStore(s => s.activeMeetingId)
   const meetingId =
     activeMeetingIdForAudio || (activeView === 'meeting-detail' ? selectedMeetingId : null)
   const {
@@ -375,9 +392,11 @@ export const AppLayout: React.FC = () => {
 
   // React to store state to trigger actual backend capture
   React.useEffect(() => {
+    let active = true
     if (recordingState === 'starting' && meetingId) {
       startCapture('system')
         .then(success => {
+          if (!active) return
           if (success) {
             setRecordingState('recording')
           } else {
@@ -385,27 +404,31 @@ export const AppLayout: React.FC = () => {
           }
         })
         .catch(() => {
+          if (!active) return
           setRecordingState('idle')
         })
+    }
+    return () => {
+      active = false
     }
   }, [recordingState, meetingId, startCapture, setRecordingState])
 
   // Stop recording via API hook and complete UI state shift
   const handleStopRecording = React.useCallback(async () => {
     // If stopping from paused state, finalize pause duration accounting
-    const state = useAppStore.getState()
-    if (state.recordingState === 'paused' && state.recordingPausedAt) {
-      state.setRecordingTotalPausedMs(
-        state.recordingTotalPausedMs + (Date.now() - state.recordingPausedAt)
+    const recStore = useRecordingStore.getState()
+    if (recStore.recordingState === 'paused' && recStore.recordingPausedAt) {
+      recStore.setRecordingTotalPausedMs(
+        recStore.recordingTotalPausedMs + (Date.now() - recStore.recordingPausedAt)
       )
-      state.setRecordingPausedAt(null)
+      recStore.setRecordingPausedAt(null)
     }
     setRecordingState('processing')
     try {
-      if (state.activeMeetingId) {
+      if (recStore.activeMeetingId) {
         // meeting.stop() saves end_time/duration AND stops audio internally
         // No separate stopCapture() needed — avoids double-stop race condition (C3)
-        await window.electronAPI?.meeting?.stop?.({ meetingId: state.activeMeetingId })
+        await window.electronAPI?.meeting?.stop?.({ meetingId: recStore.activeMeetingId })
       }
     } catch {
       useAppStore.getState().addToast({
@@ -415,39 +438,45 @@ export const AppLayout: React.FC = () => {
         duration: 5000,
       })
     }
-    useAppStore.getState().setActiveMeetingId(null)
+    useRecordingStore.getState().setActiveMeetingId(null)
     setTimeout(() => setRecordingState('idle'), 2000)
   }, [setRecordingState])
 
   // Pause/Resume recording
   const handlePauseRecording = React.useCallback(async () => {
-    const state = useAppStore.getState()
+    const recStore = useRecordingStore.getState()
     // Use activeMeetingId from store — not the view-dependent meetingId
     // This ensures pause works even when user navigates away from meeting-detail
-    if (!state.activeMeetingId) return
-    const currentState = state.recordingState
+    if (!recStore.activeMeetingId) return
+    const currentState = recStore.recordingState
     if (currentState === 'recording') {
       try {
         await pauseCapture()
-        state.setRecordingPausedAt(Date.now())
+        recStore.setRecordingPausedAt(Date.now())
         setRecordingState('paused')
-        state.addToast({ type: 'info', title: '⏸ Recording paused', duration: 2000 })
+        useAppStore
+          .getState()
+          .addToast({ type: 'info', title: '⏸ Recording paused', duration: 2000 })
       } catch {
-        state.addToast({ type: 'error', title: 'Failed to pause', duration: 3000 })
+        useAppStore.getState().addToast({ type: 'error', title: 'Failed to pause', duration: 3000 })
       }
     } else if (currentState === 'paused') {
       try {
         await resumeCapture()
-        if (state.recordingPausedAt) {
-          state.setRecordingTotalPausedMs(
-            state.recordingTotalPausedMs + (Date.now() - state.recordingPausedAt)
+        if (recStore.recordingPausedAt) {
+          recStore.setRecordingTotalPausedMs(
+            recStore.recordingTotalPausedMs + (Date.now() - recStore.recordingPausedAt)
           )
-          state.setRecordingPausedAt(null)
+          recStore.setRecordingPausedAt(null)
         }
         setRecordingState('recording')
-        state.addToast({ type: 'success', title: '▶ Recording resumed', duration: 2000 })
+        useAppStore
+          .getState()
+          .addToast({ type: 'success', title: '▶ Recording resumed', duration: 2000 })
       } catch {
-        state.addToast({ type: 'error', title: 'Failed to resume', duration: 3000 })
+        useAppStore
+          .getState()
+          .addToast({ type: 'error', title: 'Failed to resume', duration: 3000 })
       }
     }
   }, [pauseCapture, resumeCapture, setRecordingState])

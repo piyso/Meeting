@@ -31,9 +31,17 @@ async function bootstrap() {
   //   1. Browser dev mode (no Electron at all)
   //   2. Electron with USE_MOCK_DATA=true (preload skips contextBridge)
   if (!window.electronAPI) {
-    const { installMockElectronAPI } = await import('./mockElectronAPI')
-    console.info('[BlueArkive] Mock mode active — using simulated data')
-    installMockElectronAPI()
+    if (import.meta.env.DEV) {
+      // Trick Vite's static analysis so it doesn't create a chunk for mock data in production
+      const mockModulePath = './mockElectronAPI'
+      const { installMockElectronAPI } = await import(/* @vite-ignore */ mockModulePath)
+      console.info('[BlueArkive] Mock mode active — using simulated data')
+      installMockElectronAPI()
+    } else {
+      console.error(
+        '[BlueArkive] window.electronAPI is missing. Mock data is excluded from production builds.'
+      )
+    }
   }
 
   const rootElement = document.getElementById('root')

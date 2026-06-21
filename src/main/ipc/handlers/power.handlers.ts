@@ -5,9 +5,21 @@
  * Used by the usePowerMode hook in the renderer to reduce resource usage on battery.
  */
 
-import { ipcMain, powerMonitor } from 'electron'
+import { ipcMain, powerMonitor, BrowserWindow } from 'electron'
+import { getPowerMonitorService } from '../../services/PowerMonitorService'
 
 export function registerPowerHandlers(): void {
+  const powerService = getPowerMonitorService()
+  powerService.initialize()
+
+  powerService.onChange(state => {
+    const isOnBattery = state === 'on-battery'
+    for (const win of BrowserWindow.getAllWindows()) {
+      if (!win.isDestroyed()) {
+        win.webContents.send('power:stateChanged', { isOnBattery })
+      }
+    }
+  })
   // power:getStatus — Get current battery/power status
   ipcMain.handle('power:getStatus', async () => {
     try {

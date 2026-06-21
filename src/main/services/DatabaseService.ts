@@ -11,6 +11,7 @@ import {
   initializeDatabase as initDbConnection,
   getDatabase,
   getDatabasePath,
+  closeDatabase,
 } from '../database/connection'
 import {
   createMeeting,
@@ -83,6 +84,14 @@ export class DatabaseService {
     // no-op: connection.ts closeDatabase() handles this in main.ts shutdown
   }
 
+  /**
+   * Reopen database connection (used after restore/backup operations)
+   */
+  reopenDb(): void {
+    closeDatabase()
+    initDbConnection()
+  }
+
   // ============================================================================
   // Meeting Operations
   // ============================================================================
@@ -111,6 +120,8 @@ export class DatabaseService {
     const conditions: string[] = []
     const values: unknown[] = []
 
+    // Always exclude soft-deleted meetings
+    conditions.push('deleted_at IS NULL')
     if (params.namespace) {
       conditions.push('namespace = ?')
       values.push(params.namespace)

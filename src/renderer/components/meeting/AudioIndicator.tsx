@@ -41,19 +41,25 @@ export const AudioIndicator: React.FC<AudioIndicatorProps> = ({ audioLevel, isRe
     const canvas = canvasRef.current
     if (!canvas || hasTransferred.current) return
 
-    const worker = workerPool.acquire()
+    let worker: Worker | null = null
 
     try {
+      worker = workerPool.acquire()
       const offscreen = canvas.transferControlToOffscreen()
       worker.postMessage({ type: 'init', canvas: offscreen }, [offscreen])
       hasTransferred.current = true
     } catch {
       // Canvas may already be transferred (React StrictMode double-mount)
+      if (worker) {
+        workerPool.release()
+        worker = null
+      }
     }
 
     return () => {
-      if (hasTransferred.current) {
+      if (worker) {
         workerPool.release()
+        worker = null
         hasTransferred.current = false
       }
     }

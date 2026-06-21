@@ -1,11 +1,12 @@
-import { useEffect } from 'react'
 import { useAppStore } from '../store/appStore'
+import { useNavigationStore } from '../store/navigationStore'
+import { useEffect } from 'react'
 
 export function useKeyboardShortcuts() {
   const toggleCommandPalette = useAppStore(s => s.toggleCommandPalette)
   const toggleFocusMode = useAppStore(s => s.toggleFocusMode)
   const toggleGlobalContext = useAppStore(s => s.toggleGlobalContext)
-  const navigate = useAppStore(s => s.navigate)
+  const navigate = useNavigationStore(s => s.navigate)
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
@@ -71,6 +72,20 @@ export function useKeyboardShortcuts() {
       if (meta && e.shiftKey && (e.key === 'g' || e.key === 'G')) {
         e.preventDefault()
         toggleGlobalContext()
+        return
+      }
+
+      // Cmd+Shift+P → Toggle Pause/Resume Recording
+      if (meta && e.shiftKey && (e.key === 'p' || e.key === 'P')) {
+        e.preventDefault()
+        window.dispatchEvent(new CustomEvent('toggle-pause'))
+        return
+      }
+
+      // Cmd+Shift+B → Bookmark (during recording)
+      if (meta && e.shiftKey && (e.key === 'b' || e.key === 'B')) {
+        e.preventDefault()
+        window.dispatchEvent(new CustomEvent('add-bookmark'))
         return
       }
     }

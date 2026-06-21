@@ -194,6 +194,14 @@
   }
 }
 
+body.widget-body,
+html.widget-html,
+.widget-root {
+  background-color: rgba(0, 0, 0, 0) !important;
+  background-image: none !important;
+  box-shadow: none !important;
+}
+
 html:not(.widget-html),
 body:not(.widget-body),
 #root:not(.widget-root) {
@@ -255,6 +263,16 @@ body:has(.calm-landing) {
     /* sharp top highlight */ inset 0 0 0 1px rgba(255, 255, 255, 0.05),
     /* soft inner rim */ 0 32px 80px -16px rgba(0, 0, 0, 0.8),
     /* massive deep shadow */ 0 0 40px rgba(0, 0, 0, 0.4); /* ambient darkness ring */
+}
+
+/* ── Specific Widget Surface (Fixes bleeding on transparent MacOS windows) ── */
+.widget-surface-premium {
+  background: linear-gradient(160deg, rgba(28, 28, 34, 0.98) 0%, rgba(14, 14, 18, 0.99) 100%);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  box-shadow:
+    inset 0 1.5px 1px rgba(255, 255, 255, 0.2),
+    0 24px 60px -12px rgba(0, 0, 0, 0.8),
+    0 0 0 1px rgba(0, 0, 0, 0.6); /* Sharp black outline prevents light bleeding */
 }
 
 /* ── Apple Tahoe Native Materials ── */

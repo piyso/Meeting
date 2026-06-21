@@ -340,7 +340,9 @@ export class ModelManager {
           // mid-stream when user cancels. Without this, cancelled requests
           // continue burning GPU cycles until maxTokens is exhausted.
           if (options.signal?.aborted) {
-            throw new DOMException('Generation aborted', 'AbortError')
+            const abortErr = new Error('Generation aborted')
+            abortErr.name = 'AbortError'
+            throw abortErr
           }
           fullResponse += text
           options.onToken?.(fullResponse)

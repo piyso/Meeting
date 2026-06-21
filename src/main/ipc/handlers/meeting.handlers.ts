@@ -319,17 +319,66 @@ export function registerMeetingHandlers(): void {
     }
   )
 
-  // Delete a meeting
+  // Delete a meeting (soft-delete with undo support)
+  // 6.2 FIX: Replaces window.confirm() with soft-delete + undo toast.
+  // Meeting is marked deleted_at = NOW(), purged after 10s unless restored.
   ipcMain.handle(
     'meeting:delete',
-    async (_event, params: DeleteMeetingParams): Promise<IPCResponse<void>> => {
+    async (
+      _event,
+      params: DeleteMeetingParams
+    ): Promise<IPCResponse<{ deleted: boolean; meetingId: string }>> => {
       try {
         const db = getDatabaseService()
-        db.deleteMeeting(params.meetingId)
+        const meeting = db.getMeeting(params.meetingId)
+        if (!meeting) {
+          throw new Error(`Meeting not found: ${params.meetingId}`)
+        }
+
+        // Soft-delete: mark deleted_at instead of hard delete
+        const now = Math.floor(Date.now() / 1000)
+        const purgeAfterSec = params.purgeAfterSec || 10
+
+        // Ensure deleted_at column exists (migration-safe)
+        try {
+          const hasCol = db
+            .getDb()
+            .prepare(
+              "SELECT COUNT(*) as cnt FROM pragma_table_info('meetings') WHERE name='deleted_at'"
+            )
+            .get() as { cnt: number }
+          if (!hasCol || hasCol.cnt === 0) {
+            db.getDb().exec('ALTER TABLE meetings ADD COLUMN deleted_at INTEGER')
+          }
+        } catch {
+          // Column may already exist
+        }
+
+        db.getDb()
+          .prepare('UPDATE meetings SET deleted_at = ? WHERE id = ?')
+          .run(now, params.meetingId)
+
+        // Schedule hard delete after purge window
+        const purgeTimer = setTimeout(() => {
+          try {
+            const currentState = db
+              .getDb()
+              .prepare('SELECT deleted_at FROM meetings WHERE id = ?')
+              .get(params.meetingId) as { deleted_at: number | null } | undefined
+            // Only hard-delete if still marked (not restored)
+            if (currentState?.deleted_at) {
+              db.deleteMeeting(params.meetingId)
+              log.info(`Purged soft-deleted meeting: ${params.meetingId}`)
+            }
+          } catch (purgeErr) {
+            log.debug('Purge timer cleanup failed:', purgeErr)
+          }
+        }, purgeAfterSec * 1000)
+        if (purgeTimer.unref) purgeTimer.unref()
 
         return {
           success: true,
-          data: undefined,
+          data: { deleted: true, meetingId: params.meetingId },
         }
       } catch (error) {
         log.error('Failed to delete meeting:', error)
@@ -337,6 +386,50 @@ export function registerMeetingHandlers(): void {
           success: false,
           error: {
             code: 'MEETING_DELETE_FAILED',
+            message: error instanceof Error ? error.message : 'Unknown error',
+            details: error instanceof Error ? error.stack : undefined,
+            timestamp: Date.now(),
+          },
+        }
+      }
+    }
+  )
+
+  // Restore a soft-deleted meeting (undo)
+  // 6.2 FIX: Clears deleted_at to restore the meeting before purge window expires.
+  ipcMain.handle(
+    'meeting:restore',
+    async (_event, params: { meetingId: string }): Promise<IPCResponse<Meeting>> => {
+      try {
+        const db = getDatabaseService()
+
+        // Direct SQL check: getMeeting() filters deleted_at, so we query raw
+        const raw = db
+          .getDb()
+          .prepare('SELECT deleted_at FROM meetings WHERE id = ?')
+          .get(params.meetingId) as { deleted_at: number | null } | undefined
+
+        if (!raw) {
+          throw new Error(`Meeting not found: ${params.meetingId}`)
+        }
+        if (!raw.deleted_at) {
+          throw new Error(`Meeting is not deleted: ${params.meetingId}`)
+        }
+
+        db.getDb()
+          .prepare('UPDATE meetings SET deleted_at = NULL WHERE id = ?')
+          .run(params.meetingId)
+
+        const restored = db.getMeeting(params.meetingId)
+        log.info(`Restored soft-deleted meeting: ${params.meetingId}`)
+
+        return { success: true, data: restored! }
+      } catch (error) {
+        log.error('Failed to restore meeting:', error)
+        return {
+          success: false,
+          error: {
+            code: 'MEETING_RESTORE_FAILED',
             message: error instanceof Error ? error.message : 'Unknown error',
             details: error instanceof Error ? error.stack : undefined,
             timestamp: Date.now(),

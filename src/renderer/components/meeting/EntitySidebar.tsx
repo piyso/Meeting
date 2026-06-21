@@ -1,4 +1,6 @@
-import React, { useEffect, useMemo, useState } from 'react'
+import { useAppStore } from '../../store/appStore'
+import { useRecordingStore } from '../../store/recordingStore'
+import React, { useMemo, useState } from 'react'
 import type { Entity } from '../../../types/database'
 import {
   Hash,
@@ -13,53 +15,42 @@ import {
   Globe,
 } from 'lucide-react'
 import { IconButton } from '../ui/IconButton'
-import { useAppStore } from '../../store/appStore'
 
 interface EntitySidebarProps {
   meetingId: string
   onClose?: () => void
 }
 
+import { useQuery } from '@tanstack/react-query'
+
 export const EntitySidebar: React.FC<EntitySidebarProps> = ({ meetingId, onClose }) => {
-  const [entities, setEntities] = useState<Entity[]>([])
-  const [isLoading, setIsLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
   const currentTier = useAppStore(s => s.currentTier)
 
-  const recordingState = useAppStore(s => s.recordingState)
+  const recordingState = useRecordingStore(s => s.recordingState)
   const isRecording = recordingState === 'recording' || recordingState === 'paused'
 
   const [filter, setFilter] = useState('')
 
-  useEffect(() => {
-    async function fetchEntities() {
-      setIsLoading(true)
-      try {
-        const res = await window.electronAPI?.entity?.get({ meetingId })
-        if (res?.success && res.data) {
-          setEntities(res.data)
-        } else {
-          setError(res?.error?.message || 'Failed to load entities')
-        }
-      } catch (err) {
-        setError(err instanceof Error ? err.message : 'Unknown error')
-      } finally {
-        setIsLoading(false)
+  const {
+    data: entities = [],
+    isLoading,
+    error: queryError,
+  } = useQuery({
+    queryKey: ['entities', meetingId],
+    queryFn: async () => {
+      if (!meetingId) return []
+      const res = await window.electronAPI?.entity?.get({ meetingId })
+      if (!res?.success) {
+        throw new Error(res?.error?.message || 'Failed to load entities')
       }
-    }
-
-    if (meetingId) {
-      fetchEntities()
-    }
-
+      return res.data || []
+    },
+    enabled: !!meetingId,
     // I20 fix: Poll for new entities every 15s during active recording
-    // so newly discovered entities appear without requiring sidebar close/reopen
-    if (meetingId && isRecording) {
-      const interval = setInterval(fetchEntities, 15_000)
-      return () => clearInterval(interval)
-    }
-    return undefined
-  }, [meetingId, isRecording])
+    refetchInterval: isRecording ? 15000 : false,
+  })
+
+  const error = queryError ? (queryError as Error).message : null
 
   // Group and filter entities (memoized — can be large)
   const grouped = useMemo(

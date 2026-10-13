@@ -1,0 +1,2197 @@
+{
+  "startTime": "2026-07-25T20:41:33.492Z",
+  "durationMinutes": 30,
+  "platform": "darwin",
+  "arch": "arm64",
+  "totalRAM": 16,
+  "samples": [
+    {
+      "timestamp": "2026-07-25T20:41:35.551Z",
+      "elapsedMinutes": 0,
+      "memoryMB": 0.06,
+      "virtualMB": 400534.22
+    },
+    {
+      "timestamp": "2026-07-25T20:41:40.587Z",
+      "elapsedMinutes": 0.08,
+      "memoryMB": 34.28,
+      "virtualMB": 425482.45
+    },
+    {
+      "timestamp": "2026-07-25T20:41:45.594Z",
+      "elapsedMinutes": 0.17,
+      "memoryMB": 34.88,
+      "virtualMB": 425482.45
+    },
+    {
+      "timestamp": "2026-07-25T20:41:50.584Z",
+      "elapsedMinutes": 0.25,
+      "memoryMB": 35.36,
+      "virtualMB": 425482.45
+    },
+    {
+      "timestamp": "2026-07-25T20:41:55.597Z",
+      "elapsedMinutes": 0.33,
+      "memoryMB": 35.95,
+      "virtualMB": 425482.45
+    },
+    {
+      "timestamp": "2026-07-25T20:42:00.597Z",
+      "elapsedMinutes": 0.42,
+      "memoryMB": 36.48,
+      "virtualMB": 425482.45
+    },
+    {
+      "timestamp": "2026-07-25T20:42:05.597Z",
+      "elapsedMinutes": 0.5,
+      "memoryMB": 29.86,
+      "virtualMB": 425482.45
+    },
+    {
+      "timestamp": "2026-07-25T20:42:10.593Z",
+      "elapsedMinutes": 0.58,
+      "memoryMB": 30.41,
+      "virtualMB": 425482.45
+    },
+    {
+      "timestamp": "2026-07-25T20:42:15.581Z",
+      "elapsedMinutes": 0.67,
+      "memoryMB": 30.95,
+      "virtualMB": 425482.45
+    },
+    {
+      "timestamp": "2026-07-25T20:42:20.578Z",
+      "elapsedMinutes": 0.75,
+      "memoryMB": 31.52,
+      "virtualMB": 425482.45
+    },
+    {
+      "timestamp": "2026-07-25T20:42:25.578Z",
+      "elapsedMinutes": 0.83,
+      "memoryMB": 32.09,
+      "virtualMB": 425482.45
+    },
+    {
+      "timestamp": "2026-07-25T20:42:30.602Z",
+      "elapsedMinutes": 0.92,
+      "memoryMB": 32.78,
+      "virtualMB": 425482.45
+    },
+    {
+      "timestamp": "2026-07-25T20:42:35.584Z",
+      "elapsedMinutes": 1,
+      "memoryMB": 33.33,
+      "virtualMB": 425482.45
+    },
+    {
+      "timestamp": "2026-07-25T20:42:40.602Z",
+      "elapsedMinutes": 1.08,
+      "memoryMB": 33.88,
+      "virtualMB": 425482.45
+    },
+    {
+      "timestamp": "2026-07-25T20:42:45.602Z",
+      "elapsedMinutes": 1.17,
+      "memoryMB": 34.41,
+      "virtualMB": 425482.45
+    },
+    {
+      "timestamp": "2026-07-25T20:42:50.583Z",
+      "elapsedMinutes": 1.25,
+      "memoryMB": 34.98,
+      "virtualMB": 425482.45
+    },
+    {
+      "timestamp": "2026-07-25T20:42:55.606Z",
+      "elapsedMinutes": 1.33,
+      "memoryMB": 29.91,
+      "virtualMB": 425482.45
+    },
+    {
+      "timestamp": "2026-07-25T20:43:00.594Z",
+      "elapsedMinutes": 1.42,
+      "memoryMB": 29.72,
+      "virtualMB": 425482.45
+    },
+    {
+      "timestamp": "2026-07-25T20:43:05.599Z",
+      "elapsedMinutes": 1.5,
+      "memoryMB": 29.16,
+      "virtualMB": 425482.45
+    },
+    {
+      "timestamp": "2026-07-25T20:43:10.612Z",
+      "elapsedMinutes": 1.58,
+      "memoryMB": 29.7,
+      "virtualMB": 425482.45
+    },
+    {
+      "timestamp": "2026-07-25T20:43:15.613Z",
+      "elapsedMinutes": 1.67,
+      "memoryMB": 30.3,
+      "virtualMB": 425482.45
+    },
+    {
+      "timestamp": "2026-07-25T20:43:20.599Z",
+      "elapsedMinutes": 1.75,
+      "memoryMB": 35.86,
+      "virtualMB": 425487.95
+    },
+    {
+      "timestamp": "2026-07-25T20:43:25.610Z",
+      "elapsedMinutes": 1.83,
+      "memoryMB": 35.22,
+      "virtualMB": 425487.95
+    },
+    {
+      "timestamp": "2026-07-25T20:43:30.609Z",
+      "elapsedMinutes": 1.92,
+      "memoryMB": 35.73,
+      "virtualMB": 425487.95
+    },
+    {
+      "timestamp": "2026-07-25T20:43:35.605Z",
+      "elapsedMinutes": 2,
+      "memoryMB": 33.41,
+      "virtualMB": 425487.95
+    },
+    {
+      "timestamp": "2026-07-25T20:43:40.598Z",
+      "elapsedMinutes": 2.08,
+      "memoryMB": 39.28,
+      "virtualMB": 425487.95
+    },
+    {
+      "timestamp": "2026-07-25T20:43:45.614Z",
+      "elapsedMinutes": 2.17,
+      "memoryMB": 39.31,
+      "virtualMB": 425487.95
+    },
+    {
+      "timestamp": "2026-07-25T20:43:50.597Z",
+      "elapsedMinutes": 2.25,
+      "memoryMB": 39.89,
+      "virtualMB": 425487.95
+    },
+    {
+      "timestamp": "2026-07-25T20:43:55.611Z",
+      "elapsedMinutes": 2.33,
+      "memoryMB": 40.44,
+      "virtualMB": 425487.95
+    },
+    {
+      "timestamp": "2026-07-25T20:44:00.620Z",
+      "elapsedMinutes": 2.42,
+      "memoryMB": 41.08,
+      "virtualMB": 425487.95
+    },
+    {
+      "timestamp": "2026-07-25T20:44:05.621Z",
+      "elapsedMinutes": 2.5,
+      "memoryMB": 41.63,
+      "virtualMB": 425487.95
+    },
+    {
+      "timestamp": "2026-07-25T20:44:10.623Z",
+      "elapsedMinutes": 2.58,
+      "memoryMB": 42.2,
+      "virtualMB": 425487.95
+    },
+    {
+      "timestamp": "2026-07-25T20:44:15.612Z",
+      "elapsedMinutes": 2.67,
+      "memoryMB": 42.77,
+      "virtualMB": 425487.95
+    },
+    {
+      "timestamp": "2026-07-25T20:44:20.622Z",
+      "elapsedMinutes": 2.75,
+      "memoryMB": 43.31,
+      "virtualMB": 425487.95
+    },
+    {
+      "timestamp": "2026-07-25T20:44:25.626Z",
+      "elapsedMinutes": 2.83,
+      "memoryMB": 39.88,
+      "virtualMB": 425487.95
+    },
+    {
+      "timestamp": "2026-07-25T20:44:30.613Z",
+      "elapsedMinutes": 2.92,
+      "memoryMB": 38.38,
+      "virtualMB": 425487.95
+    },
+    {
+      "timestamp": "2026-07-25T20:44:35.637Z",
+      "elapsedMinutes": 3,
+      "memoryMB": 34.33,
+      "virtualMB": 425487.95
+    },
+    {
+      "timestamp": "2026-07-25T20:44:40.628Z",
+      "elapsedMinutes": 3.08,
+      "memoryMB": 34.86,
+      "virtualMB": 425487.95
+    },
+    {
+      "timestamp": "2026-07-25T20:44:45.632Z",
+      "elapsedMinutes": 3.17,
+      "memoryMB": 35.45,
+      "virtualMB": 425487.95
+    },
+    {
+      "timestamp": "2026-07-25T20:44:50.632Z",
+      "elapsedMinutes": 3.25,
+      "memoryMB": 35.58,
+      "virtualMB": 425487.95
+    },
+    {
+      "timestamp": "2026-07-25T20:44:55.625Z",
+      "elapsedMinutes": 3.33,
+      "memoryMB": 33.52,
+      "virtualMB": 425487.95
+    },
+    {
+      "timestamp": "2026-07-25T20:45:00.637Z",
+      "elapsedMinutes": 3.42,
+      "memoryMB": 45.45,
+      "virtualMB": 425488.45
+    },
+    {
+      "timestamp": "2026-07-25T20:45:05.634Z",
+      "elapsedMinutes": 3.5,
+      "memoryMB": 45.53,
+      "virtualMB": 425488.45
+    },
+    {
+      "timestamp": "2026-07-25T20:45:10.638Z",
+      "elapsedMinutes": 3.58,
+      "memoryMB": 48.3,
+      "virtualMB": 425488.2
+    },
+    {
+      "timestamp": "2026-07-25T20:45:15.617Z",
+      "elapsedMinutes": 3.67,
+      "memoryMB": 48.38,
+      "virtualMB": 425488.2
+    },
+    {
+      "timestamp": "2026-07-25T20:45:20.639Z",
+      "elapsedMinutes": 3.75,
+      "memoryMB": 47.25,
+      "virtualMB": 425488.2
+    },
+    {
+      "timestamp": "2026-07-25T20:45:25.637Z",
+      "elapsedMinutes": 3.83,
+      "memoryMB": 46.63,
+      "virtualMB": 425488.2
+    },
+    {
+      "timestamp": "2026-07-25T20:45:30.643Z",
+      "elapsedMinutes": 3.92,
+      "memoryMB": 46.45,
+      "virtualMB": 425488.2
+    },
+    {
+      "timestamp": "2026-07-25T20:45:35.640Z",
+      "elapsedMinutes": 4,
+      "memoryMB": 45.83,
+      "virtualMB": 425488.2
+    },
+    {
+      "timestamp": "2026-07-25T20:45:40.637Z",
+      "elapsedMinutes": 4.08,
+      "memoryMB": 46.91,
+      "virtualMB": 425488.2
+    },
+    {
+      "timestamp": "2026-07-25T20:45:45.642Z",
+      "elapsedMinutes": 4.17,
+      "memoryMB": 46.91,
+      "virtualMB": 425488.2
+    },
+    {
+      "timestamp": "2026-07-25T20:45:50.642Z",
+      "elapsedMinutes": 4.25,
+      "memoryMB": 46.98,
+      "virtualMB": 425488.2
+    },
+    {
+      "timestamp": "2026-07-25T20:45:55.638Z",
+      "elapsedMinutes": 4.33,
+      "memoryMB": 46.92,
+      "virtualMB": 425488.2
+    },
+    {
+      "timestamp": "2026-07-25T20:46:00.642Z",
+      "elapsedMinutes": 4.42,
+      "memoryMB": 47.02,
+      "virtualMB": 425488.2
+    },
+    {
+      "timestamp": "2026-07-25T20:46:05.649Z",
+      "elapsedMinutes": 4.5,
+      "memoryMB": 46.75,
+      "virtualMB": 425488.2
+    },
+    {
+      "timestamp": "2026-07-25T20:46:10.639Z",
+      "elapsedMinutes": 4.58,
+      "memoryMB": 34.75,
+      "virtualMB": 425488.2
+    },
+    {
+      "timestamp": "2026-07-25T20:46:15.639Z",
+      "elapsedMinutes": 4.67,
+      "memoryMB": 35.28,
+      "virtualMB": 425488.2
+    },
+    {
+      "timestamp": "2026-07-25T20:46:20.637Z",
+      "elapsedMinutes": 4.75,
+      "memoryMB": 35.72,
+      "virtualMB": 425488.2
+    },
+    {
+      "timestamp": "2026-07-25T20:46:25.638Z",
+      "elapsedMinutes": 4.83,
+      "memoryMB": 36.16,
+      "virtualMB": 425488.2
+    },
+    {
+      "timestamp": "2026-07-25T20:46:30.638Z",
+      "elapsedMinutes": 4.92,
+      "memoryMB": 36.7,
+      "virtualMB": 425488.2
+    },
+    {
+      "timestamp": "2026-07-25T20:46:35.638Z",
+      "elapsedMinutes": 5,
+      "memoryMB": 37.23,
+      "virtualMB": 425488.2
+    },
+    {
+      "timestamp": "2026-07-25T20:46:40.627Z",
+      "elapsedMinutes": 5.08,
+      "memoryMB": 34.8,
+      "virtualMB": 425488.2
+    },
+    {
+      "timestamp": "2026-07-25T20:46:45.639Z",
+      "elapsedMinutes": 5.17,
+      "memoryMB": 36.73,
+      "virtualMB": 425488.2
+    },
+    {
+      "timestamp": "2026-07-25T20:46:50.639Z",
+      "elapsedMinutes": 5.25,
+      "memoryMB": 37.28,
+      "virtualMB": 425488.2
+    },
+    {
+      "timestamp": "2026-07-25T20:46:55.641Z",
+      "elapsedMinutes": 5.33,
+      "memoryMB": 37.83,
+      "virtualMB": 425488.2
+    },
+    {
+      "timestamp": "2026-07-25T20:47:00.643Z",
+      "elapsedMinutes": 5.42,
+      "memoryMB": 38.39,
+      "virtualMB": 425488.2
+    },
+    {
+      "timestamp": "2026-07-25T20:47:05.648Z",
+      "elapsedMinutes": 5.5,
+      "memoryMB": 38.94,
+      "virtualMB": 425488.2
+    },
+    {
+      "timestamp": "2026-07-25T20:47:10.648Z",
+      "elapsedMinutes": 5.58,
+      "memoryMB": 38.61,
+      "virtualMB": 425488.2
+    },
+    {
+      "timestamp": "2026-07-25T20:47:15.645Z",
+      "elapsedMinutes": 5.67,
+      "memoryMB": 39.13,
+      "virtualMB": 425488.2
+    },
+    {
+      "timestamp": "2026-07-25T20:47:20.647Z",
+      "elapsedMinutes": 5.75,
+      "memoryMB": 39.66,
+      "virtualMB": 425488.2
+    },
+    {
+      "timestamp": "2026-07-25T20:47:25.648Z",
+      "elapsedMinutes": 5.83,
+      "memoryMB": 40.2,
+      "virtualMB": 425488.2
+    },
+    {
+      "timestamp": "2026-07-25T20:47:30.648Z",
+      "elapsedMinutes": 5.92,
+      "memoryMB": 40.78,
+      "virtualMB": 425488.2
+    },
+    {
+      "timestamp": "2026-07-25T20:47:35.649Z",
+      "elapsedMinutes": 6,
+      "memoryMB": 41.36,
+      "virtualMB": 425488.2
+    },
+    {
+      "timestamp": "2026-07-25T20:47:40.652Z",
+      "elapsedMinutes": 6.08,
+      "memoryMB": 37.81,
+      "virtualMB": 425488.2
+    },
+    {
+      "timestamp": "2026-07-25T20:47:45.652Z",
+      "elapsedMinutes": 6.17,
+      "memoryMB": 35.13,
+      "virtualMB": 425488.2
+    },
+    {
+      "timestamp": "2026-07-25T20:47:50.645Z",
+      "elapsedMinutes": 6.25,
+      "memoryMB": 35.67,
+      "virtualMB": 425488.2
+    },
+    {
+      "timestamp": "2026-07-25T20:47:55.656Z",
+      "elapsedMinutes": 6.33,
+      "memoryMB": 36.23,
+      "virtualMB": 425488.2
+    },
+    {
+      "timestamp": "2026-07-25T20:48:00.654Z",
+      "elapsedMinutes": 6.42,
+      "memoryMB": 36.09,
+      "virtualMB": 425488.2
+    },
+    {
+      "timestamp": "2026-07-25T20:48:05.656Z",
+      "elapsedMinutes": 6.5,
+      "memoryMB": 36.63,
+      "virtualMB": 425488.2
+    },
+    {
+      "timestamp": "2026-07-25T20:48:10.656Z",
+      "elapsedMinutes": 6.58,
+      "memoryMB": 37.19,
+      "virtualMB": 425488.2
+    },
+    {
+      "timestamp": "2026-07-25T20:48:15.660Z",
+      "elapsedMinutes": 6.67,
+      "memoryMB": 37.45,
+      "virtualMB": 425488.2
+    },
+    {
+      "timestamp": "2026-07-25T20:48:20.658Z",
+      "elapsedMinutes": 6.75,
+      "memoryMB": 37.61,
+      "virtualMB": 425488.2
+    },
+    {
+      "timestamp": "2026-07-25T20:48:25.661Z",
+      "elapsedMinutes": 6.83,
+      "memoryMB": 36.72,
+      "virtualMB": 425488.2
+    },
+    {
+      "timestamp": "2026-07-25T20:48:30.660Z",
+      "elapsedMinutes": 6.92,
+      "memoryMB": 37.25,
+      "virtualMB": 425488.2
+    },
+    {
+      "timestamp": "2026-07-25T20:48:35.661Z",
+      "elapsedMinutes": 7,
+      "memoryMB": 37.8,
+      "virtualMB": 425488.2
+    },
+    {
+      "timestamp": "2026-07-25T20:48:40.661Z",
+      "elapsedMinutes": 7.08,
+      "memoryMB": 38.23,
+      "virtualMB": 425488.2
+    },
+    {
+      "timestamp": "2026-07-25T20:48:45.669Z",
+      "elapsedMinutes": 7.17,
+      "memoryMB": 38.05,
+      "virtualMB": 425488.2
+    },
+    {
+      "timestamp": "2026-07-25T20:48:50.667Z",
+      "elapsedMinutes": 7.25,
+      "memoryMB": 39.17,
+      "virtualMB": 425488.2
+    },
+    {
+      "timestamp": "2026-07-25T20:48:55.666Z",
+      "elapsedMinutes": 7.33,
+      "memoryMB": 45.95,
+      "virtualMB": 425488.2
+    },
+    {
+      "timestamp": "2026-07-25T20:49:00.666Z",
+      "elapsedMinutes": 7.42,
+      "memoryMB": 46.05,
+      "virtualMB": 425488.2
+    },
+    {
+      "timestamp": "2026-07-25T20:49:05.712Z",
+      "elapsedMinutes": 7.5,
+      "memoryMB": 45.81,
+      "virtualMB": 425488.2
+    },
+    {
+      "timestamp": "2026-07-25T20:49:10.670Z",
+      "elapsedMinutes": 7.58,
+      "memoryMB": 45.03,
+      "virtualMB": 425488.2
+    },
+    {
+      "timestamp": "2026-07-25T20:49:15.653Z",
+      "elapsedMinutes": 7.67,
+      "memoryMB": 45.11,
+      "virtualMB": 425488.2
+    },
+    {
+      "timestamp": "2026-07-25T20:49:20.672Z",
+      "elapsedMinutes": 7.75,
+      "memoryMB": 44.38,
+      "virtualMB": 425488.2
+    },
+    {
+      "timestamp": "2026-07-25T20:49:25.677Z",
+      "elapsedMinutes": 7.83,
+      "memoryMB": 44.45,
+      "virtualMB": 425488.2
+    },
+    {
+      "timestamp": "2026-07-25T20:49:30.685Z",
+      "elapsedMinutes": 7.92,
+      "memoryMB": 44.53,
+      "virtualMB": 425488.2
+    },
+    {
+      "timestamp": "2026-07-25T20:49:35.695Z",
+      "elapsedMinutes": 8,
+      "memoryMB": 44.56,
+      "virtualMB": 425488.2
+    },
+    {
+      "timestamp": "2026-07-25T20:49:40.680Z",
+      "elapsedMinutes": 8.08,
+      "memoryMB": 44.66,
+      "virtualMB": 425488.2
+    },
+    {
+      "timestamp": "2026-07-25T20:49:45.664Z",
+      "elapsedMinutes": 8.17,
+      "memoryMB": 44.63,
+      "virtualMB": 425488.2
+    },
+    {
+      "timestamp": "2026-07-25T20:49:50.667Z",
+      "elapsedMinutes": 8.25,
+      "memoryMB": 44.44,
+      "virtualMB": 425488.2
+    },
+    {
+      "timestamp": "2026-07-25T20:49:55.679Z",
+      "elapsedMinutes": 8.33,
+      "memoryMB": 43.05,
+      "virtualMB": 425488.2
+    },
+    {
+      "timestamp": "2026-07-25T20:50:00.680Z",
+      "elapsedMinutes": 8.42,
+      "memoryMB": 43.14,
+      "virtualMB": 425488.2
+    },
+    {
+      "timestamp": "2026-07-25T20:50:05.681Z",
+      "elapsedMinutes": 8.5,
+      "memoryMB": 44.59,
+      "virtualMB": 425488.2
+    },
+    {
+      "timestamp": "2026-07-25T20:50:10.683Z",
+      "elapsedMinutes": 8.58,
+      "memoryMB": 44.67,
+      "virtualMB": 425488.2
+    },
+    {
+      "timestamp": "2026-07-25T20:50:15.684Z",
+      "elapsedMinutes": 8.67,
+      "memoryMB": 44.95,
+      "virtualMB": 425488.2
+    },
+    {
+      "timestamp": "2026-07-25T20:50:20.685Z",
+      "elapsedMinutes": 8.75,
+      "memoryMB": 45.06,
+      "virtualMB": 425488.2
+    },
+    {
+      "timestamp": "2026-07-25T20:50:25.683Z",
+      "elapsedMinutes": 8.83,
+      "memoryMB": 45.17,
+      "virtualMB": 425488.2
+    },
+    {
+      "timestamp": "2026-07-25T20:50:30.683Z",
+      "elapsedMinutes": 8.92,
+      "memoryMB": 45.27,
+      "virtualMB": 425488.2
+    },
+    {
+      "timestamp": "2026-07-25T20:50:35.684Z",
+      "elapsedMinutes": 9,
+      "memoryMB": 45.77,
+      "virtualMB": 425488.2
+    },
+    {
+      "timestamp": "2026-07-25T20:50:40.671Z",
+      "elapsedMinutes": 9.08,
+      "memoryMB": 46.28,
+      "virtualMB": 425488.2
+    },
+    {
+      "timestamp": "2026-07-25T20:50:45.706Z",
+      "elapsedMinutes": 9.17,
+      "memoryMB": 41.28,
+      "virtualMB": 425488.2
+    },
+    {
+      "timestamp": "2026-07-25T20:50:50.675Z",
+      "elapsedMinutes": 9.25,
+      "memoryMB": 39.06,
+      "virtualMB": 425488.2
+    },
+    {
+      "timestamp": "2026-07-25T20:50:55.686Z",
+      "elapsedMinutes": 9.33,
+      "memoryMB": 32,
+      "virtualMB": 425488.2
+    },
+    {
+      "timestamp": "2026-07-25T20:51:00.675Z",
+      "elapsedMinutes": 9.42,
+      "memoryMB": 32.23,
+      "virtualMB": 425488.2
+    },
+    {
+      "timestamp": "2026-07-25T20:51:05.678Z",
+      "elapsedMinutes": 9.5,
+      "memoryMB": 32.05,
+      "virtualMB": 425488.2
+    },
+    {
+      "timestamp": "2026-07-25T20:51:10.699Z",
+      "elapsedMinutes": 9.58,
+      "memoryMB": 32.33,
+      "virtualMB": 425488.2
+    },
+    {
+      "timestamp": "2026-07-25T20:51:15.702Z",
+      "elapsedMinutes": 9.67,
+      "memoryMB": 32.89,
+      "virtualMB": 425488.2
+    },
+    {
+      "timestamp": "2026-07-25T20:51:20.689Z",
+      "elapsedMinutes": 9.75,
+      "memoryMB": 32.89,
+      "virtualMB": 425488.2
+    },
+    {
+      "timestamp": "2026-07-25T20:51:25.690Z",
+      "elapsedMinutes": 9.83,
+      "memoryMB": 48.5,
+      "virtualMB": 425488.2
+    },
+    {
+      "timestamp": "2026-07-25T20:51:30.688Z",
+      "elapsedMinutes": 9.92,
+      "memoryMB": 48.64,
+      "virtualMB": 425488.2
+    },
+    {
+      "timestamp": "2026-07-25T20:51:35.690Z",
+      "elapsedMinutes": 10,
+      "memoryMB": 48.2,
+      "virtualMB": 425488.2
+    },
+    {
+      "timestamp": "2026-07-25T20:51:40.707Z",
+      "elapsedMinutes": 10.08,
+      "memoryMB": 48.05,
+      "virtualMB": 425488.2
+    },
+    {
+      "timestamp": "2026-07-25T20:51:45.709Z",
+      "elapsedMinutes": 10.17,
+      "memoryMB": 49.34,
+      "virtualMB": 425488.2
+    },
+    {
+      "timestamp": "2026-07-25T20:51:50.705Z",
+      "elapsedMinutes": 10.25,
+      "memoryMB": 49.42,
+      "virtualMB": 425488.2
+    },
+    {
+      "timestamp": "2026-07-25T20:51:55.704Z",
+      "elapsedMinutes": 10.33,
+      "memoryMB": 49.5,
+      "virtualMB": 425488.2
+    },
+    {
+      "timestamp": "2026-07-25T20:52:00.702Z",
+      "elapsedMinutes": 10.42,
+      "memoryMB": 49.56,
+      "virtualMB": 425488.2
+    },
+    {
+      "timestamp": "2026-07-25T20:52:05.690Z",
+      "elapsedMinutes": 10.5,
+      "memoryMB": 49.66,
+      "virtualMB": 425488.2
+    },
+    {
+      "timestamp": "2026-07-25T20:52:10.707Z",
+      "elapsedMinutes": 10.58,
+      "memoryMB": 49.75,
+      "virtualMB": 425488.2
+    },
+    {
+      "timestamp": "2026-07-25T20:52:15.710Z",
+      "elapsedMinutes": 10.67,
+      "memoryMB": 49.83,
+      "virtualMB": 425488.2
+    },
+    {
+      "timestamp": "2026-07-25T20:52:20.714Z",
+      "elapsedMinutes": 10.75,
+      "memoryMB": 49.91,
+      "virtualMB": 425488.2
+    },
+    {
+      "timestamp": "2026-07-25T20:52:25.716Z",
+      "elapsedMinutes": 10.83,
+      "memoryMB": 50.02,
+      "virtualMB": 425488.2
+    },
+    {
+      "timestamp": "2026-07-25T20:52:30.717Z",
+      "elapsedMinutes": 10.92,
+      "memoryMB": 50.11,
+      "virtualMB": 425488.2
+    },
+    {
+      "timestamp": "2026-07-25T20:52:35.724Z",
+      "elapsedMinutes": 11,
+      "memoryMB": 50.16,
+      "virtualMB": 425488.2
+    },
+    {
+      "timestamp": "2026-07-25T20:52:40.720Z",
+      "elapsedMinutes": 11.08,
+      "memoryMB": 50.25,
+      "virtualMB": 425488.2
+    },
+    {
+      "timestamp": "2026-07-25T20:52:45.718Z",
+      "elapsedMinutes": 11.17,
+      "memoryMB": 50.34,
+      "virtualMB": 425488.2
+    },
+    {
+      "timestamp": "2026-07-25T20:52:50.719Z",
+      "elapsedMinutes": 11.25,
+      "memoryMB": 50.42,
+      "virtualMB": 425488.2
+    },
+    {
+      "timestamp": "2026-07-25T20:52:55.721Z",
+      "elapsedMinutes": 11.33,
+      "memoryMB": 49.95,
+      "virtualMB": 425488.2
+    },
+    {
+      "timestamp": "2026-07-25T20:53:00.722Z",
+      "elapsedMinutes": 11.42,
+      "memoryMB": 50.05,
+      "virtualMB": 425488.2
+    },
+    {
+      "timestamp": "2026-07-25T20:53:05.721Z",
+      "elapsedMinutes": 11.5,
+      "memoryMB": 50.13,
+      "virtualMB": 425488.2
+    },
+    {
+      "timestamp": "2026-07-25T20:53:10.720Z",
+      "elapsedMinutes": 11.58,
+      "memoryMB": 50.2,
+      "virtualMB": 425488.2
+    },
+    {
+      "timestamp": "2026-07-25T20:53:15.741Z",
+      "elapsedMinutes": 11.67,
+      "memoryMB": 49.95,
+      "virtualMB": 425488.2
+    },
+    {
+      "timestamp": "2026-07-25T20:53:20.725Z",
+      "elapsedMinutes": 11.75,
+      "memoryMB": 35.92,
+      "virtualMB": 425488.2
+    },
+    {
+      "timestamp": "2026-07-25T20:53:25.730Z",
+      "elapsedMinutes": 11.83,
+      "memoryMB": 36.69,
+      "virtualMB": 425488.2
+    },
+    {
+      "timestamp": "2026-07-25T20:53:30.727Z",
+      "elapsedMinutes": 11.92,
+      "memoryMB": 37.22,
+      "virtualMB": 425488.2
+    },
+    {
+      "timestamp": "2026-07-25T20:53:35.730Z",
+      "elapsedMinutes": 12,
+      "memoryMB": 37.78,
+      "virtualMB": 425488.2
+    },
+    {
+      "timestamp": "2026-07-25T20:53:40.743Z",
+      "elapsedMinutes": 12.08,
+      "memoryMB": 38.31,
+      "virtualMB": 425488.2
+    },
+    {
+      "timestamp": "2026-07-25T20:53:45.733Z",
+      "elapsedMinutes": 12.17,
+      "memoryMB": 38.78,
+      "virtualMB": 425488.2
+    },
+    {
+      "timestamp": "2026-07-25T20:53:50.722Z",
+      "elapsedMinutes": 12.25,
+      "memoryMB": 52.5,
+      "virtualMB": 425488.2
+    },
+    {
+      "timestamp": "2026-07-25T20:53:55.738Z",
+      "elapsedMinutes": 12.33,
+      "memoryMB": 52.58,
+      "virtualMB": 425488.2
+    },
+    {
+      "timestamp": "2026-07-25T20:54:00.736Z",
+      "elapsedMinutes": 12.42,
+      "memoryMB": 52.69,
+      "virtualMB": 425488.2
+    },
+    {
+      "timestamp": "2026-07-25T20:54:05.739Z",
+      "elapsedMinutes": 12.5,
+      "memoryMB": 52.3,
+      "virtualMB": 425488.2
+    },
+    {
+      "timestamp": "2026-07-25T20:54:10.737Z",
+      "elapsedMinutes": 12.58,
+      "memoryMB": 52.38,
+      "virtualMB": 425488.2
+    },
+    {
+      "timestamp": "2026-07-25T20:54:15.739Z",
+      "elapsedMinutes": 12.67,
+      "memoryMB": 52.47,
+      "virtualMB": 425488.2
+    },
+    {
+      "timestamp": "2026-07-25T20:54:20.739Z",
+      "elapsedMinutes": 12.75,
+      "memoryMB": 52.56,
+      "virtualMB": 425488.2
+    },
+    {
+      "timestamp": "2026-07-25T20:54:25.740Z",
+      "elapsedMinutes": 12.83,
+      "memoryMB": 52.64,
+      "virtualMB": 425488.2
+    },
+    {
+      "timestamp": "2026-07-25T20:54:30.742Z",
+      "elapsedMinutes": 12.92,
+      "memoryMB": 52.72,
+      "virtualMB": 425488.2
+    },
+    {
+      "timestamp": "2026-07-25T20:54:35.742Z",
+      "elapsedMinutes": 13,
+      "memoryMB": 52.8,
+      "virtualMB": 425488.2
+    },
+    {
+      "timestamp": "2026-07-25T20:54:40.751Z",
+      "elapsedMinutes": 13.08,
+      "memoryMB": 52.78,
+      "virtualMB": 425488.2
+    },
+    {
+      "timestamp": "2026-07-25T20:54:45.732Z",
+      "elapsedMinutes": 13.17,
+      "memoryMB": 51.38,
+      "virtualMB": 425488.2
+    },
+    {
+      "timestamp": "2026-07-25T20:54:50.740Z",
+      "elapsedMinutes": 13.25,
+      "memoryMB": 47.5,
+      "virtualMB": 425488.2
+    },
+    {
+      "timestamp": "2026-07-25T20:54:55.732Z",
+      "elapsedMinutes": 13.33,
+      "memoryMB": 47.52,
+      "virtualMB": 425488.2
+    },
+    {
+      "timestamp": "2026-07-25T20:55:00.750Z",
+      "elapsedMinutes": 13.42,
+      "memoryMB": 32.22,
+      "virtualMB": 425488.2
+    },
+    {
+      "timestamp": "2026-07-25T20:55:05.759Z",
+      "elapsedMinutes": 13.5,
+      "memoryMB": 34.22,
+      "virtualMB": 425488.2
+    },
+    {
+      "timestamp": "2026-07-25T20:55:10.741Z",
+      "elapsedMinutes": 13.58,
+      "memoryMB": 34.77,
+      "virtualMB": 425488.2
+    },
+    {
+      "timestamp": "2026-07-25T20:55:15.783Z",
+      "elapsedMinutes": 13.67,
+      "memoryMB": 35.27,
+      "virtualMB": 425488.2
+    },
+    {
+      "timestamp": "2026-07-25T20:55:20.760Z",
+      "elapsedMinutes": 13.75,
+      "memoryMB": 34.16,
+      "virtualMB": 425488.2
+    },
+    {
+      "timestamp": "2026-07-25T20:55:25.755Z",
+      "elapsedMinutes": 13.83,
+      "memoryMB": 34.67,
+      "virtualMB": 425488.2
+    },
+    {
+      "timestamp": "2026-07-25T20:55:30.756Z",
+      "elapsedMinutes": 13.92,
+      "memoryMB": 35.22,
+      "virtualMB": 425488.2
+    },
+    {
+      "timestamp": "2026-07-25T20:55:35.759Z",
+      "elapsedMinutes": 14,
+      "memoryMB": 35.75,
+      "virtualMB": 425488.2
+    },
+    {
+      "timestamp": "2026-07-25T20:55:40.760Z",
+      "elapsedMinutes": 14.08,
+      "memoryMB": 36.31,
+      "virtualMB": 425488.2
+    },
+    {
+      "timestamp": "2026-07-25T20:55:45.759Z",
+      "elapsedMinutes": 14.17,
+      "memoryMB": 36.88,
+      "virtualMB": 425488.2
+    },
+    {
+      "timestamp": "2026-07-25T20:55:50.762Z",
+      "elapsedMinutes": 14.25,
+      "memoryMB": 37.44,
+      "virtualMB": 425488.2
+    },
+    {
+      "timestamp": "2026-07-25T20:55:55.762Z",
+      "elapsedMinutes": 14.33,
+      "memoryMB": 37.97,
+      "virtualMB": 425488.2
+    },
+    {
+      "timestamp": "2026-07-25T20:56:00.764Z",
+      "elapsedMinutes": 14.42,
+      "memoryMB": 38.55,
+      "virtualMB": 425488.2
+    },
+    {
+      "timestamp": "2026-07-25T20:56:05.756Z",
+      "elapsedMinutes": 14.5,
+      "memoryMB": 39.11,
+      "virtualMB": 425488.2
+    },
+    {
+      "timestamp": "2026-07-25T20:56:10.770Z",
+      "elapsedMinutes": 14.58,
+      "memoryMB": 53.5,
+      "virtualMB": 425488.2
+    },
+    {
+      "timestamp": "2026-07-25T20:56:15.768Z",
+      "elapsedMinutes": 14.67,
+      "memoryMB": 53.66,
+      "virtualMB": 425488.2
+    },
+    {
+      "timestamp": "2026-07-25T20:56:20.769Z",
+      "elapsedMinutes": 14.75,
+      "memoryMB": 53.75,
+      "virtualMB": 425488.2
+    },
+    {
+      "timestamp": "2026-07-25T20:56:25.775Z",
+      "elapsedMinutes": 14.83,
+      "memoryMB": 53.72,
+      "virtualMB": 425488.2
+    },
+    {
+      "timestamp": "2026-07-25T20:56:30.773Z",
+      "elapsedMinutes": 14.92,
+      "memoryMB": 53.8,
+      "virtualMB": 425488.2
+    },
+    {
+      "timestamp": "2026-07-25T20:56:35.779Z",
+      "elapsedMinutes": 15,
+      "memoryMB": 49.06,
+      "virtualMB": 425488.2
+    },
+    {
+      "timestamp": "2026-07-25T20:56:40.776Z",
+      "elapsedMinutes": 15.08,
+      "memoryMB": 47.05,
+      "virtualMB": 425488.2
+    },
+    {
+      "timestamp": "2026-07-25T20:56:45.772Z",
+      "elapsedMinutes": 15.17,
+      "memoryMB": 47.11,
+      "virtualMB": 425488.2
+    },
+    {
+      "timestamp": "2026-07-25T20:56:50.781Z",
+      "elapsedMinutes": 15.25,
+      "memoryMB": 48.86,
+      "virtualMB": 425488.2
+    },
+    {
+      "timestamp": "2026-07-25T20:56:55.788Z",
+      "elapsedMinutes": 15.33,
+      "memoryMB": 48.53,
+      "virtualMB": 425488.2
+    },
+    {
+      "timestamp": "2026-07-25T20:57:00.780Z",
+      "elapsedMinutes": 15.42,
+      "memoryMB": 47.86,
+      "virtualMB": 425488.2
+    },
+    {
+      "timestamp": "2026-07-25T20:57:05.779Z",
+      "elapsedMinutes": 15.5,
+      "memoryMB": 47.95,
+      "virtualMB": 425488.2
+    },
+    {
+      "timestamp": "2026-07-25T20:57:10.782Z",
+      "elapsedMinutes": 15.58,
+      "memoryMB": 35.09,
+      "virtualMB": 425488.2
+    },
+    {
+      "timestamp": "2026-07-25T20:57:15.779Z",
+      "elapsedMinutes": 15.67,
+      "memoryMB": 35.64,
+      "virtualMB": 425488.2
+    },
+    {
+      "timestamp": "2026-07-25T20:57:20.782Z",
+      "elapsedMinutes": 15.75,
+      "memoryMB": 36.16,
+      "virtualMB": 425488.2
+    },
+    {
+      "timestamp": "2026-07-25T20:57:25.783Z",
+      "elapsedMinutes": 15.83,
+      "memoryMB": 36.72,
+      "virtualMB": 425488.2
+    },
+    {
+      "timestamp": "2026-07-25T20:57:30.787Z",
+      "elapsedMinutes": 15.92,
+      "memoryMB": 37.25,
+      "virtualMB": 425488.2
+    },
+    {
+      "timestamp": "2026-07-25T20:57:35.791Z",
+      "elapsedMinutes": 16,
+      "memoryMB": 37.75,
+      "virtualMB": 425488.2
+    },
+    {
+      "timestamp": "2026-07-25T20:57:40.772Z",
+      "elapsedMinutes": 16.08,
+      "memoryMB": 37.95,
+      "virtualMB": 425488.2
+    },
+    {
+      "timestamp": "2026-07-25T20:57:45.778Z",
+      "elapsedMinutes": 16.17,
+      "memoryMB": 33.8,
+      "virtualMB": 425488.2
+    },
+    {
+      "timestamp": "2026-07-25T20:57:50.775Z",
+      "elapsedMinutes": 16.25,
+      "memoryMB": 33.58,
+      "virtualMB": 425488.2
+    },
+    {
+      "timestamp": "2026-07-25T20:57:55.787Z",
+      "elapsedMinutes": 16.33,
+      "memoryMB": 34,
+      "virtualMB": 425488.2
+    },
+    {
+      "timestamp": "2026-07-25T20:58:00.791Z",
+      "elapsedMinutes": 16.42,
+      "memoryMB": 34.53,
+      "virtualMB": 425488.2
+    },
+    {
+      "timestamp": "2026-07-25T20:58:05.793Z",
+      "elapsedMinutes": 16.5,
+      "memoryMB": 35.09,
+      "virtualMB": 425488.2
+    },
+    {
+      "timestamp": "2026-07-25T20:58:10.797Z",
+      "elapsedMinutes": 16.58,
+      "memoryMB": 35.64,
+      "virtualMB": 425488.2
+    },
+    {
+      "timestamp": "2026-07-25T20:58:15.799Z",
+      "elapsedMinutes": 16.67,
+      "memoryMB": 36.22,
+      "virtualMB": 425488.2
+    },
+    {
+      "timestamp": "2026-07-25T20:58:20.795Z",
+      "elapsedMinutes": 16.75,
+      "memoryMB": 36.59,
+      "virtualMB": 425488.2
+    },
+    {
+      "timestamp": "2026-07-25T20:58:25.790Z",
+      "elapsedMinutes": 16.83,
+      "memoryMB": 37.13,
+      "virtualMB": 425488.2
+    },
+    {
+      "timestamp": "2026-07-25T20:58:30.805Z",
+      "elapsedMinutes": 16.92,
+      "memoryMB": 33.98,
+      "virtualMB": 425488.2
+    },
+    {
+      "timestamp": "2026-07-25T20:58:35.804Z",
+      "elapsedMinutes": 17,
+      "memoryMB": 48.67,
+      "virtualMB": 425488.2
+    },
+    {
+      "timestamp": "2026-07-25T20:58:40.793Z",
+      "elapsedMinutes": 17.08,
+      "memoryMB": 48.61,
+      "virtualMB": 425488.2
+    },
+    {
+      "timestamp": "2026-07-25T20:58:45.809Z",
+      "elapsedMinutes": 17.17,
+      "memoryMB": 45.95,
+      "virtualMB": 425488.2
+    },
+    {
+      "timestamp": "2026-07-25T20:58:50.804Z",
+      "elapsedMinutes": 17.25,
+      "memoryMB": 46,
+      "virtualMB": 425488.2
+    },
+    {
+      "timestamp": "2026-07-25T20:58:55.809Z",
+      "elapsedMinutes": 17.33,
+      "memoryMB": 32.56,
+      "virtualMB": 425488.2
+    },
+    {
+      "timestamp": "2026-07-25T20:59:00.796Z",
+      "elapsedMinutes": 17.42,
+      "memoryMB": 32.92,
+      "virtualMB": 425488.2
+    },
+    {
+      "timestamp": "2026-07-25T20:59:05.821Z",
+      "elapsedMinutes": 17.5,
+      "memoryMB": 33.48,
+      "virtualMB": 425488.2
+    },
+    {
+      "timestamp": "2026-07-25T20:59:10.809Z",
+      "elapsedMinutes": 17.58,
+      "memoryMB": 34.03,
+      "virtualMB": 425488.2
+    },
+    {
+      "timestamp": "2026-07-25T20:59:15.804Z",
+      "elapsedMinutes": 17.67,
+      "memoryMB": 34.5,
+      "virtualMB": 425488.2
+    },
+    {
+      "timestamp": "2026-07-25T20:59:20.820Z",
+      "elapsedMinutes": 17.75,
+      "memoryMB": 34.95,
+      "virtualMB": 425488.2
+    },
+    {
+      "timestamp": "2026-07-25T20:59:25.813Z",
+      "elapsedMinutes": 17.83,
+      "memoryMB": 35.48,
+      "virtualMB": 425488.2
+    },
+    {
+      "timestamp": "2026-07-25T20:59:30.815Z",
+      "elapsedMinutes": 17.92,
+      "memoryMB": 35.94,
+      "virtualMB": 425488.2
+    },
+    {
+      "timestamp": "2026-07-25T20:59:35.843Z",
+      "elapsedMinutes": 18,
+      "memoryMB": 33.33,
+      "virtualMB": 425488.2
+    },
+    {
+      "timestamp": "2026-07-25T20:59:40.809Z",
+      "elapsedMinutes": 18.08,
+      "memoryMB": 32.77,
+      "virtualMB": 425488.2
+    },
+    {
+      "timestamp": "2026-07-25T20:59:45.815Z",
+      "elapsedMinutes": 18.17,
+      "memoryMB": 33.33,
+      "virtualMB": 425488.2
+    },
+    {
+      "timestamp": "2026-07-25T20:59:50.811Z",
+      "elapsedMinutes": 18.25,
+      "memoryMB": 33.88,
+      "virtualMB": 425488.2
+    },
+    {
+      "timestamp": "2026-07-25T20:59:55.816Z",
+      "elapsedMinutes": 18.33,
+      "memoryMB": 34.42,
+      "virtualMB": 425488.2
+    },
+    {
+      "timestamp": "2026-07-25T21:00:00.801Z",
+      "elapsedMinutes": 18.42,
+      "memoryMB": 34.69,
+      "virtualMB": 425488.2
+    },
+    {
+      "timestamp": "2026-07-25T21:00:05.816Z",
+      "elapsedMinutes": 18.5,
+      "memoryMB": 35.25,
+      "virtualMB": 425488.2
+    },
+    {
+      "timestamp": "2026-07-25T21:00:10.820Z",
+      "elapsedMinutes": 18.58,
+      "memoryMB": 37.59,
+      "virtualMB": 425488.2
+    },
+    {
+      "timestamp": "2026-07-25T21:00:15.819Z",
+      "elapsedMinutes": 18.67,
+      "memoryMB": 35.03,
+      "virtualMB": 425488.2
+    },
+    {
+      "timestamp": "2026-07-25T21:00:20.821Z",
+      "elapsedMinutes": 18.75,
+      "memoryMB": 35.53,
+      "virtualMB": 425488.2
+    },
+    {
+      "timestamp": "2026-07-25T21:00:25.806Z",
+      "elapsedMinutes": 18.83,
+      "memoryMB": 34.19,
+      "virtualMB": 425488.2
+    },
+    {
+      "timestamp": "2026-07-25T21:00:30.809Z",
+      "elapsedMinutes": 18.92,
+      "memoryMB": 34.75,
+      "virtualMB": 425488.2
+    },
+    {
+      "timestamp": "2026-07-25T21:00:35.803Z",
+      "elapsedMinutes": 19,
+      "memoryMB": 31.67,
+      "virtualMB": 425488.2
+    },
+    {
+      "timestamp": "2026-07-25T21:00:40.825Z",
+      "elapsedMinutes": 19.08,
+      "memoryMB": 32.2,
+      "virtualMB": 425488.2
+    },
+    {
+      "timestamp": "2026-07-25T21:00:45.826Z",
+      "elapsedMinutes": 19.17,
+      "memoryMB": 31.92,
+      "virtualMB": 425488.2
+    },
+    {
+      "timestamp": "2026-07-25T21:00:50.825Z",
+      "elapsedMinutes": 19.25,
+      "memoryMB": 32.47,
+      "virtualMB": 425488.2
+    },
+    {
+      "timestamp": "2026-07-25T21:00:55.819Z",
+      "elapsedMinutes": 19.33,
+      "memoryMB": 33.02,
+      "virtualMB": 425488.2
+    },
+    {
+      "timestamp": "2026-07-25T21:01:00.828Z",
+      "elapsedMinutes": 19.42,
+      "memoryMB": 31.97,
+      "virtualMB": 425488.2
+    },
+    {
+      "timestamp": "2026-07-25T21:01:05.810Z",
+      "elapsedMinutes": 19.5,
+      "memoryMB": 46.95,
+      "virtualMB": 425488.2
+    },
+    {
+      "timestamp": "2026-07-25T21:01:10.832Z",
+      "elapsedMinutes": 19.58,
+      "memoryMB": 46.64,
+      "virtualMB": 425488.2
+    },
+    {
+      "timestamp": "2026-07-25T21:01:15.831Z",
+      "elapsedMinutes": 19.67,
+      "memoryMB": 46.75,
+      "virtualMB": 425488.2
+    },
+    {
+      "timestamp": "2026-07-25T21:01:20.834Z",
+      "elapsedMinutes": 19.75,
+      "memoryMB": 46.59,
+      "virtualMB": 425488.2
+    },
+    {
+      "timestamp": "2026-07-25T21:01:25.835Z",
+      "elapsedMinutes": 19.83,
+      "memoryMB": 46.67,
+      "virtualMB": 425488.2
+    },
+    {
+      "timestamp": "2026-07-25T21:01:30.834Z",
+      "elapsedMinutes": 19.92,
+      "memoryMB": 46.75,
+      "virtualMB": 425488.2
+    },
+    {
+      "timestamp": "2026-07-25T21:01:35.824Z",
+      "elapsedMinutes": 20,
+      "memoryMB": 46.84,
+      "virtualMB": 425488.2
+    },
+    {
+      "timestamp": "2026-07-25T21:01:40.846Z",
+      "elapsedMinutes": 20.08,
+      "memoryMB": 46.92,
+      "virtualMB": 425488.2
+    },
+    {
+      "timestamp": "2026-07-25T21:01:45.838Z",
+      "elapsedMinutes": 20.17,
+      "memoryMB": 46.98,
+      "virtualMB": 425488.2
+    },
+    {
+      "timestamp": "2026-07-25T21:01:50.838Z",
+      "elapsedMinutes": 20.25,
+      "memoryMB": 48.41,
+      "virtualMB": 425488.2
+    },
+    {
+      "timestamp": "2026-07-25T21:01:55.848Z",
+      "elapsedMinutes": 20.33,
+      "memoryMB": 48.02,
+      "virtualMB": 425488.2
+    },
+    {
+      "timestamp": "2026-07-25T21:02:00.839Z",
+      "elapsedMinutes": 20.42,
+      "memoryMB": 33.25,
+      "virtualMB": 425488.2
+    },
+    {
+      "timestamp": "2026-07-25T21:02:05.827Z",
+      "elapsedMinutes": 20.5,
+      "memoryMB": 33.81,
+      "virtualMB": 425488.2
+    },
+    {
+      "timestamp": "2026-07-25T21:02:10.837Z",
+      "elapsedMinutes": 20.58,
+      "memoryMB": 34.42,
+      "virtualMB": 425488.2
+    },
+    {
+      "timestamp": "2026-07-25T21:02:15.849Z",
+      "elapsedMinutes": 20.67,
+      "memoryMB": 34.95,
+      "virtualMB": 425488.2
+    },
+    {
+      "timestamp": "2026-07-25T21:02:20.846Z",
+      "elapsedMinutes": 20.75,
+      "memoryMB": 35.48,
+      "virtualMB": 425488.2
+    },
+    {
+      "timestamp": "2026-07-25T21:02:25.847Z",
+      "elapsedMinutes": 20.83,
+      "memoryMB": 36.05,
+      "virtualMB": 425488.2
+    },
+    {
+      "timestamp": "2026-07-25T21:02:30.849Z",
+      "elapsedMinutes": 20.92,
+      "memoryMB": 36.58,
+      "virtualMB": 425488.2
+    },
+    {
+      "timestamp": "2026-07-25T21:02:35.851Z",
+      "elapsedMinutes": 21,
+      "memoryMB": 37.13,
+      "virtualMB": 425488.2
+    },
+    {
+      "timestamp": "2026-07-25T21:02:40.850Z",
+      "elapsedMinutes": 21.08,
+      "memoryMB": 37.7,
+      "virtualMB": 425488.2
+    },
+    {
+      "timestamp": "2026-07-25T21:02:45.851Z",
+      "elapsedMinutes": 21.17,
+      "memoryMB": 38.23,
+      "virtualMB": 425488.2
+    },
+    {
+      "timestamp": "2026-07-25T21:02:50.851Z",
+      "elapsedMinutes": 21.25,
+      "memoryMB": 38.78,
+      "virtualMB": 425488.2
+    },
+    {
+      "timestamp": "2026-07-25T21:02:55.845Z",
+      "elapsedMinutes": 21.33,
+      "memoryMB": 39.31,
+      "virtualMB": 425488.2
+    },
+    {
+      "timestamp": "2026-07-25T21:03:00.856Z",
+      "elapsedMinutes": 21.42,
+      "memoryMB": 39.84,
+      "virtualMB": 425488.2
+    },
+    {
+      "timestamp": "2026-07-25T21:03:05.838Z",
+      "elapsedMinutes": 21.5,
+      "memoryMB": 40.42,
+      "virtualMB": 425488.2
+    },
+    {
+      "timestamp": "2026-07-25T21:03:10.841Z",
+      "elapsedMinutes": 21.58,
+      "memoryMB": 32.39,
+      "virtualMB": 425488.2
+    },
+    {
+      "timestamp": "2026-07-25T21:03:15.837Z",
+      "elapsedMinutes": 21.67,
+      "memoryMB": 31.5,
+      "virtualMB": 425488.2
+    },
+    {
+      "timestamp": "2026-07-25T21:03:20.841Z",
+      "elapsedMinutes": 21.75,
+      "memoryMB": 31.5,
+      "virtualMB": 425488.2
+    },
+    {
+      "timestamp": "2026-07-25T21:03:25.848Z",
+      "elapsedMinutes": 21.83,
+      "memoryMB": 46.17,
+      "virtualMB": 425488.2
+    },
+    {
+      "timestamp": "2026-07-25T21:03:30.842Z",
+      "elapsedMinutes": 21.92,
+      "memoryMB": 47.69,
+      "virtualMB": 425488.2
+    },
+    {
+      "timestamp": "2026-07-25T21:03:35.861Z",
+      "elapsedMinutes": 22,
+      "memoryMB": 47.75,
+      "virtualMB": 425488.2
+    },
+    {
+      "timestamp": "2026-07-25T21:03:40.844Z",
+      "elapsedMinutes": 22.08,
+      "memoryMB": 47.81,
+      "virtualMB": 425488.2
+    },
+    {
+      "timestamp": "2026-07-25T21:03:45.864Z",
+      "elapsedMinutes": 22.17,
+      "memoryMB": 34.59,
+      "virtualMB": 425488.2
+    },
+    {
+      "timestamp": "2026-07-25T21:03:50.867Z",
+      "elapsedMinutes": 22.25,
+      "memoryMB": 35.14,
+      "virtualMB": 425488.2
+    },
+    {
+      "timestamp": "2026-07-25T21:03:55.866Z",
+      "elapsedMinutes": 22.33,
+      "memoryMB": 35.5,
+      "virtualMB": 425488.2
+    },
+    {
+      "timestamp": "2026-07-25T21:04:00.874Z",
+      "elapsedMinutes": 22.42,
+      "memoryMB": 36.05,
+      "virtualMB": 425488.2
+    },
+    {
+      "timestamp": "2026-07-25T21:04:05.869Z",
+      "elapsedMinutes": 22.5,
+      "memoryMB": 36.61,
+      "virtualMB": 425488.2
+    },
+    {
+      "timestamp": "2026-07-25T21:04:10.872Z",
+      "elapsedMinutes": 22.58,
+      "memoryMB": 37.19,
+      "virtualMB": 425488.2
+    },
+    {
+      "timestamp": "2026-07-25T21:04:15.873Z",
+      "elapsedMinutes": 22.67,
+      "memoryMB": 37.73,
+      "virtualMB": 425488.2
+    },
+    {
+      "timestamp": "2026-07-25T21:04:20.876Z",
+      "elapsedMinutes": 22.75,
+      "memoryMB": 32.11,
+      "virtualMB": 425488.2
+    },
+    {
+      "timestamp": "2026-07-25T21:04:25.871Z",
+      "elapsedMinutes": 22.83,
+      "memoryMB": 33.66,
+      "virtualMB": 425488.2
+    },
+    {
+      "timestamp": "2026-07-25T21:04:30.876Z",
+      "elapsedMinutes": 22.92,
+      "memoryMB": 32.78,
+      "virtualMB": 425488.2
+    },
+    {
+      "timestamp": "2026-07-25T21:04:35.856Z",
+      "elapsedMinutes": 23,
+      "memoryMB": 33.33,
+      "virtualMB": 425488.2
+    },
+    {
+      "timestamp": "2026-07-25T21:04:40.877Z",
+      "elapsedMinutes": 23.08,
+      "memoryMB": 33.91,
+      "virtualMB": 425488.2
+    },
+    {
+      "timestamp": "2026-07-25T21:04:45.876Z",
+      "elapsedMinutes": 23.17,
+      "memoryMB": 34.45,
+      "virtualMB": 425488.2
+    },
+    {
+      "timestamp": "2026-07-25T21:04:50.877Z",
+      "elapsedMinutes": 23.25,
+      "memoryMB": 35.02,
+      "virtualMB": 425488.2
+    },
+    {
+      "timestamp": "2026-07-25T21:04:55.879Z",
+      "elapsedMinutes": 23.33,
+      "memoryMB": 35.55,
+      "virtualMB": 425488.2
+    },
+    {
+      "timestamp": "2026-07-25T21:05:00.879Z",
+      "elapsedMinutes": 23.42,
+      "memoryMB": 36.13,
+      "virtualMB": 425488.2
+    },
+    {
+      "timestamp": "2026-07-25T21:05:05.880Z",
+      "elapsedMinutes": 23.5,
+      "memoryMB": 36.64,
+      "virtualMB": 425488.2
+    },
+    {
+      "timestamp": "2026-07-25T21:05:10.879Z",
+      "elapsedMinutes": 23.58,
+      "memoryMB": 38.67,
+      "virtualMB": 425488.2
+    },
+    {
+      "timestamp": "2026-07-25T21:05:15.886Z",
+      "elapsedMinutes": 23.67,
+      "memoryMB": 39.27,
+      "virtualMB": 425488.2
+    },
+    {
+      "timestamp": "2026-07-25T21:05:20.889Z",
+      "elapsedMinutes": 23.75,
+      "memoryMB": 39.83,
+      "virtualMB": 425488.2
+    },
+    {
+      "timestamp": "2026-07-25T21:05:25.888Z",
+      "elapsedMinutes": 23.83,
+      "memoryMB": 40.39,
+      "virtualMB": 425488.2
+    },
+    {
+      "timestamp": "2026-07-25T21:05:30.886Z",
+      "elapsedMinutes": 23.92,
+      "memoryMB": 40.94,
+      "virtualMB": 425488.2
+    },
+    {
+      "timestamp": "2026-07-25T21:05:35.887Z",
+      "elapsedMinutes": 24,
+      "memoryMB": 41.48,
+      "virtualMB": 425488.2
+    },
+    {
+      "timestamp": "2026-07-25T21:05:40.887Z",
+      "elapsedMinutes": 24.08,
+      "memoryMB": 42.03,
+      "virtualMB": 425488.2
+    },
+    {
+      "timestamp": "2026-07-25T21:05:45.892Z",
+      "elapsedMinutes": 24.17,
+      "memoryMB": 42.56,
+      "virtualMB": 425488.2
+    },
+    {
+      "timestamp": "2026-07-25T21:05:50.888Z",
+      "elapsedMinutes": 24.25,
+      "memoryMB": 43.09,
+      "virtualMB": 425488.2
+    },
+    {
+      "timestamp": "2026-07-25T21:05:55.890Z",
+      "elapsedMinutes": 24.33,
+      "memoryMB": 43.66,
+      "virtualMB": 425488.2
+    },
+    {
+      "timestamp": "2026-07-25T21:06:00.897Z",
+      "elapsedMinutes": 24.42,
+      "memoryMB": 44.25,
+      "virtualMB": 425488.2
+    },
+    {
+      "timestamp": "2026-07-25T21:06:05.895Z",
+      "elapsedMinutes": 24.5,
+      "memoryMB": 44.78,
+      "virtualMB": 425488.2
+    },
+    {
+      "timestamp": "2026-07-25T21:06:10.895Z",
+      "elapsedMinutes": 24.58,
+      "memoryMB": 45.31,
+      "virtualMB": 425488.2
+    },
+    {
+      "timestamp": "2026-07-25T21:06:15.876Z",
+      "elapsedMinutes": 24.67,
+      "memoryMB": 45.86,
+      "virtualMB": 425488.2
+    },
+    {
+      "timestamp": "2026-07-25T21:06:20.878Z",
+      "elapsedMinutes": 24.75,
+      "memoryMB": 46.42,
+      "virtualMB": 425488.2
+    },
+    {
+      "timestamp": "2026-07-25T21:06:25.935Z",
+      "elapsedMinutes": 24.83,
+      "memoryMB": 33.88,
+      "virtualMB": 425488.2
+    },
+    {
+      "timestamp": "2026-07-25T21:06:30.898Z",
+      "elapsedMinutes": 24.92,
+      "memoryMB": 51.16,
+      "virtualMB": 425488.2
+    },
+    {
+      "timestamp": "2026-07-25T21:06:35.897Z",
+      "elapsedMinutes": 25,
+      "memoryMB": 51.27,
+      "virtualMB": 425488.2
+    },
+    {
+      "timestamp": "2026-07-25T21:06:40.894Z",
+      "elapsedMinutes": 25.08,
+      "memoryMB": 51.34,
+      "virtualMB": 425488.2
+    },
+    {
+      "timestamp": "2026-07-25T21:06:45.902Z",
+      "elapsedMinutes": 25.17,
+      "memoryMB": 51.41,
+      "virtualMB": 425488.2
+    },
+    {
+      "timestamp": "2026-07-25T21:06:50.903Z",
+      "elapsedMinutes": 25.25,
+      "memoryMB": 51.5,
+      "virtualMB": 425488.2
+    },
+    {
+      "timestamp": "2026-07-25T21:06:55.905Z",
+      "elapsedMinutes": 25.33,
+      "memoryMB": 52.83,
+      "virtualMB": 425488.2
+    },
+    {
+      "timestamp": "2026-07-25T21:07:00.910Z",
+      "elapsedMinutes": 25.42,
+      "memoryMB": 52.91,
+      "virtualMB": 425488.2
+    },
+    {
+      "timestamp": "2026-07-25T21:07:05.908Z",
+      "elapsedMinutes": 25.5,
+      "memoryMB": 53,
+      "virtualMB": 425488.2
+    },
+    {
+      "timestamp": "2026-07-25T21:07:10.916Z",
+      "elapsedMinutes": 25.58,
+      "memoryMB": 53.08,
+      "virtualMB": 425488.2
+    },
+    {
+      "timestamp": "2026-07-25T21:07:15.892Z",
+      "elapsedMinutes": 25.67,
+      "memoryMB": 53.16,
+      "virtualMB": 425488.2
+    },
+    {
+      "timestamp": "2026-07-25T21:07:20.907Z",
+      "elapsedMinutes": 25.75,
+      "memoryMB": 53.27,
+      "virtualMB": 425488.2
+    },
+    {
+      "timestamp": "2026-07-25T21:07:25.909Z",
+      "elapsedMinutes": 25.83,
+      "memoryMB": 53.34,
+      "virtualMB": 425488.2
+    },
+    {
+      "timestamp": "2026-07-25T21:07:30.911Z",
+      "elapsedMinutes": 25.92,
+      "memoryMB": 53.44,
+      "virtualMB": 425488.2
+    },
+    {
+      "timestamp": "2026-07-25T21:07:35.911Z",
+      "elapsedMinutes": 26,
+      "memoryMB": 53.52,
+      "virtualMB": 425488.2
+    },
+    {
+      "timestamp": "2026-07-25T21:07:40.913Z",
+      "elapsedMinutes": 26.08,
+      "memoryMB": 53.59,
+      "virtualMB": 425488.2
+    },
+    {
+      "timestamp": "2026-07-25T21:07:45.914Z",
+      "elapsedMinutes": 26.17,
+      "memoryMB": 53.67,
+      "virtualMB": 425488.2
+    },
+    {
+      "timestamp": "2026-07-25T21:07:50.915Z",
+      "elapsedMinutes": 26.25,
+      "memoryMB": 53.75,
+      "virtualMB": 425488.2
+    },
+    {
+      "timestamp": "2026-07-25T21:07:55.915Z",
+      "elapsedMinutes": 26.33,
+      "memoryMB": 53.84,
+      "virtualMB": 425488.2
+    },
+    {
+      "timestamp": "2026-07-25T21:08:00.917Z",
+      "elapsedMinutes": 26.42,
+      "memoryMB": 53.94,
+      "virtualMB": 425488.2
+    },
+    {
+      "timestamp": "2026-07-25T21:08:05.919Z",
+      "elapsedMinutes": 26.5,
+      "memoryMB": 54.02,
+      "virtualMB": 425488.2
+    },
+    {
+      "timestamp": "2026-07-25T21:08:10.916Z",
+      "elapsedMinutes": 26.58,
+      "memoryMB": 54.11,
+      "virtualMB": 425488.2
+    },
+    {
+      "timestamp": "2026-07-25T21:08:15.911Z",
+      "elapsedMinutes": 26.67,
+      "memoryMB": 54.19,
+      "virtualMB": 425488.2
+    },
+    {
+      "timestamp": "2026-07-25T21:08:20.930Z",
+      "elapsedMinutes": 26.75,
+      "memoryMB": 54.28,
+      "virtualMB": 425488.2
+    },
+    {
+      "timestamp": "2026-07-25T21:08:25.925Z",
+      "elapsedMinutes": 26.83,
+      "memoryMB": 50.39,
+      "virtualMB": 425488.2
+    },
+    {
+      "timestamp": "2026-07-25T21:08:30.931Z",
+      "elapsedMinutes": 26.92,
+      "memoryMB": 34.19,
+      "virtualMB": 425488.2
+    },
+    {
+      "timestamp": "2026-07-25T21:08:35.983Z",
+      "elapsedMinutes": 27,
+      "memoryMB": 33.98,
+      "virtualMB": 425488.2
+    },
+    {
+      "timestamp": "2026-07-25T21:08:40.941Z",
+      "elapsedMinutes": 27.08,
+      "memoryMB": 34.19,
+      "virtualMB": 425488.2
+    },
+    {
+      "timestamp": "2026-07-25T21:08:45.925Z",
+      "elapsedMinutes": 27.17,
+      "memoryMB": 34.23,
+      "virtualMB": 425488.2
+    },
+    {
+      "timestamp": "2026-07-25T21:08:50.921Z",
+      "elapsedMinutes": 27.25,
+      "memoryMB": 34.3,
+      "virtualMB": 425488.2
+    },
+    {
+      "timestamp": "2026-07-25T21:08:55.933Z",
+      "elapsedMinutes": 27.33,
+      "memoryMB": 48.84,
+      "virtualMB": 425488.2
+    },
+    {
+      "timestamp": "2026-07-25T21:09:00.960Z",
+      "elapsedMinutes": 27.42,
+      "memoryMB": 47.45,
+      "virtualMB": 425488.2
+    },
+    {
+      "timestamp": "2026-07-25T21:09:05.917Z",
+      "elapsedMinutes": 27.5,
+      "memoryMB": 46.78,
+      "virtualMB": 425488.2
+    },
+    {
+      "timestamp": "2026-07-25T21:09:10.927Z",
+      "elapsedMinutes": 27.58,
+      "memoryMB": 46.45,
+      "virtualMB": 425488.2
+    },
+    {
+      "timestamp": "2026-07-25T21:09:15.940Z",
+      "elapsedMinutes": 27.67,
+      "memoryMB": 31.47,
+      "virtualMB": 425488.2
+    },
+    {
+      "timestamp": "2026-07-25T21:09:20.939Z",
+      "elapsedMinutes": 27.75,
+      "memoryMB": 31.41,
+      "virtualMB": 425488.2
+    },
+    {
+      "timestamp": "2026-07-25T21:09:25.932Z",
+      "elapsedMinutes": 27.83,
+      "memoryMB": 31.3,
+      "virtualMB": 425488.2
+    },
+    {
+      "timestamp": "2026-07-25T21:09:30.942Z",
+      "elapsedMinutes": 27.92,
+      "memoryMB": 31.41,
+      "virtualMB": 425488.2
+    },
+    {
+      "timestamp": "2026-07-25T21:09:35.926Z",
+      "elapsedMinutes": 28,
+      "memoryMB": 31.83,
+      "virtualMB": 425488.2
+    },
+    {
+      "timestamp": "2026-07-25T21:09:40.942Z",
+      "elapsedMinutes": 28.08,
+      "memoryMB": 31.88,
+      "virtualMB": 425488.2
+    },
+    {
+      "timestamp": "2026-07-25T21:09:45.950Z",
+      "elapsedMinutes": 28.17,
+      "memoryMB": 32.14,
+      "virtualMB": 425488.2
+    },
+    {
+      "timestamp": "2026-07-25T21:09:50.948Z",
+      "elapsedMinutes": 28.25,
+      "memoryMB": 32.06,
+      "virtualMB": 425488.2
+    },
+    {
+      "timestamp": "2026-07-25T21:09:55.942Z",
+      "elapsedMinutes": 28.33,
+      "memoryMB": 32.67,
+      "virtualMB": 425488.2
+    },
+    {
+      "timestamp": "2026-07-25T21:10:00.947Z",
+      "elapsedMinutes": 28.42,
+      "memoryMB": 33.22,
+      "virtualMB": 425488.2
+    },
+    {
+      "timestamp": "2026-07-25T21:10:05.967Z",
+      "elapsedMinutes": 28.5,
+      "memoryMB": 33.83,
+      "virtualMB": 425488.2
+    },
+    {
+      "timestamp": "2026-07-25T21:10:10.957Z",
+      "elapsedMinutes": 28.58,
+      "memoryMB": 34.36,
+      "virtualMB": 425488.2
+    },
+    {
+      "timestamp": "2026-07-25T21:10:15.951Z",
+      "elapsedMinutes": 28.67,
+      "memoryMB": 36.83,
+      "virtualMB": 425488.2
+    },
+    {
+      "timestamp": "2026-07-25T21:10:20.956Z",
+      "elapsedMinutes": 28.75,
+      "memoryMB": 37.38,
+      "virtualMB": 425488.2
+    },
+    {
+      "timestamp": "2026-07-25T21:10:25.936Z",
+      "elapsedMinutes": 28.83,
+      "memoryMB": 37.92,
+      "virtualMB": 425488.2
+    },
+    {
+      "timestamp": "2026-07-25T21:10:30.939Z",
+      "elapsedMinutes": 28.92,
+      "memoryMB": 33.58,
+      "virtualMB": 425488.2
+    },
+    {
+      "timestamp": "2026-07-25T21:10:35.937Z",
+      "elapsedMinutes": 29,
+      "memoryMB": 31.84,
+      "virtualMB": 425488.2
+    },
+    {
+      "timestamp": "2026-07-25T21:10:40.946Z",
+      "elapsedMinutes": 29.08,
+      "memoryMB": 31.38,
+      "virtualMB": 425488.2
+    },
+    {
+      "timestamp": "2026-07-25T21:10:45.941Z",
+      "elapsedMinutes": 29.17,
+      "memoryMB": 31.5,
+      "virtualMB": 425488.2
+    },
+    {
+      "timestamp": "2026-07-25T21:10:50.952Z",
+      "elapsedMinutes": 29.25,
+      "memoryMB": 31.52,
+      "virtualMB": 425488.2
+    },
+    {
+      "timestamp": "2026-07-25T21:10:55.945Z",
+      "elapsedMinutes": 29.33,
+      "memoryMB": 31.48,
+      "virtualMB": 425488.2
+    },
+    {
+      "timestamp": "2026-07-25T21:11:00.947Z",
+      "elapsedMinutes": 29.42,
+      "memoryMB": 31.36,
+      "virtualMB": 425488.2
+    },
+    {
+      "timestamp": "2026-07-25T21:11:05.968Z",
+      "elapsedMinutes": 29.5,
+      "memoryMB": 31.94,
+      "virtualMB": 425488.2
+    },
+    {
+      "timestamp": "2026-07-25T21:11:10.962Z",
+      "elapsedMinutes": 29.58,
+      "memoryMB": 7.95,
+      "virtualMB": 425488.2
+    },
+    {
+      "timestamp": "2026-07-25T21:11:15.956Z",
+      "elapsedMinutes": 29.67,
+      "memoryMB": 8.09,
+      "virtualMB": 425488.2
+    },
+    {
+      "timestamp": "2026-07-25T21:11:20.973Z",
+      "elapsedMinutes": 29.75,
+      "memoryMB": 24.02,
+      "virtualMB": 425488.2
+    },
+    {
+      "timestamp": "2026-07-25T21:11:25.954Z",
+      "elapsedMinutes": 29.83,
+      "memoryMB": 24.11,
+      "virtualMB": 425488.2
+    },
+    {
+      "timestamp": "2026-07-25T21:11:30.978Z",
+      "elapsedMinutes": 29.92,
+      "memoryMB": 24.2,
+      "virtualMB": 425488.2
+    }
+  ],
+  "analysis": {
+    "leakDetection": {
+      "hasLeak": false,
+      "confidence": 100,
+      "pattern": "stable",
+      "growthPerHour": -0.03,
+      "growthPercentPerHour": -44.71,
+      "rSquared": 0
+    },
+    "stability": {
+      "mean": 40.29,
+      "stdDev": 7.95,
+      "coefficientOfVariation": 19.73,
+      "spikes": 6,
+      "isStable": false
+    },
+    "summary": {
+      "baselineMemoryMB": 0.06,
+      "finalMemoryMB": 24.2,
+      "totalGrowthMB": 24.14,
+      "totalGrowthPercent": 40233.33,
+      "samplesCollected": 360
+    },
+    "passed": false,
+    "reason": "Memory unstable"
+  },
+  "status": "completed",
+  "endTime": "2026-07-25T21:11:35.551Z"
+}

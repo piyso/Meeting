@@ -35,7 +35,7 @@ export const EntitySidebar: React.FC<EntitySidebarProps> = ({ meetingId, onClose
     data: entities = [],
     isLoading,
     error: queryError,
-  } = useQuery({
+  } = useQuery<Entity[], Error>({
     queryKey: ['entities', meetingId],
     queryFn: async () => {
       if (!meetingId) return []
@@ -43,7 +43,7 @@ export const EntitySidebar: React.FC<EntitySidebarProps> = ({ meetingId, onClose
       if (!res?.success) {
         throw new Error(res?.error?.message || 'Failed to load entities')
       }
-      return res.data || []
+      return (res.data || []) as Entity[]
     },
     enabled: !!meetingId,
     // I20 fix: Poll for new entities every 15s during active recording
@@ -56,7 +56,7 @@ export const EntitySidebar: React.FC<EntitySidebarProps> = ({ meetingId, onClose
   const grouped = useMemo(
     () =>
       entities.reduce(
-        (acc, entity) => {
+        (acc: Record<string, Map<string, Entity>>, entity: Entity) => {
           if (filter && !entity.text.toLowerCase().includes(filter.toLowerCase())) return acc
 
           const type = entity.type
@@ -154,11 +154,11 @@ export const EntitySidebar: React.FC<EntitySidebarProps> = ({ meetingId, onClose
           </div>
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
-            {Object.entries(grouped)
+            {(Object.entries(grouped) as [string, Map<string, Entity>][])
               .sort((a, b) => a[0].localeCompare(b[0]))
-              .map(([type, entityMap]) => {
-                const items = Array.from(entityMap.values()).sort(
-                  (a, b) => (b.confidence || 0) - (a.confidence || 0)
+              .map(([type, entityMap]: [string, Map<string, Entity>]) => {
+                const items: Entity[] = Array.from(entityMap.values()).sort(
+                  (a: Entity, b: Entity) => (b.confidence || 0) - (a.confidence || 0)
                 )
 
                 return (
@@ -175,7 +175,7 @@ export const EntitySidebar: React.FC<EntitySidebarProps> = ({ meetingId, onClose
                         )}
                     </div>
                     <div className="ui-entity-chip-container">
-                      {items.map(entity => (
+                      {items.map((entity: Entity) => (
                         <span key={entity.id} className="ui-entity-chip">
                           {entity.text}
                           {entity.confidence && (

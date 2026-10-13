@@ -21,6 +21,7 @@ const log = rendererLog.create('MeetingList')
 import { useMeetings } from '../hooks/queries/useMeetings'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useVirtualizer } from '@tanstack/react-virtual'
+import { removeOrphanedNoteDocuments } from '../utils/noteDocCleanup'
 
 export default function MeetingListView() {
   const navigate = useNavigationStore(s => s.navigate)
@@ -70,6 +71,20 @@ export default function MeetingListView() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['meetings'] })
+      // The meeting is purged ~10s after deletion; then drop its note document.
+      setTimeout(() => {
+        removeOrphanedNoteDocuments().catch(() => {})
+      }, 15_000)
+    },
+    onError: err => {
+      // The card was removed optimistically — bring it back and say why
+      queryClient.invalidateQueries({ queryKey: ['meetings'] })
+      useAppStore.getState().addToast({
+        type: 'error',
+        title: 'Could not delete meeting',
+        message: err instanceof Error ? err.message : undefined,
+        duration: 5000,
+      })
     },
   })
 
@@ -77,7 +92,31 @@ export default function MeetingListView() {
    * Quick-start: directly create a meeting and navigate to it.
    * No dialog needed — title auto-generates and can be edited later.
    */
+  /**
+   * One recording at a time. If one is already running (or starting/saving),
+   * take the user to it instead of creating a second, empty meeting.
+   */
+  const blockIfRecordingActive = useCallback((): boolean => {
+    const rec = useRecordingStore.getState()
+    if (rec.recordingState === 'idle') return false
+    useAppStore.getState().addToast({
+      type: 'info',
+      title:
+        rec.recordingState === 'processing'
+          ? 'Finishing the previous recording…'
+          : 'A recording is already in progress',
+      message:
+        rec.recordingState === 'processing'
+          ? 'Try again in a moment.'
+          : 'Stop it to start a new one.',
+      duration: 4000,
+    })
+    if (rec.activeMeetingId) navigate('meeting-detail', rec.activeMeetingId)
+    return true
+  }, [navigate])
+
   const handleQuickStart = useCallback(async () => {
+    if (blockIfRecordingActive()) return
     log.info('Starting new meeting (quick start)')
     setRecordingState('starting')
     try {
@@ -110,7 +149,7 @@ export default function MeetingListView() {
       })
       setRecordingState('idle')
     }
-  }, [navigate, setRecordingState, queryClient])
+  }, [navigate, setRecordingState, queryClient, blockIfRecordingActive])
 
   useEffect(() => {
     const handleCmdN = () => handleQuickStart()
@@ -123,11 +162,13 @@ export default function MeetingListView() {
    */
   const handleStartMeeting = async (config: string | { title?: string }) => {
     setDialogOpen(false)
+    if (blockIfRecordingActive()) return
     setRecordingState('starting')
     try {
-      const title = typeof config === 'string' ? config : config?.title
+      const rawTitle = typeof config === 'string' ? config : config?.title
+      const title = typeof rawTitle === 'string' ? rawTitle.trim().slice(0, 200) : ''
       const res = await window.electronAPI?.meeting?.start({
-        title: typeof title === 'string' ? title : undefined,
+        title: title || undefined,
       })
       if (res?.success && res.data) {
         useRecordingStore.getState().setActiveMeetingId(res.data.meeting.id)
@@ -163,16 +204,25 @@ export default function MeetingListView() {
 
   const renameMeeting = useMutation({
     mutationFn: async ({ id, title }: { id: string; title: string }) => {
-      // IPC structure usually takes a single object for updates
-      return window.electronAPI?.meeting?.update({ meetingId: id, updates: { title } })
+      const res = await window.electronAPI?.meeting?.update({ meetingId: id, updates: { title } })
+      // Failures come back in the response — they are not thrown
+      if (!res?.success) throw new Error(res?.error?.message || 'Rename failed')
+      return res
     },
-    onSuccess: () => {
+    onSuccess: (_res, { id }) => {
       queryClient.invalidateQueries({ queryKey: ['meetings'] })
+      queryClient.invalidateQueries({ queryKey: ['meeting', id] })
       setRenamingMeetingId(null)
     },
     onError: err => {
       log.error('Failed to rename meeting:', err)
       setRenamingMeetingId(null)
+      useAppStore.getState().addToast({
+        type: 'error',
+        title: 'Could not rename meeting',
+        message: err instanceof Error ? err.message : undefined,
+        duration: 4000,
+      })
     },
   })
 
@@ -189,13 +239,43 @@ export default function MeetingListView() {
     {
       label: 'Delete',
       onClick: () => {
-        if (
-          window.confirm(
-            'Delete this meeting? All transcripts, notes, and entities will be permanently removed.'
-          )
-        ) {
-          deleteMeeting.mutate(id)
+        if (useRecordingStore.getState().activeMeetingId === id) {
+          useAppStore.getState().addToast({
+            type: 'warning',
+            title: 'This meeting is being recorded',
+            message: 'Stop the recording before deleting it.',
+            duration: 4000,
+          })
+          return
         }
+        let isUndone = false
+        const targetMeeting = meetings.find(m => m.id === id)
+        const targetTitle = targetMeeting?.title || 'Meeting'
+
+        // Optimistically remove from local query cache
+        queryClient.setQueryData(['meetings'], (old: { items?: MeetingItem[] } | undefined) => {
+          if (!old?.items) return old
+          return { ...old, items: old.items.filter(m => m.id !== id) }
+        })
+
+        const timer = setTimeout(() => {
+          if (!isUndone) {
+            deleteMeeting.mutate(id)
+          }
+        }, 7000)
+
+        useAppStore.getState().addToast({
+          type: 'info',
+          title: `Deleted "${targetTitle}"`,
+          message: 'Click Undo to restore this meeting',
+          duration: 7000,
+          undoLabel: 'Undo',
+          undoAction: () => {
+            isUndone = true
+            clearTimeout(timer)
+            queryClient.invalidateQueries({ queryKey: ['meetings'] })
+          },
+        })
       },
       danger: true,
     },
@@ -557,8 +637,9 @@ export default function MeetingListView() {
                         index={virtualItem.index * columns + i}
                         isRenaming={renamingMeetingId === m.id}
                         onRenameSubmit={(newTitle: string) => {
-                          if (newTitle && newTitle !== m.title) {
-                            renameMeeting.mutate({ id: m.id, title: newTitle })
+                          const title = newTitle.trim().slice(0, 200)
+                          if (title && title !== m.title) {
+                            renameMeeting.mutate({ id: m.id, title })
                           } else {
                             setRenamingMeetingId(null)
                           }

@@ -5,8 +5,9 @@
  * Calendar sync is cloud-gated (Starter+ tier).
  */
 
-import { ipcMain, BrowserWindow } from 'electron'
+import { ipcMain } from 'electron'
 import { Logger } from '../../services/Logger'
+import { getMainAppWindow } from '../windows'
 import {
   syncCalendar,
   autoLinkMeeting,
@@ -206,9 +207,7 @@ export function registerCalendarHandlers(): void {
       try {
         const upcoming = getUpcomingNotifications(15)
         if (upcoming.length > 0) {
-          const mainWindow = BrowserWindow.getAllWindows().find(
-            w => !w.isDestroyed() && w.getBounds().width > 400
-          )
+          const mainWindow = getMainAppWindow()
           if (mainWindow) {
             for (const event of upcoming) {
               // Skip if we already sent a notification for this event

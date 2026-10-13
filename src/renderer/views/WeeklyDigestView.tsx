@@ -3,7 +3,7 @@ import { useNavigationStore } from '../store/navigationStore'
 import { useState } from 'react'
 import { useQuery, useMutation } from '@tanstack/react-query'
 
-import type { WeeklyDigest } from '../../types/ipc'
+import type { WeeklyDigest, Contradiction } from '../../types/ipc'
 import {
   Calendar,
   Users,
@@ -22,25 +22,7 @@ import { DigestSkeleton } from '../components/ui/Skeletons'
 import { IconButton } from '../components/ui/IconButton'
 import { ProTeaseOverlay } from '../components/ui/ProTeaseOverlay'
 
-const formatDate = (ts: number) => {
-  return new Date(ts).toLocaleDateString(undefined, {
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric',
-  })
-}
-
-const formatRelativeTime = (ts: number) => {
-  const diff = Date.now() - ts
-  if (diff < 0) return 'just now'
-  const mins = Math.floor(diff / 60000)
-  if (mins < 1) return 'just now'
-  if (mins < 60) return `${mins}m ago`
-  const hrs = Math.floor(mins / 60)
-  if (hrs < 24) return `${hrs}h ago`
-  const days = Math.floor(hrs / 24)
-  return `${days}d ago`
-}
+import { formatDate, formatRelativeTime, toEpochMs } from '../utils/time'
 
 import {
   SourceContextPopover,
@@ -49,6 +31,7 @@ import {
 import { StatItem } from '../components/digest/StatItem'
 import { TopParticipantItem } from '../components/digest/TopParticipantItem'
 import { TopTopicItem } from '../components/digest/TopTopicItem'
+import { PodcastPlayer } from '../components/digest/PodcastPlayer'
 
 export default function WeeklyDigestView() {
   const navigate = useNavigationStore(s => s.navigate)
@@ -163,10 +146,12 @@ export default function WeeklyDigestView() {
     return { start, end }
   }
 
-  /** Format a date range for display — uses system locale for month names */
+  /** Format a date range for display — uses system locale for month names and handles seconds vs ms */
   function formatDateRange(startMs: number, endMs: number): string {
-    const s = new Date(startMs)
-    const e = new Date(endMs)
+    const validStart = toEpochMs(startMs) ?? Date.now() - 7 * 86400000
+    const validEnd = toEpochMs(endMs) ?? Date.now()
+    const s = new Date(validStart)
+    const e = new Date(validEnd)
     // Use Intl.DateTimeFormat for locale-aware month names instead of hardcoded English
     const monthFmt = new Intl.DateTimeFormat(undefined, { month: 'short' })
     const sMonth = monthFmt.format(s)
@@ -245,7 +230,7 @@ export default function WeeklyDigestView() {
           <h1>{periodLabel} Digest</h1>
           <span className="ui-header-subtitle">
             {digest
-              ? `${formatDateRange(digest.startDate, digest.endDate)}${digest.generatedAt ? ` · Generated ${formatRelativeTime(digest.generatedAt)}` : ''}`
+              ? `${formatDateRange(digest.startDate, digest.endDate)}${formatRelativeTime(digest.generatedAt) ? ` · Generated ${formatRelativeTime(digest.generatedAt)}` : ''}`
               : 'Your personalized summary'}
           </span>
         </div>
@@ -363,6 +348,35 @@ export default function WeeklyDigestView() {
                 </div>
               )}
 
+              {/* Spoken Executive Podcast Briefing Player (Roadmap 13.5 & Voice Over DSP) */}
+              <div className="ui-stagger-enter" style={{ animationDelay: '120ms' }}>
+                <PodcastPlayer
+                  script={[
+                    `Welcome to your BlueArkive briefing for ${formatDateRange(digest.startDate, digest.endDate)}.`,
+                    `During this period, you logged ${digest.summary.totalMeetings} meetings totaling ${(digest.summary.totalHours || 0).toFixed(1)} hours of discussion.`,
+                    digest.entityAggregation?.topTopics?.length
+                      ? `Your primary focus areas included: ${digest.entityAggregation.topTopics
+                          .slice(0, 4)
+                          .map((t: { topic: string }) => t.topic)
+                          .join(', ')}.`
+                      : '',
+                    `You completed ${digest.actionItems.completed} action items with ${digest.actionItems.open} items remaining in progress.`,
+                    digest.keyDecisions?.length
+                      ? `Key decisions reached: ${digest.keyDecisions
+                          .slice(0, 3)
+                          .map((d: { text: string }) => d.text)
+                          .join('. ')}.`
+                      : '',
+                    `That concludes your summary.`,
+                  ]
+                    .filter(Boolean)
+                    .join(' ')}
+                  weekRange={formatDateRange(digest.startDate, digest.endDate)}
+                  meetingCount={digest.summary.totalMeetings}
+                  totalHours={Number((digest.summary.totalHours || 0).toFixed(1))}
+                />
+              </div>
+
               <div className="osx-digest-columns">
                 <div className="ui-digest-col">
                   {/* Action Items Section */}
@@ -441,7 +455,7 @@ export default function WeeklyDigestView() {
                                           👤 {item.assignee}
                                         </span>
                                       )}
-                                      {item.dueDate && (
+                                      {toEpochMs(item.dueDate) !== null && (
                                         <span className="flex items-center gap-1">
                                           🗓 {formatDate(item.dueDate)}
                                         </span>
@@ -516,42 +530,50 @@ export default function WeeklyDigestView() {
                           </div>
                         ) : (
                           <ul className="ui-digest-decision-list">
-                            {digest.keyDecisions.map((decision, i) => (
-                              <li
-                                key={`dec-${decision.meetingId}-${i}`}
-                                className="ui-digest-decision-row"
-                              >
-                                <p className="ui-digest-decision-text">{decision.text}</p>
-                                <div className="ui-digest-decision-meta">
-                                  <span>{formatDate(decision.timestamp)}</span>
-                                  <span
-                                    onClick={e =>
-                                      showSourcePopover(e, {
-                                        meetingTitle: decision.meetingTitle || 'Meeting',
-                                        meetingDate: decision.meetingDate,
-                                        sourceContext: decision.sourceContext,
-                                        meetingId: decision.meetingId,
-                                      })
-                                    }
-                                    onKeyDown={e =>
-                                      e.key === 'Enter' &&
-                                      showSourcePopover(e as unknown as React.MouseEvent, {
-                                        meetingTitle: decision.meetingTitle || 'Meeting',
-                                        meetingDate: decision.meetingDate,
-                                        sourceContext: decision.sourceContext,
-                                        meetingId: decision.meetingId,
-                                      })
-                                    }
-                                    className="ui-digest-source-link"
-                                    role="button"
-                                    tabIndex={0}
-                                  >
-                                    <ExternalLink size={12} className="opacity-70" />{' '}
-                                    {decision.meetingTitle || 'Source'}
-                                  </span>
-                                </div>
-                              </li>
-                            ))}
+                            {digest.keyDecisions.map(
+                              (decision: WeeklyDigest['keyDecisions'][number], i: number) => (
+                                <li
+                                  key={`dec-${decision.meetingId}-${i}`}
+                                  className="ui-digest-decision-row"
+                                >
+                                  <p className="ui-digest-decision-text">{decision.text}</p>
+                                  <div className="ui-digest-decision-meta">
+                                    <span>
+                                      {formatDate(
+                                        decision.meetingDate ?? decision.timestamp,
+                                        undefined,
+                                        ''
+                                      )}
+                                    </span>
+                                    <span
+                                      onClick={e =>
+                                        showSourcePopover(e, {
+                                          meetingTitle: decision.meetingTitle || 'Meeting',
+                                          meetingDate: decision.meetingDate,
+                                          sourceContext: decision.sourceContext,
+                                          meetingId: decision.meetingId,
+                                        })
+                                      }
+                                      onKeyDown={e =>
+                                        e.key === 'Enter' &&
+                                        showSourcePopover(e as unknown as React.MouseEvent, {
+                                          meetingTitle: decision.meetingTitle || 'Meeting',
+                                          meetingDate: decision.meetingDate,
+                                          sourceContext: decision.sourceContext,
+                                          meetingId: decision.meetingId,
+                                        })
+                                      }
+                                      className="ui-digest-source-link"
+                                      role="button"
+                                      tabIndex={0}
+                                    >
+                                      <ExternalLink size={12} className="opacity-70" />{' '}
+                                      {decision.meetingTitle || 'Source'}
+                                    </span>
+                                  </div>
+                                </li>
+                              )
+                            )}
                           </ul>
                         )}
                       </>
@@ -588,19 +610,27 @@ export default function WeeklyDigestView() {
                           <div className="flex flex-col w-full">
                             {(() => {
                               const maxPCount = Math.max(
-                                ...digest.entityAggregation.topPeople.map(p => p.meetingCount),
+                                ...digest.entityAggregation.topPeople.map(
+                                  (p: WeeklyDigest['entityAggregation']['topPeople'][number]) =>
+                                    p.meetingCount
+                                ),
                                 1
                               )
-                              return digest.entityAggregation.topPeople.map((p, i) => (
-                                <TopParticipantItem
-                                  key={p.name}
-                                  name={p.name}
-                                  count={p.meetingCount}
-                                  meetingTitles={p.meetingTitles}
-                                  maxCount={maxPCount}
-                                  isLast={i === digest.entityAggregation.topPeople.length - 1}
-                                />
-                              ))
+                              return digest.entityAggregation.topPeople.map(
+                                (
+                                  p: WeeklyDigest['entityAggregation']['topPeople'][number],
+                                  i: number
+                                ) => (
+                                  <TopParticipantItem
+                                    key={p.name}
+                                    name={p.name}
+                                    count={p.meetingCount}
+                                    meetingTitles={p.meetingTitles}
+                                    maxCount={maxPCount}
+                                    isLast={i === digest.entityAggregation.topPeople.length - 1}
+                                  />
+                                )
+                              )
                             })()}
                           </div>
                         ) : (
@@ -646,18 +676,23 @@ export default function WeeklyDigestView() {
                           <div className="flex flex-col">
                             {(() => {
                               const maxCount = Math.max(
-                                ...digest.entityAggregation.topTopics.map(t => t.mentionCount),
+                                ...digest.entityAggregation.topTopics.map(
+                                  (t: WeeklyDigest['entityAggregation']['topTopics'][number]) =>
+                                    t.mentionCount
+                                ),
                                 1
                               )
-                              return digest.entityAggregation.topTopics.map(t => (
-                                <TopTopicItem
-                                  key={t.topic}
-                                  topic={t.topic}
-                                  count={t.mentionCount}
-                                  meetingTitles={t.meetingTitles}
-                                  maxCount={maxCount}
-                                />
-                              ))
+                              return digest.entityAggregation.topTopics.map(
+                                (t: WeeklyDigest['entityAggregation']['topTopics'][number]) => (
+                                  <TopTopicItem
+                                    key={t.topic}
+                                    topic={t.topic}
+                                    count={t.mentionCount}
+                                    meetingTitles={t.meetingTitles}
+                                    maxCount={maxCount}
+                                  />
+                                )
+                              )
                             })()}
                           </div>
                         ) : (
@@ -711,7 +746,7 @@ export default function WeeklyDigestView() {
                       <>
                         {digest.contradictions.length > 0 ? (
                           <div className="ui-digest-contradiction-container">
-                            {digest.contradictions.map((c, i) => (
+                            {digest.contradictions.map((c: Contradiction, i: number) => (
                               <div
                                 key={`contra-${c.id || i}`}
                                 className="ui-digest-contradiction-group"

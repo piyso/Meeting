@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react'
+import { formatDateTime } from '../../utils/time'
 import { Shield, Download, ChevronDown } from 'lucide-react'
 import { Button } from '../ui/Button'
 
@@ -144,12 +145,7 @@ export const AuditLogViewer: React.FC = () => {
                     className="border-b border-[var(--color-border-subtle)] last:border-0 hover:bg-[#262626] transition-colors"
                   >
                     <td className="px-5 py-4 text-[var(--color-text-tertiary)] whitespace-nowrap">
-                      {new Date(log.timestamp).toLocaleString(undefined, {
-                        month: 'short',
-                        day: 'numeric',
-                        hour: '2-digit',
-                        minute: '2-digit',
-                      })}
+                      {formatDateTime(log.timestamp)}
                     </td>
                     <td className="px-5 py-4 font-mono">
                       <span className={getOperationColor(log.operation)}>{log.operation}</span>

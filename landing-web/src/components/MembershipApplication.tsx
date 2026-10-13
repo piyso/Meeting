@@ -2,9 +2,26 @@
 
 import { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { ArrowRight, Building, Mail, User, Shield, Key, CheckCircle, Terminal } from 'lucide-react'
+import {
+  ArrowRight,
+  Building,
+  Mail,
+  User,
+  Shield,
+  Key,
+  CheckCircle,
+  Terminal,
+  AlertTriangle,
+} from 'lucide-react'
 
 type FormType = 'access' | 'demo'
+
+/** What the visitor typed, kept so a failed submission does not wipe the form. */
+type Draft = Partial<Record<'fullName' | 'firm' | 'email' | 'role' | 'intent', string>>
+
+const CONTACT_EMAIL = 'bluearkive@outlook.com'
+const SUBMIT_FAILED = `We could not send your application. Please try again, or write to ${CONTACT_EMAIL}.`
+const STEP_INTERVAL_MS = 600
 
 const SUBMIT_MESSAGES = [
   'INITIATING SECURE HANDSHAKE...',
@@ -19,34 +36,60 @@ export function MembershipApplication() {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isSuccess, setIsSuccess] = useState(false)
   const [submitStep, setSubmitStep] = useState(0)
+  const [submitError, setSubmitError] = useState<string | null>(null)
+  const [draft, setDraft] = useState<Draft>({})
+
+  const switchForm = (form: FormType) => {
+    if (isSubmitting) return
+    setActiveForm(form)
+    setSubmitError(null)
+  }
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
-    setIsSubmitting(true)
-    setSubmitStep(0)
+    if (isSubmitting) return
 
     const formData = new FormData(e.currentTarget)
+    const field = (name: string) => {
+      const value = formData.get(name)
+      return typeof value === 'string' ? value.trim() : ''
+    }
+    const entered: Draft = {
+      fullName: field('fullName'),
+      firm: field('firm'),
+      email: field('email'),
+      role: field('role'),
+      intent: field('intent'),
+    }
     const data = {
       type: activeForm,
-      fullName: formData.get('fullName'),
-      firm: formData.get('firm'),
-      email: formData.get('email'),
-      role: formData.get('role') || 'Not specified',
-      intent: formData.get('intent') || 'None provided',
+      fullName: entered.fullName,
+      firm: entered.firm,
+      email: entered.email,
+      role: entered.role || 'Not specified',
+      intent: entered.intent || 'None provided',
     }
 
-    try {
-      // Simulate terminal steps immediately
-      let step = 0
-      const interval = setInterval(() => {
-        step++
-        setSubmitStep(step)
-        if (step >= SUBMIT_MESSAGES.length - 1) {
-          clearInterval(interval)
-        }
-      }, 600)
+    setDraft(entered)
+    setSubmitError(null)
+    setSubmitStep(0)
+    setIsSubmitting(true)
 
-      // Actually POST to the backend
+    // The terminal steps play up to the line before "ACCESS GRANTED"; that last
+    // line is shown only once the server has accepted the application.
+    const lastPendingStep = SUBMIT_MESSAGES.length - 2
+    let step = 0
+    const interval = setInterval(() => {
+      step = Math.min(step + 1, lastPendingStep)
+      setSubmitStep(step)
+      if (step >= lastPendingStep) clearInterval(interval)
+    }, STEP_INTERVAL_MS)
+    const stepsPlayed = new Promise<void>(resolve =>
+      setTimeout(resolve, STEP_INTERVAL_MS * (lastPendingStep + 1))
+    )
+
+    let failure: string | null = null
+    try {
       const res = await fetch('/api/apply', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -54,23 +97,69 @@ export function MembershipApplication() {
       })
 
       if (!res.ok) {
-        console.error('Failed to send email', await res.text())
+        const body: unknown = await res.json().catch(() => null)
+        const message =
+          body && typeof body === 'object' ? (body as { error?: unknown }).error : null
+        failure = typeof message === 'string' && message ? message : SUBMIT_FAILED
       }
-
-      // Wait a moment for terminal to finish if fetch was fast
-      setTimeout(() => {
-        setIsSubmitting(false)
-        setIsSuccess(true)
-        setTimeout(() => {
-          setIsSuccess(false)
-          setSubmitStep(0)
-        }, 4000)
-      }, 3500)
-    } catch (err) {
-      console.error(err)
-      setIsSubmitting(false)
+    } catch {
+      failure = SUBMIT_FAILED
     }
+
+    await stepsPlayed
+    clearInterval(interval)
+
+    if (failure) {
+      setSubmitError(failure)
+      setIsSubmitting(false)
+      setSubmitStep(0)
+      return
+    }
+
+    setSubmitStep(SUBMIT_MESSAGES.length - 1)
+    setTimeout(() => {
+      setDraft({})
+      setIsSubmitting(false)
+      setIsSuccess(true)
+      setTimeout(() => {
+        setIsSuccess(false)
+        setSubmitStep(0)
+      }, 4000)
+    }, 900)
   }
+
+  const submitErrorNotice = submitError && (
+    <p
+      role="alert"
+      style={{
+        display: 'flex',
+        alignItems: 'flex-start',
+        gap: '0.625rem',
+        marginBottom: '1rem',
+        padding: '0.875rem 1rem',
+        borderRadius: '0.75rem',
+        border: '1px solid rgba(248, 113, 113, 0.35)',
+        background: 'rgba(248, 113, 113, 0.08)',
+        color: '#fecaca',
+        fontSize: '0.8125rem',
+        lineHeight: 1.5,
+        textAlign: 'left',
+      }}
+    >
+      <AlertTriangle
+        aria-hidden="true"
+        style={{ width: '16px', height: '16px', flexShrink: 0, marginTop: '2px' }}
+      />
+      <span>
+        {submitError}{' '}
+        {!submitError.includes(CONTACT_EMAIL) && (
+          <a href={`mailto:${CONTACT_EMAIL}`} style={{ color: 'white' }}>
+            {CONTACT_EMAIL}
+          </a>
+        )}
+      </span>
+    </p>
+  )
 
   const containerVariants = {
     hidden: { opacity: 0 },
@@ -154,7 +243,7 @@ export function MembershipApplication() {
         {/* Form Tabs */}
         <div className="form-tabs">
           <button
-            onClick={() => !isSubmitting && setActiveForm('access')}
+            onClick={() => switchForm('access')}
             className={`form-tab ${activeForm === 'access' ? 'active' : ''}`}
             style={isSubmitting ? { opacity: 0.5, cursor: 'not-allowed' } : {}}
           >
@@ -164,7 +253,7 @@ export function MembershipApplication() {
             )}
           </button>
           <button
-            onClick={() => !isSubmitting && setActiveForm('demo')}
+            onClick={() => switchForm('demo')}
             className={`form-tab ${activeForm === 'demo' ? 'active' : ''}`}
             style={isSubmitting ? { opacity: 0.5, cursor: 'not-allowed' } : {}}
           >
@@ -334,6 +423,7 @@ export function MembershipApplication() {
                         type="text"
                         name="fullName"
                         required
+                        defaultValue={draft.fullName ?? ''}
                         className="form-input"
                         placeholder="John Doe"
                       />
@@ -345,6 +435,7 @@ export function MembershipApplication() {
                         type="text"
                         name="firm"
                         required
+                        defaultValue={draft.firm ?? ''}
                         className="form-input"
                         placeholder="Acme Corp"
                       />
@@ -358,6 +449,7 @@ export function MembershipApplication() {
                       type="email"
                       name="email"
                       required
+                      defaultValue={draft.email ?? ''}
                       className="form-input"
                       placeholder="john@acmecorp.com"
                     />
@@ -367,12 +459,14 @@ export function MembershipApplication() {
                     <label className="form-label">Statement of Intent (Optional)</label>
                     <textarea
                       name="intent"
+                      defaultValue={draft.intent ?? ''}
                       className="form-input"
                       placeholder="Briefly describe your interest in sovereign infrastructure..."
                     />
                   </motion.div>
 
                   <motion.div variants={itemVariants} style={{ paddingTop: '1.5rem' }}>
+                    {submitErrorNotice}
                     <button
                       type="submit"
                       className="btn-primary liquid-glass"
@@ -424,6 +518,7 @@ export function MembershipApplication() {
                         type="text"
                         name="fullName"
                         required
+                        defaultValue={draft.fullName ?? ''}
                         className="form-input"
                         placeholder="Jane Doe"
                       />
@@ -435,6 +530,7 @@ export function MembershipApplication() {
                         type="text"
                         name="firm"
                         required
+                        defaultValue={draft.firm ?? ''}
                         className="form-input"
                         placeholder="Global Ventures"
                       />
@@ -449,6 +545,7 @@ export function MembershipApplication() {
                         type="email"
                         name="email"
                         required
+                        defaultValue={draft.email ?? ''}
                         className="form-input"
                         placeholder="jane@globalventures.com"
                       />
@@ -458,7 +555,7 @@ export function MembershipApplication() {
                       <select
                         name="role"
                         required
-                        defaultValue=""
+                        defaultValue={draft.role ?? ''}
                         className="form-input"
                         style={{ appearance: 'none', paddingLeft: '1rem' }}
                       >
@@ -488,12 +585,14 @@ export function MembershipApplication() {
                     <label className="form-label">How Can We Assist You?</label>
                     <textarea
                       name="intent"
+                      defaultValue={draft.intent ?? ''}
                       className="form-input"
                       placeholder="Please provide details about your use case..."
                     />
                   </motion.div>
 
                   <motion.div variants={itemVariants} style={{ paddingTop: '1.5rem' }}>
+                    {submitErrorNotice}
                     <button
                       type="submit"
                       className="btn-secondary liquid-glass"

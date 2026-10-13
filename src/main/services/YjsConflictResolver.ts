@@ -390,6 +390,22 @@ export class YjsConflictResolver {
       return false
     }
   }
+
+  /**
+   * Dispose all cached Y.Doc instances on application quit
+   */
+  public destroyAll(): void {
+    for (const [id, doc] of this.documents.entries()) {
+      try {
+        doc.destroy()
+      } catch (e) {
+        log.debug(`Failed to destroy Y.Doc for note ${id}:`, e)
+      }
+    }
+    this.documents.clear()
+    this.accessOrder = []
+    log.info('[YjsConflictResolver] All cached Y.Doc instances destroyed')
+  }
 }
 
 // Singleton instance

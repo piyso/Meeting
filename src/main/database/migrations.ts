@@ -7,6 +7,7 @@
 
 import Database from 'better-sqlite3'
 import { Logger } from '../services/Logger'
+import { backupDatabase } from './connection'
 
 const log = Logger.create('Migrations')
 
@@ -187,7 +188,6 @@ export function applyPendingMigrations(db: Database.Database): void {
     const userDataPath = app.getPath('userData')
     const timestamp = new Date().toISOString().replace(/[:.]/g, '-')
     const backupPath = path.join(userDataPath, 'backups', `pre-migration-${timestamp}.db`)
-    const { backupDatabase } = require('./connection')
     backupDatabase(backupPath)
     log.info(`Pre-migration backup created: ${backupPath}`)
   } catch (err) {

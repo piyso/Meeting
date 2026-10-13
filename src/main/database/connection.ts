@@ -9,7 +9,14 @@ import Database from 'better-sqlite3'
 import { app } from 'electron'
 import path from 'path'
 import fs from 'fs'
-import { INITIALIZE_SCHEMA, SCHEMA_VERSION } from './schema'
+import {
+  CREATE_TABLES,
+  CREATE_INDEXES,
+  CREATE_FTS_TABLES,
+  CREATE_FTS_TRIGGERS,
+  FTS_TABLE_NAMES,
+  SCHEMA_VERSION,
+} from './schema'
 import { Logger } from '../services/Logger'
 const log = Logger.create('Database')
 
@@ -55,36 +62,28 @@ export function initializeDatabase(config?: Partial<DatabaseConfig>): Database.D
 
   log.info(`Initializing database at: ${dbPath}`)
 
-  // Create database connection
-  db = new Database(dbPath, {
+  // Create database connection. Configure it through a local handle and only
+  // publish it once setup has succeeded: if a pragma or the schema step throws
+  // (corrupt file, disk full), a published half-initialised handle would be
+  // returned by every later getDatabase() call instead of a clear error.
+  const connection = new Database(dbPath, {
     readonly: config?.readonly || false,
     fileMustExist: config?.fileMustExist || false,
     timeout: config?.timeout || 5000,
     verbose: config?.verbose,
   })
 
-  // Configure WAL mode for concurrent reads
-  db.pragma('journal_mode = WAL')
-
-  // Performance optimizations
-  // NOTE: synchronous=NORMAL with WAL can lose the last transaction on power failure.
-  // This is an acceptable tradeoff for desktop recording performance.
-  // If strict HIPAA durability is required, change to synchronous=FULL.
-  db.pragma('synchronous = NORMAL') // Balanced safety/speed
-  db.pragma('cache_size = -8000') // 8MB cache (right-sized for typical DB size)
-  db.pragma('temp_store = MEMORY') // Store temp tables in memory
-
-  // Platform-conditional mmap/busy_timeout: NTFS + Windows Defender causes slower I/O
-  const isWindows = process.platform === 'win32'
-  db.pragma(`mmap_size = ${isWindows ? 67108864 : 268435456}`) // 64MB on Windows, 256MB on macOS
-  db.pragma('wal_autocheckpoint = 1000') // Checkpoint every 1000 pages
-  db.pragma(`busy_timeout = ${isWindows ? 10000 : 5000}`) // 10s on Windows (Defender file locks), 5s on macOS
-
-  // Enable foreign keys
-  db.pragma('foreign_keys = ON')
-
-  // Initialize schema
-  initializeSchema(db)
+  try {
+    configureConnection(connection)
+  } catch (error) {
+    try {
+      connection.close()
+    } catch {
+      /* already unusable */
+    }
+    throw error
+  }
+  db = connection
 
   // Periodic WAL checkpoint to prevent .db-wal file explosion during long recordings.
   // Without this, if a read transaction is held (e.g., FTS5 search) while TranscriptService
@@ -104,6 +103,34 @@ export function initializeDatabase(config?: Partial<DatabaseConfig>): Database.D
   log.info('Database initialized successfully')
 
   return db
+}
+
+/**
+ * Apply pragmas and bring the schema up to date on a freshly opened connection.
+ */
+function configureConnection(connection: Database.Database): void {
+  // Configure WAL mode for concurrent reads
+  connection.pragma('journal_mode = WAL')
+
+  // Performance optimizations
+  // NOTE: synchronous=NORMAL with WAL can lose the last transaction on power failure.
+  // This is an acceptable tradeoff for desktop recording performance.
+  // If strict HIPAA durability is required, change to synchronous=FULL.
+  connection.pragma('synchronous = NORMAL') // Balanced safety/speed
+  connection.pragma('cache_size = -8000') // 8MB cache (right-sized for typical DB size)
+  connection.pragma('temp_store = MEMORY') // Store temp tables in memory
+
+  // Platform-conditional mmap/busy_timeout: NTFS + Windows Defender causes slower I/O
+  const isWindows = process.platform === 'win32'
+  connection.pragma(`mmap_size = ${isWindows ? 67108864 : 268435456}`) // 64MB on Windows, 256MB on macOS
+  connection.pragma('wal_autocheckpoint = 1000') // Checkpoint every 1000 pages
+  connection.pragma(`busy_timeout = ${isWindows ? 10000 : 5000}`) // 10s on Windows (Defender file locks), 5s on macOS
+
+  // Enable foreign keys
+  connection.pragma('foreign_keys = ON')
+
+  // Initialize schema
+  initializeSchema(connection)
 }
 
 /**
@@ -132,74 +159,109 @@ function initializeSchema(database: Database.Database): void {
 
   const version = currentVersion?.version || 0
 
-  if (version < SCHEMA_VERSION) {
-    log.info(`Applying schema version ${SCHEMA_VERSION} (current: ${version})...`)
+  // The schema is brought up to date on every start, not only when the stored
+  // version is behind. DatabaseMigrationService stamps the same schema_version
+  // table with its own (higher) numbers, so a version gate here meant nothing
+  // added to schema.ts ever reached an existing database — and a search table
+  // dropped by a failed repair was never created again.
+  //
+  // Order matters: tables first, then columns that later releases added to
+  // tables an older release created, and only then the indexes, search tables
+  // and triggers, which may reference those columns. (Creating the indexes
+  // before the columns existed made every database from v0.3.3 or earlier fail
+  // with "no such column: embedding_blob" on every launch.)
+  //
+  // One transaction: a crash half-way leaves the previous schema intact.
+  const migrate = database.transaction(() => {
+    database.exec(CREATE_TABLES)
 
-    // P1-9 FIX: Wrap migrations in a transaction so a mid-migration crash
-    // (e.g., after adding embedding_blob but before version insert) doesn't
-    // leave the schema in a half-upgraded state with no version bump.
-    // On next launch, the retry would try ALTER TABLE again → error.
-    const migrate = database.transaction(() => {
-      // Execute schema initialization (CREATE IF NOT EXISTS is idempotent)
-      database.exec(INITIALIZE_SCHEMA)
+    const added = addMissingColumns(database)
+    if (added.length > 0) log.info(`Schema: added columns ${added.join(', ')}`)
 
-      // ── Migration: v4 → v5 ──
-      // P0-2 FIX: Add embedding_blob BLOB column for local semantic embeddings.
-      // TranscriptService and BackgroundEmbeddingQueue write Float32Array BLOBs here.
-      if (version < 5) {
-        try {
-          const hasCol = database
-            .prepare(
-              "SELECT COUNT(*) as cnt FROM pragma_table_info('transcripts') WHERE name='embedding_blob'"
-            )
-            .get() as { cnt: number }
-          if (!hasCol || hasCol.cnt === 0) {
-            database.exec('ALTER TABLE transcripts ADD COLUMN embedding_blob BLOB')
-            log.info('Migration v5: Added embedding_blob column to transcripts')
-          }
-        } catch (e) {
-          log.debug(
-            'Migration v5 embedding_blob skipped:',
-            e instanceof Error ? e.message : String(e)
-          )
-        }
+    const missingFts = FTS_TABLE_NAMES.filter(name => !tableExists(database, name))
+    database.exec(CREATE_INDEXES)
+    database.exec(CREATE_FTS_TABLES)
+    database.exec(CREATE_FTS_TRIGGERS)
+    // A search table created over rows that already exist starts out empty.
+    for (const name of missingFts) {
+      database.exec(`INSERT INTO ${name}(${name}) VALUES('rebuild')`)
+    }
+    if (missingFts.length > 0 && version > 0) {
+      log.info(`Schema: rebuilt search tables ${missingFts.join(', ')}`)
+    }
 
-        // Add synced_at columns to tables that were missing them
-        const tablesNeedingSyncedAt = [
-          'action_items',
-          'sentiment_scores',
-          'calendar_events',
-          'webhooks',
-        ]
-        for (const table of tablesNeedingSyncedAt) {
-          try {
-            const hasCol = database
-              .prepare(
-                `SELECT COUNT(*) as cnt FROM pragma_table_info('${table}') WHERE name='synced_at'`
-              )
-              .get() as { cnt: number }
-            if (!hasCol || hasCol.cnt === 0) {
-              database.exec(`ALTER TABLE ${table} ADD COLUMN synced_at INTEGER DEFAULT 0`)
-              log.info(`Migration v5: Added synced_at column to ${table}`)
-            }
-          } catch (e) {
-            log.debug(
-              `Migration v5 ${table}.synced_at skipped:`,
-              e instanceof Error ? e.message : String(e)
-            )
-          }
-        }
-      }
-
-      // Update schema version
+    if (version < SCHEMA_VERSION) {
       database.prepare('INSERT INTO schema_version (version) VALUES (?)').run(SCHEMA_VERSION)
-    })
+    }
+  })
 
-    migrate()
-    log.info(`Schema version ${SCHEMA_VERSION} applied successfully`)
-  } else {
-    log.info(`Schema is up to date (version ${version})`)
+  migrate()
+  log.info(
+    version < SCHEMA_VERSION
+      ? `Schema version ${SCHEMA_VERSION} applied (was ${version})`
+      : `Schema is up to date (version ${version})`
+  )
+}
+
+function tableExists(database: Database.Database, name: string): boolean {
+  return !!database
+    .prepare("SELECT 1 FROM sqlite_master WHERE type IN ('table', 'view') AND name = ?")
+    .get(name)
+}
+
+interface ColumnInfo {
+  name: string
+  type: string
+  notnull: number
+  dflt_value: string | null
+  pk: number
+}
+
+/**
+ * Add every column that schema.ts declares but an existing table lacks.
+ *
+ * CREATE TABLE IF NOT EXISTS never alters a table that is already there, so a
+ * column added to schema.ts used to need a hand-written ALTER for each release
+ * that might be upgrading. Instead, build the current schema in a throwaway
+ * in-memory database and compare column lists.
+ *
+ * Returns the columns added, as "table.column".
+ */
+function addMissingColumns(database: Database.Database): string[] {
+  const reference = new Database(':memory:')
+  const added: string[] = []
+  try {
+    reference.exec(CREATE_TABLES)
+    const tables = reference
+      .prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name NOT LIKE 'sqlite_%'")
+      .all() as Array<{ name: string }>
+
+    for (const { name: table } of tables) {
+      if (!tableExists(database, table)) continue
+      const expected = reference.pragma(`table_info("${table}")`) as ColumnInfo[]
+      const existing = new Set(
+        (database.pragma(`table_info("${table}")`) as ColumnInfo[]).map(column => column.name)
+      )
+
+      for (const column of expected) {
+        if (existing.has(column.name) || column.pk) continue
+        // ALTER TABLE ADD COLUMN only accepts a constant default, and a NOT
+        // NULL column needs one. Anything else is added as a plain nullable
+        // column — existing rows read NULL, which the code already handles for
+        // rows written before the column existed.
+        const hasConstantDefault = column.dflt_value !== null && !column.dflt_value.includes('(')
+        let ddl = `ALTER TABLE "${table}" ADD COLUMN "${column.name}" ${column.type}`
+        if (hasConstantDefault) {
+          ddl += ` ${column.notnull ? 'NOT NULL ' : ''}DEFAULT ${column.dflt_value}`
+        }
+        database.exec(ddl)
+        added.push(`${table}.${column.name}`)
+      }
+    }
+  } finally {
+    reference.close()
   }
+  return added
 }
 
 /**

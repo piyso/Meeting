@@ -48,7 +48,7 @@ export const SplitPane: React.FC<SplitPaneProps> = ({
       dragState.current.isDragging = false
       document.body.style.cursor = ''
       document.body.style.userSelect = ''
-      
+
       if (e.currentTarget.hasPointerCapture(e.pointerId)) {
         e.currentTarget.releasePointerCapture(e.pointerId)
       }
@@ -94,8 +94,8 @@ export const SplitPane: React.FC<SplitPaneProps> = ({
         {top}
       </div>
 
-      <div 
-        className="ui-split-divider" 
+      <div
+        className="ui-split-divider"
         onPointerDown={handlePointerDown}
         onPointerMove={handlePointerMove}
         onPointerUp={handlePointerUp}

@@ -58,6 +58,11 @@ export class LocalEmbeddingService {
   private tokenizerPath: string
   private vocabPath: string
   private isInitialized = false
+  // A missing model/tokenizer is not going to appear between two transcript
+  // segments. Remember the failure and fail fast (and quietly) for a while
+  // instead of re-reading the disk and logging a stack trace per segment.
+  private initFailure: { error: Error; at: number } | null = null
+  private static readonly INIT_RETRY_MS = 5 * 60_000
 
   // Model configuration
   private readonly MAX_SEQUENCE_LENGTH = 128
@@ -83,6 +88,12 @@ export class LocalEmbeddingService {
   async initialize(): Promise<void> {
     if (this.isInitialized) {
       return
+    }
+    if (
+      this.initFailure &&
+      Date.now() - this.initFailure.at < LocalEmbeddingService.INIT_RETRY_MS
+    ) {
+      throw this.initFailure.error
     }
 
     const startTime = Date.now()
@@ -154,8 +165,13 @@ export class LocalEmbeddingService {
       log.info(`[LocalEmbeddingService] Vocabulary size: ${this.vocab.size}`)
 
       this.isInitialized = true
+      this.initFailure = null
     } catch (error) {
       log.error('[LocalEmbeddingService] Initialization failed:', error)
+      this.initFailure = {
+        error: error instanceof Error ? error : new Error(String(error)),
+        at: Date.now(),
+      }
       throw error
     }
   }
@@ -185,13 +201,24 @@ export class LocalEmbeddingService {
         mask.length,
       ])
 
+      if (!this.session) throw new Error('ONNX session not initialized')
+
       // Run inference
-      const feeds = {
+      const feeds: Record<string, InstanceType<typeof ort.Tensor>> = {
         input_ids: inputIds,
         attention_mask: attentionMask,
       }
+      // BERT-style exports (including the pinned all-MiniLM-L6-v2 file) declare a
+      // third input. Without it every call failed with "input 'token_type_ids'
+      // is missing in 'feeds'" — local semantic search never produced a vector.
+      // Single-sentence input: all zeros.
+      if (this.session.inputNames?.includes('token_type_ids')) {
+        feeds.token_type_ids = new ort.Tensor('int64', new BigInt64Array(tokenIds.length), [
+          1,
+          tokenIds.length,
+        ])
+      }
 
-      if (!this.session) throw new Error('ONNX session not initialized')
       const results = await this.session.run(feeds)
       const output = results['last_hidden_state']
 
@@ -214,7 +241,10 @@ export class LocalEmbeddingService {
         generationTimeMs,
       }
     } catch (error) {
-      log.error('[LocalEmbeddingService] Embedding generation failed:', error)
+      // An unavailable model was already reported once by initialize().
+      if (error !== this.initFailure?.error) {
+        log.error('[LocalEmbeddingService] Embedding generation failed:', error)
+      }
       throw error
     }
   }
@@ -445,6 +475,7 @@ export class LocalEmbeddingService {
     }
     this.vocab.clear()
     this.isInitialized = false
+    this.initFailure = null
   }
 }
 

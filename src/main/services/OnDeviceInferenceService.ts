@@ -91,8 +91,9 @@ export class OnDeviceInferenceService extends EventEmitter {
       throw new Error('On-device inference not available on this machine')
     }
 
-    if (this.modelCache.has(size) && this.modelCache.get(size)!.downloaded) {
-      return this.modelCache.get(size)!
+    const cached = this.modelCache.get(size)
+    if (cached?.downloaded) {
+      return cached
     }
 
     // Queue download
@@ -125,7 +126,7 @@ export class OnDeviceInferenceService extends EventEmitter {
     const modelSize = options.modelSize || this.activeModel || 'base'
 
     // Ensure model is downloaded
-    if (!this.modelCache.has(modelSize) || !this.modelCache.get(modelSize)!.downloaded) {
+    if (!this.modelCache.get(modelSize)?.downloaded) {
       await this.downloadModel(modelSize)
     }
 
@@ -242,7 +243,7 @@ export class OnDeviceInferenceService extends EventEmitter {
     this.isDownloading = true
 
     while (this.downloadQueue.length > 0) {
-      const size = this.downloadQueue.shift()!
+      const size = this.downloadQueue.shift()
       if (!size) continue
 
       log.info(`Downloading Whisper model: ${size}`)

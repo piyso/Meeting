@@ -126,6 +126,9 @@ const IslandWidgetSync: React.FC<{
 
   // Single interval to handle IPC broadcasting
   useEffect(() => {
+    // While idle the widget state never changes — send it once per idle
+    // period instead of two identical IPC messages a second, forever.
+    let idleStateSent = false
     const interval = setInterval(() => {
       const state = stateRef.current
       let currentElapsedStr = '00:00:00'
@@ -140,6 +143,7 @@ const IslandWidgetSync: React.FC<{
       }
 
       if (state.recordingState !== 'idle') {
+        idleStateSent = false
         window.electronAPI?.widget?.updateState({
           isRecording: state.isRecording,
           isPaused: state.recordingState === 'paused',
@@ -159,7 +163,8 @@ const IslandWidgetSync: React.FC<{
           entityCount: state.entityCount,
           noteCount: state.noteCount,
         })
-      } else {
+      } else if (!idleStateSent) {
+        idleStateSent = true
         window.electronAPI?.widget?.updateState({
           isRecording: false,
           isPaused: false,
@@ -321,14 +326,13 @@ export const DynamicIsland: React.FC<DynamicIslandProps> = ({
 
   const handleMouseEnter = () => {
     if (hoverTimerRef.current) clearTimeout(hoverTimerRef.current)
-    hoverTimerRef.current = setTimeout(() => setIsHovered(true), 60)
+    setIsHovered(true)
   }
 
   const handleMouseLeave = () => {
     if (hoverTimerRef.current) clearTimeout(hoverTimerRef.current)
-    // 500ms grace period prevents the island from instantly jittering closed
-    // if the mouse accidentally slips off a 1px boundary layer.
-    hoverTimerRef.current = setTimeout(() => setIsHovered(false), 500)
+    // 300ms grace period prevents the island from jittering closed on slight mouse slip
+    hoverTimerRef.current = setTimeout(() => setIsHovered(false), 300)
   }
 
   // ── Hold-to-Stop ──
@@ -379,7 +383,7 @@ export const DynamicIsland: React.FC<DynamicIslandProps> = ({
       case 'meeting-list':
         return 'Home'
       case 'meeting-detail':
-        return 'Recording'
+        return 'Meeting'
       case 'knowledge-graph':
         return 'Knowledge Graph'
       case 'weekly-digest':
@@ -440,7 +444,9 @@ export const DynamicIsland: React.FC<DynamicIslandProps> = ({
                   </span>
                   <span className="opacity-40">•</span>
                   <span>
-                    {quotaData.used}/{quotaData.limit} {currentTier === 'pro' ? '∞' : '☁️'}
+                    {Number.isFinite(quotaData.limit) && quotaData.limit >= 0
+                      ? `${quotaData.used}/${quotaData.limit} AI queries`
+                      : 'Unlimited AI'}
                   </span>
                 </div>
                 <SyncStatusBadge />
@@ -548,6 +554,7 @@ export const DynamicIsland: React.FC<DynamicIslandProps> = ({
                 }}
                 className="ui-dynamic-island-pause-btn flex items-center justify-center p-1.5 rounded-full bg-[rgba(255,255,255,0.06)] hover:bg-[rgba(255,255,255,0.15)] transition-colors pointer-events-auto"
                 title={isPaused ? `Resume (${modKey}+Shift+P)` : `Pause (${modKey}+Shift+P)`}
+                aria-label={isPaused ? 'Resume recording' : 'Pause recording'}
               >
                 {isPaused ? (
                   <Play
@@ -573,6 +580,8 @@ export const DynamicIsland: React.FC<DynamicIslandProps> = ({
                 // ring animation gets stuck. pointerCancel handles this case.
                 onPointerCancel={handlePointerUp}
                 className={`ui-dynamic-island-stop-btn ${isHolding ? 'is-holding' : ''} pointer-events-auto`}
+                title="Stop recording"
+                aria-label="Stop recording"
               >
                 {isHolding ? (
                   <svg className="ui-di-hold-ring pointer-events-none" viewBox="0 0 24 24">

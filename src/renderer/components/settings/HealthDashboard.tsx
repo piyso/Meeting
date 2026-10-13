@@ -175,8 +175,31 @@ export const HealthDashboard: React.FC = () => {
     window.electronAPI?.shell?.openExternal(mailto)
   }, [results, systemInfo])
 
-  const handleExportDiagnostics = React.useCallback(() => {
-    window.electronAPI?.diagnostic?.export()
+  const [exporting, setExporting] = React.useState(false)
+  const handleExportDiagnostics = React.useCallback(async () => {
+    setExporting(true)
+    try {
+      const res = await window.electronAPI?.diagnostic?.export()
+      if (!res?.success || !res.data?.path) {
+        throw new Error(res?.error?.message || 'Export failed')
+      }
+      useAppStore.getState().addToast({
+        type: 'success',
+        title: 'Logs exported',
+        message: res.data.path,
+        duration: 6000,
+      })
+      window.electronAPI?.shell?.showItemInFolder?.(res.data.path)
+    } catch (err) {
+      useAppStore.getState().addToast({
+        type: 'error',
+        title: 'Could not export logs',
+        message: err instanceof Error ? err.message : undefined,
+        duration: 5000,
+      })
+    } finally {
+      setExporting(false)
+    }
   }, [])
 
   return (
@@ -305,9 +328,14 @@ export const HealthDashboard: React.FC = () => {
             <Mail size={14} />
             <span className="ml-1.5">Email Support</span>
           </Button>
-          <Button variant="secondary" size="sm" onClick={handleExportDiagnostics}>
+          <Button
+            variant="secondary"
+            size="sm"
+            onClick={handleExportDiagnostics}
+            disabled={exporting}
+          >
             <Download size={14} />
-            <span className="ml-1.5">Export Logs ZIP</span>
+            <span className="ml-1.5">{exporting ? 'Exporting…' : 'Export Logs ZIP'}</span>
           </Button>
         </div>
       )}

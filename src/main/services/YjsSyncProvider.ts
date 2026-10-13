@@ -156,7 +156,7 @@ export class YjsSyncProvider {
         // Flush any messages buffered during CONNECTING
         if (this.pendingMessages.length > 0) {
           for (const msg of this.pendingMessages) {
-            this.ws!.send(JSON.stringify(msg))
+            this.ws?.send(JSON.stringify(msg))
           }
           this.pendingMessages = []
         }

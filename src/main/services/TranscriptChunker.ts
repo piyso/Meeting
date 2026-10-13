@@ -21,6 +21,7 @@
  */
 
 import { PlanTier } from './CloudAccessManager'
+import { getTierLimits } from './TierMappingService'
 import { Logger } from './Logger'
 const log = Logger.create('TranscriptChunker')
 
@@ -48,7 +49,6 @@ export class TranscriptChunker {
   // P3-8 FIX: Import limits from TierMappingService (SSOT) instead of hardcoding.
   // Any pricing change in TierMappingService now automatically propagates here.
   private getPlanLimit(tier: PlanTier): number {
-    const { getTierLimits } = require('./TierMappingService')
     return getTierLimits(tier).transcriptSize
   }
 

@@ -16,9 +16,13 @@ export const IconButton = React.forwardRef<HTMLButtonElement, IconButtonProps>(
     const button = (
       <button
         ref={ref}
+        // An icon button is never an implicit form submit: inside a <form> the
+        // HTML default ("submit") fired the form's onSubmit on top of onClick.
+        type="button"
         disabled={disabled}
         className={`ui-icon-btn ${sizeClass} ${activeClass} ${className}`}
         aria-label={props['aria-label'] || tooltip}
+        title={tooltip}
         {...props}
       >
         {icon}

@@ -32,10 +32,26 @@ const LOG_LEVEL_PRIORITY: Record<LogLevel, number> = {
 /** Maximum log file size before rotation (5MB) */
 const MAX_LOG_SIZE = 5 * 1024 * 1024
 
+/** JSON.stringify replacer that keeps the useful parts of Error objects. */
+function errorReplacer(_key: string, value: unknown): unknown {
+  if (value instanceof Error) {
+    const extra = value as Error & { code?: unknown; status?: unknown }
+    return {
+      name: value.name,
+      message: value.message,
+      ...(extra.code !== undefined ? { code: extra.code } : {}),
+      ...(extra.status !== undefined ? { status: extra.status } : {}),
+      stack: value.stack,
+    }
+  }
+  return value
+}
+
 class LoggerInstance {
   private module: string
   private static logFilePath: string | null = null
   private static logStream: fs.WriteStream | null = null
+  private static bytesWritten = 0
 
   constructor(module: string) {
     this.module = module
@@ -60,10 +76,36 @@ class LoggerInstance {
         fs.renameSync(LoggerInstance.logFilePath, rotatedPath)
       }
 
-      LoggerInstance.logStream = fs.createWriteStream(LoggerInstance.logFilePath, { flags: 'a' })
+      const stream = fs.createWriteStream(LoggerInstance.logFilePath, { flags: 'a' })
+      // A full disk or revoked permission must cost us the log file, not the app:
+      // an unhandled stream 'error' is an uncaught exception in the main process.
+      stream.on('error', () => {
+        if (LoggerInstance.logStream === stream) LoggerInstance.logStream = null
+      })
+      LoggerInstance.logStream = stream
+      LoggerInstance.bytesWritten = fs.existsSync(LoggerInstance.logFilePath)
+        ? fs.statSync(LoggerInstance.logFilePath).size
+        : 0
     } catch {
       // File logging not available (e.g., during tests)
     }
+  }
+
+  /** Close the current file, keep it as .old, and start a fresh one. */
+  private static rotate(): void {
+    const filePath = LoggerInstance.logFilePath
+    if (!filePath) return
+    try {
+      LoggerInstance.logStream?.end()
+      LoggerInstance.logStream = null
+      const rotatedPath = filePath + '.old'
+      if (fs.existsSync(rotatedPath)) fs.unlinkSync(rotatedPath)
+      if (fs.existsSync(filePath)) fs.renameSync(filePath, rotatedPath)
+    } catch {
+      /* keep appending to the existing file */
+    }
+    LoggerInstance.bytesWritten = 0
+    LoggerInstance.initFileLogging()
   }
 
   private shouldLog(level: LogLevel): boolean {
@@ -78,7 +120,10 @@ class LoggerInstance {
         return `${base} — ${data.message}\n${data.stack || ''}`
       }
       try {
-        return `${base} ${JSON.stringify(data)}`
+        // JSON.stringify(new Error('x')) is "{}" — message and stack are not
+        // enumerable — so an error nested in a data object (`{ reason }`,
+        // `{ error }`) used to be logged with no description at all.
+        return `${base} ${JSON.stringify(data, errorReplacer)}`
       } catch {
         return `${base} [unstringifiable data]`
       }
@@ -91,25 +136,38 @@ class LoggerInstance {
 
     const formatted = this.format(level, message, data)
 
-    // Console output
-    switch (level) {
-      case 'debug':
-        console.debug(formatted)
-        break
-      case 'info':
-        console.log(formatted)
-        break
-      case 'warn':
-        console.warn(formatted)
-        break
-      case 'error':
-        console.error(formatted)
-        break
+    // Console output. stdout/stderr can be closed (terminal gone, launched
+    // from Finder); a failed console write must never propagate.
+    try {
+      switch (level) {
+        case 'debug':
+          console.debug(formatted)
+          break
+        case 'info':
+          console.log(formatted)
+          break
+        case 'warn':
+          console.warn(formatted)
+          break
+        case 'error':
+          console.error(formatted)
+          break
+      }
+    } catch {
+      /* stdio unavailable */
     }
 
     // File output
     if (LoggerInstance.logStream) {
-      LoggerInstance.logStream.write(formatted + '\n')
+      try {
+        LoggerInstance.logStream.write(formatted + '\n')
+        LoggerInstance.bytesWritten += formatted.length + 1
+        // The app lives in the tray for days; rotating only at startup let
+        // the file grow without bound.
+        if (LoggerInstance.bytesWritten > MAX_LOG_SIZE) LoggerInstance.rotate()
+      } catch {
+        /* file logging unavailable */
+      }
     }
   }
 

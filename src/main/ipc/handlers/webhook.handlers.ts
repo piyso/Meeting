@@ -24,6 +24,14 @@ const log = Logger.create('WebhookHandlers')
  * Register all webhook IPC handlers
  */
 export function registerWebhookHandlers(): void {
+  // Deliveries that were waiting for a retry when the app last quit.
+  import('../../services/WebhookDispatchService')
+    .then(({ ensureRetryLoop, processRetryQueue }) => {
+      ensureRetryLoop()
+      processRetryQueue()
+    })
+    .catch(err => log.debug('Webhook retry loop not started:', err))
+
   // webhook:list — List all webhooks
   ipcMain.handle('webhook:list', async (): Promise<IPCResponse> => {
     try {
@@ -75,8 +83,9 @@ export function registerWebhookHandlers(): void {
           // Localhost is exempted for local development/testing.
           if (
             parsed.protocol !== 'https:' &&
-            !parsed.hostname.startsWith('localhost') &&
-            !parsed.hostname.startsWith('127.0.0.1')
+            // Exact loopback hosts only — startsWith() also accepted
+            // "localhost.attacker.example" over plain HTTP.
+            !['localhost', '127.0.0.1', '[::1]'].includes(parsed.hostname)
           ) {
             return {
               success: false,
@@ -105,6 +114,7 @@ export function registerWebhookHandlers(): void {
           'transcript.ready',
           'action_item.created',
           'action_item.completed',
+          'action_item.dispatched',
           'digest.generated',
           'sentiment.alert',
         ]
@@ -126,7 +136,14 @@ export function registerWebhookHandlers(): void {
           description: params.description || null,
         })
 
-        return { success: true, data: { ...webhook, secret: '••••••••' } }
+        // The signing secret is handed over exactly once, here, so the person
+        // can configure their receiver to verify X-BlueArkive-Signature. It
+        // used to be masked even in this response — nobody could ever verify a
+        // delivery. Every later response (list, update) stays masked.
+        return {
+          success: true,
+          data: { ...webhook, secret: '••••••••', signingSecret: webhook.secret },
+        }
       } catch (error) {
         log.error('webhook:create failed', error)
         return {

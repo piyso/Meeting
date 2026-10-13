@@ -2,9 +2,13 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <!-- CSP is enforced at runtime via session.webRequest.onHeadersReceived in main.ts.
-         Do NOT add a CSP meta tag here — browsers intersect both CSPs (most restrictive wins),
-         which would block WebSockets, API calls, and fonts. -->
+    <!-- Content-Security-Policy:
+         - dev (http://localhost): response header set in electron/main.ts
+           (session.webRequest.onHeadersReceived), relaxed for Vite HMR.
+         - packaged (file://): header injection does not apply to file:// loads, so
+           vite.config.ts injects a <meta http-equiv> tag here at build time.
+         Do NOT hand-write a CSP meta tag: in dev it would intersect with the header.
+         No inline <script> may be added to this file — the production policy blocks it. -->
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>BlueArkive</title>
     <style>
@@ -186,20 +190,6 @@
       </div>
     </div>
     <div id="root"></div>
-    <script>
-      window.addEventListener('error', function(e) {
-        var err = document.createElement('div');
-        err.style.cssText = 'position:fixed; z-index:999999; background:red; color:white; padding:40px; inset:0; font-size:24px; font-family:monospace; overflow:auto;';
-        err.innerHTML = '<h2>CRITICAL BOOT ERROR</h2>' + (e.message || e) + '<br><br>' + (e.error && e.error.stack ? e.error.stack : '') + '<br><br>' + e.filename + ':' + e.lineno;
-        document.body.appendChild(err);
-      });
-      window.addEventListener('unhandledrejection', function(e) {
-        var err = document.createElement('div');
-        err.style.cssText = 'position:fixed; z-index:999999; background:orange; color:black; padding:40px; inset:0; font-size:24px; font-family:monospace; overflow:auto;';
-        err.innerHTML = '<h2>UNHANDLED PROMISE REJECTION</h2>' + (e.reason ? (e.reason.stack || e.reason.message || e.reason) : e);
-        document.body.appendChild(err);
-      });
-    </script>
     <script type="module" src="/src/renderer/main.tsx"></script>
   </body>
 </html>

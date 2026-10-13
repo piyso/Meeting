@@ -9,148 +9,29 @@ const log = Logger.create('ExportHandlers')
  * Allows users to export all their data in JSON or Markdown format.
  */
 export function registerExportHandlers(): void {
-  // export:userData — Export all user data (GDPR compliance, Starter+)
+  // export:userData — Export all user data (GDPR Article 20: every tier, no gate)
   ipcMain.handle('export:userData', async (_, params) => {
     try {
-      // GDPR Article 20: Right to data portability applies to ALL tiers.
-      // No tier gate — every user can export their own data.
+      const { dialog } = await import('electron')
+      const format = params?.format === 'markdown' ? 'markdown' : 'json'
+      const ext = format === 'markdown' ? 'md' : 'json'
 
-      const db = getDatabase()
-      const format = params?.format || 'json'
+      const { filePath } = await dialog.showSaveDialog({
+        title: 'Export My Data',
+        defaultPath: `bluearkive-export-${new Date().toISOString().split('T')[0]}.${ext}`,
+        filters: [{ name: format === 'markdown' ? 'Markdown' : 'JSON', extensions: [ext] }],
+      })
+      // No path = the dialog was cancelled; nothing was written.
+      if (!filePath) return { success: true, data: { content: '', format } }
 
-      // Gather all user data
-      const meetings = db
-        .prepare('SELECT * FROM meetings ORDER BY start_time DESC')
-        .all() as Record<string, unknown>[]
+      // Written straight to the file, in batches (see UserDataExport).
+      const { writeUserDataExport } = await import('../../services/UserDataExport')
+      const result = await writeUserDataExport(getDatabase(), filePath, format)
+      log.info(`Data export written: ${result.bytes} bytes`)
 
-      const transcripts = db
-        .prepare('SELECT * FROM transcripts ORDER BY start_time ASC')
-        .all() as Record<string, unknown>[]
-
-      const notes = db.prepare('SELECT * FROM notes ORDER BY timestamp ASC').all() as Record<
-        string,
-        unknown
-      >[]
-
-      const entities = db.prepare('SELECT * FROM entities ORDER BY meeting_id').all() as Record<
-        string,
-        unknown
-      >[]
-
-      const actionItems = (() => {
-        try {
-          return db.prepare('SELECT * FROM action_items ORDER BY created_at DESC').all() as Record<
-            string,
-            unknown
-          >[]
-        } catch {
-          return [] // Table may not exist in older DBs
-        }
-      })()
-
-      const digests = (() => {
-        try {
-          return db.prepare('SELECT * FROM digests ORDER BY created_at DESC').all() as Record<
-            string,
-            unknown
-          >[]
-        } catch {
-          return []
-        }
-      })()
-
-      const exportData = {
-        exportedAt: new Date().toISOString(),
-        version: '1.0',
-        data: {
-          meetings,
-          transcripts,
-          notes,
-          entities,
-          actionItems,
-          digests,
-          sentimentScores: (() => {
-            try {
-              return db.prepare('SELECT * FROM sentiment_scores').all()
-            } catch {
-              return []
-            }
-          })(),
-          calendarEvents: (() => {
-            try {
-              return db.prepare('SELECT * FROM calendar_events').all()
-            } catch {
-              return []
-            }
-          })(),
-          webhooks: (() => {
-            try {
-              // Strip HMAC secrets from webhooks export
-              return db
-                .prepare(
-                  'SELECT id, url, events, description, is_active, created_at, updated_at FROM webhooks'
-                )
-                .all()
-            } catch {
-              return []
-            }
-          })(),
-        },
-        stats: {
-          totalMeetings: meetings.length,
-          totalTranscripts: transcripts.length,
-          totalNotes: notes.length,
-          totalEntities: entities.length,
-          totalActionItems: actionItems.length,
-          totalDigests: digests.length,
-        },
-      }
-
-      if (format === 'markdown') {
-        // Generate Markdown format
-        let md = `# Blue Arkive Data Export\n\nExported: ${exportData.exportedAt}\n\n`
-        md += `## Summary\n\n`
-        md += `- **Meetings:** ${meetings.length}\n`
-        md += `- **Transcripts:** ${transcripts.length}\n`
-        md += `- **Notes:** ${notes.length}\n`
-        md += `- **Entities:** ${entities.length}\n`
-        md += `- **Action Items:** ${actionItems.length}\n\n`
-
-        md += `## Meetings\n\n`
-        for (const m of meetings) {
-          md += `### ${(m.title as string) || 'Untitled'}\n`
-          md += `- **Date:** ${new Date(((m.start_time as number) || 0) * 1000).toISOString()}\n`
-          md += `- **Duration:** ${Math.round(((m.duration as number) || 0) / 60)} min\n\n`
-
-          // Transcripts for this meeting
-          const meetingTranscripts = transcripts.filter(t => t.meeting_id === m.id)
-          if (meetingTranscripts.length > 0) {
-            md += `#### Transcript\n\n`
-            for (const t of meetingTranscripts) {
-              md += `**${(t.speaker_name as string) || 'Speaker'}:** ${t.text}\n\n`
-            }
-          }
-
-          // Notes for this meeting
-          const meetingNotes = notes.filter(n => n.meeting_id === m.id)
-          if (meetingNotes.length > 0) {
-            md += `#### Notes\n\n`
-            for (const n of meetingNotes) {
-              md += `- ${n.original_text}\n`
-            }
-            md += '\n'
-          }
-
-          md += `---\n\n`
-        }
-
-        return { success: true, data: { content: md, format: 'markdown' } }
-      }
-
-      // Default: JSON format
       return {
         success: true,
-        data: { content: JSON.stringify(exportData, null, 2), format: 'json' },
+        data: { content: '', format, filePath, bytes: result.bytes, stats: result.stats },
       }
     } catch (error) {
       log.error('Data export failed', error)
@@ -166,54 +47,59 @@ export function registerExportHandlers(): void {
   })
 
   // export:deleteAllData — GDPR right to be forgotten (deletes local + requests cloud deletion)
-  // C-3 AUDIT: Authentication required — prevents unauthorized data destruction via XSS or extensions
   ipcMain.handle('export:deleteAllData', async () => {
     try {
-      // C-3 AUDIT FIX: Verify user is authenticated before allowing data destruction.
-      // Without this gate, any renderer JavaScript could permanently destroy ALL user data.
-      const { getAuthService } = await import('../../services/AuthService')
-      const auth = getAuthService()
-      const currentUser = await auth.getCurrentUser()
-      if (!currentUser) {
+      // GDPR Article 17: Right to erasure applies to ALL tiers — including
+      // people who use the app locally without ever creating an account.
+      // (An earlier revision required a signed-in user here. That blocked
+      // local-only users from erasing their own data and protected nothing:
+      // any script able to call this handler is already running in a
+      // signed-in renderer.)
+      // A recording in progress keeps writing rows for a meeting that is about
+      // to disappear; every one of those writes would fail from then on.
+      const { getAudioPipelineService } = await import('../../services/AudioPipelineService')
+      if (getAudioPipelineService().getStatus().isCapturing) {
         return {
           success: false,
           error: {
-            code: 'UNAUTHORIZED',
-            message: 'Authentication required to delete all data.',
+            code: 'RECORDING_IN_PROGRESS',
+            message: 'Stop the recording before deleting all data.',
             timestamp: Date.now(),
           },
         }
       }
 
-      // GDPR Article 17: Right to erasure applies to ALL tiers.
-      // No tier gate — every authenticated user can delete their own data.
+      const { getAuthService } = await import('../../services/AuthService')
+      const currentUser = await getAuthService().getCurrentUser()
 
-      // Request cloud data deletion
+      // Request cloud data deletion (signed-in accounts only)
       let cloudDeleted = false
-      try {
-        const { getBackend } = await import('../../services/backend/BackendSingleton')
-        const backend = getBackend()
-        const health = await backend.healthCheck()
-        if (health.status === 'healthy') {
-          // F6: Use proper GDPR exportAll before deletion (user gets a download link)
-          const exportResult = await backend.exportAll('all')
-          if (exportResult?.download_url) {
-            log.info(`GDPR export created: ${exportResult.download_url}`)
+      let cloudExportUrl: string | undefined
+      if (currentUser) {
+        try {
+          const { getBackend } = await import('../../services/backend/BackendSingleton')
+          const backend = getBackend()
+          const health = await backend.healthCheck()
+          if (health.status === 'healthy') {
+            // F6: Create a GDPR export before deletion. The link is returned
+            // to the caller — it is never written to the log file.
+            try {
+              const exportResult = await backend.exportAll('all')
+              cloudExportUrl = exportResult?.download_url || undefined
+            } catch (exportErr) {
+              log.warn('Pre-deletion cloud export failed', exportErr)
+            }
+
+            cloudDeleted = await backend.deleteAllData()
           }
-
-          // P2-6 FIX: Removed deduplicate(dryRun=false) that was here — pointless before deletion
-
-          const deleted = await backend.deleteAllData()
-          cloudDeleted = deleted
+        } catch (err) {
+          log.warn('Cloud data deletion failed', err)
         }
-      } catch (err) {
-        log.warn('Cloud data deletion failed', err)
       }
 
       // Delete local data
       const db = getDatabase()
-      // Delete ALL user data tables including FTS, audit trails, and ancillary data
-      // Order: children first, parents last (FK constraints: transcripts/notes/entities → meetings)
+      // Every table that holds user content, in FK order (children first).
       const tables = [
         'transcripts',
         'notes',
@@ -226,34 +112,130 @@ export function registerExportHandlers(): void {
         'digests',
         'audio_highlights',
         'sync_queue',
+        'sync_remote_ids',
         'query_usage',
         'meeting_templates',
         'devices',
         'audit_logs',
         'encryption_keys',
+        'speaker_profiles', // voiceprints — biometric data
+        'episodic_memory',
+        'telemetry_events',
+        'notifications',
+        'export_history',
+        'backups',
         'settings',
         'meetings', // LAST — parent table referenced by FKs above
       ]
-      for (const table of tables) {
+
+      // Backup files are full copies of the database — remove them too.
+      let backupFiles: string[] = []
+      try {
+        backupFiles = (
+          db.prepare('SELECT file_path FROM backups').all() as Array<{ file_path: string }>
+        ).map(row => row.file_path)
+      } catch {
+        // Table may not exist in older DB schemas
+      }
+
+      // Tables that still hold rows after the wipe. A table that does not
+      // exist (older schema) has nothing to delete; any other failure means
+      // personal data is still on disk and must not be reported as deleted.
+      const notDeleted: string[] = []
+      const wipe = db.transaction(() => {
+        for (const table of tables) {
+          try {
+            db.prepare(`DELETE FROM ${table}`).run()
+          } catch (tableErr) {
+            const message = tableErr instanceof Error ? tableErr.message : String(tableErr)
+            if (!/no such table/i.test(message)) {
+              notDeleted.push(table)
+              log.error(`Could not delete ${table}:`, message)
+            }
+          }
+        }
+        // External-content FTS indexes: 'delete-all' drops every indexed term.
+        for (const fts of ['transcripts_fts', 'notes_fts', 'entities_fts', 'action_items_fts']) {
+          try {
+            db.prepare(`INSERT INTO ${fts}(${fts}) VALUES('delete-all')`).run()
+          } catch {
+            // FTS table may not exist
+          }
+        }
+      })
+      wipe()
+
+      // Deleted rows stay readable in the file's free pages and in the WAL
+      // until they are overwritten. Rewrite the file and truncate the log.
+      try {
+        db.pragma('wal_checkpoint(TRUNCATE)')
+        db.exec('VACUUM')
+        db.pragma('wal_checkpoint(TRUNCATE)')
+      } catch (vacuumErr) {
+        log.warn('Post-deletion VACUUM failed', vacuumErr)
+      }
+
+      // Files that live outside the database
+      const fs = await import('fs')
+      const path = await import('path')
+      const { app, session } = await import('electron')
+      const userData = app.getPath('userData')
+
+      for (const file of backupFiles) {
+        fs.rmSync(file, { force: true })
+      }
+      for (const dir of [
+        path.join(userData, 'backups'), // pre-migration and scheduled backups
+        path.join(userData, 'cache', 'audio'), // unsaved recording chunks
+      ]) {
         try {
-          db.prepare(`DELETE FROM ${table}`).run()
-        } catch {
-          // Table may not exist in older DB schemas
+          fs.rmSync(dir, { recursive: true, force: true })
+        } catch (rmErr) {
+          log.warn(`Could not remove ${path.basename(dir)}`, rmErr)
         }
       }
 
-      // Clear FTS virtual tables (separate since they need different handling)
-      // I11 fix: include entities_fts — was missing, causing stale search results
-      for (const fts of ['transcripts_fts', 'notes_fts', 'entities_fts', 'action_items_fts']) {
+      // The note editor keeps each meeting's document in IndexedDB (plus
+      // drafts in localStorage) inside the renderer's storage partition.
+      try {
+        await session.defaultSession.clearStorageData({
+          storages: ['indexdb', 'localstorage'],
+        })
+      } catch (storageErr) {
+        log.warn('Could not clear renderer storage', storageErr)
+      }
+
+      // Diagnostic logs name meetings and devices.
+      try {
+        const { getDiagnosticLogger } = await import('../../services/DiagnosticLogger')
+        getDiagnosticLogger().clearLogs()
+      } catch (logErr) {
+        log.warn('Could not clear diagnostic logs', logErr)
+      }
+
+      // The stored copy of the recovery phrase protects data that no longer
+      // exists. (The sign-in itself is kept: the account still does.)
+      if (currentUser) {
         try {
-          db.prepare(`DELETE FROM ${fts}`).run()
-        } catch {
-          // FTS table may not exist
+          const { KeyStorageService, KeyType } = await import('../../services/KeyStorageService')
+          await KeyStorageService.deleteKey(KeyType.RECOVERY_PHRASE, currentUser.id)
+        } catch (keyErr) {
+          log.warn('Could not remove stored recovery phrase', keyErr)
         }
       }
 
-      // C8 fix: meetings table already deleted in the loop above (last in the array)
-      // Removed duplicate DELETE FROM meetings that was here
+      if (notDeleted.length > 0) {
+        return {
+          success: false,
+          error: {
+            code: 'DELETE_INCOMPLETE',
+            message:
+              `Some data could not be deleted (${notDeleted.join(', ')}). ` +
+              'Restart the app and try again.',
+            timestamp: Date.now(),
+          },
+        }
+      }
 
       log.info(`Data deletion complete. Cloud: ${cloudDeleted ? 'yes' : 'no'}`)
       return {
@@ -261,9 +243,12 @@ export function registerExportHandlers(): void {
         data: {
           localDeleted: true,
           cloudDeleted,
+          cloudExportUrl,
           message: cloudDeleted
             ? 'All local and cloud data has been permanently deleted.'
-            : 'Local data deleted. Cloud deletion could not be confirmed.',
+            : currentUser
+              ? 'Local data deleted. Cloud deletion could not be confirmed — try again while online.'
+              : 'All local data has been permanently deleted.',
         },
       }
     } catch (error) {

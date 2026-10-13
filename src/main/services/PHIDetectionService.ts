@@ -227,7 +227,7 @@ export class PHIDetectionService {
         let sum = 0
         let alternate = false
         for (let i = digits.length - 1; i >= 0; i--) {
-          let n = parseInt(digits[i]!, 10)
+          let n = parseInt(digits[i] ?? '0', 10)
           if (alternate) {
             n *= 2
             if (n > 9) n -= 9
@@ -374,6 +374,33 @@ export class PHIDetectionService {
       default:
         return '*'.repeat(Math.min(length, 10))
     }
+  }
+
+  /**
+   * Deterministic Token Masking: Replace sensitive tokens with deterministic surrogate keys
+   * e.g. [TOKEN_PATIENT_48A] so graph relationships remain consistent without revealing PII.
+   */
+  public static maskPHIDeterministic(text: string, identifiers: PHIIdentifier[]): string {
+    let maskedText = text
+
+    const sorted = [...identifiers].sort((a, b) => b.startIndex - a.startIndex)
+    for (const identifier of sorted) {
+      // Deterministic hash of value
+      let hash = 0
+      for (let i = 0; i < identifier.value.length; i++) {
+        hash = (hash << 5) - hash + identifier.value.charCodeAt(i)
+        hash |= 0
+      }
+      const tokenSuffix = Math.abs(hash).toString(16).toUpperCase().padStart(4, '0').slice(-4)
+      const token = `[TOKEN_${identifier.type.toUpperCase()}_${tokenSuffix}]`
+
+      maskedText =
+        maskedText.substring(0, identifier.startIndex) +
+        token +
+        maskedText.substring(identifier.endIndex)
+    }
+
+    return maskedText
   }
 
   /**

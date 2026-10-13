@@ -99,6 +99,16 @@ export class MockBackend implements IBackendProvider {
     return this.semanticSearch(query, namespace, limit)
   }
 
+  async getContext(
+    query: string,
+    namespace?: string,
+    _maxTokens?: number
+  ): Promise<{ context: string; results: SearchResult[] }> {
+    const results = await this.hybridSearch(query, namespace, 10)
+    const context = results.map(r => r.memory.content).join('\n\n')
+    return { context, results }
+  }
+
   async ask(query: string, _namespace?: string): Promise<AskResponse> {
     return {
       answer: `[Mock] Answer for: "${query}"`,

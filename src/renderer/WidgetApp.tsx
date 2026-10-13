@@ -30,17 +30,16 @@ interface WidgetState {
 }
 
 const initialState: WidgetState = {
-  isRecording: true,
+  isRecording: false,
   isPaused: false,
-  lastTranscriptLine:
-    'So if we integrate the new API with the existing auth layer, we should be able to bypass the latency issue.',
-  audioMode: 'microphone',
-  syncStatus: 'syncing',
-  liveCoachTip: 'Action Item detected: "Schedule a follow-up meeting with the engineering team."',
-  entityCount: 12,
-  noteCount: 3,
-  activeMeetingId: 'mock-123',
-  recordingStartTime: Date.now() - 5043000,
+  lastTranscriptLine: '',
+  audioMode: 'none',
+  syncStatus: 'idle',
+  liveCoachTip: null,
+  entityCount: 0,
+  noteCount: 0,
+  activeMeetingId: null,
+  recordingStartTime: null,
   recordingTotalPausedMs: 0,
   handoffState: 'expanded',
 }
@@ -59,12 +58,12 @@ function widgetReducer(state: WidgetState, action: WidgetAction): WidgetState {
 export const WidgetApp: React.FC = () => {
   const [state, dispatch] = useReducer(widgetReducer, initialState)
   const containerRef = useRef<HTMLDivElement>(null)
-  
+
   // Use ResizeObserver to dynamically resize the Electron window
   useLayoutEffect(() => {
     if (!containerRef.current || !window.electronAPI?.window?.resize) return
 
-    const resizeObserver = new ResizeObserver((entries) => {
+    const resizeObserver = new ResizeObserver(entries => {
       for (const entry of entries) {
         const width = entry.borderBoxSize?.[0]?.inlineSize ?? entry.contentRect.width
         const height = entry.borderBoxSize?.[0]?.blockSize ?? entry.contentRect.height
@@ -76,7 +75,7 @@ export const WidgetApp: React.FC = () => {
     resizeObserver.observe(containerRef.current)
     return () => resizeObserver.disconnect()
   }, [])
-  
+
   // #24: Wire usePowerMode — disables spring animation when on battery
   const { isPowerSaveMode } = usePowerMode()
   const audioRms = useMotionValue(0)
@@ -179,7 +178,10 @@ export const WidgetApp: React.FC = () => {
   const isHidden = state.handoffState === 'hidden'
 
   return (
-    <div ref={containerRef} className="w-max h-max bg-transparent flex flex-col justify-start items-end p-10 overflow-hidden text-[var(--color-text-primary)] pointer-events-none">
+    <div
+      ref={containerRef}
+      className="w-max h-max bg-transparent flex flex-col justify-start items-end p-10 overflow-hidden text-[var(--color-text-primary)] pointer-events-none"
+    >
       <motion.div
         initial={{ y: -50, opacity: 0, scale: 0.85, filter: 'blur(10px)' }}
         animate={{
@@ -199,7 +201,7 @@ export const WidgetApp: React.FC = () => {
           lastTranscriptLine={state.lastTranscriptLine}
           audioMode={state.audioMode}
           syncStatus={state.syncStatus}
-          liveCoachTip={state.liveCoachTip || "✨ You've been speaking for 5 minutes. Try asking an open-ended question to engage the client."}
+          liveCoachTip={state.liveCoachTip}
           entityCount={state.entityCount}
           noteCount={state.noteCount}
           onRestore={handleRestore}

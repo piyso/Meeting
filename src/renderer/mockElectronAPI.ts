@@ -43,6 +43,17 @@ import type { AppSettings } from '../types/ipc'
 
 const MOCK_DELAY_MS = 200 // Simulate network latency
 
+// In-memory bookmark store so create/list/delete behave like the real backend
+const mockHighlights: Array<{
+  id: string
+  meeting_id: string
+  start_time: number
+  end_time: number
+  label: string | null
+  color: string
+  created_at: number
+}> = []
+
 // ============================================================================
 // Helpers
 // ============================================================================
@@ -601,6 +612,8 @@ function createMockElectronAPI() {
         const updated = meetings.find(m => m.id === params.meetingId) || meetings[0]
         return ok(updated)
       },
+      importFile: async () => delayed(null),
+      onImported: noop,
       export: async () => {
         await new Promise(r => setTimeout(r, MOCK_DELAY_MS))
         return ok({
@@ -827,6 +840,10 @@ function createMockElectronAPI() {
       googleAuth: async () => delayed({ status: 'success', message: 'Authenticated' }),
       onConflict: noop,
       resolveConflict: async () => delayedVoid(),
+      unlockWithRecoveryPhrase: async () => delayed({ unlocked: true }),
+      restoreFromCloud: async () =>
+        delayed({ complete: true, meetings: 0, records: 0, alreadyPresent: 0, unreadable: 0 }),
+      onRestored: noop,
     },
 
     // ── Audio ─────────────────────────────────────────────────────────
@@ -932,7 +949,7 @@ function createMockElectronAPI() {
           isInstalled: true,
           isRunning: true,
           version: '0.3.4',
-          models: ['qwen2.5:3b'],
+          models: ['qwen2.5:1.5b'],
           downloadUrl: undefined,
         }),
       unloadModels: async () => delayedVoid(),
@@ -963,7 +980,7 @@ function createMockElectronAPI() {
       getResourceUsage: async () => delayed({ ramUsed: 4.3, ramTotal: 16, cpuPercent: 12 }),
       verifyModel: async () => delayed(true),
       deleteModel: async () => delayedVoid(),
-      getModelPaths: async () => delayed(['/models/whisper-turbo', '/models/qwen2.5-3b']),
+      getModelPaths: async () => delayed(['/models/whisper-turbo', '/models/qwen2.5-1.5b']),
       onDownloadProgress: noop,
     },
 
@@ -1005,6 +1022,11 @@ function createMockElectronAPI() {
           available: true,
           requiresPro: false,
           preview: MOCK_CONTRADICTIONS[0]?.statement1 || null,
+        }),
+      resolveContradiction: async (_params: unknown) =>
+        delayed({
+          status: 'resolved',
+          resolvedAt: Date.now(),
         }),
     },
 
@@ -1051,7 +1073,13 @@ function createMockElectronAPI() {
     // ── Export & GDPR ─────────────────────────────────────────────────
     export: {
       userData: async () =>
-        delayed({ content: '{"meetings":[],"notes":[],"transcripts":[]}', format: 'json' }),
+        delayed({
+          content: '',
+          format: 'json',
+          filePath: '/tmp/bluearkive-export-mock.json',
+          bytes: 0,
+          stats: { meetings: 0 },
+        }),
       deleteAllData: async () =>
         delayed({ localDeleted: true, cloudDeleted: true, message: 'All data deleted (mock)' }),
     },
@@ -1079,18 +1107,25 @@ function createMockElectronAPI() {
         label?: string
         color?: string
       }) => {
-        return delayed({
-          id: `hl-${Date.now()}`,
+        const highlight = {
+          id: `hl-${Date.now()}-${mockHighlights.length}`,
           meeting_id: params.meetingId,
           start_time: params.startTime,
           end_time: params.endTime,
           label: params.label || null,
           color: params.color || '#8B5CF6',
           created_at: Math.floor(Date.now() / 1000),
-        })
+        }
+        mockHighlights.push(highlight)
+        return delayed(highlight)
       },
-      list: async () => delayed([]),
-      delete: async () => delayed({ deleted: true }),
+      list: async (meetingId: string) =>
+        delayed(mockHighlights.filter(h => h.meeting_id === meetingId)),
+      delete: async (id: string) => {
+        const idx = mockHighlights.findIndex(h => h.id === id)
+        if (idx !== -1) mockHighlights.splice(idx, 1)
+        return delayed({ deleted: true })
+      },
     },
 
     // ── Window Controls (Windows title bar) ───────────────────────────
@@ -1207,6 +1242,8 @@ function createMockElectronAPI() {
             'actual',
           ],
         }),
+      // The dev mock has no account to check against: the phrase is simply shown.
+      revealRecoveryKey: async () => window.electronAPI.auth.generateRecoveryKey(),
       onSessionExpired: noop,
       onSessionExpiring: noop,
       onOAuthSuccess: noop,
@@ -1218,6 +1255,8 @@ function createMockElectronAPI() {
         return ok(MOCK_USER)
       },
       forgotPassword: async () => delayedVoid(),
+      updatePassword: async () => delayed(MOCK_USER),
+      onPasswordRecovery: noop,
     },
 
     // ── Device ────────────────────────────────────────────────────────
@@ -1275,7 +1314,7 @@ function createMockElectronAPI() {
             {
               system: 'LLM Engine',
               status: 'ok',
-              message: 'qwen2.5:3b loaded (3.1 GB VRAM)',
+              message: 'qwen2.5:1.5b loaded (1.6 GB VRAM)',
             },
             {
               system: 'Microphone',
@@ -1409,6 +1448,16 @@ function createMockElectronAPI() {
       extractRealTime: async (_params: { text: string; meetingId: string }) => delayed([]),
       getOverdue: async () => delayed([]),
       stats: async () => delayed({ total: 3, open: 2, completed: 1, overdue: 0 }),
+      dispatch: async (params: { items: unknown[]; target: string }) =>
+        delayed({
+          success: true,
+          target: params.target,
+          dispatchedCount: params.items?.length || 1,
+          items: (params.items || []).map((_, i) => ({
+            actionItemId: `ai-${i}`,
+            status: 'dispatched',
+          })),
+        }),
     },
 
     // ── Sentiment Analysis ────────────────────────────────────────────
@@ -1604,6 +1653,46 @@ function createMockElectronAPI() {
         })
       },
     },
+
+    // ── Podcast Synthesis ─────────────────────────────────────────────
+    podcast: {
+      generate: async () =>
+        delayed({
+          weekStart: 'Aug 18',
+          weekEnd: 'Aug 25, 2026',
+          meetingCount: 5,
+          totalHours: 4.2,
+          topTopics: [
+            'Architecture Refactoring',
+            'DSP Studio Engine',
+            'Bitemporal Knowledge Graph',
+          ],
+          actionItemsCompleted: 8,
+          actionItemsPending: 3,
+          keyDecisions: [
+            'Approved sovereign edge audio diagnostics',
+            'Adopted EBU R128 -14 LUFS standard',
+          ],
+          script:
+            'Welcome to your BlueArkive briefing for the week of Aug 18 through Aug 25. You logged 5 meetings totaling 4.2 hours of conversation.',
+          estimatedDurationSec: 45,
+        }),
+      synthesize: async () => delayed({ audioBuffer: 'mock-base64-data' }),
+      latest: async () =>
+        delayed({
+          weekStart: 'Aug 18',
+          weekEnd: 'Aug 25, 2026',
+          meetingCount: 5,
+          totalHours: 4.2,
+          topTopics: ['Architecture Refactoring', 'DSP Studio Engine'],
+          actionItemsCompleted: 8,
+          actionItemsPending: 3,
+          keyDecisions: ['Approved sovereign edge audio diagnostics'],
+          script:
+            'Welcome to your BlueArkive briefing for the week of Aug 18 through Aug 25. You logged 5 meetings totaling 4.2 hours of conversation.',
+          estimatedDurationSec: 45,
+        }),
+    },
   }
 
   return api
@@ -1620,6 +1709,9 @@ export function installMockElectronAPI() {
   )
 
   const mockAPI = createMockElectronAPI()
+  // Lets renderer code that touches real devices (microphone / screen audio)
+  // know there is no backend to receive it.
+  ;(window as unknown as { __BLUEARKIVE_MOCK__?: boolean }).__BLUEARKIVE_MOCK__ = true
 
   // The preload script checks USE_MOCK_DATA and skips contextBridge,
   // so window.electronAPI is undefined here. Simple direct assign works.

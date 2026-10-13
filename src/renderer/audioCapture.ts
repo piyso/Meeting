@@ -22,13 +22,31 @@ class AudioCaptureManager {
   private workletNode: AudioWorkletNode | null = null
   private mediaStream: MediaStream | null = null
   private sourceNode: MediaStreamAudioSourceNode | null = null
+  /** The local microphone, mixed in while system audio is being captured. */
+  private micStream: MediaStream | null = null
+  private micSourceNode: MediaStreamAudioSourceNode | null = null
   private isCapturing: boolean = false
 
-  // 3s ring-buffer coalescing properties
+  // Coalescing: batch worklet quanta into one IPC message. Half a second keeps
+  // IPC to 2 messages/s while letting the level meter and the main-process
+  // buffer see audio promptly (3s bursts arrived exactly as large as the
+  // receiving ring buffer and overflowed it).
   private chunkBuffer: Float32Array[] = []
   private chunkBufferLength: number = 0
   private chunkBufferTimestamp: number = 0
-  private readonly COALESCE_SECONDS: number = 3
+  private readonly COALESCE_SECONDS: number = 0.5
+
+  // Worklet flush requests waiting for their acknowledgement
+  private flushSeq = 0
+  private pendingFlushes = new Map<number, () => void>()
+  private static readonly WORKLET_FLUSH_TIMEOUT_MS = 250
+
+  /** Why the last system-audio start fell back to the microphone (null if it did not) */
+  private lastFallbackReason: string | null = null
+
+  public getLastFallbackReason(): string | null {
+    return this.lastFallbackReason
+  }
 
   /**
    * Start audio capture from system audio
@@ -47,31 +65,44 @@ class AudioCaptureManager {
     sampleRate: number = 16000,
     channelCount: number = 1,
     fallbackToMicrophone: boolean = true
-  ): Promise<void> {
+  ): Promise<'system' | 'microphone'> {
+    this.lastFallbackReason = null
+    // Checked outside the try block: "already capturing" must never trigger
+    // the microphone fallback below.
+    if (this.isCapturing) {
+      throw new Error('Audio capture already in progress')
+    }
     try {
-      if (this.isCapturing) {
-        throw new Error('Audio capture already in progress')
-      }
-
-      // Detect platform
-      const isMacOS = window.electronAPI?.platform === 'darwin'
-
+      // Loopback audio through getDisplayMedia. Electron's API docs describe
+      // `audio: 'loopback'` as Windows-only, but Chromium also implements it
+      // on macOS 13+ (ScreenCaptureKit, under the Screen Recording
+      // permission; Core Audio taps from Electron 39). Whether a given
+      // machine delivers it is found out by asking — any failure falls back
+      // to the microphone below, with the real reason.
+      log.info('Using getDisplayMedia loopback for system audio capture')
       let stream: MediaStream
-
-      if (isMacOS) {
-        // macOS: Use getDisplayMedia with ScreenCaptureKit
-        // This requires Screen Recording permission
-        log.info('macOS detected: Using getDisplayMedia for system audio capture')
-        stream = await this.startMacOSSystemAudioCapture()
+      if (window.electronAPI?.platform === 'darwin') {
+        stream = await this.startLoopbackAudioCapture()
       } else {
-        // Windows: Use desktopCapturer with WASAPI
-        log.info('Windows detected: Using desktopCapturer for system audio capture')
-        stream = await this.startWindowsSystemAudioCapture(deviceId)
+        // Windows/Linux: fall back to the legacy desktopCapturer constraint
+        // if this build rejects the loopback request.
+        try {
+          stream = await this.startLoopbackAudioCapture()
+        } catch (loopbackError) {
+          log.warn('Loopback capture failed, trying desktopCapturer source:', loopbackError)
+          stream = await this.startWindowsSystemAudioCapture(deviceId)
+        }
       }
 
       await this.setupAudioPipeline(stream, sampleRate, channelCount)
 
+      // System audio is what the *other* participants say. Without the
+      // microphone the person running the app is missing from their own
+      // meeting's transcript.
+      await this.addMicrophoneToMix()
+
       log.info('System audio capture started')
+      return 'system'
     } catch (error) {
       log.error('Failed to start system audio capture:', error)
 
@@ -89,7 +120,8 @@ class AudioCaptureManager {
               reason: error.message,
             })
           }
-          return
+          this.lastFallbackReason = error.message
+          return 'microphone'
         } catch (micError) {
           log.error('Microphone fallback also failed:', micError)
           throw new Error(
@@ -103,41 +135,60 @@ class AudioCaptureManager {
   }
 
   /**
-   * Start macOS system audio capture using getDisplayMedia
+   * Mix the local microphone into a running system-audio capture.
    *
-   * Uses ScreenCaptureKit API (Electron 25+) to capture system audio.
-   * Requires Screen Recording permission in System Settings.
+   * Best effort: if the microphone cannot be opened (no device, permission
+   * denied) the recording carries on with system audio alone.
    *
-   * @returns MediaStream with audio track
+   * Echo: with loudspeakers the microphone also hears the far end. Browser
+   * echo cancellation only removes audio this page plays, so some doubling is
+   * possible; a headset avoids it.
    */
-  private async startMacOSSystemAudioCapture(): Promise<MediaStream> {
+  private async addMicrophoneToMix(): Promise<void> {
+    if (!this.audioContext || !this.workletNode) return
     try {
-      // Use getDisplayMedia to capture system audio
-      // Request audio only, no video
-      const stream = await navigator.mediaDevices.getDisplayMedia({
+      const micStream = await navigator.mediaDevices.getUserMedia({
         audio: {
-          // Request system audio
-          systemAudio: 'include',
-          // Suppress local audio (don't capture microphone)
-          suppressLocalAudioPlayback: false,
-        } as MediaTrackConstraints,
-        video: false, // Audio only, no video
+          channelCount: 1,
+          echoCancellation: true,
+          noiseSuppression: true,
+          autoGainControl: true,
+        },
+        video: false,
       })
-
-      // Verify we got an audio track
-      const audioTracks = stream.getAudioTracks()
-      if (audioTracks.length === 0) {
-        throw new Error('No audio track in media stream')
+      // The capture may have been stopped while the device was opening.
+      if (!this.audioContext || !this.workletNode || !this.isCapturing) {
+        micStream.getTracks().forEach(track => track.stop())
+        return
       }
+      this.micStream = micStream
+      this.micSourceNode = this.audioContext.createMediaStreamSource(micStream)
+      // Two sources into one input are summed by the audio graph.
+      this.micSourceNode.connect(this.workletNode)
+      log.info('Microphone mixed into system audio capture')
+    } catch (error) {
+      log.warn('Microphone not added to system audio capture:', error)
+    }
+  }
 
-      const firstTrack = audioTracks[0]
-      log.info('macOS system audio stream obtained:', {
-        audioTracks: audioTracks.length,
-        trackLabel: firstTrack?.label,
-        trackSettings: firstTrack?.getSettings(),
-      })
-
-      return stream
+  /**
+   * Capture system (loopback) audio through getDisplayMedia.
+   *
+   * Chromium rejects a display-media request without video, and Electron
+   * rejects every request unless the main process has registered a handler
+   * (electron/main.ts: setDisplayMediaRequestHandler). That handler answers
+   * with the primary screen plus loopback audio; the video track is dropped
+   * here immediately — nothing is ever read from the screen.
+   *
+   * macOS requires Screen Recording permission (System Settings > Privacy &
+   * Security) and macOS 13 or later for loopback audio.
+   *
+   * @returns MediaStream containing only the system-audio track
+   */
+  private async startLoopbackAudioCapture(): Promise<MediaStream> {
+    let stream: MediaStream
+    try {
+      stream = await navigator.mediaDevices.getDisplayMedia({ audio: true, video: true })
     } catch (error) {
       // Handle permission errors
       if (error instanceof Error) {
@@ -151,6 +202,27 @@ class AudioCaptureManager {
       }
       throw error
     }
+
+    for (const track of stream.getVideoTracks()) {
+      track.stop()
+      stream.removeTrack(track)
+    }
+
+    // Verify we got an audio track
+    const audioTracks = stream.getAudioTracks()
+    if (audioTracks.length === 0) {
+      stream.getTracks().forEach(track => track.stop())
+      throw new Error('System audio is not available from screen capture on this system')
+    }
+
+    const firstTrack = audioTracks[0]
+    log.info('System audio stream obtained:', {
+      audioTracks: audioTracks.length,
+      trackLabel: firstTrack?.label,
+      trackSettings: firstTrack?.getSettings(),
+    })
+
+    return stream
   }
 
   /**
@@ -285,12 +357,19 @@ class AudioCaptureManager {
         numberOfInputs: 1,
         numberOfOutputs: 0,
         channelCount,
+        // 'explicit' makes the graph down-mix every source to `channelCount`
+        // (mono). With the default ('max') a stereo source stays stereo and the
+        // processor, which reads channel 0, silently dropped the right channel.
+        channelCountMode: 'explicit',
+        channelInterpretation: 'speakers',
       })
 
       // Listen for audio chunks from worklet
       this.workletNode.port.onmessage = event => {
         if (event.data.type === 'audioChunk') {
           this.handleAudioChunk(event.data)
+        } else if (event.data.type === 'flushed') {
+          this.pendingFlushes.get(event.data.id)?.()
         } else if (event.data.type === 'sampleRateInfo') {
           // Log sample rate verification from AudioWorklet
           log.info(`✅ ${event.data.message}`)
@@ -330,7 +409,7 @@ class AudioCaptureManager {
 
       log.info('Audio pipeline setup complete')
     } catch (error) {
-      this.cleanup()
+      await this.cleanup()
       throw error
     }
   }
@@ -353,7 +432,7 @@ class AudioCaptureManager {
     this.chunkBuffer.push(data.data)
     this.chunkBufferLength += data.data.length
 
-    // Coalesce up to 3 seconds to reduce main-thread CPU spikes from IPC traffic
+    // Coalesce to reduce main-thread CPU spikes from IPC traffic
     if (this.chunkBufferLength >= data.sampleRate * this.COALESCE_SECONDS) {
       this.flushAudioBuffer(data.sampleRate)
     }
@@ -392,6 +471,50 @@ class AudioCaptureManager {
   }
 
   /**
+   * Ask the worklet for the samples it is still holding and wait until they
+   * have arrived. Without this, stopping or pausing cut off whatever the
+   * worklet had not yet posted. Resolves after a short timeout if the worklet
+   * does not answer, so a stop can never hang on it.
+   */
+  private flushWorklet(): Promise<void> {
+    const node = this.workletNode
+    if (!node) return Promise.resolve()
+    return new Promise(resolve => {
+      const id = ++this.flushSeq
+      const done = () => {
+        clearTimeout(timer)
+        this.pendingFlushes.delete(id)
+        resolve()
+      }
+      const timer = setTimeout(done, AudioCaptureManager.WORKLET_FLUSH_TIMEOUT_MS)
+      this.pendingFlushes.set(id, done)
+      try {
+        node.port.postMessage({ type: 'flush', id })
+      } catch {
+        done()
+      }
+    })
+  }
+
+  /**
+   * Pause capture: suspends the audio graph, so nothing is read from the
+   * device (or sent to the main process) until resume(). Audio captured up to
+   * this point is delivered first.
+   */
+  public async pause(): Promise<void> {
+    if (!this.isCapturing || !this.audioContext) return
+    await this.flushWorklet()
+    this.flushAudioBuffer(this.audioContext.sampleRate)
+    if (this.audioContext.state === 'running') await this.audioContext.suspend()
+  }
+
+  /** Resume capture after pause() */
+  public async resume(): Promise<void> {
+    if (!this.isCapturing || !this.audioContext) return
+    if (this.audioContext.state === 'suspended') await this.audioContext.resume()
+  }
+
+  /**
    * Stop audio capture
    */
   public async stopCapture(): Promise<void> {
@@ -408,19 +531,29 @@ class AudioCaptureManager {
    * Clean up audio resources
    */
   private async cleanup(): Promise<void> {
-    // Flush any remaining audio in buffer before stopping
-    this.flushAudioBuffer()
+    // Deliver everything captured so far before tearing the graph down: first
+    // the samples still inside the worklet, then the coalescing buffer.
+    await this.flushWorklet()
+    this.flushAudioBuffer(this.audioContext?.sampleRate)
 
     // Stop media stream tracks
     if (this.mediaStream) {
       this.mediaStream.getTracks().forEach(track => track.stop())
       this.mediaStream = null
     }
+    if (this.micStream) {
+      this.micStream.getTracks().forEach(track => track.stop())
+      this.micStream = null
+    }
 
     // Disconnect and clean up nodes
     if (this.sourceNode) {
       this.sourceNode.disconnect()
       this.sourceNode = null
+    }
+    if (this.micSourceNode) {
+      this.micSourceNode.disconnect()
+      this.micSourceNode = null
     }
 
     if (this.workletNode) {
@@ -511,4 +644,5 @@ if (typeof window !== 'undefined' && window.electronAPI?.ipcRenderer) {
   }
 }
 
+export { audioCaptureManager }
 export default audioCaptureManager

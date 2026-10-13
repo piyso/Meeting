@@ -11,7 +11,8 @@ import type { TranscriptSegmentProps } from '../components/meeting/TranscriptSeg
 
 import { useTranscriptStream } from '../hooks/queries/useTranscriptStream'
 import { useDigest } from '../hooks/useDigest'
-import { useQuery } from '@tanstack/react-query'
+import { isDigestSectionUnavailable, parseActionItems, parseDecisions } from '../utils/digestText'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 
 import { EntitySidebar } from '../components/meeting/EntitySidebar'
 import { Tooltip } from '../components/ui/Tooltip'
@@ -36,7 +37,7 @@ export default function MeetingDetailView() {
   const selectedMeetingId = useNavigationStore().selectedMeetingId
   const isRecording = recordingState === 'recording' || recordingState === 'paused'
   // Fetch meeting data first so isPostMeeting can depend on it
-  const { data: meetingData } = useQuery({
+  const { data: meetingData, refetch: refetchMeeting } = useQuery({
     queryKey: ['meeting', selectedMeetingId],
     queryFn: async () => {
       if (!selectedMeetingId) return null
@@ -46,6 +47,19 @@ export default function MeetingDetailView() {
     enabled: !!selectedMeetingId,
   })
 
+  // Stopping a recording gives the meeting its end time and duration. Reload
+  // the row then — with the cached (still "open") row the finished meeting kept
+  // showing "Start recording to see live transcription" and no digest.
+  const previousRecordingStateRef = useRef(recordingState)
+  useEffect(() => {
+    const previous = previousRecordingStateRef.current
+    previousRecordingStateRef.current = recordingState
+    const wasActive = previous === 'recording' || previous === 'paused' || previous === 'processing'
+    if (wasActive && (recordingState === 'processing' || recordingState === 'idle')) {
+      void refetchMeeting()
+    }
+  }, [recordingState, refetchMeeting])
+
   const isPostMeeting =
     recordingState === 'processing' ||
     (recordingState === 'idle' && !!selectedMeetingId && meetingData?.end_time != null)
@@ -53,7 +67,12 @@ export default function MeetingDetailView() {
   const currentTier = useAppStore(s => s.currentTier)
   // Only free tier is locked — Starter has cloudAI + weeklyDigest, digest uses local Qwen fallback
   const isAiLocked = currentTier === 'free'
-  const { digest, isGenerating, error: digestError } = useDigest(selectedMeetingId, isAiLocked)
+  const {
+    digest,
+    isGenerating,
+    error: digestError,
+    regenerate: regenerateDigest,
+  } = useDigest(selectedMeetingId, isAiLocked)
 
   const [showEntities, setShowEntities] = useState(false)
 
@@ -62,16 +81,45 @@ export default function MeetingDetailView() {
   const syncedTitleRef = useRef('')
   const titleSaveTimerRef = useRef<NodeJS.Timeout | null>(null)
 
-  // Cleanup title save timer on unmount
-  useEffect(() => {
-    return () => {
-      if (titleSaveTimerRef.current) clearTimeout(titleSaveTimerRef.current)
+  // A pending (debounced) title edit is flushed — not dropped — when the view
+  // unmounts or switches to another meeting, so a rename followed by a quick
+  // "Back" is still saved.
+  const pendingTitleRef = useRef<{ meetingId: string; title: string } | null>(null)
+  const flushTitleSave = useRef(() => {
+    if (titleSaveTimerRef.current) {
+      clearTimeout(titleSaveTimerRef.current)
+      titleSaveTimerRef.current = null
     }
-  }, [])
+    const pending = pendingTitleRef.current
+    pendingTitleRef.current = null
+    if (!pending) return
+    const revert = () => {
+      // Only touch the input if the user is still on that meeting
+      if (useNavigationStore.getState().selectedMeetingId === pending.meetingId) {
+        setEditableTitle(syncedTitleRef.current)
+      }
+      useAppStore.getState().addToast({
+        type: 'error',
+        title: 'Failed to save title',
+        duration: 3000,
+      })
+    }
+    window.electronAPI?.meeting
+      ?.update({ meetingId: pending.meetingId, updates: { title: pending.title } })
+      .then(res => {
+        if (res && !res.success) revert()
+        else syncedTitleRef.current = pending.title
+      })
+      .catch(revert)
+  }).current
+
+  useEffect(() => {
+    // Runs on unmount and whenever the selected meeting changes
+    return () => flushTitleSave()
+  }, [selectedMeetingId, flushTitleSave])
 
   // Real transcript data from hooks
   const { transcripts, isLoading } = useTranscriptStream(selectedMeetingId)
-
 
   // AI Coach: generates contextual suggestions every 2 min during recording
   // Rotates through: question → action → decision → title
@@ -91,18 +139,29 @@ export default function MeetingDetailView() {
       if (res?.success && res.data) return res.data
       return []
     },
-    enabled: !!selectedMeetingId && isPostMeeting,
+    enabled: !!selectedMeetingId,
   })
 
   const pinnedMoments = useMemo(() => {
     if (!highlightsData || !Array.isArray(highlightsData)) return []
-    return highlightsData.map(h => {
-      const sec = h.start_time || 0
-      const mm = String(Math.floor(sec / 60)).padStart(2, '0')
-      const ss = String(Math.floor(sec % 60)).padStart(2, '0')
-      return { timestamp: `${mm}:${ss}`, text: h.label || 'Bookmark' }
-    })
-  }, [highlightsData])
+    return [...highlightsData]
+      .sort((a, b) => (a.start_time ?? 0) - (b.start_time ?? 0))
+      .map(h => ({
+        timestamp: formatTimestamp(
+          toMeetingOffsetSeconds(h.start_time ?? 0, meetingData?.start_time)
+        ),
+        text: h.label || 'Bookmark',
+      }))
+  }, [highlightsData, meetingData?.start_time])
+
+  // The digest's decisions and action items arrive as lines of text written by
+  // the model, not JSON: parsing them as JSON left both lists permanently empty.
+  const parsedDecisions = useMemo(() => parseDecisions(digest?.decisions), [digest?.decisions])
+  const parsedActionItems = useMemo(
+    () => parseActionItems(digest?.actionItems),
+    [digest?.actionItems]
+  )
+  const actionItemsUnavailable = isDigestSectionUnavailable(digest?.actionItems)
 
   // Wire latest transcript line to global store for DynamicIsland / Widget
   const setLastTranscriptLine = useRecordingStore().setLastTranscriptLine
@@ -121,22 +180,106 @@ export default function MeetingDetailView() {
     }
   }, [recordingState, transcripts, setLastTranscriptLine])
 
-  // Sync editable title when meeting data loads
+  // Sync editable title when meeting data loads. Keyed on the meeting id too,
+  // so switching to an untitled meeting clears the previous meeting's title.
   useEffect(() => {
-    if (meetingData?.title) {
-      setEditableTitle(meetingData.title)
-      syncedTitleRef.current = meetingData.title
-    }
-  }, [meetingData?.title])
+    const title = meetingData?.title ?? ''
+    setEditableTitle(title)
+    syncedTitleRef.current = title
+  }, [meetingData?.id, meetingData?.title])
 
   interface BaseTranscript {
     id?: string
     transcriptId?: string
     text?: string
-    speaker_name?: string
+    speaker_name?: string | null
+    speakerName?: string | null
+    speaker_id?: string | null
+    speakerId?: string | null
     startTime?: number
     start_time?: number
   }
+
+  // One colour per speaker for the whole meeting (assigned in order of first
+  // appearance), instead of cycling by row — the same person kept changing colour.
+  const speakerColorsRef = useRef(new Map<string, TranscriptSegmentProps['speakerColor']>())
+  useEffect(() => {
+    speakerColorsRef.current = new Map()
+  }, [selectedMeetingId])
+
+  // Star button on a segment = a bookmark (highlight) on exactly that segment's
+  // time range. Keyed by start time so it survives reloads.
+  const pinnedByStart = useMemo(() => {
+    const map = new Map<string, string>()
+    if (Array.isArray(highlightsData)) {
+      for (const h of highlightsData) map.set(pinKey(h.start_time ?? 0), h.id)
+    }
+    return map
+  }, [highlightsData])
+
+  const queryClient = useQueryClient()
+  const pinStateRef = useRef({ transcripts, pinnedByStart, meetingId: selectedMeetingId })
+  pinStateRef.current = { transcripts, pinnedByStart, meetingId: selectedMeetingId }
+  const pinBusyRef = useRef(new Set<string>())
+
+  // Stable identity — TranscriptSegment is memoised on its props
+  const handleTogglePin = useRef(async (segmentId: string) => {
+    const { transcripts: rows, pinnedByStart: pinned, meetingId } = pinStateRef.current
+    if (!meetingId || pinBusyRef.current.has(segmentId)) return
+    const row = rows.find((t, i) => {
+      const rec = t as BaseTranscript
+      return String(rec.transcriptId || rec.id || `s-${i}`) === segmentId
+    }) as (BaseTranscript & { endTime?: number; end_time?: number }) | undefined
+    if (!row) return
+    const start = Number(row.startTime ?? row.start_time ?? 0)
+    const rawEnd = Number(row.endTime ?? row.end_time ?? 0)
+    const end = rawEnd > start ? rawEnd : start + 1
+    const existingId = pinned.get(pinKey(start))
+
+    pinBusyRef.current.add(segmentId)
+    // Show the star immediately; the refetch below replaces this with the real row
+    const queryKey = ['highlights', meetingId]
+    type HighlightRow = NonNullable<typeof highlightsData>[number]
+    const previous = queryClient.getQueryData<HighlightRow[]>(queryKey)
+    queryClient.setQueryData<HighlightRow[]>(queryKey, (current = []) =>
+      existingId
+        ? current.filter(h => h.id !== existingId)
+        : [
+            ...current,
+            {
+              id: `pending-${segmentId}`,
+              meeting_id: meetingId,
+              start_time: start,
+              end_time: end,
+              label: String(row.text || '').slice(0, 160) || 'Bookmark',
+              color: '#7c3aed',
+              created_at: Math.floor(Date.now() / 1000),
+            } as HighlightRow,
+          ]
+    )
+    try {
+      const res = existingId
+        ? await window.electronAPI?.highlight?.delete(existingId)
+        : await window.electronAPI?.highlight?.create({
+            meetingId,
+            startTime: start,
+            endTime: end,
+            label: String(row.text || '').slice(0, 160) || 'Bookmark',
+          })
+      if (res && !res.success) throw new Error(res.error?.message || 'Request failed')
+      await queryClient.invalidateQueries({ queryKey })
+    } catch (err) {
+      queryClient.setQueryData(queryKey, previous)
+      useAppStore.getState().addToast({
+        type: 'error',
+        title: existingId ? 'Could not remove bookmark' : 'Could not bookmark this moment',
+        message: err instanceof Error ? err.message : undefined,
+        duration: 3000,
+      })
+    } finally {
+      pinBusyRef.current.delete(segmentId)
+    }
+  }).current
 
   // Map-based structural sharing to prevent excessive garbage collection and re-renders
   const segmentsMapRef = useRef(new Map<string, TranscriptSegmentProps>())
@@ -144,25 +287,43 @@ export default function MeetingDetailView() {
     const nextMap = new Map<string, TranscriptSegmentProps>()
     const oldMap = segmentsMapRef.current
 
+    const speakerColors = speakerColorsRef.current
     const newSegments = transcripts.map((t, i) => {
       const rec = t as BaseTranscript
       const id = String(rec.transcriptId || rec.id || `s-${i}`)
       const isLive = isRecording && i === transcripts.length - 1
       const text = String(rec.text || '')
+      const speakerName = String(rec.speaker_name || rec.speakerName || 'Speaker')
+      const speakerKey = String(rec.speaker_id || rec.speakerId || speakerName)
+      let speakerColor = speakerColors.get(speakerKey)
+      if (!speakerColor) {
+        speakerColor = SPEAKER_COLORS[speakerColors.size % SPEAKER_COLORS.length] ?? 'violet'
+        speakerColors.set(speakerKey, speakerColor)
+      }
+
+      const rawStart = Number(rec.startTime ?? rec.start_time ?? 0)
+      const isPinned = pinnedByStart.has(pinKey(rawStart))
 
       const old = oldMap.get(id)
-      if (old && old.text === text && old.isLive === isLive) {
+      if (
+        old &&
+        old.text === text &&
+        old.isLive === isLive &&
+        old.isPinned === isPinned &&
+        old.speakerName === speakerName &&
+        old.speakerColor === speakerColor
+      ) {
         nextMap.set(id, old)
         return old
       }
 
       const fresh = {
         id,
-        speakerName: String(rec.speaker_name || 'Unknown Speaker'),
-        speakerColor: (['violet', 'teal', 'amber', 'rose'] as const)[i % 4] || 'violet',
-        timestamp: formatTimestamp(Number(rec.startTime || rec.start_time || 0)),
+        speakerName,
+        speakerColor,
+        timestamp: formatTimestamp(toMeetingOffsetSeconds(rawStart, meetingData?.start_time)),
         text,
-        isPinned: false,
+        isPinned,
         isEdited: false,
         isLive,
       }
@@ -172,11 +333,11 @@ export default function MeetingDetailView() {
 
     segmentsMapRef.current = nextMap
     return newSegments
-  }, [transcripts, isRecording])
+  }, [transcripts, isRecording, meetingData?.start_time, pinnedByStart])
 
   // #17: Real-time transcript limit indicator
   const transcriptLimit = TIER_TRANSCRIPT_LIMITS[currentTier] ?? 5000
-  // Replace O(n) reduce with running counter tracking across updates if we want, 
+  // Replace O(n) reduce with running counter tracking across updates if we want,
   // but for simplicity and memory safety using a ref synced with array lengths
   const totalTranscriptChars = useMemo(() => {
     let sum = 0
@@ -229,24 +390,16 @@ export default function MeetingDetailView() {
               setEditableTitle(newTitle)
               // Debounced save — writes to DB after 500ms of no typing
               if (titleSaveTimerRef.current) clearTimeout(titleSaveTimerRef.current)
-              titleSaveTimerRef.current = setTimeout(() => {
-                if (selectedMeetingId) {
-                  window.electronAPI?.meeting
-                    ?.update({
-                      meetingId: selectedMeetingId,
-                      updates: { title: newTitle },
-                    })
-                    .catch(() => {
-                      setEditableTitle(syncedTitleRef.current) // Revert on failure
-                      useAppStore.getState().addToast({
-                        type: 'error',
-                        title: 'Failed to save title',
-                        duration: 3000,
-                      })
-                    })
-                }
-              }, 500)
+              if (selectedMeetingId) {
+                pendingTitleRef.current = { meetingId: selectedMeetingId, title: newTitle }
+                titleSaveTimerRef.current = setTimeout(flushTitleSave, 500)
+              }
             }}
+            onBlur={flushTitleSave}
+            onKeyDown={e => {
+              if (e.key === 'Enter') e.currentTarget.blur()
+            }}
+            maxLength={200}
             aria-label="Meeting title"
           />
 
@@ -316,7 +469,13 @@ export default function MeetingDetailView() {
                   <SplitPane
                     defaultRatio={0.55}
                     minTopHeight={200}
-                    top={<TranscriptPanel segments={segments} isRecording={isRecording} />}
+                    top={
+                      <TranscriptPanel
+                        segments={segments}
+                        isRecording={isRecording}
+                        onPin={handleTogglePin}
+                      />
+                    }
                     bottom={
                       <ErrorBoundary viewName="NoteEditor">
                         <NoteEditor key={selectedMeetingId} meetingId={selectedMeetingId} />
@@ -345,6 +504,13 @@ export default function MeetingDetailView() {
                       Failed to generate digest
                     </span>
                     <span className="text-[var(--color-text-tertiary)] text-xs">{digestError}</span>
+                    <button
+                      type="button"
+                      className="text-[var(--color-violet)] text-xs font-medium underline-offset-2 hover:underline"
+                      onClick={() => void regenerateDigest()}
+                    >
+                      Try again
+                    </button>
                   </div>
                 ) : (
                   <PostMeetingDigest
@@ -352,24 +518,12 @@ export default function MeetingDetailView() {
                     duration={meetingData?.duration || 0}
                     participantCount={meetingData?.participant_count || 1}
                     summary={digest?.summary}
-                    decisions={(() => {
-                      if (!digest?.decisions) return []
-                      if (typeof digest.decisions !== 'string') return digest.decisions
-                      try {
-                        return JSON.parse(digest.decisions)
-                      } catch {
-                        return []
-                      }
-                    })()}
-                    actionItems={(() => {
-                      if (!digest?.actionItems) return []
-                      if (typeof digest.actionItems !== 'string') return digest.actionItems
-                      try {
-                        return JSON.parse(digest.actionItems)
-                      } catch {
-                        return []
-                      }
-                    })()}
+                    decisions={parsedDecisions}
+                    actionItems={parsedActionItems}
+                    actionItemsUnavailable={actionItemsUnavailable}
+                    onRegenerate={() => void regenerateDigest()}
+                    aiLocked={isAiLocked}
+                    onUpgrade={() => useNavigationStore.getState().navigate('pricing')}
                     pinnedMoments={pinnedMoments}
                   />
                 )}
@@ -389,11 +543,33 @@ export default function MeetingDetailView() {
   )
 }
 
+const SPEAKER_COLORS = ['violet', 'teal', 'amber', 'rose', 'sky', 'lime'] as const
+
+/** Bookmarks are matched to segments by start time, to millisecond precision */
+const pinKey = (startSeconds: number) => startSeconds.toFixed(3)
+
 /**
- * Format seconds timestamp into MM:SS display string
+ * Segment times are stored as seconds from the start of the recording. Rows
+ * written by older builds / imports may carry absolute Unix seconds instead —
+ * convert those to an offset so the UI never shows "29863171:38".
+ */
+function toMeetingOffsetSeconds(time: number, meetingStartSec?: number | null): number {
+  if (!Number.isFinite(time) || time < 0) return 0
+  const ABSOLUTE_THRESHOLD = 1_000_000_000 // ~2001 in Unix seconds; no meeting is 31 years long
+  if (time < ABSOLUTE_THRESHOLD) return time
+  if (meetingStartSec && time >= meetingStartSec) return time - meetingStartSec
+  return 0
+}
+
+/**
+ * Format seconds timestamp into MM:SS (or H:MM:SS past the hour) display string
  */
 function formatTimestamp(seconds: number): string {
-  const mins = Math.floor(seconds / 60)
-  const secs = Math.floor(seconds % 60)
-  return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`
+  const total = Math.max(0, Math.floor(seconds))
+  const hours = Math.floor(total / 3600)
+  const mins = Math.floor((total % 3600) / 60)
+  const secs = total % 60
+  const mm = mins.toString().padStart(2, '0')
+  const ss = secs.toString().padStart(2, '0')
+  return hours > 0 ? `${hours}:${mm}:${ss}` : `${mm}:${ss}`
 }

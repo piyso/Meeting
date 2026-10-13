@@ -25,6 +25,29 @@ const queryClient = new QueryClient({
   },
 })
 
+// Uncaught renderer errors go to the main-process log (via the allow-listed
+// 'error' channel) instead of an inline full-screen overlay in index.html,
+// which the production CSP forbids and which covered the whole app on any
+// stray promise rejection.
+function reportRendererError(source: string, error: unknown): void {
+  try {
+    const err = error instanceof Error ? error : new Error(String(error))
+    window.electronAPI?.ipcRenderer?.send('error', {
+      source,
+      message: err.message,
+      stack: err.stack,
+    })
+  } catch {
+    // reporting must never throw
+  }
+}
+window.addEventListener('error', event => {
+  reportRendererError('window.onerror', event.error ?? event.message)
+})
+window.addEventListener('unhandledrejection', event => {
+  reportRendererError('unhandledrejection', event.reason)
+})
+
 async function bootstrap() {
   // Install mock API if the preload script didn't set window.electronAPI.
   // This happens in two cases:
@@ -59,6 +82,14 @@ async function bootstrap() {
 }
 
 bootstrap()
+
+// Housekeeping, well after startup: drop note documents of meetings that were
+// deleted (including ones purged while the app was closed).
+setTimeout(() => {
+  import('./utils/noteDocCleanup')
+    .then(({ removeOrphanedNoteDocuments }) => removeOrphanedNoteDocuments())
+    .catch(() => {})
+}, 20_000)
 
 // Defer splash removal until after React has painted — prevents white flash
 // requestIdleCallback runs when the browser is idle after the first paint

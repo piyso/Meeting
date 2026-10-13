@@ -11,12 +11,30 @@ import { Logger } from '../../services/Logger'
 
 const log = Logger.create('DeviceHandlers')
 
+/**
+ * The account devices belong to. Always the signed-in user: the renderer does
+ * not know (and must not choose) a user id, so whatever it sends is ignored
+ * unless nobody is signed in.
+ */
+async function resolveUserId(requested?: unknown): Promise<string> {
+  try {
+    const { getAuthService } = await import('../../services/AuthService')
+    const user = await getAuthService().getCurrentUser()
+    if (user?.id) return user.id
+  } catch (err) {
+    log.debug('Could not resolve current user:', err instanceof Error ? err.message : String(err))
+  }
+  return typeof requested === 'string' ? requested : ''
+}
+
 export function registerDeviceHandlers(): void {
   // device:list — Get all devices for the current user
   ipcMain.handle('device:list', async (_, params) => {
     try {
       const dm = getDeviceManager()
-      const devices = await dm.getDevices(params?.userId || '', params?.activeOnly !== false)
+      const userId = await resolveUserId(params?.userId)
+      if (!userId) return { success: true, data: [] } // not signed in — no registered devices
+      const devices = await dm.getDevices(userId, params?.activeOnly !== false)
       return { success: true, data: devices }
     } catch (error) {
       log.error('Failed to list devices', error)
@@ -115,18 +133,35 @@ export function registerDeviceHandlers(): void {
   // device:deactivate — Deactivate a device
   ipcMain.handle('device:deactivate', async (_, params) => {
     try {
-      if (!params?.deviceId || !params?.userId) {
+      const userId = await resolveUserId(params?.userId)
+      if (!params?.deviceId || !userId) {
         return {
           success: false,
           error: {
             code: 'INVALID_PARAMS',
-            message: 'deviceId and userId are required',
+            message: 'deviceId is required and you must be signed in',
             timestamp: Date.now(),
           },
         }
       }
       const dm = getDeviceManager()
-      const result = await dm.deactivateDevice(params.deviceId, params.userId)
+      if (params.deviceId === dm.getCurrentDeviceInfo().deviceId) {
+        return {
+          success: false,
+          error: {
+            code: 'DEVICE_IS_CURRENT',
+            message: 'Sign out to remove this device.',
+            timestamp: Date.now(),
+          },
+        }
+      }
+      const result = await dm.deactivateDevice(params.deviceId, userId)
+      if (!result) {
+        return {
+          success: false,
+          error: { code: 'DEVICE_NOT_FOUND', message: 'Device not found', timestamp: Date.now() },
+        }
+      }
       return { success: true, data: { deactivated: result } }
     } catch (error) {
       log.error('Failed to deactivate device', error)
@@ -144,18 +179,20 @@ export function registerDeviceHandlers(): void {
   // device:rename — Rename a device
   ipcMain.handle('device:rename', async (_, params) => {
     try {
-      if (!params?.deviceId || !params?.userId || !params?.newName) {
+      const userId = await resolveUserId(params?.userId)
+      const newName = typeof params?.newName === 'string' ? params.newName.trim().slice(0, 80) : ''
+      if (!params?.deviceId || !userId || !newName) {
         return {
           success: false,
           error: {
             code: 'INVALID_PARAMS',
-            message: 'deviceId, userId, and newName are required',
+            message: 'deviceId and newName are required and you must be signed in',
             timestamp: Date.now(),
           },
         }
       }
       const dm = getDeviceManager()
-      const result = await dm.renameDevice(params.deviceId, params.userId, params.newName)
+      const result = await dm.renameDevice(params.deviceId, userId, newName)
       return { success: true, data: { renamed: result } }
     } catch (error) {
       log.error('Failed to rename device', error)

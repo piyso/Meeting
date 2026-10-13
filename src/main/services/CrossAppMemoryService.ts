@@ -21,8 +21,7 @@ export interface MemorySnippet {
 export class CrossAppMemoryService {
   private isAvailable = false
   private isListening = false
-  // @ts-expect-error Placeholder for AXObserver native binding
-  private _observer: any = null
+  // Placeholder for AXObserver native binding (AXObserverCreate)
 
   constructor() {
     this.isAvailable = process.platform === 'darwin'

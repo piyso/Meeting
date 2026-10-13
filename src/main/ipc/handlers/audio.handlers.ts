@@ -5,13 +5,21 @@
  * Implements audio capture, device enumeration, and pre-flight testing.
  */
 
-import { ipcMain, powerSaveBlocker } from 'electron'
+import os from 'os'
+import { app, ipcMain, powerSaveBlocker } from 'electron'
 import { Logger } from '../../services/Logger'
 
 const log = Logger.create('AudioHandlers')
 
-import { getAudioPipelineService } from '../../services/AudioPipelineService'
+import {
+  getAudioPipelineService,
+  isSystemAudioCaptureSupported,
+} from '../../services/AudioPipelineService'
 import { getDiagnosticLogger } from '../../services/DiagnosticLogger'
+import { broadcastToWindows, getMainAppWindow } from '../windows'
+import { finalizeMeeting } from './meeting.handlers'
+import { getDatabaseService } from '../../services/DatabaseService'
+import { emitWebhookEvent, hasWebhookSubscribers } from '../../services/WebhookDispatchService'
 import type {
   IPCResponse,
   StartAudioCaptureParams,
@@ -26,10 +34,167 @@ let hasLoggedFirstChunk = false
 let sleepBlockerId: number | null = null
 
 /**
+ * Things held for the duration of a recording: the sleep blocker, the dock
+ * badge / taskbar indicator and (Windows) a raised process priority.
+ *
+ * They follow the pipeline's own lifecycle events rather than individual IPC
+ * handlers. A recording can end through meeting:stop, the widget, a duration
+ * limit or app quit; when the release lived in the audio:stopCapture handler
+ * alone, the normal Stop button (meeting:stop) never released any of them —
+ * the machine was kept awake and the dock kept its recording badge until the
+ * app was quit.
+ */
+function acquireRecordingResources(): void {
+  if (sleepBlockerId === null) {
+    sleepBlockerId = powerSaveBlocker.start('prevent-app-suspension')
+    log.info(`powerSaveBlocker started (id: ${sleepBlockerId})`)
+  }
+  // Raising priority needs no privilege on Windows; on macOS/Linux it requires
+  // root and would only log a failure for every recording.
+  if (process.platform === 'win32') {
+    try {
+      os.setPriority(os.constants.priority.PRIORITY_ABOVE_NORMAL)
+    } catch (e) {
+      log.debug('Could not elevate process priority:', e)
+    }
+  }
+  try {
+    if (process.platform === 'darwin') app.dock?.setBadge('●')
+    if (process.platform === 'win32') {
+      getMainAppWindow()?.setProgressBar(1, { mode: 'indeterminate' })
+    }
+  } catch {
+    /* non-critical */
+  }
+}
+
+function releaseRecordingResources(): void {
+  if (sleepBlockerId !== null) {
+    try {
+      powerSaveBlocker.stop(sleepBlockerId)
+      log.info(`powerSaveBlocker stopped (id: ${sleepBlockerId})`)
+    } catch (e) {
+      log.debug('powerSaveBlocker stop failed:', e)
+    }
+    sleepBlockerId = null
+  }
+  if (process.platform === 'win32') {
+    try {
+      os.setPriority(os.constants.priority.PRIORITY_NORMAL)
+    } catch {
+      /* ignore */
+    }
+  }
+  try {
+    if (process.platform === 'darwin') app.dock?.setBadge('')
+    if (process.platform === 'win32') getMainAppWindow()?.setProgressBar(-1)
+  } catch {
+    /* non-critical */
+  }
+}
+
+/** Webhook: a meeting's audio has started to arrive. */
+function announceMeetingStarted(meetingId: string | null): void {
+  if (!meetingId || !hasWebhookSubscribers('meeting.started')) return
+  try {
+    const meeting = getDatabaseService().getMeeting(meetingId)
+    if (!meeting) return
+    emitWebhookEvent('meeting.started', {
+      meetingId,
+      title: meeting.title,
+      startTime: meeting.start_time,
+    })
+  } catch (err) {
+    log.debug('meeting.started webhook skipped:', err)
+  }
+}
+
+/** Webhook: transcription of a finished recording is complete. */
+function announceTranscriptReady(meetingId: string): void {
+  if (!hasWebhookSubscribers('transcript.ready')) return
+  try {
+    const db = getDatabaseService()
+    const meeting = db.getMeeting(meetingId)
+    if (!meeting) return
+    const segments = db.getTranscripts(meetingId)
+    if (segments.length === 0) return
+    emitWebhookEvent('transcript.ready', {
+      meetingId,
+      title: meeting.title,
+      segmentCount: segments.length,
+      // Times are seconds from the start of the meeting
+      segments: segments.map(segment => ({
+        start: segment.start_time,
+        end: segment.end_time,
+        speaker: segment.speaker_name ?? null,
+        text: segment.text,
+      })),
+    })
+  } catch (err) {
+    log.debug('transcript.ready webhook skipped:', err)
+  }
+}
+
+/**
  * Register all audio-related IPC handlers
  */
 export function registerAudioHandlers(): void {
   const audioPipeline = getAudioPipelineService()
+
+  // Forward pipeline lifecycle to the renderer. The renderer has always
+  // subscribed to 'event:audioEvent' / 'event:error', but nothing sent them —
+  // so a failing transcription was invisible to the user.
+  const broadcast = broadcastToWindows
+  audioPipeline.on('status', (event: { meetingId: string | null; status: string }) => {
+    switch (event.status) {
+      case 'capturing':
+        acquireRecordingResources()
+        if (event.meetingId) {
+          broadcast('event:audioEvent', { type: 'started', meetingId: event.meetingId })
+        }
+        break
+
+      case 'stopping':
+        // Every way a recording can end passes through here — the Stop button
+        // (meeting:stop), the widget (audio:stopCapture), a duration limit and
+        // app quit. Close the meeting and tell the windows now; the pipeline
+        // may still spend a while transcribing what is queued.
+        if (event.meetingId) {
+          try {
+            finalizeMeeting(event.meetingId)
+          } catch (err) {
+            log.warn('Could not close meeting at capture stop:', err)
+          }
+          broadcast('event:audioEvent', { type: 'stopped', meetingId: event.meetingId })
+        }
+        break
+
+      case 'stopped':
+        // Queued transcription has finished (or timed out): let the machine
+        // sleep again — unless another recording started while this one was
+        // still being transcribed.
+        if (!audioPipeline.getStatus().isCapturing) releaseRecordingResources()
+        if (event.meetingId) announceTranscriptReady(event.meetingId)
+        break
+    }
+  })
+  // One notice per minute at most — a failing model fails every 30s chunk.
+  let lastTranscriptionErrorAt = 0
+  audioPipeline.on('pipelineError', (event: { meetingId: string | null; error: string }) => {
+    getDiagnosticLogger().logError(
+      new Error(`Transcription error: ${event.error}`),
+      event.meetingId ?? undefined
+    )
+    const now = Date.now()
+    if (now - lastTranscriptionErrorAt < 60_000) return
+    lastTranscriptionErrorAt = now
+    broadcast('event:error', {
+      code: 'TRANSCRIPTION_FAILED',
+      message: `Transcription is not working: ${event.error}`,
+      timestamp: now,
+      context: { meetingId: event.meetingId },
+    })
+  })
 
   // Handle audio chunks from renderer
   // OPT-15: Renderer sends raw Float32Array (structured clone handles it natively)
@@ -43,10 +208,15 @@ export function registerAudioHandlers(): void {
         timestamp: number
       }
     ) => {
+      // A throw inside an ipcMain.on listener is an uncaught exception in the
+      // main process, so reject malformed messages instead of dereferencing them.
+      if (!chunk || chunk.data == null) return
+
       // Structured clone may deserialize Float32Array as a regular object on some
       // Electron versions, so always ensure we have a proper Float32Array
       const audioChunk =
         chunk.data instanceof Float32Array ? chunk.data : new Float32Array(chunk.data)
+      if (audioChunk.length === 0) return
 
       // Log first chunk for debugging
       if (!hasLoggedFirstChunk) {
@@ -65,6 +235,11 @@ export function registerAudioHandlers(): void {
         }
 
         hasLoggedFirstChunk = true
+
+        // Audio is really arriving: this is the moment the meeting has started
+        // for anyone listening on a webhook (a capture that never delivers
+        // audio is torn down and its meeting removed).
+        announceMeetingStarted(audioPipeline.getStatus().meetingId)
       }
 
       // Forward to AudioPipelineService
@@ -103,39 +278,9 @@ export function registerAudioHandlers(): void {
         // Reset first-chunk logging flag for new capture session
         hasLoggedFirstChunk = false
 
-        // OPT-10: Elevate process priority during recording
-        try {
-          const os = await import('os')
-          os.setPriority(os.constants.priority.PRIORITY_ABOVE_NORMAL)
-          log.info('Process priority elevated for recording')
-        } catch (e) {
-          log.warn('Could not elevate process priority:', e)
-        }
-
+        // The sleep blocker, dock badge and priority are taken by the pipeline's
+        // 'capturing' event (see acquireRecordingResources).
         await audioPipeline.startCapture(params.meetingId)
-
-        if (sleepBlockerId === null) {
-          sleepBlockerId = powerSaveBlocker.start('prevent-app-suspension')
-          log.info(`powerSaveBlocker started (id: ${sleepBlockerId})`)
-        }
-
-        // OPT-15: Show dock badge on macOS when recording
-        try {
-          const { app } = await import('electron')
-          if (process.platform === 'darwin' && app.dock) {
-            app.dock.setBadge('●')
-          }
-          // G10: Windows taskbar recording indicator
-          if (process.platform === 'win32') {
-            const { BrowserWindow } = await import('electron')
-            const win = BrowserWindow.getAllWindows()[0]
-            if (win) {
-              win.setProgressBar(1, { mode: 'indeterminate' })
-            }
-          }
-        } catch {
-          /* non-critical */
-        }
 
         const status = audioPipeline.getStatus()
 
@@ -188,40 +333,9 @@ export function registerAudioHandlers(): void {
     'audio:stopCapture',
     async (_event, _params: StopAudioCaptureParams): Promise<IPCResponse<void>> => {
       try {
+        // Closing the meeting and releasing the sleep blocker / dock badge are
+        // driven by the pipeline's 'stopping' and 'stopped' events.
         await audioPipeline.stopCapture()
-
-        // Issue 19: Release powerSaveBlocker when recording stops
-        if (sleepBlockerId !== null) {
-          powerSaveBlocker.stop(sleepBlockerId)
-          log.info(`powerSaveBlocker stopped (id: ${sleepBlockerId})`)
-          sleepBlockerId = null
-        }
-
-        // OPT-10: Reset process priority to normal
-        try {
-          const os = await import('os')
-          os.setPriority(os.constants.priority.PRIORITY_NORMAL)
-        } catch {
-          /* ignore */
-        }
-
-        // OPT-15: Clear dock badge on macOS when recording stops
-        try {
-          const { app } = await import('electron')
-          if (process.platform === 'darwin' && app.dock) {
-            app.dock.setBadge('')
-          }
-          // G10: Clear Windows taskbar indicator
-          if (process.platform === 'win32') {
-            const { BrowserWindow } = await import('electron')
-            const win = BrowserWindow.getAllWindows()[0]
-            if (win) {
-              win.setProgressBar(-1) // Remove progress bar
-            }
-          }
-        } catch {
-          /* non-critical */
-        }
         return {
           success: true,
           data: undefined,
@@ -327,9 +441,13 @@ export function registerAudioHandlers(): void {
         recommendation = 'cloud'
       }
 
-      // Get Stereo Mix guidance if system audio is not available
+      // Get Stereo Mix guidance if system audio is not available (a Windows
+      // remedy; macOS is fixed through the Screen Recording permission).
       // Map service return shape { link } → StereoMixGuidance { settingsLink }
-      const rawGuidance = !systemAudioAvailable ? audioPipeline.getStereoMixGuidance() : null
+      const rawGuidance =
+        !systemAudioAvailable && process.platform === 'win32'
+          ? audioPipeline.getStereoMixGuidance()
+          : null
       const guidance = rawGuidance
         ? { title: rawGuidance.title, steps: rawGuidance.steps, settingsLink: rawGuidance.link }
         : undefined
@@ -340,7 +458,11 @@ export function registerAudioHandlers(): void {
           tested: true,
           error: systemAudioAvailable
             ? undefined
-            : 'System audio not available. Stereo Mix may be disabled in Windows Sound settings.',
+            : process.platform === 'win32'
+              ? 'System audio not available. Stereo Mix may be disabled in Windows Sound settings.'
+              : isSystemAudioCaptureSupported()
+                ? 'System audio needs Screen Recording permission (System Settings → Privacy & Security).'
+                : "Recording the computer's audio is not available on this system.",
           guidance,
         },
         microphone: {
@@ -375,7 +497,6 @@ export function registerAudioHandlers(): void {
   ipcMain.handle('audio:openSoundSettings', async (): Promise<IPCResponse<void>> => {
     try {
       const { shell } = await import('electron')
-      const os = await import('os')
       const platform = os.platform()
 
       if (platform === 'darwin') {
@@ -548,9 +669,8 @@ export function registerAudioHandlers(): void {
         audioTests.set('system', { startTime: Date.now(), maxLevel: 0, audioDetected: false })
 
         // Request the renderer to start capturing system audio for test
-        const { BrowserWindow } = await import('electron')
-        const win = BrowserWindow.getAllWindows()[0]
-        if (win && !win.isDestroyed()) {
+        const win = getMainAppWindow()
+        if (win) {
           win.webContents.send('audio:testStart', { type: 'system' })
         }
 
@@ -590,9 +710,8 @@ export function registerAudioHandlers(): void {
       const test = audioTests.get('system')
       audioTests.delete('system')
 
-      const { BrowserWindow } = await import('electron')
-      const win = BrowserWindow.getAllWindows()[0]
-      if (win && !win.isDestroyed()) {
+      const win = getMainAppWindow()
+      if (win) {
         win.webContents.send('audio:testStop', { type: 'system' })
       }
 
@@ -669,9 +788,8 @@ export function registerAudioHandlers(): void {
         }
         audioTests.set('microphone', { startTime: Date.now(), maxLevel: 0, audioDetected: false })
 
-        const { BrowserWindow } = await import('electron')
-        const win = BrowserWindow.getAllWindows()[0]
-        if (win && !win.isDestroyed()) {
+        const win = getMainAppWindow()
+        if (win) {
           win.webContents.send('audio:testStart', { type: 'microphone' })
         }
 
@@ -711,9 +829,8 @@ export function registerAudioHandlers(): void {
       const test = audioTests.get('microphone')
       audioTests.delete('microphone')
 
-      const { BrowserWindow } = await import('electron')
-      const win = BrowserWindow.getAllWindows()[0]
-      if (win && !win.isDestroyed()) {
+      const win = getMainAppWindow()
+      if (win) {
         win.webContents.send('audio:testStop', { type: 'microphone' })
       }
 
@@ -948,21 +1065,6 @@ export function registerAudioHandlers(): void {
         // For now, delegate to basic startCapture
         hasLoggedFirstChunk = false
         await audioPipeline.startCapture(params.meetingId)
-
-        // Match normal startCapture — prevent sleep & elevate priority
-        if (sleepBlockerId === null) {
-          sleepBlockerId = powerSaveBlocker.start('prevent-app-suspension')
-          log.info(`powerSaveBlocker started via fallback (id: ${sleepBlockerId})`)
-        }
-        try {
-          const os = await import('os')
-          os.setPriority(os.constants.priority.PRIORITY_ABOVE_NORMAL)
-        } catch (e) {
-          log.debug(
-            'Process priority elevation skipped:',
-            e instanceof Error ? e.message : String(e)
-          )
-        }
 
         return {
           success: true,

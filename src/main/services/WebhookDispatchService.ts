@@ -9,7 +9,11 @@
 import crypto from 'crypto'
 import { Logger } from './Logger'
 import type { WebhookEventType, WebhookDeliveryStatus } from '../../types/features'
-import { getActiveWebhooksByEvent, countActiveWebhooks } from '../database/crud/webhooks'
+import {
+  getActiveWebhooksByEvent,
+  countActiveWebhooks,
+  getWebhookById,
+} from '../database/crud/webhooks'
 import {
   createDelivery,
   updateDeliveryStatus,
@@ -30,21 +34,54 @@ function signPayload(payload: string, secret: string): string {
   return crypto.createHmac('sha256', secret).update(payload).digest('hex')
 }
 
+/** Fields that identify or timestamp a record — never free text, never masked. */
+const STRUCTURAL_KEY =
+  /^(id|event|type|status|priority|source|timestamp)$|(_id|Id|_at|At|_time|Time)$/
+const UUID_VALUE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+const ISO_DATE_VALUE = /^\d{4}-\d{2}-\d{2}(T[\d:.]+(Z|[+-]\d{2}:?\d{2})?)?$/
+
 /**
- * Sanitize PHI from payload before dispatching.
- * Uses PHIDetectionService.maskPHI() for substitution.
+ * Mask PHI in the free-text values of a payload.
+ *
+ * Only string values are touched, one at a time. Masking the serialized JSON
+ * (as this used to) treats structure as text: a 10-digit epoch such as
+ * `"deadline":1760262000` matched the phone-number pattern and came out as
+ * `"deadline":***-***-****` — not JSON any more — and the digits at the end of
+ * a UUID were masked as a national id number.
  */
-async function sanitizePayload(payload: string): Promise<string> {
+export function maskPhiInPayload<T>(value: T, mask: (text: string) => string, key: string = ''): T {
+  if (typeof value === 'string') {
+    if (STRUCTURAL_KEY.test(key) || UUID_VALUE.test(value) || ISO_DATE_VALUE.test(value)) {
+      return value
+    }
+    return mask(value) as unknown as T
+  }
+  if (Array.isArray(value)) {
+    return value.map(item => maskPhiInPayload(item, mask, key)) as unknown as T
+  }
+  if (value && typeof value === 'object') {
+    const out: Record<string, unknown> = {}
+    for (const [childKey, child] of Object.entries(value as Record<string, unknown>)) {
+      out[childKey] = maskPhiInPayload(child, mask, childKey)
+    }
+    return out as T
+  }
+  return value
+}
+
+/**
+ * Sanitize PHI from event data before dispatching.
+ */
+async function sanitizeData(data: Record<string, unknown>): Promise<Record<string, unknown>> {
   try {
     const { PHIDetectionService } = await import('./PHIDetectionService')
-    const result = PHIDetectionService.detectPHI(payload)
-    if (result.hasPHI && result.maskedText) {
-      return result.maskedText
-    }
-    return payload
+    return maskPhiInPayload(data, text => {
+      const result = PHIDetectionService.detectPHI(text)
+      return result.hasPHI && result.maskedText ? result.maskedText : text
+    })
   } catch {
     // PHIDetectionService not available — return as-is
-    return payload
+    return data
   }
 }
 
@@ -57,22 +94,23 @@ async function sanitizePayload(payload: string): Promise<string> {
 export async function dispatchWebhookEvent(
   eventType: WebhookEventType,
   data: Record<string, unknown>
-): Promise<void> {
+): Promise<number> {
   try {
     const webhooks = getActiveWebhooksByEvent(eventType)
-    if (webhooks.length === 0) return
+    if (webhooks.length === 0) return 0
 
     log.debug(`Dispatching ${eventType} to ${webhooks.length} webhook(s)`)
 
-    for (const webhook of webhooks) {
-      // Sanitize PHI
-      const rawPayload = JSON.stringify({
-        event: eventType,
-        timestamp: new Date().toISOString(),
-        data,
-      })
-      const sanitizedPayload = await sanitizePayload(rawPayload)
+    ensureRetryLoop()
 
+    // Sanitize PHI in the text fields, then serialize once for all subscribers.
+    const sanitizedPayload = JSON.stringify({
+      event: eventType,
+      timestamp: new Date().toISOString(),
+      data: await sanitizeData(data),
+    })
+
+    for (const webhook of webhooks) {
       // Create delivery record
       const delivery = createDelivery({
         webhook_id: webhook.id,
@@ -90,9 +128,30 @@ export async function dispatchWebhookEvent(
         }
       )
     }
+    return webhooks.length
   } catch (err) {
     log.error(`dispatchWebhookEvent(${eventType}) failed:`, err)
+    return 0
   }
+}
+
+/** True when at least one active webhook subscribes to the event. */
+export function hasWebhookSubscribers(eventType: WebhookEventType): boolean {
+  try {
+    return getActiveWebhooksByEvent(eventType).length > 0
+  } catch {
+    return false
+  }
+}
+
+/**
+ * Dispatch an event without waiting for it. Never throws — a webhook problem
+ * must not disturb whatever the app was doing when the event happened.
+ */
+export function emitWebhookEvent(eventType: WebhookEventType, data: Record<string, unknown>): void {
+  void dispatchWebhookEvent(eventType, data).catch(err => {
+    log.debug(`emitWebhookEvent(${eventType}) failed:`, err)
+  })
 }
 
 /**
@@ -140,8 +199,14 @@ async function sendWebhookRequest(
         null
       )
       log.debug(`Webhook delivery ${deliveryId} succeeded (${response.status})`)
-    } else if (response.status >= 400 && response.status < 500) {
-      // Client error — no retry (bad URL, unauthorized, etc.)
+    } else if (
+      response.status >= 400 &&
+      response.status < 500 &&
+      response.status !== 408 &&
+      response.status !== 429
+    ) {
+      // Client error — no retry (bad URL, unauthorized, etc.). A timeout (408)
+      // or rate limit (429) is temporary and falls through to the retry below.
       updateDeliveryStatus(
         deliveryId,
         'dead' as WebhookDeliveryStatus,
@@ -152,32 +217,19 @@ async function sendWebhookRequest(
       log.warn(`Webhook delivery ${deliveryId} rejected (${response.status}) — no retry`)
     } else {
       // Server error — retry with backoff
-      scheduleRetry(
-        url,
-        payload,
-        signature,
-        eventType,
-        deliveryId,
-        retryCount,
-        response.status,
-        responseBody
-      )
+      scheduleRetry(deliveryId, retryCount, response.status, responseBody)
     }
   } catch (err) {
     // Network error, timeout — retry
     const errorMessage = err instanceof Error ? err.message : 'Unknown error'
-    scheduleRetry(url, payload, signature, eventType, deliveryId, retryCount, null, errorMessage)
+    scheduleRetry(deliveryId, retryCount, null, errorMessage)
   }
 }
 
 /**
- * Schedule a retry with exponential backoff.
+ * Record a failed attempt and when it is next due (exponential backoff).
  */
 function scheduleRetry(
-  url: string,
-  payload: string,
-  signature: string,
-  eventType: string,
   deliveryId: string,
   retryCount: number,
   statusCode: number | null,
@@ -203,14 +255,25 @@ function scheduleRetry(
 
   log.debug(`Webhook delivery ${deliveryId} failed, retry ${retryCount + 1} in ${delaySec}s`)
 
-  // Schedule retry
-  // M-12 AUDIT: .unref() prevents pending retry timers from blocking shutdown
-  const retryTimer = setTimeout(() => {
-    sendWebhookRequest(url, payload, signature, eventType, deliveryId, retryCount + 1).catch(() => {
-      // Already handled in sendWebhookRequest
-    })
-  }, delaySec * 1000)
-  retryTimer.unref()
+  // The retry itself is sent by the retry loop, which reads due deliveries
+  // from the database — so a retry still happens if the app is restarted in
+  // the meantime (an in-memory timer here died with the process, and running
+  // both would send the same delivery twice).
+  ensureRetryLoop()
+}
+
+/** How often due retries are looked for. */
+const RETRY_SCAN_INTERVAL_MS = 15_000
+let retryLoop: ReturnType<typeof setInterval> | null = null
+/** Deliveries with a request in flight — a scan must not send them again. */
+const inFlightDeliveries = new Set<string>()
+
+/** Start the retry loop (idempotent). Call at startup so retries left by the last run resume. */
+export function ensureRetryLoop(): void {
+  if (retryLoop) return
+  retryLoop = setInterval(processRetryQueue, RETRY_SCAN_INTERVAL_MS)
+  // M-12 AUDIT: .unref() prevents the loop from blocking shutdown
+  retryLoop.unref()
 }
 
 /**
@@ -222,17 +285,10 @@ export function processRetryQueue(): void {
     const pending = getFailedDeliveries()
     if (pending.length === 0) return
 
-    log.info(`Processing ${pending.length} pending webhook retries`)
-
-    // Import synchronously (already required at module level via static import)
-
-    const { getWebhookById } = require('../database/crud/webhooks') as {
-      getWebhookById: (
-        id: string
-      ) => { id: string; url: string; secret: string; is_active: number } | null
-    }
+    log.debug(`Processing ${pending.length} pending webhook retries`)
 
     for (const delivery of pending) {
+      if (inFlightDeliveries.has(delivery.id)) continue
       try {
         const webhook = getWebhookById(delivery.webhook_id)
         if (!webhook || !webhook.is_active) {
@@ -242,6 +298,7 @@ export function processRetryQueue(): void {
 
         const signature = signPayload(delivery.payload, webhook.secret)
 
+        inFlightDeliveries.add(delivery.id)
         sendWebhookRequest(
           webhook.url,
           delivery.payload,
@@ -249,9 +306,11 @@ export function processRetryQueue(): void {
           delivery.event_type,
           delivery.id,
           delivery.retry_count
-        ).catch(() => {
-          // Handled internally
-        })
+        )
+          .catch(() => {
+            // Handled internally
+          })
+          .finally(() => inFlightDeliveries.delete(delivery.id))
       } catch {
         // Webhook may have been deleted
       }

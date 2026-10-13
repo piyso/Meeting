@@ -94,7 +94,7 @@ export function useSilentPrompter(
     if (isRecording && meetingId) {
       // Reset mode rotation on new recording
       modeIndexRef.current = 0
-      
+
       // Generate first suggestion after 45s, then every 120s
       const timeoutId = setTimeout(() => {
         generateSuggestion()

@@ -12,6 +12,7 @@
 import { Logger } from './Logger'
 import type { ActionItem, CreateActionItemInput, ActionItemSource } from '../../types/features'
 import { createActionItem, getActionItemsByMeeting } from '../database/crud/action-items'
+import { LocalEntityExtractor } from './LocalEntityExtractor'
 
 const log = Logger.create('ActionItemService')
 
@@ -30,9 +31,6 @@ interface ExtractedEntity {
  */
 export function extractRealTime(text: string): ExtractedEntity[] {
   try {
-    // Lazy import to avoid circular dependency
-
-    const { LocalEntityExtractor } = require('./LocalEntityExtractor')
     const extractor = new LocalEntityExtractor()
     const entities = extractor.extract(text)
     return entities.filter((e: ExtractedEntity) => e.type === 'ACTION_ITEM')

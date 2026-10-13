@@ -189,6 +189,19 @@ export interface IBackendProvider {
   hybridSearch(query: string, namespace?: string, limit?: number): Promise<SearchResult[]>
 
   /**
+   * Get token-budgeted context for local LLM generation (Zero-LLM endpoint)
+   *
+   * @param query - Search query
+   * @param namespace - Optional namespace to filter by
+   * @param maxTokens - Optional max tokens for context window
+   */
+  getContext(
+    query: string,
+    namespace?: string,
+    maxTokens?: number
+  ): Promise<{ context: string; results: SearchResult[] }>
+
+  /**
    * Ask AI a question across all memories
    *
    * @param query - Question to ask
@@ -264,6 +277,9 @@ export interface IBackendProvider {
 
   /** Record negative feedback for memories */
   feedbackNegative(memoryIds: string[]): Promise<boolean>
+
+  /** Pin (or unpin) a memory for priority context retrieval. False when it did not take effect. */
+  pinMemory?(memoryId: string, unpin?: boolean): Promise<boolean>
 
   /** Find and merge duplicate memories */
   deduplicate(

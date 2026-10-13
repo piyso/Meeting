@@ -242,13 +242,37 @@ export const CalendarStrip: React.FC<CalendarStripProps> = ({
 
   return (
     <div
-      className={`flex flex-col items-center py-2 outline-none ${className}`}
+      className={`flex flex-col items-center py-2 outline-none focus-visible:ring-1 focus-visible:ring-[var(--color-violet)] rounded-xl ${className}`}
       tabIndex={0}
+      role="region"
+      aria-label="Meeting Calendar Navigation"
       onKeyDown={e => {
-        if (e.key === 'ArrowLeft') {
-          handlePrevWeek()
+        if (e.key === 'Home') {
+          e.preventDefault()
+          const now = new Date()
+          now.setHours(0, 0, 0, 0)
+          setWindowCenter(now)
+          onSelectDate(now)
+        } else if (e.key === 'ArrowLeft') {
+          e.preventDefault()
+          if (e.shiftKey) {
+            handlePrevWeek()
+          } else {
+            const current = selectedDate ? new Date(selectedDate) : new Date(windowCenter)
+            current.setDate(current.getDate() - 1)
+            setWindowCenter(current)
+            onSelectDate(current)
+          }
         } else if (e.key === 'ArrowRight') {
-          handleNextWeek()
+          e.preventDefault()
+          if (e.shiftKey) {
+            handleNextWeek()
+          } else {
+            const current = selectedDate ? new Date(selectedDate) : new Date(windowCenter)
+            current.setDate(current.getDate() + 1)
+            setWindowCenter(current)
+            onSelectDate(current)
+          }
         }
       }}
     >

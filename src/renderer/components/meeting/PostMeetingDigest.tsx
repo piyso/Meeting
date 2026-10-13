@@ -2,11 +2,15 @@ import React, { useState } from 'react'
 import { motion, AnimatePresence, Variants } from 'framer-motion'
 import { Badge } from '../ui/Badge'
 import { Button } from '../ui/Button'
-import { Download, Copy, Share, TrendingUp, Loader2 } from 'lucide-react'
+import { IconButton } from '../ui/IconButton'
+import { digestLines } from '../../utils/digestText'
+import { Download, Copy, Share, TrendingUp, Loader2, FileDown, RefreshCw } from 'lucide-react'
 import { useAppStore } from '../../store/appStore'
 
 import { rendererLog } from '../../utils/logger'
 const log = rendererLog.create('PostDigest')
+
+type ExportFormat = 'markdown' | 'pdf' | 'json' | 'pnotes'
 
 interface PostMeetingDigestProps {
   meetingId: string
@@ -21,7 +25,14 @@ interface PostMeetingDigestProps {
     dueDate?: string
     completed: boolean
   }>
+  /** The action items could not be generated (as opposed to: there are none) */
+  actionItemsUnavailable?: boolean
   pinnedMoments?: Array<{ timestamp: string; text: string }>
+  /** Generate the summary again, ignoring the stored one */
+  onRegenerate?: () => void
+  /** The current plan has no AI summary: say so instead of showing an empty one */
+  aiLocked?: boolean
+  onUpgrade?: () => void
 }
 
 export const PostMeetingDigest: React.FC<PostMeetingDigestProps> = ({
@@ -31,14 +42,36 @@ export const PostMeetingDigest: React.FC<PostMeetingDigestProps> = ({
   summary,
   decisions,
   actionItems,
+  actionItemsUnavailable,
   pinnedMoments,
+  onRegenerate,
+  aiLocked,
+  onUpgrade,
 }) => {
   const [activeTab, setActiveTab] = useState<'summary' | 'actions' | 'pinned'>('summary')
-  const [exportingType, setExportingType] = useState<'markdown' | 'pdf' | 'json' | null>(null)
+  const [exportingType, setExportingType] = useState<ExportFormat | null>(null)
   const addToast = useAppStore(s => s.addToast)
   const mins = Math.round(duration / 60) || null
+  const summaryPoints = digestLines(summary)
 
-  const handleExport = async (format: 'markdown' | 'pdf' | 'json') => {
+  const lockedNotice = (
+    <div
+      className="ui-digest-text"
+      style={{ opacity: 0.75, textAlign: 'center', padding: '24px 0' }}
+    >
+      <p style={{ margin: '0 0 12px' }}>
+        AI summaries, decisions and action items are part of the Starter and Pro plans. Your
+        recording, transcript and notes are saved either way.
+      </p>
+      {onUpgrade && (
+        <Button variant="secondary" onClick={onUpgrade}>
+          See plans
+        </Button>
+      )}
+    </div>
+  )
+
+  const handleExport = async (format: ExportFormat) => {
     setExportingType(format)
     try {
       const res = await window.electronAPI?.meeting?.export({
@@ -47,16 +80,16 @@ export const PostMeetingDigest: React.FC<PostMeetingDigestProps> = ({
         includeAudio: false,
       })
       if (res?.success && res.data) {
-        log.info('Exported', format, '→', res.data.filename, `(${res.data.content.length} chars)`)
+        // No path = the save dialog was cancelled; nothing was written.
+        if (!res.data.filePath) return
+        log.info('Exported', format, '→', res.data.filename, `(${res.data.fileSize ?? 0} bytes)`)
         addToast({
           type: 'success',
           title: 'Export complete',
-          message: `Saved as ${res.data.filename || format.toUpperCase()}`,
+          message: `Saved as ${res.data.filePath.split(/[\\/]/).pop() ?? res.data.filename}`,
           duration: 4000,
         })
-        if (res.data.filePath) {
-          window.electronAPI?.shell?.showItemInFolder?.(res.data.filePath)
-        }
+        window.electronAPI?.shell?.showItemInFolder?.(res.data.filePath)
       } else {
         log.error('Export failed:', res?.error)
         addToast({
@@ -113,6 +146,15 @@ export const PostMeetingDigest: React.FC<PostMeetingDigestProps> = ({
           <span>
             {participantCount} participant{participantCount !== 1 ? 's' : ''}
           </span>
+          {onRegenerate && !aiLocked && (
+            <IconButton
+              icon={<RefreshCw size={14} />}
+              size="sm"
+              tooltip="Regenerate summary"
+              className="ml-auto"
+              onClick={onRegenerate}
+            />
+          )}
         </div>
 
         <div className="ui-digest-tabs relative">
@@ -147,10 +189,26 @@ export const PostMeetingDigest: React.FC<PostMeetingDigestProps> = ({
               animate="visible"
               exit="exit"
             >
+              {aiLocked && !summary && (
+                <motion.section variants={itemVariants}>{lockedNotice}</motion.section>
+              )}
               {summary && (
                 <motion.section variants={itemVariants}>
                   <h3 className="ui-digest-section-title">Executive Summary</h3>
-                  <p className="ui-digest-text">{summary}</p>
+                  {summaryPoints.length > 1 ? (
+                    <ul className="ui-digest-list">
+                      {summaryPoints.map((point, i) => (
+                        <li key={i} className="ui-digest-list-item">
+                          <span className="ui-digest-list-bullet">•</span>
+                          <div className="ui-digest-list-content">
+                            <div className="ui-digest-text">{point}</div>
+                          </div>
+                        </li>
+                      ))}
+                    </ul>
+                  ) : (
+                    <p className="ui-digest-text">{summaryPoints[0] ?? summary}</p>
+                  )}
                 </motion.section>
               )}
 
@@ -223,7 +281,9 @@ export const PostMeetingDigest: React.FC<PostMeetingDigestProps> = ({
                         htmlFor={domId}
                         className="ui-digest-action-text cursor-pointer select-none block"
                       >
-                        <span className="ui-digest-action-assignee">{a.assignee}: </span>
+                        {a.assignee && (
+                          <span className="ui-digest-action-assignee">{a.assignee}: </span>
+                        )}
                         {a.text}
                       </label>
                       {a.dueDate && <span className="ui-digest-action-due">{a.dueDate}</span>}
@@ -231,13 +291,18 @@ export const PostMeetingDigest: React.FC<PostMeetingDigestProps> = ({
                   </motion.div>
                 )
               })}
-              {(!actionItems || actionItems.length === 0) && (
+              {(!actionItems || actionItems.length === 0) && aiLocked && (
+                <motion.div variants={itemVariants}>{lockedNotice}</motion.div>
+              )}
+              {(!actionItems || actionItems.length === 0) && !aiLocked && (
                 <motion.div
                   variants={itemVariants}
                   className="ui-digest-text"
                   style={{ opacity: 0.5, textAlign: 'center', padding: '24px 0' }}
                 >
-                  No action items detected in this meeting.
+                  {actionItemsUnavailable
+                    ? 'Action items could not be generated. Use Regenerate summary to try again.'
+                    : 'No action items detected in this meeting.'}
                 </motion.div>
               )}
             </motion.div>
@@ -321,6 +386,22 @@ export const PostMeetingDigest: React.FC<PostMeetingDigestProps> = ({
             disabled={exportingType !== null}
           >
             {exportingType === 'json' ? 'Exporting...' : 'JSON'}
+          </Button>
+          <Button
+            variant="secondary"
+            icon={
+              exportingType === 'pnotes' ? (
+                <Loader2 size={14} className="animate-spin" />
+              ) : (
+                <FileDown size={14} />
+              )
+            }
+            title="A BlueArkive meeting file: opens in BlueArkive on another computer"
+            className={`ui-digest-footer-btn transition-all duration-200 ${exportingType === 'pnotes' ? 'opacity-80 scale-95' : ''}`}
+            onClick={() => handleExport('pnotes')}
+            disabled={exportingType !== null}
+          >
+            {exportingType === 'pnotes' ? 'Exporting...' : 'File'}
           </Button>
         </div>
       </div>

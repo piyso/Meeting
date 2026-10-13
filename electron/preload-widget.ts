@@ -26,8 +26,10 @@ const widgetAPI = {
   // ============================================================================
   window: {
     restoreMain: () => ipcRenderer.invoke('window:restoreMain'),
-    setIgnoreMouseEvents: (ignore: boolean) => ipcRenderer.invoke('window:setIgnoreMouseEvents', ignore),
-    resize: (width: number, height: number) => ipcRenderer.invoke('window:resize', { width, height }),
+    setIgnoreMouseEvents: (ignore: boolean) =>
+      ipcRenderer.invoke('window:setIgnoreMouseEvents', ignore),
+    resize: (width: number, height: number) =>
+      ipcRenderer.invoke('window:resize', { width, height }),
   },
 
   // ============================================================================

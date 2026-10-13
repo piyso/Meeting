@@ -1,7 +1,10 @@
 import { ipcMain } from 'electron'
 import { getDatabase } from '../../database/connection'
 import { Logger } from '../../services/Logger'
+import { createHash } from 'crypto'
 import { v4 as uuidv4 } from 'uuid'
+import { buildMeetingDigest } from '../../utils/meetingDigest'
+import { emitWebhookEvent } from '../../services/WebhookDispatchService'
 
 const log = Logger.create('DigestHandlers')
 
@@ -17,101 +20,121 @@ export function registerDigestHandlers(): void {
 
       // ── Single meeting summary ──
       if (params.meetingId) {
-        // Check cache first to avoid re-running LLM
-        const cachedDigest = db
-          .prepare(
-            "SELECT summary, highlights FROM digests WHERE id = ? AND period_type = 'single'"
-          )
-          .get(`single_${params.meetingId}`) as { summary: string; highlights: string } | undefined
-
-        if (cachedDigest) {
-          try {
-            const parsedHighlights = JSON.parse(cachedDigest.highlights || '{}')
-            return {
-              success: true,
-              data: {
-                summary: cachedDigest.summary,
-                actionItems: parsedHighlights.actionItems || '',
-                decisions: parsedHighlights.decisions || '',
-                generatedAt: Date.now(),
-                cached: true,
-              },
-            }
-          } catch (e) {
-            log.warn('Failed to parse cached highlights, regenerating...', e)
-          }
-        }
-
         const transcripts = db
           .prepare(
-            'SELECT text, speaker_name AS speaker FROM transcripts WHERE meeting_id = ? ORDER BY start_time ASC'
+            'SELECT text, speaker_name AS speaker, end_time FROM transcripts WHERE meeting_id = ? ORDER BY start_time ASC'
           )
-          .all(params.meetingId) as Array<{ text: string; speaker: string }>
+          .all(params.meetingId) as Array<{
+          text: string
+          speaker: string | null
+          end_time: number | null
+        }>
 
         if (transcripts.length === 0) {
           return {
             success: true,
             data: {
-              digest: 'No transcript data available for this meeting.',
-              generatedAt: new Date().toISOString(),
+              summary: 'No transcript is available for this meeting yet.',
+              actionItems: '',
+              decisions: '',
+              generatedAt: Date.now(),
+              empty: true,
             },
           }
         }
 
-        let transcriptText = transcripts.map(t => `${t.speaker}: ${t.text}`).join('\n')
-        // OPT: Truncate to 8000 chars to prevent overflowing local LLM context window.
-        // A 1-hour meeting can produce 50K+ chars — most local models have 4K-8K context.
-        if (transcriptText.length > 8000) {
-          transcriptText =
-            transcriptText.slice(0, 8000) + '\n\n[...transcript truncated for context limit]'
+        // What the summary is based on. A cached summary is only reused while
+        // the transcript is the same one — a summary generated mid-recording
+        // (or before interrupted audio was recovered) used to be served forever.
+        const basis = `${DIGEST_METHOD}:${transcripts.length}:${transcripts[transcripts.length - 1]?.end_time ?? 0}`
+        const cacheId = `single_${params.meetingId}`
+
+        if (!params.force) {
+          const cachedDigest = db
+            .prepare(
+              "SELECT summary, highlights FROM digests WHERE id = ? AND period_type = 'single'"
+            )
+            .get(cacheId) as { summary: string; highlights: string } | undefined
+
+          if (cachedDigest) {
+            try {
+              const parsedHighlights = JSON.parse(cachedDigest.highlights || '{}')
+              const usable =
+                parsedHighlights.basis === basis && !cachedDigest.summary.startsWith(AI_UNAVAILABLE)
+              if (usable) {
+                return {
+                  success: true,
+                  data: {
+                    summary: cachedDigest.summary,
+                    actionItems: parsedHighlights.actionItems || '',
+                    decisions: parsedHighlights.decisions || '',
+                    generatedAt: Date.now(),
+                    cached: true,
+                  },
+                }
+              }
+            } catch (e) {
+              log.warn('Failed to parse cached highlights, regenerating...', e)
+            }
+          }
         }
 
-        const summaryPrompt = `Summarize this meeting transcript concisely in exactly 3 bullet points. Respond in the same language as the transcript.\n\nTRANSCRIPT:\n${transcriptText}\n\nSUMMARY:`
-        const actionsPrompt = `Extract action items from this meeting. Format: "- [ASSIGNEE]: Task description". Respond in the same language as the transcript.\n\nTRANSCRIPT:\n${transcriptText}\n\nACTION ITEMS:`
-        const decisionsPrompt = `List only the final decisions made in this meeting. Format: "- Decision statement". Respond in the same language as the transcript.\n\nTRANSCRIPT:\n${transcriptText}\n\nDECISIONS:`
+        // A meeting longer than the model's context is read part by part, so
+        // the summary covers all of it instead of only its first ten minutes.
+        const {
+          summary,
+          actionItems: actions,
+          decisions,
+        } = await buildMeetingDigest(transcripts, tryGenerateText)
 
-        // OOM prevention: On low-tier (≤8GB RAM), run LLM calls sequentially
-        // to avoid 3× KV-cache memory overhead. On mid/high, run in parallel for speed.
-        const os = await import('os')
-        const totalRAMGB = os.totalmem() / 1024 / 1024 / 1024
-        let summary: string, actions: string, decisions: string
-
-        if (totalRAMGB < 12) {
-          // Sequential on low-tier — prevents OOM
-          summary = await generateText(summaryPrompt, 300)
-          actions = await generateText(actionsPrompt, 300)
-          decisions = await generateText(decisionsPrompt, 300)
-        } else {
-          // Parallel on mid/high-tier — ~3× speedup
-          ;[summary, actions, decisions] = await Promise.all([
-            generateText(summaryPrompt, 300),
-            generateText(actionsPrompt, 300),
-            generateText(decisionsPrompt, 300),
-          ])
+        if (summary === null && actions === null && decisions === null) {
+          return {
+            success: false,
+            error: {
+              code: 'DIGEST_FAILED',
+              message: 'Meeting digest unavailable — AI engine may still be loading.',
+              timestamp: Date.now(),
+            },
+          }
         }
 
-        // Save to cache
-        try {
-          db.prepare(
-            `INSERT OR REPLACE INTO digests (id, user_id, period_type, start_date, end_date, summary, highlights, meeting_count)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
-          ).run(
-            `single_${params.meetingId}`,
-            'local_user',
-            'single',
-            Math.floor(Date.now() / 1000), // Dummy start/end date for single meeting cache
-            Math.floor(Date.now() / 1000),
+        // Cache only a complete result. A failure message used to be stored
+        // here as the meeting's summary and returned from then on.
+        if (summary !== null && actions !== null && decisions !== null) {
+          try {
+            db.prepare(
+              `INSERT OR REPLACE INTO digests (id, user_id, period_type, start_date, end_date, summary, highlights, meeting_count)
+               VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
+            ).run(
+              cacheId,
+              'local_user',
+              'single',
+              Math.floor(Date.now() / 1000), // Dummy start/end date for single meeting cache
+              Math.floor(Date.now() / 1000),
+              summary,
+              JSON.stringify({ actionItems: actions, decisions, basis }),
+              1
+            )
+          } catch (dbErr) {
+            log.error('Failed to cache single meeting digest', dbErr)
+          }
+          emitWebhookEvent('digest.generated', {
+            scope: 'meeting',
+            meetingId: params.meetingId,
             summary,
-            JSON.stringify({ actionItems: actions, decisions }),
-            1
-          )
-        } catch (dbErr) {
-          log.error('Failed to cache single meeting digest', dbErr)
+            actionItems: actions,
+            decisions,
+          })
         }
 
         return {
           success: true,
-          data: { summary, actionItems: actions, decisions, generatedAt: Date.now() },
+          data: {
+            summary: summary ?? AI_UNAVAILABLE,
+            actionItems: actions ?? AI_UNAVAILABLE,
+            decisions: decisions ?? AI_UNAVAILABLE,
+            generatedAt: Date.now(),
+          },
         }
       }
 
@@ -149,7 +172,7 @@ export function registerDigestHandlers(): void {
         const personRows = db
           .prepare(
             `SELECT e.text AS name, COUNT(DISTINCT m.id) AS meetingCount,
-                    GROUP_CONCAT(DISTINCT m.title) AS meetingTitlesRaw
+                    json_group_array(DISTINCT m.title) AS meetingTitlesRaw
              FROM entities e
              JOIN meetings m ON m.id = e.meeting_id
              WHERE m.start_time >= ? AND m.start_time <= ?
@@ -165,7 +188,7 @@ export function registerDigestHandlers(): void {
         const topPeople = personRows.map(e => ({
           name: e.name,
           meetingCount: e.meetingCount,
-          meetingTitles: e.meetingTitlesRaw ? e.meetingTitlesRaw.split(',').filter(Boolean) : [],
+          meetingTitles: parseTitleList(e.meetingTitlesRaw),
         }))
 
         // Extract topic-like keywords from transcripts in the date range
@@ -183,7 +206,7 @@ export function registerDigestHandlers(): void {
                   ELSE TRIM(SUBSTR(t.text, 1, 80))
                 END AS topic,
                 COUNT(*) AS mentionCount,
-                GROUP_CONCAT(DISTINCT m.title) AS meetingTitlesRaw
+                json_group_array(DISTINCT m.title) AS meetingTitlesRaw
              FROM transcripts t
              JOIN meetings m ON m.id = t.meeting_id
              WHERE m.start_time >= ? AND m.start_time <= ?
@@ -201,7 +224,7 @@ export function registerDigestHandlers(): void {
         const topTopics = topicRows.map(e => ({
           topic: e.topic,
           mentionCount: e.mentionCount,
-          meetingTitles: e.meetingTitlesRaw ? e.meetingTitlesRaw.split(',').filter(Boolean) : [],
+          meetingTitles: parseTitleList(e.meetingTitlesRaw),
         }))
 
         // ── Pro+: Cloud AI digest (key decisions, action items, contradictions) ──
@@ -221,7 +244,7 @@ export function registerDigestHandlers(): void {
           meetingDate?: number
           sourceContext?: string
           assignee: string
-          dueDate: number
+          dueDate: number | null
           status: 'open' | 'completed' | 'overdue'
         }> = []
         let contradictions: Array<{
@@ -258,7 +281,7 @@ export function registerDigestHandlers(): void {
                   .join('\n')
 
                 const askResult = await backend.ask(
-                  `You are analyzing a week's worth of meetings. Respond in the same language as the meeting titles and content. Provide:\n1. A 2-3 sentence executive summary of the week\n2. Key decisions made (format: "DECISION: [text] | MEETING: [title]")\n3. Action items (format: "ACTION: [task] | ASSIGNEE: [person] | STATUS: open")\n\nMeetings this week:\n${meetingList}\n\nTotal meetings: ${meetings.length}, Total hours: ${(totalDurationSec / 3600).toFixed(1)}, Participants: ${speakerRows.length}\nTop topics: ${topTopics.map(t => t.topic).join(', ')}\nTop people: ${topPeople.map(p => p.name).join(', ')}\n\nAnalysis:`,
+                  `You are analyzing a week's worth of meetings. Respond in the same language as the meeting titles and content. Provide:\n1. A 2-3 sentence executive summary of the week\n2. Key decisions made (format: "DECISION: [text] | MEETING: [title]")\n3. Action items (format: "ACTION: [task] | ASSIGNEE: [person] | STATUS: open | MEETING: [title]")\n\nMeetings this week:\n${meetingList}\n\nTotal meetings: ${meetings.length}, Total hours: ${(totalDurationSec / 3600).toFixed(1)}, Participants: ${speakerRows.length}\nTop topics: ${topTopics.map(t => t.topic).join(', ')}\nTop people: ${topPeople.map(p => p.name).join(', ')}\n\nAnalysis:`,
                   'meetings'
                 )
 
@@ -275,21 +298,26 @@ export function registerDigestHandlers(): void {
                         const parts = match.replace('DECISION:', '').split('|')
                         const decisionText = (parts[0] || '').trim()
                         const meetingRef = (parts[1] || '').replace('MEETING:', '').trim()
-                        const matchedId =
-                          findMeetingByTitle(meetingRef, meetings) || meetings[0]?.id || ''
-                        const matchedMeeting = meetings.find(m => m.id === matchedId)
+                        // Attribute a decision to a meeting only when the model
+                        // named one we can identify — never guess a source.
+                        const matchedId = meetingRef
+                          ? findMeetingByTitle(meetingRef, meetings) || ''
+                          : ''
+                        const matchedMeeting = matchedId
+                          ? meetings.find(m => m.id === matchedId)
+                          : undefined
                         return {
                           text: decisionText,
-                          meetingId: matchedId,
-                          meetingTitle: matchedMeeting?.title || meetingRef || 'Meeting',
+                          meetingId: matchedMeeting ? matchedId : '',
+                          meetingTitle: matchedMeeting?.title || meetingRef || '',
                           meetingDate: matchedMeeting
                             ? matchedMeeting.start_time * 1000
                             : undefined,
                           sourceContext: matchedMeeting
                             ? getTranscriptExcerpt(db, matchedId, decisionText)
                             : undefined,
-                          timestamp: Date.now(),
-                          confidence: 0.85,
+                          timestamp: matchedMeeting ? matchedMeeting.start_time * 1000 : Date.now(),
+                          confidence: matchedMeeting ? 0.85 : 0.5,
                         }
                       })
                     )
@@ -297,29 +325,43 @@ export function registerDigestHandlers(): void {
 
                   // P2-5 FIX: More robust regex that handles variations in AI output formatting
                   const actionMatches = askResult.answer.match(
-                    /(?:ACTION|Action\s*Item|Action)\s*[:：]\s*(.+?)(?:\s*[|｜]\s*(?:ASSIGNEE|Assigned\s*to|Assignee)\s*[:：]\s*(.+?))?(?:\s*[|｜]\s*(?:STATUS|Status)\s*[:：]\s*(.+?))?$/gim
+                    /(?:ACTION|Action\s*Item|Action)\s*[:：]\s*(.+?)(?:\s*[|｜]\s*(?:ASSIGNEE|Assigned\s*to|Assignee)\s*[:：]\s*(.+?))?(?:\s*[|｜]\s*(?:STATUS|Status)\s*[:：]\s*(.+?))?(?:\s*[|｜]\s*(?:MEETING|Meeting)\s*[:：]\s*(.+?))?$/gim
                   )
                   if (actionMatches) {
                     aiActionItems = await Promise.all(
-                      actionMatches.map(async (match: string, idx: number) => {
-                        const parts = match.replace('ACTION:', '').split('|')
-                        const rawStatus = (parts[2] || '')
-                          .replace('STATUS:', '')
-                          .trim()
-                          .toLowerCase()
-                        const assignedMeeting = meetings[idx % meetings.length] || meetings[0]
+                      actionMatches.map(async (match: string) => {
+                        const parts = match
+                          .replace(/^\s*(?:ACTION|Action\s*Item|Action)\s*[:：]/i, '')
+                          .split(/[|｜]/)
+                        const field = (label: RegExp): string => {
+                          const part = parts.slice(1).find(p => label.test(p))
+                          return part ? part.replace(label, '').trim() : ''
+                        }
+                        const taskText = (parts[0] || '').trim()
+                        const rawStatus = field(/^\s*(?:STATUS|Status)\s*[:：]/).toLowerCase()
+                        const meetingRef = field(/^\s*(?:MEETING|Meeting)\s*[:：]/)
+                        // Source meeting only when the model named one we can
+                        // identify. (Items used to be dealt out to meetings
+                        // round-robin, with an invented due date a week out.)
+                        const matchedId = meetingRef
+                          ? findMeetingByTitle(meetingRef, meetings) || ''
+                          : ''
+                        const assignedMeeting = matchedId
+                          ? meetings.find(m => m.id === matchedId)
+                          : undefined
                         return {
-                          text: (parts[0] || '').trim(),
+                          text: taskText,
                           meetingId: assignedMeeting?.id || '',
-                          meetingTitle: assignedMeeting?.title || 'Meeting',
+                          meetingTitle: assignedMeeting?.title || meetingRef || '',
                           meetingDate: assignedMeeting
                             ? assignedMeeting.start_time * 1000
                             : undefined,
                           assignee:
-                            (parts[1] || '').replace('ASSIGNEE:', '').trim() || 'Unassigned',
-                          dueDate: Date.now() + 7 * 86400000,
+                            field(/^\s*(?:ASSIGNEE|Assigned\s*to|Assignee)\s*[:：]/) ||
+                            'Unassigned',
+                          dueDate: null,
                           sourceContext: assignedMeeting
-                            ? getTranscriptExcerpt(db, assignedMeeting.id, (parts[0] || '').trim())
+                            ? getTranscriptExcerpt(db, assignedMeeting.id, taskText)
                             : undefined,
                           status: parseActionStatus(rawStatus),
                         }
@@ -430,6 +472,22 @@ export function registerDigestHandlers(): void {
             Math.floor(Date.now() / 1000)
           )
           log.info(`Digest ${digestId} persisted to DB`)
+          emitWebhookEvent('digest.generated', {
+            scope: params.periodType || 'weekly',
+            digestId,
+            startDate: params.startDate,
+            endDate: params.endDate,
+            totalMeetings: meetings.length,
+            totalHours: totalDurationSec / 3600,
+            aiSummary,
+            keyDecisions: keyDecisions.map(d => ({ text: d.text, meetingTitle: d.meetingTitle })),
+            actionItems: aiActionItems.map(a => ({
+              text: a.text,
+              assignee: a.assignee,
+              status: a.status,
+              meetingTitle: a.meetingTitle,
+            })),
+          })
 
           // ── Persist action items to action_items table ──
           if (aiActionItems.length > 0) {
@@ -438,12 +496,22 @@ export function registerDigestHandlers(): void {
                VALUES (?, ?, ?, ?, ?, ?, ?)`
             )
             const now = Math.floor(Date.now() / 1000)
+            // An action item belongs to a meeting (meeting_id is NOT NULL), so
+            // items the model did not tie to one stay in the digest only — one
+            // such item used to fail the whole transaction. The id is derived
+            // from the meeting and the text, so generating the digest again
+            // does not add the same items a second time.
+            const linked = aiActionItems.filter(item => item.meetingId && item.text.trim())
             // Use a transaction for atomicity — prevents partial writes on crash
             const insertAll = db.transaction(() => {
-              for (const item of aiActionItems) {
+              for (const item of linked) {
+                const fingerprint = createHash('sha256')
+                  .update(`${item.meetingId}\n${item.text.trim().toLowerCase()}`)
+                  .digest('hex')
+                  .slice(0, 32)
                 insertAction.run(
-                  uuidv4(),
-                  item.meetingId || null,
+                  `digest-${fingerprint}`,
+                  item.meetingId,
                   item.text,
                   item.assignee || null,
                   item.dueDate ? Math.floor(item.dueDate / 1000) : null,
@@ -453,7 +521,7 @@ export function registerDigestHandlers(): void {
               }
             })
             insertAll()
-            log.info(`${aiActionItems.length} action items persisted to action_items table`)
+            log.info(`${linked.length} action items persisted to action_items table`)
           }
         } catch (err) {
           log.debug('Digest persistence failed (table may not exist in older DBs)', err)
@@ -572,24 +640,45 @@ export function registerDigestHandlers(): void {
 /**
  * Helper to generate text via ModelManager (node-llama-cpp)
  */
-async function generateText(prompt: string, maxTokens: number = 300): Promise<string> {
+/**
+ * Titles collected with json_group_array. They used to be joined with commas
+ * and split again, which broke every title containing one — including the
+ * default "Meeting - 10/12/2026, 3:16:03 PM".
+ */
+function parseTitleList(raw: string | null): string[] {
+  if (!raw) return []
+  try {
+    const parsed: unknown = JSON.parse(raw)
+    return Array.isArray(parsed)
+      ? parsed.filter((t): t is string => typeof t === 'string' && t.length > 0)
+      : []
+  } catch {
+    return []
+  }
+}
+
+/** Shown in place of a section the model could not produce. */
+const AI_UNAVAILABLE = '⚠️ AI unavailable'
+
+/**
+ * Part of what a cached meeting summary is keyed on. Raise it when the way
+ * summaries are produced changes, so that stored ones are generated afresh.
+ */
+const DIGEST_METHOD = 2
+
+/** Like generateText, but null on failure so callers can tell it from real output. */
+async function tryGenerateText(prompt: string, maxTokens: number): Promise<string | null> {
   try {
     if (!_modelManagerMod) {
       _modelManagerMod = await import('../../services/ModelManager')
     }
-    const modelManager = _modelManagerMod.getModelManager()
-
-    return await modelManager.generate(
-      {
-        prompt,
-        temperature: 0.2,
-        maxTokens,
-      },
-      'digest'
-    )
+    const text = await _modelManagerMod
+      .getModelManager()
+      .generate({ prompt, temperature: 0.2, maxTokens }, 'digest')
+    return text.trim() ? text : null
   } catch (err) {
     log.debug('AI generation failed', err)
-    return '⚠️ AI unavailable — engine may still be loading'
+    return null
   }
 }
 

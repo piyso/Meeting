@@ -19,7 +19,7 @@ export const OnboardingSetupPanel: React.FC<OnboardingSetupPanelProps> = ({
   tierInfo,
 }) => {
   return (
-    <div className="w-full max-w-[420px] flex flex-col  relative z-10">
+    <div className="w-full max-w-[400px] mx-auto flex flex-col relative z-10 px-2 sm:px-0">
       <h2 className="text-2xl font-semibold tracking-wide text-white mb-8 text-center lg:text-left">
         Initializing System...
       </h2>
@@ -28,9 +28,7 @@ export const OnboardingSetupPanel: React.FC<OnboardingSetupPanelProps> = ({
         <li className="flex items-start gap-3 text-emerald-400">
           <span>[OK]</span> Account authenticated
         </li>
-        <li
-          className={`flex items-start gap-3 ${isDownloading ? 'text-white' : 'text-slate-500'}`}
-        >
+        <li className={`flex items-start gap-3 ${isDownloading ? 'text-white' : 'text-slate-500'}`}>
           <span className={isDownloading ? 'animate-pulse text-emerald-400' : ''}>
             {isDownloading ? '[..]' : '[  ]'}
           </span>

@@ -83,6 +83,10 @@ jobs:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
           BLUEARKIVE_FUNCTIONS_URL: ${{ secrets.BLUEARKIVE_FUNCTIONS_URL }}
+          # Public half of the update-signing key (scripts/update-signing.js).
+          # A repository *variable*, not a secret. Empty = the app does not
+          # verify update signatures.
+          UPDATE_PUBLIC_KEY: ${{ vars.UPDATE_PUBLIC_KEY }}
 
       - name: Verify DMG sizes (must be < 500MB)
         run: |
@@ -194,6 +198,10 @@ jobs:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
           BLUEARKIVE_FUNCTIONS_URL: ${{ secrets.BLUEARKIVE_FUNCTIONS_URL }}
+          # Public half of the update-signing key (scripts/update-signing.js).
+          # A repository *variable*, not a secret. Empty = the app does not
+          # verify update signatures.
+          UPDATE_PUBLIC_KEY: ${{ vars.UPDATE_PUBLIC_KEY }}
 
       - name: Upload Windows artifacts
         uses: actions/upload-artifact@v4
@@ -238,6 +246,10 @@ jobs:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
           BLUEARKIVE_FUNCTIONS_URL: ${{ secrets.BLUEARKIVE_FUNCTIONS_URL }}
+          # Public half of the update-signing key (scripts/update-signing.js).
+          # A repository *variable*, not a secret. Empty = the app does not
+          # verify update signatures.
+          UPDATE_PUBLIC_KEY: ${{ vars.UPDATE_PUBLIC_KEY }}
 
       - name: Upload Linux artifacts
         uses: actions/upload-artifact@v4
@@ -268,13 +280,42 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          sparse-checkout: package.json
+          sparse-checkout: |
+            package.json
+            scripts/update-signing.js
 
       - name: Download successful artifacts (flattened)
         uses: actions/download-artifact@v4
         with:
           path: artifacts
           merge-multiple: true
+
+      # Apps built with UPDATE_PUBLIC_KEY install an update only if its
+      # manifest carries a signature from this key (src/main/services/UpdateVerifier.ts).
+      - name: Sign update manifests
+        env:
+          UPDATE_SIGNING_KEY: ${{ secrets.UPDATE_SIGNING_KEY }}
+          UPDATE_PUBLIC_KEY: ${{ vars.UPDATE_PUBLIC_KEY }}
+        run: |
+          shopt -s nullglob
+          MANIFESTS=(artifacts/latest*.yml)
+          if [ ${#MANIFESTS[@]} -eq 0 ]; then
+            echo "No update manifests to sign"
+            exit 0
+          fi
+          if [ -z "$UPDATE_SIGNING_KEY" ]; then
+            if [ -n "$UPDATE_PUBLIC_KEY" ]; then
+              echo "❌ Apps are built to require signed updates (UPDATE_PUBLIC_KEY is set) but UPDATE_SIGNING_KEY is missing."
+              echo "   Publishing this release unsigned would leave every installed copy unable to update."
+              exit 1
+            fi
+            echo "::warning::UPDATE_SIGNING_KEY is not set — update manifests are published unsigned"
+            exit 0
+          fi
+          node scripts/update-signing.js sign "${MANIFESTS[@]}"
+          if [ -n "$UPDATE_PUBLIC_KEY" ]; then
+            node scripts/update-signing.js verify "$UPDATE_PUBLIC_KEY" "${MANIFESTS[@]}"
+          fi
 
       - name: Build Summary
         run: |

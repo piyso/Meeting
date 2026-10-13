@@ -2,11 +2,12 @@
  * IPC Handlers for Transcript Operations
  */
 
-import { ipcMain, BrowserWindow } from 'electron'
+import { ipcMain } from 'electron'
 import { Logger } from '../../services/Logger'
 const log = Logger.create('TranscriptHandlers')
 
 import { getTranscriptService } from '../../services/TranscriptService'
+import { getMainAppWindow } from '../windows'
 import type {
   IPCResponse,
   GetTranscriptsParams,
@@ -170,13 +171,9 @@ function setupTranscriptEventForwarding(
   const flushBuffer = () => {
     if (chunkBuffer.length === 0) return
 
-    const allWindows = BrowserWindow.getAllWindows()
-    const mainWindow: BrowserWindow | null =
-      allWindows.find((w: BrowserWindow) => !w.isDestroyed() && w.getBounds().width > 400) ||
-      allWindows[0] ||
-      null
+    const mainWindow = getMainAppWindow()
 
-    if (mainWindow && !mainWindow.isDestroyed()) {
+    if (mainWindow) {
       // Send buffered chunks back-to-back synchronously so Electron batches them
       chunkBuffer.forEach(chunk => {
         mainWindow.webContents.send('event:transcriptChunk', chunk)
@@ -208,6 +205,7 @@ function setupTranscriptEventForwarding(
         endTime: data.endTime,
         confidence: data.confidence,
         speakerId: data.speakerId || null,
+        speakerName: data.speakerName || null,
         isFinal: true, // Transcripts saved to DB are always final
       }
 

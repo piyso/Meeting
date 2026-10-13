@@ -205,10 +205,43 @@ export function updateMeeting(id: string, input: UpdateMeetingInput): Meeting | 
 export function deleteMeeting(id: string): boolean {
   const db = getDatabase()
 
-  const stmt = db.prepare('DELETE FROM meetings WHERE id = ?')
-  const result = stmt.run(id)
+  // The foreign-key cascade removes the child rows locally but tells the sync
+  // queue nothing, so the cloud copies of a deleted meeting's transcripts,
+  // notes, etc. were never deleted. Queue a delete for each child as well.
+  const CHILD_TABLES = [
+    'transcripts',
+    'notes',
+    'entities',
+    'audio_highlights',
+    'action_items',
+    'sentiment_scores',
+  ] as const
 
-  if (result.changes > 0) {
+  const deleteTxn = db.transaction(() => {
+    const children: Array<{ table: (typeof CHILD_TABLES)[number]; id: string }> = []
+    for (const table of CHILD_TABLES) {
+      try {
+        const rows = db.prepare(`SELECT id FROM ${table} WHERE meeting_id = ?`).all(id) as Array<{
+          id: string
+        }>
+        for (const row of rows) children.push({ table, id: row.id })
+      } catch {
+        // Table missing in an older schema — nothing to queue for it
+      }
+    }
+
+    const result = db.prepare('DELETE FROM meetings WHERE id = ?').run(id)
+    if (result.changes === 0) return false
+
+    for (const child of children) {
+      createSyncQueueItem({
+        id: uuidv4(),
+        operation_type: 'delete',
+        table_name: child.table,
+        record_id: child.id,
+        payload: { id: child.id },
+      })
+    }
     createSyncQueueItem({
       id: uuidv4(),
       operation_type: 'delete',
@@ -216,9 +249,10 @@ export function deleteMeeting(id: string): boolean {
       record_id: id,
       payload: { id },
     })
-  }
+    return true
+  })
 
-  return result.changes > 0
+  return deleteTxn()
 }
 
 /**

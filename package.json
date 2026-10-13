@@ -7,7 +7,7 @@
     "name": "Piyush",
     "email": "piyso2004@gmail.com"
   },
-  "license": "MIT",
+  "license": "SEE LICENSE IN LICENSE.md",
   "private": true,
   "scripts": {
     "postinstall": "electron-builder install-app-deps",
@@ -33,11 +33,13 @@
     "test:run": "vitest run",
     "test:ui": "vitest --ui",
     "test:coverage": "vitest --coverage",
+    "test:db": "node scripts/test-db.js",
     "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
     "lint:fix": "eslint . --ext ts,tsx --fix",
     "format": "prettier --write \"src/**/*.{ts,tsx,js,jsx,json,css,scss,md}\"",
     "format:check": "prettier --check \"src/**/*.{ts,tsx,js,jsx,json,css,scss,md}\"",
-    "type-check": "tsc --noEmit"
+    "type-check": "tsc --noEmit && tsc --noEmit -p tsconfig.node.json && tsc --noEmit -p supabase/tsconfig.json",
+    "download-models": "node scripts/download-models.js"
   },
   "dependencies": {
     "@react-three/drei": "^9.122.0",
@@ -71,6 +73,7 @@
   "devDependencies": {
     "@types/better-sqlite3": "^7.6.13",
     "@types/d3": "^7.4.3",
+    "@types/node": "^20.11.0",
     "@types/react": "^18.2.43",
     "@types/react-dom": "^18.2.17",
     "@types/uuid": "^10.0.0",
@@ -217,6 +220,14 @@
       "type": "distribution",
       "minimumSystemVersion": "11.0",
       "darkModeSupport": true,
+      "fileAssociations": [
+        {
+          "ext": "pnotes",
+          "name": "BlueArkive Meeting",
+          "role": "Editor",
+          "rank": "Owner"
+        }
+      ],
       "files": [
         "!**/node_modules/onnxruntime-node/bin/napi-v6/win32/**",
         "!**/node_modules/onnxruntime-node/bin/napi-v6/linux/**",
@@ -226,6 +237,7 @@
       "extendInfo": {
         "NSMicrophoneUsageDescription": "BlueArkive needs microphone access to record meeting audio for transcription.",
         "NSScreenCaptureDescription": "BlueArkive needs screen recording permission to capture system audio during meetings.",
+        "NSAudioCaptureUsageDescription": "BlueArkive records the audio your computer plays during meetings so that every participant appears in the transcript.",
         "LSMinimumSystemVersion": "11.0"
       }
     },
@@ -360,7 +372,8 @@
         "libxtst6",
         "xdg-utils",
         "libatspi2.0-0",
-        "libuuid1"
+        "libuuid1",
+        "libsecret-1-0"
       ],
       "priority": "optional",
       "afterInstall": "build/linux-after-install.sh"
@@ -375,7 +388,8 @@
         "libXtst",
         "xdg-utils",
         "at-spi2-core",
-        "libuuid"
+        "libuuid",
+        "libsecret"
       ],
       "afterInstall": "build/linux-after-install.sh"
     },

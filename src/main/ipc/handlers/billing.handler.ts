@@ -120,12 +120,32 @@ export function registerBillingHandlers(): void {
       const { getAuthService } = await import('../../services/AuthService')
       const { shell } = await import('electron')
 
-      // C5: token intentionally NOT fetched — never pass JWT as URL query param
-
-      const userId = await KeyStorageService.getCurrentUserId()
-      const currentUser = await getAuthService().getCurrentUser()
-      const email = currentUser?.email || ''
-      const tier = userId ? (await KeyStorageService.getPlanTier(userId)) || 'free' : 'free'
+      const authService = getAuthService()
+      const currentUser = await authService.getCurrentUser()
+      if (!currentUser) {
+        return {
+          success: false,
+          error: {
+            code: 'BILLING_NOT_SIGNED_IN',
+            message: 'Sign in to upgrade your plan.',
+            timestamp: Date.now(),
+          },
+        }
+      }
+      const token = await authService.getAccessToken()
+      if (!token) {
+        return {
+          success: false,
+          error: {
+            code: 'BILLING_SESSION_EXPIRED',
+            message: 'Your session has expired or you are offline. Sign in again to upgrade.',
+            timestamp: Date.now(),
+          },
+        }
+      }
+      const email = currentUser.email
+      const tier =
+        (await KeyStorageService.getPlanTier(currentUser.id)) || currentUser.tier || 'free'
 
       const isDevMode = !!process.env.VITE_DEV_SERVER_URL
       const billingUrl = isDevMode
@@ -134,13 +154,15 @@ export function registerBillingHandlers(): void {
 
       const url = new URL(billingUrl)
 
-      if (email) url.searchParams.set('email', email)
       if (tier) url.searchParams.set('current_tier', tier)
-      if (params?.targetTier) url.searchParams.set('target_tier', params.targetTier)
-      // C5 fix: Do NOT pass JWT token as URL query parameter — it leaks via
-      // browser history, server logs, and HTTP Referer headers.
-      // The billing page should authenticate via Supabase session or a server-side
-      // short-lived token exchange instead.
+      if (params?.targetTier && (TIER_HIERARCHY as readonly string[]).includes(params.targetTier)) {
+        url.searchParams.set('target_tier', params.targetTier)
+      }
+      // C5: the session token and email travel in the URL *fragment*, never the
+      // query string. Fragments are not sent to the server, so they stay out of
+      // access logs and Referer headers; checkout.js reads the fragment and
+      // immediately strips it from the address bar and history entry.
+      url.hash = new URLSearchParams({ token, email }).toString()
 
       if (config.BLUEARKIVE_FUNCTIONS_URL) {
         url.searchParams.set('api_base', config.BLUEARKIVE_FUNCTIONS_URL)

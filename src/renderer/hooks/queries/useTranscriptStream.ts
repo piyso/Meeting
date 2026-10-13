@@ -26,6 +26,11 @@ export function useTranscriptStream(meetingId: string | null) {
       return response.data ?? []
     },
     enabled: !!meetingId,
+    // Segments are written by the main process while recording, so a cached
+    // (pre-recording, usually empty) result must never be served as fresh —
+    // re-opening a meeting right after stopping would show no transcript.
+    staleTime: 0,
+    refetchOnMount: 'always',
   })
 
   // Track latest meetingId to prevent stale closures in the IPC listener
@@ -40,32 +45,14 @@ export function useTranscriptStream(meetingId: string | null) {
   const lastTickRef = useRef(0)
   const throttleTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
-  // Seed the map with historical transcripts when they load
+  // Reset + subscribe. Declared BEFORE the seeding effect on purpose: effects
+  // run in declaration order, and when the query is served from cache the
+  // historical rows are already present on the first render — clearing after
+  // seeding wiped the transcript every time a meeting was re-opened.
   useEffect(() => {
-    if (!historicalTranscripts?.length) return
-
-    // We don't clear the map here so we don't wipe out live chunks that arrived before DB load
-    for (const t of historicalTranscripts) {
-      if (!transcriptsMapRef.current.has(t.id)) {
-        transcriptsMapRef.current.set(t.id, {
-          ...t,
-          transcriptId: t.id,
-          meetingId: t.meeting_id,
-          speakerId: t.speaker_id ?? undefined,
-          startTime: t.start_time,
-          endTime: t.end_time,
-          isFinal: true,
-        } as TranscriptChunk)
-      }
-    }
-    setRenderTick(t => t + 1)
-  }, [historicalTranscripts])
-
-  useEffect(() => {
-    if (!meetingId) return
-
     transcriptsMapRef.current.clear()
-    setRenderTick(0)
+    setRenderTick(t => t + 1)
+    if (!meetingId) return
 
     const unsubscribe = window.electronAPI?.on?.transcriptChunk((chunk: TranscriptChunk) => {
       if (chunk.meetingId !== latestMeetingIdRef.current) return
@@ -100,9 +87,45 @@ export function useTranscriptStream(meetingId: string | null) {
     }
   }, [meetingId])
 
-  // Lightning fast O(N) extraction. No sorting required.
+  // Seed the map with historical transcripts when they load (or when the
+  // meeting changes and they are already cached).
+  useEffect(() => {
+    if (!meetingId || !historicalTranscripts?.length) return
+
+    let added = false
+    for (const t of historicalTranscripts) {
+      if (t.meeting_id !== meetingId) continue
+      // Don't overwrite live chunks that arrived before the DB load
+      if (!transcriptsMapRef.current.has(t.id)) {
+        transcriptsMapRef.current.set(t.id, {
+          ...t,
+          transcriptId: t.id,
+          meetingId: t.meeting_id,
+          speakerId: t.speaker_id ?? undefined,
+          startTime: t.start_time,
+          endTime: t.end_time,
+          isFinal: true,
+        } as TranscriptChunk)
+        added = true
+      }
+    }
+    if (added) setRenderTick(t => t + 1)
+  }, [historicalTranscripts, meetingId])
+
+  // Chronological order. Live chunks and DB rows can interleave (a refetch
+  // during recording inserts rows after newer live chunks), so insertion
+  // order alone is not reliable.
   const allTranscripts = useMemo(() => {
-    return Array.from(transcriptsMapRef.current.values())
+    const list = Array.from(transcriptsMapRef.current.values())
+    let sorted = true
+    for (let i = 1; i < list.length; i++) {
+      if ((list[i]?.startTime ?? 0) < (list[i - 1]?.startTime ?? 0)) {
+        sorted = false
+        break
+      }
+    }
+    return sorted ? list : list.sort((a, b) => (a.startTime ?? 0) - (b.startTime ?? 0))
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [renderTick])
 
   return { transcripts: allTranscripts, isLoading, error: queryError }

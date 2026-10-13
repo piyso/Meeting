@@ -113,7 +113,6 @@ export const BLUEARKIVE_TIERS: Record<BlueArkiveTier, TierConfig> = {
       'Everything in Starter',
       'Unlimited devices',
       'Unlimited AI queries',
-      'Speaker Diarization',
       'Weekly Digest',
       '50K character transcript limit',
     ],

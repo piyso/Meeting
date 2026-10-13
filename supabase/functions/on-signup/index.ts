@@ -3,9 +3,7 @@
 // Creates a PiyAPI account with "managed" plan and stores credentials
 
 import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
-import { getAdminClient, errorResponse, jsonResponse } from '../_shared/piyapi.ts'
-
-const PIYAPI_BASE_URL = Deno.env.get('PIYAPI_BASE_URL') || 'https://api.piyapi.cloud'
+import { provisionPiyAPIAccount, errorResponse, jsonResponse } from '../_shared/piyapi.ts'
 
 interface WebhookPayload {
   type: 'INSERT'
@@ -25,17 +23,22 @@ serve(async (req: Request) => {
       return errorResponse('Method not allowed', 405)
     }
 
+    // Fail closed: without a configured secret anyone could call this endpoint
+    // and re-point another user's PiyAPI credentials at a fresh empty account.
     const webhookSecret = Deno.env.get('WEBHOOK_SECRET')
-    const headerSecret = req.headers.get('x-webhook-secret')
-
-    if (webhookSecret && headerSecret !== webhookSecret) {
+    if (!webhookSecret) {
+      console.error('WEBHOOK_SECRET is not configured — refusing request')
+      return errorResponse('Webhook not configured', 503)
+    }
+    const headerSecret = req.headers.get('x-webhook-secret') || ''
+    if (!timingSafeEqual(headerSecret, webhookSecret)) {
       console.error('Unauthorized webhook attempt')
       return errorResponse('Unauthorized signature', 401)
     }
 
     let payload: WebhookPayload
     try {
-      payload = await req.json()
+      payload = (await req.json()) as WebhookPayload
     } catch {
       return errorResponse('Invalid JSON payload', 400)
     }
@@ -44,68 +47,39 @@ serve(async (req: Request) => {
       return errorResponse('Invalid webhook payload')
     }
 
-    const { id: userId, email } = payload.record
+    const { id: userId } = payload.record
 
-    // Generate a secure password for the PiyAPI account
-    // This is never shown to the user — managed internally
-    const password = crypto.randomUUID() + crypto.randomUUID()
-
-    // 1. Register PiyAPI account with "managed" plan
-    const registerRes = await fetch(`${PIYAPI_BASE_URL}/api/v1/auth/register`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        email: `ba_${userId}@managed.bluearkive.com`, // Unique email per user
-        password,
-        plan: 'managed',
-      }),
-    })
-
-    if (!registerRes.ok) {
-      const err = await registerRes.text()
-      console.error('PiyAPI registration failed:', err)
-      return errorResponse(`PiyAPI registration failed: ${registerRes.status}`, 502)
+    // Idempotent: Supabase retries webhooks, and a second registration would
+    // fail upstream (the managed email already exists) and must never replace
+    // credentials that already work. The same routine runs lazily from the
+    // proxy for a user whose webhook delivery was lost.
+    let credentials
+    try {
+      credentials = await provisionPiyAPIAccount(userId)
+    } catch (provisionErr) {
+      console.error('PiyAPI provisioning failed:', provisionErr)
+      return errorResponse('PiyAPI provisioning failed', 502)
     }
 
-    const registerData = await registerRes.json()
-
-    // Extract tokens from PiyAPI response
-    const accessToken = registerData.access_token || registerData.accessToken
-    const refreshToken = registerData.refresh_token || registerData.refreshToken
-    const piyapiUserId = registerData.user?.id || registerData.userId
-    const expiresIn = registerData.expires_in || registerData.expiresIn || 900
-
-    if (!accessToken || !refreshToken || !piyapiUserId) {
-      console.error('Invalid PiyAPI registration response:', JSON.stringify(registerData))
-      return errorResponse('Invalid PiyAPI registration response', 502)
-    }
-
-    const expiresAt = new Date(Date.now() + expiresIn * 1000).toISOString()
-
-    // 2. Store PiyAPI credentials in Supabase (service_role — bypasses RLS)
-    const admin = getAdminClient()
-    const { error: insertError } = await admin.from('piyapi_credentials').upsert({
-      user_id: userId,
-      piyapi_user_id: piyapiUserId,
-      access_token: accessToken,
-      refresh_token: refreshToken,
-      expires_at: expiresAt,
-    })
-
-    if (insertError) {
-      console.error('Failed to store PiyAPI credentials:', insertError)
-      return errorResponse('Failed to store credentials', 500)
-    }
-
-    console.log(`PiyAPI account created for user ${userId} (email: ${email})`)
+    console.log(`PiyAPI account ready for user ${userId}`)
 
     return jsonResponse({
       success: true,
-      message: 'PiyAPI account created',
-      piyapi_user_id: piyapiUserId,
+      message: 'PiyAPI account ready',
+      piyapi_user_id: credentials.piyapi_user_id,
     })
   } catch (err) {
     console.error('on-signup error:', err)
     return errorResponse('Internal error', 500)
   }
 })
+
+/** Constant-time string comparison (length is not secret). */
+function timingSafeEqual(a: string, b: string): boolean {
+  if (a.length !== b.length) return false
+  let diff = 0
+  for (let i = 0; i < a.length; i++) {
+    diff |= a.charCodeAt(i) ^ b.charCodeAt(i)
+  }
+  return diff === 0
+}

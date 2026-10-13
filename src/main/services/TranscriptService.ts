@@ -83,8 +83,10 @@ export class TranscriptService extends EventEmitter {
       speakerName: transcript.speaker_name,
     })
 
-    log.info(
-      `[Transcript Service] Saved transcript: ${transcript.text.substring(0, 50)}... (${transcript.start_time.toFixed(1)}s - ${transcript.end_time.toFixed(1)}s)`
+    // Meeting content stays out of the log file — it is plain text on disk,
+    // survives "delete all data", and ships inside diagnostics exports.
+    log.debug(
+      `[Transcript Service] Saved transcript (${transcript.text.length} chars, ${transcript.start_time.toFixed(1)}s - ${transcript.end_time.toFixed(1)}s)`
     )
 
     // Generate embedding asynchronously (fire-and-forget, non-blocking)

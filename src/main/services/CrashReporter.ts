@@ -1,21 +1,26 @@
 /**
  * Crash Reporter — Sentry integration for BlueArkive
  *
- * G7: Activated Sentry SDK (@sentry/electron).
- * Conditionally initializes when SENTRY_DSN is set.
- * Graceful no-op in development (when DSN is empty).
+ * Crash reports leave the device, so they are sent only when
+ *   - the build was given a SENTRY_DSN, and
+ *   - the user has switched "Send crash reports" on (Settings › Privacy;
+ *     off until they do).
+ * Until both hold the Sentry SDK is not even started — no sessions, no
+ * events, no connection.
  *
- * Features:
- * - Captures unhandled rejections + uncaught exceptions
- * - Attaches hardware tier + plan tier as context
- * - Breadcrumbs for IPC calls
- * - Session tracking
+ * What a report carries is cut down to what debugging needs: the error and
+ * its stack, app version, platform, hardware and plan tier, and a one-way
+ * hash in place of the account id. No hostname, no IP address, no home
+ * directory in file paths, no breadcrumb payloads, no performance traces.
+ * Errors are also always written to the local log.
  *
  * Usage:
- *   import { CrashReporter } from './services/CrashReporter'
- *   CrashReporter.init()  // Call once in main.ts
+ *   CrashReporter.init()              // once, at startup
+ *   CrashReporter.setConsent(allowed) // once the setting is known, and whenever it changes
  */
 
+import crypto from 'crypto'
+import os from 'os'
 import { config } from '../config/environment'
 import { app } from 'electron'
 import { Logger } from './Logger'
@@ -33,57 +38,149 @@ interface CrashContext {
   appVersion?: string
 }
 
+/** Breadcrumbs recorded before the SDK starts (startup happens before consent is known). */
+const MAX_EARLY_BREADCRUMBS = 30
+
+/** Replace the user's home directory (which contains their account name) in any text. */
+export function scrubPaths(text: string, home: string = os.homedir()): string {
+  if (!home || home === '/' || home.length < 3) return text
+  let scrubbed = text.split(home).join('~')
+  // Windows paths also turn up with forward slashes and inside file:// URLs.
+  const forward = home.replace(/\\/g, '/')
+  if (forward !== home) scrubbed = scrubbed.split(forward).join('~')
+  return scrubbed
+}
+
+/** Apply `scrubPaths` to every string inside a JSON-like value. */
+export function scrubDeep<T>(value: T, home?: string, depth = 0): T {
+  if (typeof value === 'string') return scrubPaths(value, home) as unknown as T
+  if (!value || typeof value !== 'object' || depth > 8) return value
+  if (Array.isArray(value)) {
+    return value.map(item => scrubDeep(item, home, depth + 1)) as unknown as T
+  }
+  const result: Record<string, unknown> = {}
+  for (const [key, item] of Object.entries(value as Record<string, unknown>)) {
+    result[key] = scrubDeep(item, home, depth + 1)
+  }
+  return result as T
+}
+
+/** A stable stand-in for an account id: reports can be counted per user, not traced to one. */
+export function anonymousId(userId: string): string {
+  return crypto.createHash('sha256').update(`bluearkive-crash:${userId}`).digest('hex').slice(0, 16)
+}
+
+/** What is taken out of every event before it is sent. */
+export function scrubEvent<T extends Record<string, unknown>>(event: T, home?: string): T {
+  const scrubbed = scrubDeep(event, home) as Record<string, unknown>
+  delete scrubbed.server_name // the computer's hostname
+  delete scrubbed.request
+  const user = scrubbed.user as { id?: unknown } | undefined
+  scrubbed.user = typeof user?.id === 'string' ? { id: user.id } : undefined
+  const breadcrumbs = scrubbed.breadcrumbs
+  if (Array.isArray(breadcrumbs)) {
+    // What happened, not what it was done with.
+    scrubbed.breadcrumbs = breadcrumbs.map((crumb: Record<string, unknown>) => ({
+      timestamp: crumb.timestamp,
+      category: crumb.category,
+      level: crumb.level,
+      type: crumb.type,
+      message: crumb.message,
+    }))
+  }
+  return scrubbed as T
+}
+
 class CrashReporterService {
   private initialized = false
   private sentryAvailable = false
+  private consent = false
   private context: CrashContext = {}
+  private earlyBreadcrumbs: Array<{ category: string; message: string; timestamp: number }> = []
 
   /**
-   * Initialize crash reporting
-   * No-op if SENTRY_DSN is not set
+   * Note that the app has started. Nothing is sent and the SDK is not loaded
+   * until setConsent(true).
    */
   init(): void {
     if (this.initialized) return
-
+    this.initialized = true
     if (!config.SENTRY_DSN) {
-      log.info('No SENTRY_DSN set — crash reporting disabled')
-      this.initialized = true
-      return
+      log.info('No SENTRY_DSN set — crash reporting is not part of this build')
     }
+  }
 
+  /** Whether this build can send crash reports at all. */
+  isConfigured(): boolean {
+    return !!config.SENTRY_DSN
+  }
+
+  /**
+   * Apply the user's choice. Turning it on starts the SDK (once); turning it
+   * off stops anything further from being sent.
+   */
+  setConsent(allowed: boolean): void {
+    this.consent = allowed
+    if (!config.SENTRY_DSN) return
+
+    if (allowed && !this.sentryAvailable) {
+      this.startSentry()
+    } else if (Sentry) {
+      try {
+        const options = Sentry.getClient?.()?.getOptions?.()
+        if (options) options.enabled = allowed
+      } catch (err) {
+        log.debug('Could not switch the crash reporter:', err)
+      }
+    }
+    log.info(`Crash reports are ${allowed ? 'on' : 'off'}`)
+  }
+
+  private startSentry(): void {
     try {
       // G7: Load @sentry/electron dynamically to handle missing native module gracefully
-
       Sentry = require('@sentry/electron')
       Sentry.init({
         dsn: config.SENTRY_DSN,
         release: `bluearkive@${this.getAppVersion()}`,
         environment: config.IS_DEV ? 'development' : 'production',
-        // Don't send events in dev unless DSN is explicitly set
         enabled: true,
-        // Attach stack traces to non-Error events
         attachStacktrace: true,
-        // Sample rate for performance monitoring (0 = disabled, 1 = 100%)
-        tracesSampleRate: config.IS_DEV ? 1.0 : 0.1,
-        // Filter events before sending
-        beforeSend(event: { environment?: string }) {
-          // Don't send development events unless intentional
-          if (event.environment === 'development' && !config.SENTRY_DSN) {
-            return null
-          }
-          return event
-        },
+        sendDefaultPii: false,
+        // Traces carry URLs and timings of what the user did; errors are enough.
+        tracesSampleRate: 0,
+        beforeSend: (event: Record<string, unknown>) => (this.consent ? scrubEvent(event) : null),
+        beforeBreadcrumb: (crumb: Record<string, unknown>) =>
+          this.consent
+            ? {
+                timestamp: crumb.timestamp,
+                category: crumb.category,
+                level: crumb.level,
+                type: crumb.type,
+                message:
+                  typeof crumb.message === 'string' ? scrubPaths(crumb.message) : crumb.message,
+              }
+            : null,
       })
 
       this.sentryAvailable = true
-      this.initialized = true
-      log.info('Sentry initialized successfully', { dsn: config.SENTRY_DSN.slice(0, 20) + '...' })
+      for (const crumb of this.earlyBreadcrumbs.splice(0)) Sentry.addBreadcrumb(crumb)
+      this.applyContext()
+      log.info('Crash reporting started')
     } catch (error) {
       // @sentry/electron native module may fail to load on some platforms
       log.warn('Sentry SDK failed to load (crash reporting disabled):', error)
       this.sentryAvailable = false
-      this.initialized = true
     }
+  }
+
+  private applyContext(): void {
+    if (!this.sentryAvailable || !Sentry) return
+    Sentry.setContext('device', {
+      hardwareTier: this.context.hardwareTier,
+      planTier: this.context.planTier,
+    })
+    Sentry.setUser(this.context.userId ? { id: anonymousId(this.context.userId) } : null)
   }
 
   /**
@@ -91,16 +188,7 @@ class CrashReporterService {
    */
   setContext(context: Partial<CrashContext>): void {
     this.context = { ...this.context, ...context }
-
-    if (this.sentryAvailable && Sentry) {
-      Sentry.setContext('device', {
-        hardwareTier: this.context.hardwareTier,
-        planTier: this.context.planTier,
-      })
-      if (this.context.userId) {
-        Sentry.setUser({ id: this.context.userId })
-      }
-    }
+    this.applyContext()
   }
 
   /**
@@ -135,12 +223,17 @@ class CrashReporterService {
   }
 
   /**
-   * Add a breadcrumb for debugging
+   * Add a breadcrumb for debugging. `data` is accepted for the local log's
+   * sake only — breadcrumb payloads are never sent.
    */
-  addBreadcrumb(category: string, message: string, data?: Record<string, unknown>): void {
+  addBreadcrumb(category: string, message: string, _data?: Record<string, unknown>): void {
     if (this.sentryAvailable && Sentry) {
-      Sentry.addBreadcrumb({ category, message, data })
+      Sentry.addBreadcrumb({ category, message })
+      return
     }
+    if (!config.SENTRY_DSN) return
+    this.earlyBreadcrumbs.push({ category, message, timestamp: Date.now() / 1000 })
+    if (this.earlyBreadcrumbs.length > MAX_EARLY_BREADCRUMBS) this.earlyBreadcrumbs.shift()
   }
 
   /**

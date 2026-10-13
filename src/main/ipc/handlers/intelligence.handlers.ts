@@ -10,6 +10,12 @@ const log = Logger.create('IntelligenceHandlers')
 // should not affect the other.
 const activeAskControllers = new Map<number, AbortController>()
 
+// The local model runs with a 4,096-token context. 9,000 characters of
+// transcript is roughly 2,500 tokens, which leaves room for the instructions,
+// the question and the 300-token answer. (12,000 characters could overflow it,
+// and the model then silently dropped the start of the context.)
+const ASK_CONTEXT_CHAR_BUDGET = 9000
+
 export function registerIntelligenceHandlers(): void {
   // intelligence:getHardwareTier — Detect hardware capabilities
   ipcMain.handle('intelligence:getHardwareTier', async () => {
@@ -147,55 +153,14 @@ export function registerIntelligenceHandlers(): void {
       }
 
       const mode = params.promptMode || 'title'
-      // M-19 AUDIT: Truncate context to prevent OOM on local 3B model (~4K token limit).
+      // M-19 AUDIT: Truncate context to fit the local model's 4K-token context.
       // 8000 chars ≈ 2000 tokens, leaving room for prompt template + response.
       const context = params.recentContext.substring(0, 8000)
 
-      // ── Cloud path for question/action/decision modes (Starter+) ──
-      if (mode !== 'title') {
-        try {
-          const { getCloudAccessManager } = await import('../../services/CloudAccessManager')
-          const cam = getCloudAccessManager()
-          const features = await cam.getFeatureAccess()
-          const status = await cam.getCloudAccessStatus()
-
-          if (features.cloudAI && status.hasAccess) {
-            const { getQueryQuotaManager } = await import('../../services/QueryQuotaManager')
-            const quotaManager = getQueryQuotaManager()
-            const quota = await quotaManager.checkQuota(status.tier)
-
-            if (!quota.exhausted) {
-              const { getBackend } = await import('../../services/backend/BackendSingleton')
-              const backend = getBackend()
-              const health = await backend.healthCheck()
-
-              if (health.status === 'healthy') {
-                const cloudPrompts: Record<string, string> = {
-                  question: `Based on this meeting discussion, suggest ONE insightful follow-up question that hasn't been addressed yet:\n\n${context}\n\nSUGGESTED QUESTION:`,
-                  action: `Identify action items from this discussion. Format each on a new line as "- [Person]: [Task]". If none, say "No action items yet.":\n\n${context}\n\nACTION ITEMS:`,
-                  decision: `Summarize decisions made in this discussion in one sentence. If none found, say "No decisions yet.":\n\n${context}\n\nDECISION:`,
-                }
-
-                const prompt = cloudPrompts[mode]
-                if (prompt) {
-                  const result = await backend.ask(prompt, 'meetings')
-                  quotaManager.recordUsage()
-
-                  if (result?.answer) {
-                    return {
-                      success: true,
-                      data: { suggestion: result.answer.trim(), mode, source: 'cloud' },
-                    }
-                  }
-                }
-              }
-            }
-          }
-        } catch (err) {
-          // Cloud failed — fall through to local
-          log.debug('Cloud meetingSuggestion failed, using local', err)
-        }
-      }
+      // Suggestions are written by the local model from the discussion text
+      // passed in. There used to be a "cloud" branch here for paid plans: it
+      // sent that text upstream as a search query, charged a monthly AI query,
+      // and then generated the suggestion with the same local model anyway.
 
       // ── Local path (always available) ──
       const { getModelManager } = await import('../../services/ModelManager')
@@ -236,7 +201,9 @@ export function registerIntelligenceHandlers(): void {
         'meetingSuggestion'
       )
 
-      return { success: true, data: { suggestion: suggestion.trim(), mode, source: 'local' } }
+      // The model often wraps a title or a question in quotation marks.
+      const text = suggestion.trim().replace(/^["'“”‘’]+|["'“”‘’]+$/g, '')
+      return { success: true, data: { suggestion: text, mode, source: 'local' } }
     } catch (error) {
       log.debug('Meeting suggestion failed', error)
       return {
@@ -248,11 +215,12 @@ export function registerIntelligenceHandlers(): void {
 
   // intelligence:askMeetings — RAG-based Q&A for the "Ask Meetings" view
   // Starter+: Cloud PiyAPI /ask (quota-gated, higher quality)
-  // Free/fallback: Local Qwen 2.5 3B via ModelManager
+  // Free/fallback: local Qwen 2.5 via ModelManager
   // Uses event.sender.send for real-time token streaming (ChatGPT-like typewriter)
   ipcMain.handle('intelligence:askMeetings', async (event, params) => {
     // P1-2 FIX: Per-sender AbortController — declared outside try for finally access
     const senderId = event.sender.id
+    let ownController: AbortController | null = null
     try {
       if (!params?.question || !params?.context) {
         return {
@@ -272,6 +240,7 @@ export function registerIntelligenceHandlers(): void {
         prev.abort()
       }
       const controller = new AbortController()
+      ownController = controller
       activeAskControllers.set(senderId, controller)
       const { signal } = controller
 
@@ -313,7 +282,10 @@ export function registerIntelligenceHandlers(): void {
         }
       }
 
-      // ── Cloud path (Starter+ with remaining quota) ──
+      // ── Cloud Retrieval Path (Starter+ with remaining quota via Zero-LLM PiyAPI Search) ──
+      let effectiveContext = params.context || ''
+      let cloudSources: Array<{ memoryId: string; content: string; similarity: number }> = []
+
       if (useCloud) {
         try {
           const { getBackend } = await import('../../services/backend/BackendSingleton')
@@ -321,55 +293,55 @@ export function registerIntelligenceHandlers(): void {
           const health = await backend.healthCheck()
 
           if (health.status === 'healthy') {
-            const askResult = await backend.ask(params.question, params.namespace || 'meetings')
+            // Retrieve token-budgeted context via PiyAPI LLM-Free Search Endpoint
+            const { context: cloudContext, results: cloudResults } = await backend.getContext(
+              params.question,
+              params.namespace || 'meetings',
+              3000
+            )
 
-            if (askResult?.answer) {
-              // Record quota usage AFTER confirmed success (not before)
+            if (cloudContext?.trim()) {
+              effectiveContext = effectiveContext.trim()
+                ? `${cloudContext}\n\n${effectiveContext}`
+                : cloudContext
+
+              cloudSources = (cloudResults || []).map(r => ({
+                memoryId: r.memory?.id || '',
+                content: r.memory?.content || '',
+                similarity: Number(r.similarity) || 0.85,
+              }))
+
+              // Record cloud quota usage after successful search context retrieval
               try {
                 const { getQueryQuotaManager } = await import('../../services/QueryQuotaManager')
                 getQueryQuotaManager().recordUsage()
               } catch {
                 /* non-critical */
               }
-
-              // Stream the answer to renderer for consistency with local path
-              try {
-                event.sender.send('intelligence:streamToken', {
-                  token: askResult.answer,
-                  fullText: askResult.answer,
-                })
-              } catch {
-                // Sender may be destroyed
-              }
-
-              return {
-                success: true,
-                data: {
-                  answer: askResult.answer,
-                  source: 'cloud',
-                  quotaRemaining: quotaRemaining - 1,
-                  sources: askResult.sources || [],
-                },
-              }
             }
           }
         } catch (cloudErr) {
-          log.warn('Cloud /ask failed, falling back to local:', cloudErr)
+          log.warn('PiyAPI cloud search context retrieval failed, using local context:', cloudErr)
         }
       }
 
-      // ── Local fallback (Free tier or cloud unavailable) ──
+      // ── Generation via Available LLM (Local engine with real-time streaming) ──
       const { getModelManager } = await import('../../services/ModelManager')
       const modelManager = getModelManager()
 
-      const systemPrompt = params.context
-        ? `You are a helpful meeting assistant. Answer the user's question based ONLY on the provided meeting transcript excerpts. Be concise and cite which meeting the information comes from. If the answer is not in the context, clearly say so. IMPORTANT: Respond in the same language as the user's question.
+      // Wording and temperature were measured against the local model: with the
+      // instructions in front of the context and a temperature of 0.4 it named
+      // the wrong person and answered questions the meetings never touched
+      // ("a Paris office budget of 42,000 euros") instead of saying so.
+      const systemPrompt = effectiveContext.trim()
+        ? `You are a helpful meeting assistant.
 
 MEETING CONTEXT:
-// M-20 AUDIT: Truncate meeting context to prevent OOM
-${params.context.substring(0, 12000)}
+${effectiveContext.substring(0, ASK_CONTEXT_CHAR_BUDGET)}
 
-USER QUESTION: ${params.question}
+Answer the question below using ONLY the meeting context above. Be concise. First check that the context really talks about what the question asks; if it does not, answer only: "That is not mentioned in your meetings." Do not guess and do not answer about something else. Respond in the same language as the question.
+
+QUESTION: ${params.question}
 
 ANSWER:`
         : `You are a helpful meeting assistant. The user asked: "${params.question}" but no relevant meeting transcripts were found. Let the user know and suggest they try different keywords. Respond in the same language as the question.
@@ -379,7 +351,7 @@ ANSWER:`
       const result = await modelManager.generate(
         {
           prompt: systemPrompt,
-          temperature: 0.4,
+          temperature: 0.1,
           maxTokens: 300,
           // P1-2 FIX: Pass abort signal so inference stops mid-token on cancel
           signal,
@@ -403,8 +375,10 @@ ANSWER:`
         success: true,
         data: {
           answer: result.trim(),
-          source: 'local',
-          quotaRemaining,
+          source: cloudSources.length > 0 ? 'cloud-search' : 'local',
+          quotaRemaining:
+            cloudSources.length > 0 ? Math.max(0, quotaRemaining - 1) : quotaRemaining,
+          sources: cloudSources,
         },
       }
     } catch (error) {
@@ -430,7 +404,12 @@ ANSWER:`
         },
       }
     } finally {
-      activeAskControllers.delete(senderId)
+      // Only clear our own entry. A newer question from the same window has
+      // already replaced it (and aborted us); deleting unconditionally removed
+      // that newer controller, so "stop generating" did nothing for it.
+      if (ownController && activeAskControllers.get(senderId) === ownController) {
+        activeAskControllers.delete(senderId)
+      }
     }
   })
 
@@ -438,7 +417,7 @@ ANSWER:`
   // Called by the renderer when the user clicks Cancel or navigates away.
   // Triggers the AbortController which interrupts ModelManager.generate()
   // via the signal check in onTextChunk, freeing GPU resources immediately.
-  ipcMain.handle('intelligence:cancelAsk', async (event) => {
+  ipcMain.handle('intelligence:cancelAsk', async event => {
     const controller = activeAskControllers.get(event.sender.id)
     if (controller) {
       controller.abort()

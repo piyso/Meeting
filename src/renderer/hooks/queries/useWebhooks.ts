@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 
-export function useWebhooks() {
+export function useWebhooks(selectedWebhookId?: string) {
   const queryClient = useQueryClient()
 
   const { data: webhooks = [], isLoading } = useQuery({
@@ -14,11 +14,19 @@ export function useWebhooks() {
   })
 
   const { data: logs = [] } = useQuery({
-    queryKey: ['webhooks', 'logs'],
+    queryKey: ['webhooks', 'logs', selectedWebhookId],
     queryFn: async () => {
-      // Delivery logs are per-webhook, not a global list
-      return []
+      if (!selectedWebhookId) return []
+      const res = await (
+        window.electronAPI?.webhook as unknown as {
+          getDeliveries?: (params: {
+            webhookId: string
+          }) => Promise<{ success: boolean; data?: unknown[] }>
+        }
+      )?.getDeliveries?.({ webhookId: selectedWebhookId })
+      return res?.success && Array.isArray(res.data) ? res.data : []
     },
+    enabled: !!selectedWebhookId,
     initialData: [],
   })
 

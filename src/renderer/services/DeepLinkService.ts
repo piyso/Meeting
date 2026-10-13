@@ -33,9 +33,8 @@ export class DeepLinkService {
       const parts = url.pathname.split('/').filter(Boolean)
       const view = parts[0] || 'meetings'
       const meetingId = parts[1] || undefined
-      const timestamp = url.searchParams.get('t')
-        ? parseInt(url.searchParams.get('t')!, 10)
-        : undefined
+      const timestampParam = url.searchParams.get('t')
+      const timestamp = timestampParam ? parseInt(timestampParam, 10) : undefined
 
       const params: Record<string, string> = {}
       url.searchParams.forEach((value, key) => {

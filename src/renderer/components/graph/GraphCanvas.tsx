@@ -18,7 +18,11 @@ interface D3Node extends d3.SimulationNodeDatum, GraphNode {
 interface D3Edge extends d3.SimulationLinkDatum<D3Node>, Omit<GraphEdge, 'source' | 'target'> {}
 
 // Drag handlers extracted outside useEffect
-function dragstarted(event: d3.D3DragEvent<SVGCircleElement, D3Node, D3Node>, d: D3Node, simulation: d3.Simulation<D3Node, D3Edge>) {
+function dragstarted(
+  event: d3.D3DragEvent<SVGCircleElement, D3Node, D3Node>,
+  d: D3Node,
+  simulation: d3.Simulation<D3Node, D3Edge>
+) {
   if (!event.active) simulation.alphaTarget(0.3).restart()
   d.fx = d.x
   d.fy = d.y
@@ -27,7 +31,11 @@ function dragged(event: d3.D3DragEvent<SVGCircleElement, D3Node, D3Node>, d: D3N
   d.fx = event.x
   d.fy = event.y
 }
-function dragended(event: d3.D3DragEvent<SVGCircleElement, D3Node, D3Node>, d: D3Node, simulation: d3.Simulation<D3Node, D3Edge>) {
+function dragended(
+  event: d3.D3DragEvent<SVGCircleElement, D3Node, D3Node>,
+  d: D3Node,
+  simulation: d3.Simulation<D3Node, D3Edge>
+) {
   if (!event.active) simulation.alphaTarget(0)
   d.fx = null
   d.fy = null
@@ -39,8 +47,15 @@ const getRadius = (type: GraphNode['type']) => {
       return 16
     case 'topic':
       return 12
-    default:
+    case 'person':
+      return 11
+    case 'decision':
+      return 9
+    case 'action':
+    case 'action_item':
       return 8
+    default:
+      return 7
   }
 }
 
@@ -182,7 +197,7 @@ export const GraphCanvas: React.FC<GraphCanvasProps> = ({
 
     const getGradientId = (type: string) => {
       if (type === 'action_item') return `url(#grad-action-${uniqueId})`
-      if (['meeting', 'person', 'topic', 'decision', 'action'].includes(type)) {
+      if (['meeting', 'person', 'topic', 'decision', 'action', 'action_item'].includes(type)) {
         return `url(#grad-${type}-${uniqueId})`
       }
       return `url(#grad-default-${uniqueId})`
@@ -194,25 +209,35 @@ export const GraphCanvas: React.FC<GraphCanvasProps> = ({
     const feMerge = glowFilter.append('feMerge')
     feMerge.append('feMergeNode').attr('in', 'coloredBlur')
     feMerge.append('feMergeNode').attr('in', 'SourceGraphic')
-    
+
     // Default Drop Shadow
     const shadowFilter = defs.append('filter').attr('id', `drop-shadow-${uniqueId}`)
-    shadowFilter.append('feDropShadow').attr('dx', '0').attr('dy', '3').attr('stdDeviation', '3').attr('flood-opacity', '0.25')
+    shadowFilter
+      .append('feDropShadow')
+      .attr('dx', '0')
+      .attr('dy', '3')
+      .attr('stdDeviation', '3')
+      .attr('flood-opacity', '0.25')
 
-    // Draw lines for edges
+    // Draw links
+    const isContradictoryEdge = (t: string) => t === 'contradicts' || t === 'supersedes'
+
     const link = g
       .append('g')
       .selectAll('line')
       .data(d3Edges)
       .join('line')
-      .attr('stroke', d => (d.type === 'contradicts' ? '#ef4444' : '#9ca3af'))
+      .attr('stroke', d => (isContradictoryEdge(d.type) ? '#ef4444' : '#9ca3af'))
       .attr('stroke-width', d => Math.max(1.5, (Number(d.weight) || 1) * 1.5))
       .attr('stroke-opacity', d =>
-        d.type === 'contradicts' ? 0.9 : 0.3 + (Number(d.weight) || 0.1) * 0.2
+        isContradictoryEdge(d.type) ? 0.9 : 0.3 + (Number(d.weight) || 0.1) * 0.2
       )
-      .attr('stroke-dasharray', d => (d.type === 'contradicts' ? '4,4' : 'none'))
-      .attr('filter', d => (d.type === 'contradicts' ? `url(#red-glow-${uniqueId})` : null))
-      .attr('marker-end', d => `url(#arrow${d.type === 'contradicts' ? '-contradicts' : ''}-${uniqueId})`)
+      .attr('stroke-dasharray', d => (isContradictoryEdge(d.type) ? '4,4' : 'none'))
+      .attr('filter', d => (isContradictoryEdge(d.type) ? `url(#red-glow-${uniqueId})` : null))
+      .attr(
+        'marker-end',
+        d => `url(#arrow${isContradictoryEdge(d.type) ? '-contradicts' : ''}-${uniqueId})`
+      )
 
     // Draw nodes
     const node = g
@@ -225,7 +250,11 @@ export const GraphCanvas: React.FC<GraphCanvasProps> = ({
       .attr('stroke', d => (contradictionMeetingIds.has(d.id) ? '#ef4444' : '#fff'))
       .attr('stroke-width', d => (contradictionMeetingIds.has(d.id) ? 3 : 1))
       .attr('stroke-opacity', d => (contradictionMeetingIds.has(d.id) ? 1 : 0.2))
-      .attr('filter', d => (contradictionMeetingIds.has(d.id) ? `url(#red-glow-${uniqueId})` : `url(#drop-shadow-${uniqueId})`))
+      .attr('filter', d =>
+        contradictionMeetingIds.has(d.id)
+          ? `url(#red-glow-${uniqueId})`
+          : `url(#drop-shadow-${uniqueId})`
+      )
       .style('cursor', 'pointer')
       .style('transition', 'r 200ms ease, stroke-opacity 200ms ease, filter 200ms ease')
       .call(
@@ -244,13 +273,18 @@ export const GraphCanvas: React.FC<GraphCanvasProps> = ({
         d3.select(this)
           .attr('r', (d.radius || 10) * 1.3)
           .attr('stroke-opacity', 0.8)
-          .attr('filter', 'drop-shadow(0 4px 8px rgba(0,0,0,0.5))')
+          .attr('filter', `url(#drop-shadow-${uniqueId})`)
       })
       .on('mouseout', function (_event, d) {
         d3.select(this)
           .attr('r', d.radius || 10)
           .attr('stroke-opacity', contradictionMeetingIds.has(d.id) ? 1 : 0.2)
-          .attr('filter', contradictionMeetingIds.has(d.id) ? `url(#red-glow-${uniqueId})` : `url(#drop-shadow-${uniqueId})`)
+          .attr(
+            'filter',
+            contradictionMeetingIds.has(d.id)
+              ? `url(#red-glow-${uniqueId})`
+              : `url(#drop-shadow-${uniqueId})`
+          )
       })
 
     // Node click
@@ -264,7 +298,7 @@ export const GraphCanvas: React.FC<GraphCanvasProps> = ({
       .selectAll('text')
       .data(d3Nodes)
       .join('text')
-      .text(d => d.label.length > 25 ? d.label.substring(0, 23) + '...' : d.label)
+      .text(d => (d.label.length > 25 ? d.label.substring(0, 23) + '...' : d.label))
       .attr('font-size', '11px')
       // Use system-ui fallback for CJK, Devanagari, Arabic glyph coverage
       .attr('font-family', 'var(--font-body), system-ui, sans-serif')
@@ -296,17 +330,19 @@ export const GraphCanvas: React.FC<GraphCanvasProps> = ({
       resizeObserver.observe(containerRef.current)
     }
 
+    const svgElement = svgRef.current
+
     return () => {
       resizeObserver.disconnect()
       simulation.stop()
       simulationRef.current = null
       // Hard cleanup of SVG group elements to prevent memory leaks in D3
-      if (svgRef.current) {
-        d3.select(svgRef.current).selectAll('g.graph-content').remove()
-        d3.select(svgRef.current).selectAll('defs').remove()
+      if (svgElement) {
+        d3.select(svgElement).selectAll('g.graph-content').remove()
+        d3.select(svgElement).selectAll('defs').remove()
       }
     }
-  }, [nodes, edges, contradictions, onNodeClick])
+  }, [nodes, edges, contradictions, onNodeClick, uniqueId])
 
   return (
     <div ref={containerRef} style={{ width: '100%', height: '100%', position: 'relative' }}>

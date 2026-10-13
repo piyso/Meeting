@@ -20,8 +20,6 @@ const features: PricingFeature[] = [
   { name: 'Connected Devices', free: '1 Device', starter: '2 Devices', pro: 'Unlimited' },
   { name: 'Processing Engine', free: 'Local Only', starter: 'Cloud Sync', pro: 'Cloud Sync' },
   { name: 'AI Intelligence', free: false, starter: '50 Queries/mo', pro: 'Unlimited' },
-  { name: 'Transcription Quality', free: 'Basic', starter: 'Enhanced', pro: 'Pro Limitless' },
-  { name: 'Speaker Diarization', free: false, starter: false, pro: true },
   { name: 'Weekly AI Digests', free: false, starter: false, pro: true },
   { name: 'Knowledge Graph', free: 'Read-only', starter: 'Read-only', pro: 'Interactive' },
   { name: 'Priority Support', free: false, starter: false, pro: true },
@@ -373,8 +371,7 @@ export const PricingView: React.FC = () => {
               </p>
             )}
             <p className="ui-pricing-desc">
-              Zero limits. Full speaker diarization. High-capacity cloud models. The ultimate
-              cognition engine.
+              Zero limits. Unlimited devices and AI queries. The ultimate cognition engine.
             </p>
 
             <div className="ui-pricing-cta-wrap">

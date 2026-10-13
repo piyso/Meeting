@@ -5,12 +5,39 @@
 
 /* global Razorpay */
 
-// Resolve the API base URL:
-// 1. From ?api_base= query param (passed by the Electron app)
-// 2. Fallback to Supabase Edge Functions URL (set at deploy time)
+// Supabase Edge Functions URL — set at deploy time.
+const DEFAULT_API_BASE_URL = 'https://YOUR_PROJECT.supabase.co/functions/v1'
+
+/**
+ * The Electron app may pass ?api_base=. That value decides where the user's
+ * session token is sent and whose payment order is opened, so it is only
+ * honoured for Supabase Edge Function origins (and localhost during
+ * development) — never for an arbitrary host from a crafted link.
+ */
+function isTrustedApiBase(value) {
+  try {
+    const url = new URL(value)
+    const isLocalDev =
+      (url.hostname === 'localhost' || url.hostname === '127.0.0.1') &&
+      (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
+    if (isLocalDev) return true
+    return (
+      url.protocol === 'https:' &&
+      /^[a-z0-9]+\.supabase\.co$/.test(url.hostname) &&
+      url.pathname.replace(/\/$/, '') === '/functions/v1'
+    )
+  } catch {
+    return false
+  }
+}
+
 const API_BASE_URL = (() => {
-  const params = new URLSearchParams(window.location.search)
-  return params.get('api_base') || 'https://YOUR_PROJECT.supabase.co/functions/v1'
+  const requested = new URLSearchParams(window.location.search).get('api_base')
+  const defaultHost = new URL(DEFAULT_API_BASE_URL).hostname
+  // Once a real project URL is deployed, pin to it and ignore the parameter.
+  if (!defaultHost.startsWith('YOUR_PROJECT')) return DEFAULT_API_BASE_URL
+  if (requested && isTrustedApiBase(requested)) return requested.replace(/\/$/, '')
+  return DEFAULT_API_BASE_URL
 })()
 let CURRENT_CURRENCY = 'USD' // Default fallback
 let BILLING_INTERVAL = 'monthly' // monthly | yearly
@@ -40,9 +67,16 @@ document.addEventListener('DOMContentLoaded', () => {
 // --- URL & Context ---
 function parseUrlParams() {
   const params = new URLSearchParams(window.location.search)
-  const token = params.get('token')
-  const email = params.get('email')
+  // The session token arrives in the URL fragment (never sent to the server,
+  // never in access logs or Referer headers). Read it, then scrub it from the
+  // address bar and history entry.
+  const fragment = new URLSearchParams(window.location.hash.replace(/^#/, ''))
+  const token = fragment.get('token')
+  const email = fragment.get('email') || params.get('email')
   const tier = params.get('current_tier')
+  if (window.location.hash) {
+    history.replaceState(null, '', window.location.pathname + window.location.search)
+  }
 
   if (token && email) {
     USER_CONTEXT = { token, email, tier: tier || 'free' }
@@ -265,7 +299,7 @@ window.initiateCheckout = async function initiateCheckout(tierId) {
     const data = await response.json()
 
     if (!response.ok) {
-      throw new Error(data.message || 'Failed to initialize checkout')
+      throw new Error(data.error || data.message || 'Failed to initialize checkout')
     }
 
     hideOverlay()
@@ -291,13 +325,10 @@ function launchRazorpay(orderData) {
     name: 'BlueArkive',
     description: `BlueArkive ${orderData.tierName} Plan`,
     order_id: orderData.orderId,
-    handler: async function (_response) {
-      showOverlay()
-      document.querySelector('.overlay-text').innerText = 'Verifying payment...'
-      // Backend will handle verification via webhooks, but we can do a quick check
-      setTimeout(() => {
-        showSuccess()
-      }, 2000)
+    handler: function (_response) {
+      // The tier is granted by the signed order.paid webhook, not by this
+      // page — so say what is actually true: payment received, unlock pending.
+      showSuccess()
     },
     prefill: {
       email: USER_CONTEXT.email,
@@ -349,7 +380,7 @@ function showSuccess() {
                 <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#8b5cf6" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
             </div>
             <h1 class="hero-title" style="margin-bottom: 1rem;">Sanctuary Secured.</h1>
-            <p class="hero-subtitle">Your payment was successful. Return to the BlueArkive app — your new premium features will unlock in just a moment.</p>
+            <p class="hero-subtitle">Payment received. Return to the BlueArkive app — your plan updates as soon as the payment is confirmed, usually within a minute. If it has not changed after a few minutes, contact support with your receipt.</p>
         </div>
     `
   hideOverlay()

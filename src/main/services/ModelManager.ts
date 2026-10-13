@@ -15,6 +15,7 @@ import { app } from 'electron'
 import path from 'path'
 import fs from 'fs'
 import os from 'os'
+import { execFileSync } from 'child_process'
 import { Logger } from './Logger'
 
 export interface HardwareTier {
@@ -49,6 +50,34 @@ let _model: any = null
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 let _context: any = null
 
+/**
+ * Memory that can actually be handed to a new allocation, in MB.
+ *
+ * os.freemem() on macOS counts only completely unused pages. macOS keeps
+ * almost all RAM in use as file cache and reclaims it on demand, so a 16GB
+ * Mac routinely reports a few hundred MB "free" and the pre-flight guard
+ * refused to load the model on machines with plenty of room. Count the
+ * reclaimable page classes as well.
+ */
+function getAvailableMemoryMB(): number {
+  const freeMB = Math.round(os.freemem() / 1024 ** 2)
+  if (process.platform !== 'darwin') return freeMB
+  try {
+    const out = execFileSync('/usr/bin/vm_stat', { encoding: 'utf8', timeout: 2000 })
+    const pageSize = Number(/page size of (\d+) bytes/.exec(out)?.[1]) || 16384
+    const pages = (label: string): number =>
+      Number(new RegExp(`${label}:\\s+(\\d+)`).exec(out)?.[1]) || 0
+    const reclaimable =
+      pages('Pages free') +
+      pages('Pages inactive') +
+      pages('Pages speculative') +
+      pages('Pages purgeable')
+    return Math.max(freeMB, Math.round((reclaimable * pageSize) / 1024 ** 2))
+  } catch {
+    return freeMB
+  }
+}
+
 export class ModelManager {
   private llmLoaded = false
   private unloadTimer: ReturnType<typeof setTimeout> | null = null
@@ -68,16 +97,8 @@ export class ModelManager {
   // This queue ensures only one inference runs at a time.
   private generateQueue: Promise<string> = Promise.resolve('')
 
-  // Session pool — reuse sessions per use-case to avoid create/dispose overhead
-  // P2-3 FIX: Cap pool size to prevent unbounded GPU memory accumulation
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  private sessionPool: Map<string, { session: any; lastUsed: number }> = new Map()
-  private readonly SESSION_IDLE_MS = 60_000 // Dispose idle sessions after 60s
-  private readonly MAX_SESSIONS = 5 // P2-3: Prevent unbounded GPU memory growth
-
-  // P1-10 FIX: Single cleanup timer — prevents O(n²) timer stacking when
-  // multiple sessions are created in quick succession.
-  private cleanupTimerId: ReturnType<typeof setTimeout> | null = null
+  /** Generations currently running — the idle unloader must not fire under them. */
+  private activeGenerations = 0
 
   /** Idle timeout varies by tier: 8GB=30s (aggressive), 12GB=60s, 16GB+=120s (warm) */
   private getIdleTimeout(): number {
@@ -94,8 +115,7 @@ export class ModelManager {
 
   /** Minimum free RAM (MB) required to load a model — model size + 500MB buffer */
   private getMinFreeRAM(): number {
-    const tier = this.detectHardwareTier()
-    const modelSizeMB = tier.tier === 'low' ? 1100 : 2200 // Qwen 1.5B vs 3B
+    const modelSizeMB = 1100 // Qwen 2.5 1.5B (Q4_K_M) on every tier
     return modelSizeMB + 500 // buffer for GPU context + inference overhead
   }
 
@@ -112,14 +132,14 @@ export class ModelManager {
       this.cachedTier = {
         ram: totalRAM,
         tier: 'high',
-        llmModel: 'qwen2.5-3b-instruct-q4_k_m.gguf',
+        llmModel: 'qwen2.5-1.5b-instruct-q4_k_m.gguf',
         asrModel: 'asr-primary',
       }
     } else if (totalRAM >= 12) {
       this.cachedTier = {
         ram: totalRAM,
         tier: 'mid',
-        llmModel: 'qwen2.5-3b-instruct-q4_k_m.gguf',
+        llmModel: 'qwen2.5-1.5b-instruct-q4_k_m.gguf',
         asrModel: 'asr-fallback',
       }
     } else {
@@ -202,13 +222,19 @@ export class ModelManager {
       const modelPath = this.getModelPath()
 
       if (!fs.existsSync(modelPath)) {
+        // The model is normally fetched during onboarding. It can be missing
+        // afterwards — the download was skipped or failed, or an update
+        // changed which model the app uses. The old message promised a
+        // download "on next app launch" that nothing performed; start it now
+        // (resumable, and a second request joins the one in progress).
+        this.startModelDownload()
         throw new Error(
-          `AI model not found at ${modelPath}. It will be downloaded on next app launch.`
+          'The AI model is being downloaded (about 1.1 GB). AI features will work as soon as it finishes — try again in a few minutes.'
         )
       }
 
       // Pre-flight memory guard: refuse to load if not enough free RAM
-      const freeRAMMB = Math.round(os.freemem() / 1024 ** 2)
+      const freeRAMMB = getAvailableMemoryMB()
       const requiredMB = this.getMinFreeRAM()
       if (freeRAMMB < requiredMB) {
         throw new Error(
@@ -281,51 +307,37 @@ export class ModelManager {
    */
   private async _doGenerate(options: GenerateOptions, sessionKey?: string): Promise<string> {
     await this.ensureLLMLoaded()
-    this.resetUnloadTimer()
 
     if (!_context || !_model) {
       throw new Error('AI engine not loaded')
     }
 
+    // Hold the idle unloader off for as long as this generation runs. The
+    // timer used to be armed once at the start, so a generation longer than
+    // the idle timeout (30s on low-RAM machines) had its model disposed
+    // underneath it.
+    this.activeGenerations++
+    if (this.unloadTimer) {
+      clearTimeout(this.unloadTimer)
+      this.unloadTimer = null
+    }
+
+    // One session per request, disposed afterwards together with its context
+    // sequence:
+    //  - A LlamaChatSession keeps its conversation. Reusing one per feature
+    //    fed every earlier prompt and answer back into unrelated requests and
+    //    slowly filled the context window.
+    //  - The context has a single sequence and a session does not release it
+    //    on dispose() unless asked to, so a second pooled session failed with
+    //    "No sequences left" until the model was unloaded.
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    let session: any = null
     try {
       const llamaModule = await import('node-llama-cpp')
-      const poolKey = sessionKey || '_default'
-
-      // Get or create session from pool
-      let session: InstanceType<typeof llamaModule.LlamaChatSession>
-      const cached = this.sessionPool.get(poolKey)
-      if (cached) {
-        session = cached.session
-        cached.lastUsed = Date.now()
-      } else {
-        // P2-3 FIX: Evict LRU session if pool is at capacity
-        if (this.sessionPool.size >= this.MAX_SESSIONS) {
-          let oldestKey = ''
-          let oldestTime = Infinity
-          for (const [k, v] of this.sessionPool) {
-            if (v.lastUsed < oldestTime) {
-              oldestTime = v.lastUsed
-              oldestKey = k
-            }
-          }
-          if (oldestKey) {
-            try {
-              this.sessionPool.get(oldestKey)?.session?.dispose?.()
-            } catch {
-              /* ignore dispose errors */
-            }
-            this.sessionPool.delete(oldestKey)
-          }
-        }
-
-        session = new llamaModule.LlamaChatSession({
-          contextSequence: _context.getSequence(),
-        })
-        this.sessionPool.set(poolKey, { session, lastUsed: Date.now() })
-
-        // Schedule idle session cleanup
-        this.scheduleSessionCleanup()
-      }
+      session = new llamaModule.LlamaChatSession({
+        contextSequence: _context.getSequence(),
+        autoDisposeSequence: true,
+      })
 
       let fullResponse = ''
 
@@ -335,83 +347,54 @@ export class ModelManager {
         topP: options.topP ?? 0.9,
         topK: options.topK ?? 40,
         customStopTriggers: options.stop,
+        signal: options.signal,
+        stopOnAbortSignal: true,
         onTextChunk: (text: string) => {
-          // P1-2 FIX: Check abort signal on every token to stop inference
-          // mid-stream when user cancels. Without this, cancelled requests
-          // continue burning GPU cycles until maxTokens is exhausted.
-          if (options.signal?.aborted) {
-            const abortErr = new Error('Generation aborted')
-            abortErr.name = 'AbortError'
-            throw abortErr
-          }
           fullResponse += text
           options.onToken?.(fullResponse)
         },
       })
 
+      if (options.signal?.aborted) {
+        const abortErr = new Error('Generation aborted')
+        abortErr.name = 'AbortError'
+        throw abortErr
+      }
+
       return (response ?? fullResponse).trim()
     } catch (error) {
-      // Session is broken — remove from pool so next call creates fresh one
-      const poolKey = sessionKey || '_default'
-      const cached = this.sessionPool.get(poolKey)
-      if (cached) {
-        try {
-          cached.session.dispose()
-        } catch {
-          /* ignore */
-        }
-        this.sessionPool.delete(poolKey)
+      if ((error as Error)?.name !== 'AbortError') {
+        this.log.error(`AI generation failed (${sessionKey || 'default'})`, error)
       }
-      this.log.error('AI generation failed', error)
       throw error
-    }
-  }
-
-  /**
-   * Clean up idle sessions from the pool.
-   * P1-10 FIX: Uses a single tracked timer. Previously, every new session
-   * spawned an independent setTimeout → O(n²) callbacks over time.
-   */
-  private scheduleSessionCleanup(): void {
-    // Already have a cleanup timer pending — don't stack another
-    if (this.cleanupTimerId) return
-
-    // M-4 AUDIT: .unref() prevents this timer from blocking clean process exit
-    this.cleanupTimerId = setTimeout(() => {
-      this.cleanupTimerId = null
-      const now = Date.now()
-      for (const [key, entry] of this.sessionPool) {
-        if (now - entry.lastUsed > this.SESSION_IDLE_MS) {
-          try {
-            entry.session.dispose()
-          } catch {
-            /* ignore */
-          }
-          this.sessionPool.delete(key)
-          this.log.debug(`Session pool: disposed idle session '${key}'`)
-        }
-      }
-      // Reschedule if pool not empty
-      if (this.sessionPool.size > 0) {
-        this.scheduleSessionCleanup()
-      }
-    }, this.SESSION_IDLE_MS)
-    this.cleanupTimerId.unref()
-  }
-
-  /**
-   * Dispose all pooled sessions (called during model unload)
-   */
-  private disposeAllSessions(): void {
-    for (const [key, entry] of this.sessionPool) {
+    } finally {
       try {
-        entry.session.dispose()
+        session?.dispose()
       } catch {
-        /* ignore */
+        /* ignore dispose errors */
       }
-      this.log.debug(`Session pool: disposed session '${key}' on unload`)
+      this.activeGenerations--
+      this.resetUnloadTimer()
     }
-    this.sessionPool.clear()
+  }
+
+  private modelDownload: Promise<void> | null = null
+
+  /** Fetch the language model in the background (one download at a time). */
+  private startModelDownload(): void {
+    if (this.modelDownload) return
+    this.modelDownload = (async () => {
+      try {
+        const { getModelDownloadService } = await import('./ModelDownloadService')
+        const service = getModelDownloadService()
+        await service.downloadLLMForTier(service.detectHardwareTier())
+        this.log.info('AI model downloaded')
+      } catch (err) {
+        this.log.warn('AI model download failed — it resumes on the next AI request', err)
+      } finally {
+        this.modelDownload = null
+      }
+    })()
   }
 
   /**
@@ -433,7 +416,10 @@ export class ModelManager {
    */
   private resetUnloadTimer(): void {
     if (this.unloadTimer) clearTimeout(this.unloadTimer)
-    this.unloadTimer = setTimeout(() => this.unloadLLM(), this.getIdleTimeout())
+    this.unloadTimer = setTimeout(() => {
+      this.unloadLLM().catch(err => this.log.debug('Idle unload failed', err))
+    }, this.getIdleTimeout())
+    if (this.unloadTimer.unref) this.unloadTimer.unref()
   }
 
   /**
@@ -442,15 +428,17 @@ export class ModelManager {
   private async unloadLLM(): Promise<void> {
     if (!this.llmLoaded) return
     if (this.isLoading) return // Don't unload while a load is in progress
+    if (this.activeGenerations > 0) {
+      // Still generating — try again after the next idle period.
+      this.resetUnloadTimer()
+      return
+    }
 
     this.isUnloading = true
     this.unloadPromise = new Promise<void>(resolve => {
       this.unloadResolve = resolve
     })
     try {
-      // Dispose all pooled sessions before unloading model
-      this.disposeAllSessions()
-
       if (_context) {
         await _context.dispose()
         _context = null
@@ -473,11 +461,6 @@ export class ModelManager {
       _context = null
       _model = null
       this.isUnloading = false
-      // P1-10 FIX: Clear session cleanup timer on unload
-      if (this.cleanupTimerId) {
-        clearTimeout(this.cleanupTimerId)
-        this.cleanupTimerId = null
-      }
       if (this.unloadResolve) {
         this.unloadResolve()
         this.unloadResolve = null

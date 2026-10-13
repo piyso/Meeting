@@ -7,7 +7,9 @@
  * Key features:
  * - Runs on dedicated audio thread (prevents glitches)
  * - Processes audio in 128-sample frames
- * - Forwards audio chunks to main thread for VAD processing
+ * - Forwards half-second audio chunks to the main thread
+ * - Hands over the partial chunk on request ('flush'), so stopping or pausing
+ *   does not lose the tail of the recording
  * - Implements zero-allocation Float32Array buffering to minimize GC churn
  */
 
@@ -17,9 +19,10 @@ class AudioCaptureProcessor extends AudioWorkletProcessor {
   constructor() {
     super()
 
-    // Target buffer size for 10-second chunks at 16kHz
-    // 16000 samples/sec * 10 sec = 160,000 samples
-    this.targetBufferSize = 16000 * 10
+    // Half-second chunks at the context's real rate. This used to be ten
+    // seconds: a recording shorter than that produced no audio at all, and
+    // every stop discarded whatever was still buffered (up to ten seconds).
+    this.targetBufferSize = Math.max(128, Math.round(sampleRate * 0.5))
 
     // Pre-allocated Float32Array buffer to avoid GC churn
     this.buffer = new Float32Array(this.targetBufferSize)
@@ -30,10 +33,28 @@ class AudioCaptureProcessor extends AudioWorkletProcessor {
 
     // Listen for messages from main thread
     this.port.onmessage = event => {
-      if (event.data.type === 'reset') {
+      const type = event.data && event.data.type
+      if (type === 'reset') {
         this.bufferIndex = 0
+      } else if (type === 'flush') {
+        // Hand over what is buffered, then acknowledge, so the caller can tear
+        // the graph down knowing the audio has been delivered.
+        this.postBuffered()
+        this.port.postMessage({ type: 'flushed', id: event.data.id })
       }
     }
+  }
+
+  /** Send the buffered samples (a copy — the buffer is reused) and start over. */
+  postBuffered() {
+    if (this.bufferIndex === 0) return
+    this.port.postMessage({
+      type: 'audioChunk',
+      data: this.buffer.slice(0, this.bufferIndex),
+      timestamp: currentTime,
+      sampleRate: sampleRate,
+    })
+    this.bufferIndex = 0
   }
 
   /**
@@ -51,7 +72,7 @@ class AudioCaptureProcessor extends AudioWorkletProcessor {
       this.port.postMessage({
         type: 'sampleRateInfo',
         sampleRate: sampleRate,
-        message: `AudioWorklet processor running at ${sampleRate}Hz (expected 16000Hz for Whisper)`,
+        message: `AudioWorklet processor running at ${sampleRate}Hz (expected 16000Hz for speech recognition)`,
       })
       this.hasLoggedSampleRate = true
     }
@@ -76,19 +97,7 @@ class AudioCaptureProcessor extends AudioWorkletProcessor {
 
       // Check if we've accumulated enough samples for a chunk
       if (this.bufferIndex >= this.targetBufferSize) {
-        // Extract chunk. We MUST copy it because this.buffer is reused.
-        const chunk = new Float32Array(this.buffer)
-
-        // Send chunk to main thread
-        this.port.postMessage({
-          type: 'audioChunk',
-          data: chunk,
-          timestamp: currentTime,
-          sampleRate: sampleRate,
-        })
-
-        // Reset buffer index for next chunk
-        this.bufferIndex = 0
+        this.postBuffered()
       }
     }
 
@@ -98,4 +107,3 @@ class AudioCaptureProcessor extends AudioWorkletProcessor {
 
 // Register the processor
 registerProcessor('audio-capture-processor', AudioCaptureProcessor)
-

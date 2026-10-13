@@ -110,7 +110,9 @@ export class SemanticFileSystemService {
       // Guard: reject files larger than 50MB to avoid blocking the event loop
       const stats = fs.statSync(filePath)
       if (stats.size > 50 * 1024 * 1024) {
-        log.warn(`File too large for ingestion: ${filePath} (${(stats.size / 1024 / 1024).toFixed(1)}MB)`)
+        log.warn(
+          `File too large for ingestion: ${filePath} (${(stats.size / 1024 / 1024).toFixed(1)}MB)`
+        )
         return null
       }
       const content = fs.readFileSync(filePath, 'utf-8')

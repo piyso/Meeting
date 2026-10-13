@@ -453,7 +453,7 @@ body {
   display: inline-block;
 }
 .slide-up,
-.animate-slide-up {
+.animate-slide-up-spring {
   animation: slide-up 400ms var(--ease-spring) both;
 }
 

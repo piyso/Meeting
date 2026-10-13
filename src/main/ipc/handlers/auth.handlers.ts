@@ -7,12 +7,13 @@
  *  - auth:logout — Clear session
  *  - auth:getCurrentUser — Get stored user info
  *  - auth:isAuthenticated — Check auth status
- *  - auth:generateRecoveryKey — Generate a 24-word BIP39-style recovery phrase
+ *  - auth:generateRecoveryKey — The account's 24-word recovery phrase (onboarding)
+ *  - auth:revealRecoveryKey — The same phrase, after the owner has been confirmed (Settings)
  *  - auth:googleAuth — Start Google OAuth flow
  *  - auth:refreshToken — Manually refresh token
  */
 
-import { ipcMain } from 'electron'
+import { BrowserWindow, ipcMain } from 'electron'
 import { Logger } from '../../services/Logger'
 
 const log = Logger.create('AuthHandlers')
@@ -180,31 +181,42 @@ export function registerAuthHandlers(): void {
   // auth:generateRecoveryKey — Generate a 24-word recovery phrase
   ipcMain.handle('auth:generateRecoveryKey', async () => {
     try {
-      // Offline-first support: Allow generating a recovery key even if not authenticated.
-      // The key will be used to encrypt local SQLite data.
-      const { RecoveryPhraseService } = await import('../../services/RecoveryPhraseService')
-      const { words: phrase } = RecoveryPhraseService.generateRecoveryPhrase()
-
-      // Store in keychain for this session
-      try {
-        const { KeyStorageService } = await import('../../services/KeyStorageService')
-        const userId = await KeyStorageService.getCurrentUserId()
-        if (userId) {
-          await KeyStorageService.storeRecoveryPhrase(userId, phrase.join(' '))
-        }
-      } catch (err) {
-        log.debug('Recovery phrase keychain store skipped', err)
-      }
+      // The phrase for this account on this device — the same one each time
+      // it is asked for — registered as a way to recover the sync data key.
+      const { getAuthService } = await import('../../services/AuthService')
+      const phrase = await getAuthService().getOrCreateRecoveryPhrase()
 
       return {
         success: true,
         data: { phrase },
       }
     } catch (error) {
+      log.error('auth:generateRecoveryKey failed:', error)
       return {
         success: false,
         error: {
           code: 'AUTH_RECOVERY_KEY_FAILED',
+          message: (error as Error).message,
+          timestamp: Date.now(),
+        },
+      }
+    }
+  })
+
+  // auth:revealRecoveryKey — show the recovery phrase to the account's owner
+  ipcMain.handle('auth:revealRecoveryKey', async (_, params) => {
+    const { getAuthService, AuthCheckError } = await import('../../services/AuthService')
+    try {
+      const password = typeof params?.password === 'string' ? params.password : undefined
+      const phrase = await getAuthService().revealRecoveryPhrase(password || undefined)
+      return { success: true, data: { phrase } }
+    } catch (error) {
+      const expected = error instanceof AuthCheckError
+      if (!expected) log.error('auth:revealRecoveryKey failed:', error)
+      return {
+        success: false,
+        error: {
+          code: expected ? error.code : 'AUTH_RECOVERY_KEY_FAILED',
           message: (error as Error).message,
           timestamp: Date.now(),
         },
@@ -264,6 +276,40 @@ export function registerAuthHandlers(): void {
         success: false,
         error: {
           code: 'LICENSE_ACTIVATION_FAILED',
+          message: (error as Error).message,
+          timestamp: Date.now(),
+        },
+      }
+    }
+  })
+
+  // auth:updatePassword — Set a new password after following a reset link
+  ipcMain.handle('auth:updatePassword', async (_, params: unknown) => {
+    try {
+      const { password } = (params || {}) as { password?: string }
+      if (!password || typeof password !== 'string') {
+        return {
+          success: false,
+          error: {
+            code: 'INVALID_INPUT',
+            message: 'Password is required',
+            timestamp: Date.now(),
+          },
+        }
+      }
+
+      const { getAuthService } = await import('../../services/AuthService')
+      const user = await getAuthService().updatePassword(password)
+      // Let the onboarding flow continue exactly as it does after a sign-in.
+      for (const win of BrowserWindow.getAllWindows()) {
+        if (!win.isDestroyed()) win.webContents.send('auth:oauthSuccess', { user })
+      }
+      return { success: true, data: user }
+    } catch (error) {
+      return {
+        success: false,
+        error: {
+          code: 'AUTH_UPDATE_PASSWORD_FAILED',
           message: (error as Error).message,
           timestamp: Date.now(),
         },

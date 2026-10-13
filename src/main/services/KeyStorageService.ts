@@ -6,84 +6,27 @@
  * - macOS: Keychain
  * - Linux: Secret Service API (libsecret)
  *
- * Uses keytar library for cross-platform keychain access (lazy-loaded).
- * Falls back to in-memory storage if keytar is unavailable (dev/arch mismatch).
+ * Uses keytar library for cross-platform keychain access (lazy-loaded through
+ * keytarSafe, which falls back to in-memory storage if keytar cannot be loaded).
  */
 
 import { Logger } from './Logger'
 const log = Logger.create('KeyStorage')
 
-// In-memory fallback when keytar native module is unavailable
-const memoryStore = new Map<string, Map<string, string>>()
+import { keytarSafe, clearMemoryKeychain } from './keytarSafe'
 
-const memoryFallback = {
-  async setPassword(service: string, account: string, password: string) {
-    if (!memoryStore.has(service)) memoryStore.set(service, new Map())
-    memoryStore.get(service)?.set(account, password)
-  },
-  async getPassword(service: string, account: string) {
-    return memoryStore.get(service)?.get(account) ?? null
-  },
-  async deletePassword(service: string, account: string) {
-    return memoryStore.get(service)?.delete(account) ?? false
-  },
-  async findCredentials(service: string) {
-    const entries = memoryStore.get(service)
-    if (!entries) return []
-    return Array.from(entries.entries()).map(([account, password]) => ({ account, password }))
-  },
-}
+type Keytar = typeof import('keytar')
 
-let _keytar: typeof memoryFallback | null = null
-
-/** Timeout for keytar initial load (ms). macOS Keychain dialog can block. */
-const KEYTAR_LOAD_TIMEOUT_MS = 5_000
-
-async function getKeytar(): Promise<typeof memoryFallback> {
-  if (_keytar) return _keytar
-  try {
-    const mod = await new Promise<typeof import('keytar')>((resolve, reject) => {
-      let settled = false
-
-      const timer = setTimeout(() => {
-        if (!settled) {
-          settled = true
-          reject(new Error('Keytar load timed out'))
-        }
-      }, KEYTAR_LOAD_TIMEOUT_MS)
-
-      import('keytar')
-        .then(m => {
-          if (!settled) {
-            settled = true
-            clearTimeout(timer)
-            resolve(m)
-          }
-        })
-        .catch(e => {
-          if (!settled) {
-            settled = true
-            clearTimeout(timer)
-            reject(e)
-          }
-        })
-    })
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    _keytar = (mod as any).default || mod
-    return _keytar as typeof memoryFallback
-  } catch (err) {
-    // keytar native module not available or timed out — use in-memory fallback
-    const isProduction = process.env.NODE_ENV === 'production' || !process.env.VITE_DEV_SERVER_URL
-    if (isProduction) {
-      const reason = err instanceof Error ? err.message : String(err)
-      log.error(
-        `WARNING: keytar unavailable (${reason}) — falling back to INSECURE in-memory storage. ` +
-          'Encryption keys will be lost on restart and are vulnerable to memory dumps.'
-      )
-    }
-    _keytar = memoryFallback
-    return _keytar
-  }
+/**
+ * The keychain module, shared with AuthService through keytarSafe(). When the
+ * native module cannot be loaded, keytarSafe() supplies an in-memory stand-in
+ * (and logs why), so both services keep working — and keep agreeing — for the
+ * session.
+ */
+async function getKeytar(): Promise<Keytar> {
+  const keytar = await keytarSafe()
+  if (!keytar) throw new Error('Keychain unavailable')
+  return keytar
 }
 
 /**
@@ -102,6 +45,8 @@ export enum KeyType {
   PLAN_TIER = 'plan-tier',
   USER_ID = 'user-id',
   BILLING_STATUS = 'billing-status',
+  /** Derived sync-encryption key + salt (JSON), so sync resumes after a restart. */
+  SYNC_KEY = 'sync-key',
 }
 
 /**
@@ -282,6 +227,7 @@ export class KeyStorageService {
       this.deleteKey(KeyType.RECOVERY_PHRASE, userId),
       this.deleteKey(KeyType.PLAN_TIER, userId),
       this.deleteKey(KeyType.BILLING_STATUS, userId),
+      this.deleteKey(KeyType.SYNC_KEY, userId),
     ])
     // I14 fix: Clear current user ID to prevent phantom auth state
     // Without this, getCurrentUserId() still returns the deleted user's ID
@@ -392,5 +338,30 @@ export class KeyStorageService {
    */
   public static async getBillingStatus(userId: string): Promise<string | null> {
     return await this.getKey(KeyType.BILLING_STATUS, userId)
+  }
+
+  /**
+   * Explicitly zero out in-memory sensitive buffer to protect against cold-boot heap recovery
+   */
+  public static zeroBuffer(buf: Buffer | Uint8Array): void {
+    if (buf && typeof buf.fill === 'function') {
+      buf.fill(0)
+    }
+  }
+
+  /**
+   * Zero all sensitive in-memory fallback stores on lock/exit
+   */
+  public static zeroSensitiveMemory(): void {
+    log.info('Zeroing all in-memory cryptographic key stores')
+    clearMemoryKeychain()
+  }
+
+  /**
+   * Crypto-Shredding: Irrevocably destroy sub-key for a specific meeting/session
+   */
+  public static async cryptoShredMeetingKey(meetingId: string): Promise<boolean> {
+    log.info(`Crypto-shredding encryption sub-key for meeting: ${meetingId}`)
+    return await this.deleteKey(KeyType.ENCRYPTION_KEY, `meeting_${meetingId}`)
   }
 }

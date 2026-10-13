@@ -17,6 +17,8 @@ interface OnboardingAuthPanelProps {
   setAuthError: (err: string | null) => void
   authLoading: boolean
   handleAuth: () => void
+  /** Use the app on this device only, with no account */
+  onContinueLocal: () => void
 }
 
 export const OnboardingAuthPanel: React.FC<OnboardingAuthPanelProps> = ({
@@ -30,9 +32,10 @@ export const OnboardingAuthPanel: React.FC<OnboardingAuthPanelProps> = ({
   setAuthError,
   authLoading,
   handleAuth,
+  onContinueLocal,
 }) => {
   return (
-    <div className="w-full max-w-[420px] flex flex-col relative z-10">
+    <div className="w-full max-w-[400px] mx-auto flex flex-col relative z-10 px-2 sm:px-0">
       <div className="flex flex-col mb-10 lg:hidden items-center ">
         <div className="mb-6 -mt-8">
           <Logo3DErrorBoundary>
@@ -190,28 +193,30 @@ export const OnboardingAuthPanel: React.FC<OnboardingAuthPanelProps> = ({
           {authMode === 'register' ? (
             <>
               Already have an account?&nbsp;
-              <span
+              <button
+                type="button"
                 onClick={() => {
                   setAuthMode('login')
                   setAuthError(null)
                 }}
-                className="text-white cursor-pointer hover:underline transition-colors font-medium"
+                className="text-white cursor-pointer hover:underline transition-colors font-medium bg-transparent border-none p-0"
               >
                 Authenticate
-              </span>
+              </button>
             </>
           ) : (
             <>
               Need an account?&nbsp;
-              <span
+              <button
+                type="button"
                 onClick={() => {
                   setAuthMode('register')
                   setAuthError(null)
                 }}
-                className="text-white cursor-pointer hover:underline transition-colors font-medium"
+                className="text-white cursor-pointer hover:underline transition-colors font-medium bg-transparent border-none p-0"
               >
                 Initialize Core
-              </span>
+              </button>
             </>
           )}
         </div>
@@ -243,6 +248,20 @@ export const OnboardingAuthPanel: React.FC<OnboardingAuthPanelProps> = ({
             Forgot password?
           </button>
         )}
+
+        {/* Local-first: an account is only needed for sync and cloud features */}
+        <button
+          type="button"
+          onClick={onContinueLocal}
+          disabled={authLoading}
+          className="mt-6 text-[13px] text-slate-300 hover:text-white cursor-pointer transition-colors bg-transparent border border-white/10 hover:border-white/25 rounded-xl px-4 py-2.5 font-medium tracking-wide disabled:opacity-50"
+        >
+          Continue without an account
+        </button>
+        <p className="mt-2 text-[11px] text-slate-500 text-center leading-relaxed max-w-[300px]">
+          Meetings are recorded and transcribed on this device. You can sign in later from Settings
+          to sync across devices.
+        </p>
       </div>
     </div>
   )

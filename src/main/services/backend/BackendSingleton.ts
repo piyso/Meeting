@@ -13,6 +13,7 @@
 
 import type { IBackendProvider } from './IBackendProvider'
 import { PiyAPIBackend } from './PiyAPIBackend'
+import { MockBackend } from './MockBackend'
 import { Logger } from '../Logger'
 
 const log = Logger.create('BackendSingleton')
@@ -81,16 +82,12 @@ function createBackend(type: BackendType): IBackendProvider {
   switch (type) {
     case 'piyapi':
       return new PiyAPIBackend()
-    case 'mock': {
-      // Lazy-load MockBackend to avoid bundling it in production
-      const { MockBackend } = require('./MockBackend')
+    case 'mock':
       return new MockBackend()
-    }
     case 'offline': {
       // TODO: Implement OfflineBackend for fully local operation
       log.warn('OfflineBackend not yet implemented, falling back to MockBackend')
-      const { MockBackend: MB } = require('./MockBackend')
-      return new MB()
+      return new MockBackend()
     }
     default:
       throw new Error(`Unknown backend type: ${type}`)

@@ -4,6 +4,7 @@ import { useNavigationStore } from '../../store/navigationStore'
 import { useConnectivityStore } from '../../store/connectivityStore'
 
 import React, { Suspense, lazy } from 'react'
+import { useQueryClient } from '@tanstack/react-query'
 import { motion, AnimatePresence } from 'framer-motion'
 import { WindowsTitleBar } from './WindowsTitleBar'
 
@@ -17,8 +18,9 @@ import { CommandPalette } from '../command/CommandPalette'
 import { GlobalContextBar } from '../command/GlobalContextBar'
 import { DeviceWallDialog } from '../meeting/DeviceWallDialog'
 import { IntelligenceWallDialog } from '../meeting/IntelligenceWallDialog'
-import { useAudioSession } from '../../hooks/useAudioSession'
+import { useAudioSession, stopDeviceCapture } from '../../hooks/useAudioSession'
 import { useKeyboardShortcuts } from '../../hooks/useKeyboardShortcuts'
+import { saveQuickNote } from '../../utils/quickNotes'
 
 // Determine platform globally
 const platform = window.electronAPI?.platform || 'web'
@@ -26,6 +28,80 @@ const platform = window.electronAPI?.platform || 'web'
 import { useSystemState } from '../../hooks/useSystemState'
 import { useSyncEngine } from '../../hooks/useSyncEngine'
 import { ConflictMergeDialog } from '../meeting/ConflictMergeDialog'
+
+/**
+ * Stop the active recording: release the audio device (flushing its last
+ * buffered audio), then let the main process finalise the meeting.
+ * Idempotent — the stop button's click, its hold timer and the keyboard
+ * shortcut can all land for the same recording; only the first one counts.
+ */
+async function stopActiveRecording(): Promise<void> {
+  const recStore = useRecordingStore.getState()
+  if (recStore.recordingState !== 'recording' && recStore.recordingState !== 'paused') return
+
+  // If stopping from paused state, finalize pause duration accounting
+  if (recStore.recordingState === 'paused' && recStore.recordingPausedAt) {
+    recStore.setRecordingTotalPausedMs(
+      recStore.recordingTotalPausedMs + (Date.now() - recStore.recordingPausedAt)
+    )
+    recStore.setRecordingPausedAt(null)
+  }
+  const meetingId = recStore.activeMeetingId
+  recStore.setRecordingState('processing')
+
+  let failure: string | null = null
+  try {
+    await stopDeviceCapture()
+    if (meetingId) {
+      // meeting:stop saves end_time/duration AND stops the audio pipeline
+      // internally — no separate audio:stopCapture (avoids a double-stop race)
+      const res = await window.electronAPI?.meeting?.stop?.({ meetingId })
+      if (res && !res.success) failure = res.error?.message || 'The meeting could not be saved'
+    }
+  } catch (err) {
+    failure = err instanceof Error ? err.message : 'Unexpected error'
+  }
+  if (failure) {
+    useAppStore.getState().addToast({
+      type: 'error',
+      title: 'Stop recording failed',
+      message: failure,
+      duration: 6000,
+    })
+  }
+
+  useRecordingStore.getState().setActiveMeetingId(null)
+  // Keep the "processing" state visible briefly, then return to idle — unless
+  // a new recording has already been started in the meantime.
+  setTimeout(() => {
+    if (useRecordingStore.getState().recordingState === 'processing') {
+      useRecordingStore.getState().setRecordingState('idle', 'none')
+    }
+  }, 2000)
+}
+
+/** Recording preferences from Settings (defaults: system audio, with microphone fallback) */
+async function loadCapturePreferences(): Promise<{
+  mode: 'system' | 'microphone'
+  fallbackToMicrophone: boolean
+}> {
+  const read = async (key: string): Promise<unknown> => {
+    try {
+      const res = await window.electronAPI?.settings?.get({ key })
+      return res?.success ? res.data : null
+    } catch {
+      return null
+    }
+  }
+  const [source, fallback] = await Promise.all([
+    read('preferredAudioDevice'),
+    read('audioFallbackEnabled'),
+  ])
+  return {
+    mode: source === 'microphone' ? 'microphone' : 'system',
+    fallbackToMicrophone: fallback !== false,
+  }
+}
 
 // Error fallback component for failed lazy loads
 const LazyLoadError: React.FC<{ name: string }> = ({ name }) => (
@@ -83,6 +159,7 @@ const PricingView = lazy(() =>
 export const AppLayout: React.FC = () => {
   const activeView = useNavigationStore(s => s.activeView)
   const navigate = useNavigationStore(s => s.navigate)
+  const queryClient = useQueryClient()
 
   // ── Platform CSS Injection ─────────────────────────────────
   React.useEffect(() => {
@@ -150,6 +227,8 @@ export const AppLayout: React.FC = () => {
     }
 
     const handleGlobalShortcut = async () => {
+      // Only one recording at a time (the shortcut also fires while recording)
+      if (useRecordingStore.getState().recordingState !== 'idle') return
       // Trigger recording just like in MeetingListView.tsx handleQuickStart
       setRecordingState('starting')
       try {
@@ -162,6 +241,7 @@ export const AppLayout: React.FC = () => {
           useAppStore.getState().addToast({
             type: 'error',
             title: 'Failed to start meeting',
+            message: res?.error?.message,
             duration: 5000,
           })
           setRecordingState('idle')
@@ -179,33 +259,10 @@ export const AppLayout: React.FC = () => {
 
     // toggle-recording: start if idle, stop if recording
     const handleToggleRecording = async () => {
-      const recStore = useRecordingStore.getState()
-      if (recStore.recordingState === 'recording' || recStore.recordingState === 'paused') {
-        // Finalize pause accounting before stopping (mirrors handleStopRecording)
-        if (recStore.recordingState === 'paused' && recStore.recordingPausedAt) {
-          recStore.setRecordingTotalPausedMs(
-            recStore.recordingTotalPausedMs + (Date.now() - recStore.recordingPausedAt)
-          )
-          recStore.setRecordingPausedAt(null)
-        }
-        setRecordingState('processing')
-        try {
-          if (recStore.activeMeetingId) {
-            // meeting:stop saves end_time/duration AND stops audio internally (L159-164
-            // of meeting.handlers.ts) — no need to call audio:stopCapture separately
-            await window.electronAPI?.meeting?.stop?.({ meetingId: recStore.activeMeetingId })
-          }
-        } catch {
-          useAppStore.getState().addToast({
-            type: 'error',
-            title: 'Stop recording failed',
-            message: 'Recording may need manual cleanup',
-            duration: 5000,
-          })
-        }
-        useRecordingStore.getState().setActiveMeetingId(null)
-        setTimeout(() => setRecordingState('idle'), 2000)
-      } else if (recStore.recordingState === 'idle') {
+      const state = useRecordingStore.getState().recordingState
+      if (state === 'recording' || state === 'paused') {
+        await stopActiveRecording()
+      } else if (state === 'idle') {
         handleGlobalShortcut()
       }
     }
@@ -217,12 +274,27 @@ export const AppLayout: React.FC = () => {
       const mid = navStore.selectedMeetingId || recStore.activeMeetingId
       if (!mid) return
       try {
-        await window.electronAPI?.meeting?.export?.({ meetingId: mid, format: 'markdown' })
-        useAppStore
-          .getState()
-          .addToast({ type: 'success', title: '📄 Exported as Markdown', duration: 2000 })
-      } catch {
-        useAppStore.getState().addToast({ type: 'error', title: 'Export failed', duration: 3000 })
+        const res = await window.electronAPI?.meeting?.export?.({
+          meetingId: mid,
+          format: 'markdown',
+        })
+        if (!res?.success) throw new Error(res?.error?.message || 'Export failed')
+        // No path = the save dialog was cancelled; nothing was written.
+        if (!res.data?.filePath) return
+        useAppStore.getState().addToast({
+          type: 'success',
+          title: 'Exported as Markdown',
+          message: `Saved as ${res.data.filePath.split(/[\\/]/).pop() ?? res.data.filename}`,
+          duration: 3000,
+        })
+        window.electronAPI?.shell?.showItemInFolder?.(res.data.filePath)
+      } catch (err) {
+        useAppStore.getState().addToast({
+          type: 'error',
+          title: 'Export failed',
+          message: err instanceof Error ? err.message : undefined,
+          duration: 4000,
+        })
       }
     }
 
@@ -285,17 +357,19 @@ export const AppLayout: React.FC = () => {
     )
       return
 
-    const elapsedMs = Date.now() - recStore.recordingStartTime
-    const endTimeSec = elapsedMs / 1000
+    // Position in the recording — paused time is not part of it
+    const elapsedMs = Date.now() - recStore.recordingStartTime - recStore.recordingTotalPausedMs
+    const endTimeSec = Math.max(1, elapsedMs / 1000)
     const startTimeSec = Math.max(0, endTimeSec - 30) // Last 30 seconds
 
     try {
-      await window.electronAPI?.highlight?.create({
+      const res = await window.electronAPI?.highlight?.create({
         meetingId: recStore.activeMeetingId,
         startTime: startTimeSec,
         endTime: endTimeSec,
         label: '📌 Bookmarked moment',
       })
+      if (res && !res.success) throw new Error(res.error?.message || 'Bookmark failed')
       useAppStore
         .getState()
         .addToast({ type: 'success', title: '📌 Moment bookmarked', duration: 2000 })
@@ -336,6 +410,33 @@ export const AppLayout: React.FC = () => {
       window.dispatchEvent(new CustomEvent('toggle-pause'))
     })
 
+    // A note typed into the floating widget. Nothing listened for this before,
+    // so the text was silently dropped.
+    const unsubQuickNoteIPC = window.electronAPI?.on?.quickNoteRequested?.((text: string) => {
+      const meetingId = useRecordingStore.getState().activeMeetingId
+      const failed = (message: string) =>
+        useAppStore
+          .getState()
+          .addToast({ type: 'error', title: 'Note not saved', message, duration: 5000 })
+      if (!meetingId) {
+        failed('There is no recording in progress to attach it to.')
+        return
+      }
+      if (typeof text !== 'string' || !text.trim()) return
+      saveQuickNote(meetingId, text)
+        .then(saved => {
+          if (!saved) {
+            failed('The note could not be stored. Try again from the meeting page.')
+            return
+          }
+          void queryClient.invalidateQueries({ queryKey: ['notes', meetingId] })
+          useAppStore
+            .getState()
+            .addToast({ type: 'success', title: '📝 Note added', duration: 2000 })
+        })
+        .catch(err => failed(err instanceof Error ? err.message : 'Unexpected error'))
+    })
+
     window.addEventListener('keydown', handleBookmarkShortcut)
     window.addEventListener('keydown', handlePauseShortcut)
 
@@ -345,8 +446,9 @@ export const AppLayout: React.FC = () => {
       window.removeEventListener('quick-bookmark', handleQuickBookmark)
       if (unsubBookmarkIPC) unsubBookmarkIPC()
       if (unsubPauseIPC) unsubPauseIPC()
+      if (unsubQuickNoteIPC) unsubQuickNoteIPC()
     }
-  }, [executeBookmark])
+  }, [executeBookmark, queryClient])
 
   // First-launch detection: check if onboarding is completed AND user is authenticated
   React.useEffect(() => {
@@ -363,8 +465,13 @@ export const AppLayout: React.FC = () => {
           try {
             const authResult = await window.electronAPI?.auth?.isAuthenticated?.()
             if (!authResult?.success || !authResult?.data?.authenticated) {
-              // Session expired or user logged out — require re-login
-              navigate('onboarding')
+              // People who chose to use the app without an account are never
+              // "signed out" — only an account whose session ended must sign in again.
+              const localOnly = await window.electronAPI?.settings?.get({ key: 'local_only_mode' })
+              if (!(localOnly?.success && localOnly.data === true)) {
+                // Session expired or user logged out — require re-login
+                navigate('onboarding')
+              }
             }
           } catch {
             // Auth check failed (e.g., Supabase not configured) — allow through in offline mode
@@ -393,54 +500,151 @@ export const AppLayout: React.FC = () => {
   // React to store state to trigger actual backend capture
   React.useEffect(() => {
     let active = true
-    if (recordingState === 'starting' && meetingId) {
-      startCapture('system')
-        .then(success => {
+    // Wait for the new meeting's id. `meetingId` falls back to the meeting on
+    // screen, and 'starting' is set before meeting:start has answered — so
+    // starting from the hotkey while an older meeting was open began capturing
+    // into that older meeting, and the real start then failed as "already
+    // capturing".
+    if (recordingState === 'starting' && activeMeetingIdForAudio && meetingId) {
+      const failedMeetingId = meetingId
+      const failStart = (reason?: string) => {
+        if (!active) return
+        // The meeting row was created just before capture was attempted and
+        // has nothing in it — remove it instead of leaving an empty,
+        // never-ending meeting in the list.
+        const wasJustCreated = useRecordingStore.getState().activeMeetingId === failedMeetingId
+        setRecordingState('idle', 'none')
+        useAppStore.getState().addToast({
+          type: 'error',
+          title: 'Could not start recording',
+          message: reason || 'No audio source is available.',
+          duration: 7000,
+        })
+        if (wasJustCreated) {
+          void (async () => {
+            try {
+              // Safety net: never remove a meeting the pipeline is in fact recording
+              const status = await window.electronAPI?.audio?.getStatus?.()
+              if (
+                status?.success &&
+                status.data?.isCapturing &&
+                status.data.meetingId === failedMeetingId
+              ) {
+                return
+              }
+              if (useNavigationStore.getState().selectedMeetingId === failedMeetingId) {
+                navigate('meeting-list')
+              }
+              await window.electronAPI?.meeting?.delete?.({ meetingId: failedMeetingId })
+            } catch {
+              // best effort — an empty meeting left behind is harmless
+            } finally {
+              queryClient.invalidateQueries({ queryKey: ['meetings'] })
+            }
+          })()
+        }
+      }
+      loadCapturePreferences()
+        .then(prefs =>
+          startCapture(prefs.mode, { fallbackToMicrophone: prefs.fallbackToMicrophone })
+        )
+        .then(started => {
           if (!active) return
-          if (success) {
-            setRecordingState('recording')
-          } else {
-            setRecordingState('idle')
+          if (!started) {
+            failStart()
+            return
+          }
+          setRecordingState('recording', started.source)
+          if (started.fallbackReason) {
+            // System audio was asked for but only the microphone is being recorded:
+            // say so — otherwise the other participants silently go missing.
+            // On macOS the usual cause is the Screen Recording permission, which
+            // only the user can grant; any other cause is shown as it is.
+            const needsPermission =
+              platform === 'darwin' && /permission|not allowed|denied/i.test(started.fallbackReason)
+            useAppStore.getState().addToast({
+              type: 'warning',
+              title: 'Recording your microphone only',
+              message: needsPermission
+                ? 'Meeting audio needs Screen Recording permission (System Settings → Privacy & Security). Click to open it.'
+                : `System audio is unavailable: ${started.fallbackReason}`,
+              duration: 10000,
+              ...(needsPermission
+                ? {
+                    undoLabel: 'Open Settings',
+                    undoAction: () => {
+                      window.electronAPI?.audio?.openScreenRecordingSettings?.()
+                    },
+                  }
+                : {}),
+            })
           }
         })
-        .catch(() => {
-          if (!active) return
-          setRecordingState('idle')
-        })
+        .catch(err => failStart(err instanceof Error ? err.message : undefined))
     }
     return () => {
       active = false
     }
-  }, [recordingState, meetingId, startCapture, setRecordingState])
+  }, [
+    recordingState,
+    activeMeetingIdForAudio,
+    meetingId,
+    startCapture,
+    setRecordingState,
+    navigate,
+    queryClient,
+  ])
+
+  // The main process can end a capture on its own (tray/widget, quit, device
+  // loss). Release the audio device here too, so the microphone never stays
+  // open after the pipeline has stopped.
+  React.useEffect(() => {
+    const unsub = window.electronAPI?.on?.audioEvent?.(
+      (event: { type?: string; meetingId?: string }) => {
+        if (event?.type !== 'stopped') return
+        void stopDeviceCapture()
+
+        // A stop that did not come from this window's Stop button (which moves
+        // to 'processing' before it asks): the main process has already closed
+        // the meeting, so only the UI is left showing "recording" with the
+        // timer running. Bring it back to idle.
+        const recStore = useRecordingStore.getState()
+        const stillShownAsRecording =
+          recStore.recordingState === 'recording' || recStore.recordingState === 'paused'
+        if (stillShownAsRecording && recStore.activeMeetingId === event.meetingId) {
+          recStore.setRecordingState('processing')
+          recStore.setActiveMeetingId(null)
+          void queryClient.invalidateQueries({ queryKey: ['meetings'] })
+          setTimeout(() => {
+            if (useRecordingStore.getState().recordingState === 'processing') {
+              useRecordingStore.getState().setRecordingState('idle', 'none')
+            }
+          }, 2000)
+        }
+      }
+    )
+    return () => unsub?.()
+  }, [queryClient])
+
+  // Meetings downloaded from the account (a new device, or Settings → Restore):
+  // every list on screen is out of date.
+  React.useEffect(() => {
+    const unsub = window.electronAPI?.sync?.onRestored?.(event => {
+      void queryClient.invalidateQueries()
+      if (event?.automatic && event.meetings > 0) {
+        useAppStore.getState().addToast({
+          type: 'success',
+          title: 'Meetings restored',
+          message: `${event.meetings} meeting${event.meetings === 1 ? '' : 's'} from your account ${event.meetings === 1 ? 'is' : 'are'} now on this device.`,
+          duration: 6000,
+        })
+      }
+    })
+    return () => unsub?.()
+  }, [queryClient])
 
   // Stop recording via API hook and complete UI state shift
-  const handleStopRecording = React.useCallback(async () => {
-    // If stopping from paused state, finalize pause duration accounting
-    const recStore = useRecordingStore.getState()
-    if (recStore.recordingState === 'paused' && recStore.recordingPausedAt) {
-      recStore.setRecordingTotalPausedMs(
-        recStore.recordingTotalPausedMs + (Date.now() - recStore.recordingPausedAt)
-      )
-      recStore.setRecordingPausedAt(null)
-    }
-    setRecordingState('processing')
-    try {
-      if (recStore.activeMeetingId) {
-        // meeting.stop() saves end_time/duration AND stops audio internally
-        // No separate stopCapture() needed — avoids double-stop race condition (C3)
-        await window.electronAPI?.meeting?.stop?.({ meetingId: recStore.activeMeetingId })
-      }
-    } catch {
-      useAppStore.getState().addToast({
-        type: 'error',
-        title: 'Stop recording failed',
-        message: 'Recording may need manual cleanup',
-        duration: 5000,
-      })
-    }
-    useRecordingStore.getState().setActiveMeetingId(null)
-    setTimeout(() => setRecordingState('idle'), 2000)
-  }, [setRecordingState])
+  const handleStopRecording = React.useCallback(() => stopActiveRecording(), [])
 
   // Pause/Resume recording
   const handlePauseRecording = React.useCallback(async () => {

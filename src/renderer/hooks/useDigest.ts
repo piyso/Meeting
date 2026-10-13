@@ -1,4 +1,4 @@
-import { useCallback } from 'react'
+import { useCallback, useRef } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 
 /** Normalizes a timestamp value (string or number) into an ISO string. */
@@ -17,6 +17,9 @@ interface DigestData {
 
 export function useDigest(meetingId: string | null, isLocked = false) {
   const queryClient = useQueryClient()
+  // Set by regenerate(): the main process caches a meeting's digest, so a
+  // plain refetch would hand the same one back.
+  const forceNextRef = useRef(false)
 
   const {
     data: digest = null,
@@ -26,7 +29,9 @@ export function useDigest(meetingId: string | null, isLocked = false) {
     queryKey: ['digest', meetingId],
     queryFn: async (): Promise<DigestData | null> => {
       if (!meetingId) return null
-      const result = await window.electronAPI?.digest?.generate?.({ meetingId })
+      const force = forceNextRef.current
+      forceNextRef.current = false
+      const result = await window.electronAPI?.digest?.generate?.({ meetingId, force })
       if (result?.success && result.data) {
         const raw = result.data as unknown as Record<string, unknown>
         return {
@@ -49,6 +54,7 @@ export function useDigest(meetingId: string | null, isLocked = false) {
 
   const regenerate = useCallback(async () => {
     if (!meetingId) return
+    forceNextRef.current = true
     await queryClient.invalidateQueries({ queryKey: ['digest', meetingId] })
   }, [meetingId, queryClient])
 

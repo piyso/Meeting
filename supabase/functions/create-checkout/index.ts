@@ -92,6 +92,9 @@ serve(async (req: Request) => {
     // 4. Create checkout based on currency
     if (currency === 'INR') {
       // Razorpay Order
+      if (!RAZORPAY_KEY_ID || !RAZORPAY_KEY_SECRET) {
+        return errorResponse('INR payments are not configured', 503)
+      }
       const amount = tier.razorpay[interval]
 
       const orderRes = await fetch('https://api.razorpay.com/v1/orders', {
@@ -103,7 +106,8 @@ serve(async (req: Request) => {
         body: JSON.stringify({
           amount,
           currency: 'INR',
-          receipt: `ba_${userId}_${tierId}_${interval}`,
+          // Razorpay caps receipts at 40 characters; the user/tier live in notes.
+          receipt: `ba_${userId.replace(/-/g, '').slice(0, 16)}_${Date.now().toString(36)}`,
           notes: {
             user_id: userId,
             tier: tierId,
@@ -131,6 +135,9 @@ serve(async (req: Request) => {
       })
     } else {
       // Lemon Squeezy Checkout
+      if (!LEMON_SQUEEZY_API_KEY || !LEMON_SQUEEZY_STORE_ID) {
+        return errorResponse('Card payments are not configured', 503)
+      }
       const variantId = tier.lemon[`${interval}VariantId`]
       if (!variantId) {
         return errorResponse(`Lemon Squeezy variant not configured for ${tierId} ${interval}`, 500)

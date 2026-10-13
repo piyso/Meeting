@@ -1,8 +1,43 @@
 import { ipcMain } from 'electron'
 import { Logger } from '../../services/Logger'
 import { getBackend } from '../../services/backend/BackendSingleton'
+import { getDatabase } from '../../database/connection'
 
 const log = Logger.create('GraphHandlers')
+
+// ─── Contradiction resolutions (local, persistent) ─────────────────────────
+
+type ResolutionChoice = 'supersede' | 'keep_both' | 'dismiss'
+const RESOLUTION_CHOICES: ResolutionChoice[] = ['supersede', 'keep_both', 'dismiss']
+const CONTRADICTION_ID_SEPARATOR = '::'
+const RESOLVED_CONTRADICTIONS_KEY = 'graph:resolved_contradictions'
+
+/** Stable id for a conflicting pair of graph nodes */
+function contradictionId(source: string, target: string): string {
+  return `${source}${CONTRADICTION_ID_SEPARATOR}${target}`
+}
+
+type ResolvedContradictions = Record<string, { choice: ResolutionChoice; resolvedAt: number }>
+
+function loadResolvedContradictions(): ResolvedContradictions {
+  try {
+    const row = getDatabase()
+      .prepare('SELECT value FROM settings WHERE key = ?')
+      .get(RESOLVED_CONTRADICTIONS_KEY) as { value: string } | undefined
+    const parsed = row ? (JSON.parse(row.value) as unknown) : null
+    return parsed && typeof parsed === 'object' && !Array.isArray(parsed)
+      ? (parsed as ResolvedContradictions)
+      : {}
+  } catch {
+    return {}
+  }
+}
+
+function saveResolvedContradictions(resolved: ResolvedContradictions): void {
+  getDatabase()
+    .prepare('INSERT OR REPLACE INTO settings (key, value, updated_at) VALUES (?, ?, ?)')
+    .run(RESOLVED_CONTRADICTIONS_KEY, JSON.stringify(resolved), Math.floor(Date.now() / 1000))
+}
 
 export function registerGraphHandlers(): void {
   // graph:get — Get knowledge graph (requires cloud PiyAPI + tier gate)
@@ -92,24 +127,28 @@ export function registerGraphHandlers(): void {
       }
 
       const graph = await backend.getGraph(params?.namespace || 'meetings', 1)
-      const contradictionEdges =
+      // Conflicts the user already resolved or dismissed stay hidden
+      const resolved = loadResolvedContradictions()
+      const contradictionEdges = (
         graph.edges?.filter((e: { type: string }) => e.type === 'contradicts') || []
+      ).filter(
+        (e: { source: string; target: string }) => !resolved[contradictionId(e.source, e.target)]
+      )
 
       // Transform edges into the Contradiction shape the frontend expects
       const contradictions = contradictionEdges.map(
-        (
-          e: {
-            source: string
-            target: string
-            weight?: number | string
-            metadata?: Record<string, unknown>
-          },
-          idx: number
-        ) => {
+        (e: {
+          source: string
+          target: string
+          weight?: number | string
+          metadata?: Record<string, unknown>
+        }) => {
           const sourceNode = graph.nodes?.find((n: { id: string }) => n.id === e.source)
           const targetNode = graph.nodes?.find((n: { id: string }) => n.id === e.target)
           return {
-            id: `contra-${idx}`,
+            // Stable across fetches (an array index is not), so a resolution
+            // recorded for this id keeps applying to the same pair.
+            id: contradictionId(e.source, e.target),
             type: 'contradicts' as const,
             meeting1: sourceNode ? { id: e.source, title: sourceNode.label || '' } : null,
             meeting2: targetNode ? { id: e.target, title: targetNode.label || '' } : null,
@@ -360,4 +399,93 @@ export function registerGraphHandlers(): void {
       }
     }
   })
+
+  // graph:resolveContradiction — Record the user's decision on a conflicting pair
+  ipcMain.handle(
+    'graph:resolveContradiction',
+    async (
+      _,
+      params: {
+        contradictionId?: string
+        preferredNodeId?: string
+        resolutionChoice?: ResolutionChoice
+        /** Older renderer builds sent the choice under this name */
+        choice?: ResolutionChoice
+      }
+    ) => {
+      try {
+        const id = typeof params?.contradictionId === 'string' ? params.contradictionId : ''
+        const choice = params?.resolutionChoice || params?.choice || 'supersede'
+        if (!id || !RESOLUTION_CHOICES.includes(choice)) {
+          return {
+            success: false,
+            error: {
+              code: 'INVALID_PARAMS',
+              message: 'contradictionId and a valid resolution choice are required',
+              timestamp: Date.now(),
+            },
+          }
+        }
+
+        // Persist first: this is what makes the resolution stick across restarts
+        const resolved = loadResolvedContradictions()
+        resolved[id] = { choice, resolvedAt: Date.now() }
+        saveResolvedContradictions(resolved)
+
+        // "Supersede" also teaches the memory backend which statement is current.
+        // Best-effort: the local resolution above already took effect.
+        if (choice === 'supersede') {
+          const [sourceId, targetId] = id.split(CONTRADICTION_ID_SEPARATOR)
+          const preferred =
+            typeof params.preferredNodeId === 'string' ? params.preferredNodeId : targetId
+          const rejected = preferred === sourceId ? targetId : sourceId
+          try {
+            const backend = getBackend()
+            if (preferred) await backend.feedbackPositive([preferred])
+            if (rejected) await backend.feedbackNegative([rejected])
+          } catch (feedbackErr) {
+            log.debug(
+              'Contradiction feedback skipped:',
+              feedbackErr instanceof Error ? feedbackErr.message : String(feedbackErr)
+            )
+          }
+        }
+
+        try {
+          const { getAuditLogger } = await import('../../services/AuditLogger')
+          await getAuditLogger().log({
+            userId: 'system',
+            operation: 'update',
+            table: 'knowledge_graph',
+            recordId: id,
+            metadata: { contradictionId: id, preferredNodeId: params.preferredNodeId, choice },
+          })
+        } catch (auditErr) {
+          log.debug(
+            'Audit log skipped:',
+            auditErr instanceof Error ? auditErr.message : String(auditErr)
+          )
+        }
+
+        return {
+          success: true,
+          data: {
+            contradictionId: id,
+            resolvedAt: resolved[id]?.resolvedAt ?? Date.now(),
+            status: choice === 'dismiss' ? 'dismissed' : 'resolved',
+          },
+        }
+      } catch (err) {
+        log.error('Failed to resolve contradiction', err)
+        return {
+          success: false,
+          error: {
+            code: 'CONTRADICTION_RESOLVE_FAILED',
+            message: err instanceof Error ? err.message : 'Unknown error',
+            timestamp: Date.now(),
+          },
+        }
+      }
+    }
+  )
 }

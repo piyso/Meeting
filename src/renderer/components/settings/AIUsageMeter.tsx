@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react'
+import { formatDate } from '../../utils/time'
 import { Brain, RefreshCw } from 'lucide-react'
 import { Button } from '../ui/Button'
 
@@ -48,11 +49,7 @@ export const AIUsageMeter: React.FC = () => {
     return 'var(--color-emerald)'
   }
 
-  const resetDate = new Date(quota.resetsAt).toLocaleDateString(undefined, {
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric',
-  })
+  const resetDate = formatDate(quota.resetsAt)
 
   return (
     <div className="surface-glass-premium p-5 rounded-[var(--radius-lg)] border border-[var(--color-border-subtle)] flex flex-col gap-4">

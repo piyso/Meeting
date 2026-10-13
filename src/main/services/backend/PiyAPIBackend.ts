@@ -4,10 +4,11 @@
  * Official PiyAPI cloud backend implementation.
  * Base URL: https://api.piyapi.cloud/api/v1
  *
- * NOTE (P4-3): PiyAPI does not publish an OpenAPI spec or docs site as of March 2026.
- * TypeScript types are manually maintained in IBackendProvider.ts. When PiyAPI
- * publishes an OpenAPI schema, consider generating TS types from it to keep
- * the interface contract tight and reduce manual maintenance.
+ * The contract this file is written against is PiyAPI's own source (route
+ * mounting in src/loaders/routes.ts, request schemas in src/validation). The
+ * spec published at /docs/openapi.json covers only part of it — /kg, /feedback,
+ * /search/fuzzy, /memories/batch and /partner are missing — and names some
+ * fields differently, so it is not a substitute.
  */
 
 import {
@@ -21,9 +22,76 @@ import {
 } from './IBackendProvider'
 import { KeyStorageService, KeyType } from '../KeyStorageService'
 import { config } from '../../config/environment'
+import { EncryptionService } from '../EncryptionService'
+import { isCloudEnrichmentAllowed } from '../privacySettings'
 import { Logger } from '../Logger'
 
 const log = Logger.create('PiyAPIBackend')
+
+/** An API failure that keeps the HTTP status, so callers can tell a rate limit from a bad request. */
+export interface BackendHttpError extends Error {
+  status: number
+}
+
+/**
+ * Build the error for a non-2xx response. Direct PiyAPI replies carry
+ * `{ message }`; the Edge Function proxy replies with `{ error }`.
+ */
+function httpError(
+  response: Response,
+  body: { message?: unknown; error?: unknown } | null | undefined,
+  fallback: string
+): BackendHttpError {
+  const detail =
+    (typeof body?.message === 'string' && body.message) ||
+    (typeof body?.error === 'string' && body.error) ||
+    fallback
+  const err = new Error(detail) as BackendHttpError
+  err.status = response.status
+  return err
+}
+
+/**
+ * Turn PiyAPI's batch-create reply into one entry per submitted memory, in
+ * the order they were sent. An entry without an `id` was not stored.
+ *
+ * The reply is `{ successful: Memory[], failed: [{ index, error }], summary }`,
+ * and newer servers add `results: [{ index, success, id }]`. It was read as
+ * `data.memories || data.results || data`, which yielded the reply object
+ * itself; every caller then found no id at any index, so SyncManager counted
+ * each create as unconfirmed and uploaded all of them again on every pass.
+ */
+export function alignBatchCreateResult(submitted: Memory[], reply: unknown): Memory[] {
+  if (Array.isArray(reply)) return reply as Memory[]
+  const data = (reply ?? {}) as Record<string, unknown>
+  if (Array.isArray(data.memories)) return data.memories as Memory[]
+
+  const outcomes = Array.isArray(data.results)
+    ? (data.results as Array<{ index?: unknown; success?: unknown; id?: unknown }>)
+    : null
+  if (outcomes && outcomes.every(o => o && typeof o.index === 'number')) {
+    const ids = new Map<number, string>()
+    for (const o of outcomes) {
+      if (o.success === true && typeof o.id === 'string' && o.id) ids.set(o.index as number, o.id)
+    }
+    return submitted.map((memory, i) => ({ ...memory, id: ids.get(i) }))
+  }
+
+  // Older servers: `successful` holds the stored memories in submission order
+  // with the failed ones left out, and `failed` names the positions left out.
+  const successful = Array.isArray(data.successful) ? (data.successful as Memory[]) : []
+  const failedAt = new Set(
+    (Array.isArray(data.failed) ? (data.failed as Array<{ index?: unknown }>) : [])
+      .map(f => f?.index)
+      .filter((index): index is number => typeof index === 'number')
+  )
+  let next = 0
+  return submitted.map((memory, i) => {
+    if (failedAt.has(i)) return { ...memory, id: undefined }
+    const stored = successful[next++]
+    return stored?.id ? { ...memory, ...stored } : { ...memory, id: undefined }
+  })
+}
 
 /**
  * Internal DB fields returned by PiyAPI that should NOT be forwarded.
@@ -43,6 +111,19 @@ const INTERNAL_FIELDS = new Set([
   'partition_key',
 ])
 
+/** Local tables SyncManager uploads, each to the namespace `meetings.<table>`. */
+const SYNCED_TABLES = [
+  'meetings',
+  'transcripts',
+  'notes',
+  'entities',
+  'audio_highlights',
+  'action_items',
+  'sentiment_scores',
+  'calendar_events',
+  'webhooks',
+] as const
+
 /**
  * PiyAPI Backend Class
  */
@@ -51,11 +132,16 @@ export class PiyAPIBackend implements IBackendProvider {
   private accessToken: string | null = null
   private userId: string | null = null
   private proxyMode: boolean = false
+  /** Longest text treated as a search question rather than a prompt carrying content. */
+  private static readonly MAX_RETRIEVAL_QUERY_CHARS = 400
   // E-HC: Cache health check results for 30 seconds to avoid redundant HTTP calls.
   // graph/search/intelligence handlers call healthCheck() before every API request.
   private _healthCache: HealthStatus | null = null
   private _healthCacheExpiry: number = 0
   private readonly HEALTH_CACHE_TTL = 30_000 // 30 seconds
+  /** Namespace and token budget of each context session created here (see retrieveContext). */
+  private contextSessions = new Map<string, { namespace: string; tokenBudget: number }>()
+  private static readonly MAX_CONTEXT_SESSIONS = 200
 
   constructor(baseUrl: string = config.BLUEARKIVE_FUNCTIONS_URL || config.BLUEARKIVE_API_URL) {
     // Edge Functions proxy: requests go to /piyapi-proxy/memories etc.
@@ -129,7 +215,7 @@ export class PiyAPIBackend implements IBackendProvider {
 
     if (!response.ok) {
       const error = await response.json().catch(() => ({ message: 'Login failed' }))
-      throw new Error(error.message || 'Login failed')
+      throw httpError(response, error, 'Login failed')
     }
 
     const data = await response.json()
@@ -170,7 +256,7 @@ export class PiyAPIBackend implements IBackendProvider {
 
     if (!response.ok) {
       const error = await response.json().catch(() => ({ message: 'Token refresh failed' }))
-      throw new Error(error.message || 'Token refresh failed')
+      throw httpError(response, error, 'Token refresh failed')
     }
 
     const data = await response.json()
@@ -235,16 +321,13 @@ export class PiyAPIBackend implements IBackendProvider {
 
     const response = await this.fetchWithTimeout(`${this.baseUrl}/memories`, {
       method: 'POST',
-      headers: {
-        Authorization: `Bearer ${this.accessToken}`,
-        'Content-Type': 'application/json',
-      },
+      headers: this.getAuthHeaders(),
       body: JSON.stringify(memory),
     })
 
     if (!response.ok) {
       const error = await response.json().catch(() => ({ message: 'Failed to create memory' }))
-      throw new Error(error.message || 'Failed to create memory')
+      throw httpError(response, error, 'Failed to create memory')
     }
 
     const data = await response.json()
@@ -261,10 +344,7 @@ export class PiyAPIBackend implements IBackendProvider {
     // Try batch endpoint first
     const response = await this.fetchWithTimeout(`${this.baseUrl}/memories/batch`, {
       method: 'POST',
-      headers: {
-        Authorization: `Bearer ${this.accessToken}`,
-        'Content-Type': 'application/json',
-      },
+      headers: this.getAuthHeaders(),
       body: JSON.stringify({ memories }),
     })
 
@@ -279,11 +359,10 @@ export class PiyAPIBackend implements IBackendProvider {
 
     if (!response.ok) {
       const error = await response.json().catch(() => ({ message: 'Batch create failed' }))
-      throw new Error(error.message || 'Batch create failed')
+      throw httpError(response, error, 'Batch create failed')
     }
 
-    const data = await response.json()
-    return data.memories || data.results || data
+    return alignBatchCreateResult(memories, await response.json())
   }
 
   /**
@@ -294,16 +373,13 @@ export class PiyAPIBackend implements IBackendProvider {
 
     const response = await this.fetchWithTimeout(`${this.baseUrl}/memories/${id}`, {
       method: 'PATCH',
-      headers: {
-        Authorization: `Bearer ${this.accessToken}`,
-        'Content-Type': 'application/json',
-      },
+      headers: this.getAuthHeaders(),
       body: JSON.stringify(updates),
     })
 
     if (!response.ok) {
       const error = await response.json().catch(() => ({ message: 'Failed to update memory' }))
-      throw new Error(error.message || 'Failed to update memory')
+      throw httpError(response, error, 'Failed to update memory')
     }
 
     const data = await response.json()
@@ -318,14 +394,12 @@ export class PiyAPIBackend implements IBackendProvider {
 
     const response = await this.fetchWithTimeout(`${this.baseUrl}/memories/${id}`, {
       method: 'DELETE',
-      headers: {
-        Authorization: `Bearer ${this.accessToken}`,
-      },
+      headers: this.getAuthHeaders(),
     })
 
     if (!response.ok) {
       const error = await response.json().catch(() => ({ message: 'Failed to delete memory' }))
-      throw new Error(error.message || 'Failed to delete memory')
+      throw httpError(response, error, 'Failed to delete memory')
     }
   }
 
@@ -347,14 +421,12 @@ export class PiyAPIBackend implements IBackendProvider {
 
     const response = await this.fetchWithTimeout(`${this.baseUrl}/memories?${params}`, {
       method: 'GET',
-      headers: {
-        Authorization: `Bearer ${this.accessToken}`,
-      },
+      headers: this.getAuthHeaders(),
     })
 
     if (!response.ok) {
       const error = await response.json().catch(() => ({ message: 'Failed to get memories' }))
-      throw new Error(error.message || 'Failed to get memories')
+      throw httpError(response, error, 'Failed to get memories')
     }
 
     const data = await response.json()
@@ -362,7 +434,8 @@ export class PiyAPIBackend implements IBackendProvider {
   }
 
   /**
-   * Semantic search across memories
+   * Semantic search across memories via Zero-LLM endpoint on PiyAPI
+   * Uses pgvector cosine similarity with semantic and recency weighting ($0.00 cloud LLM spend).
    */
   public async semanticSearch(
     query: string,
@@ -371,23 +444,26 @@ export class PiyAPIBackend implements IBackendProvider {
   ): Promise<SearchResult[]> {
     await this.ensureAuthenticated()
 
-    const body: Record<string, unknown> = { query, limit }
+    const body: Record<string, unknown> = {
+      query,
+      limit,
+      relevanceSemanticWeight: 0.7,
+      relevanceRecencyWeight: 0.3,
+      includeAttributions: true,
+    }
     if (namespace) {
       body.namespace = namespace
     }
 
     const response = await this.fetchWithTimeout(`${this.baseUrl}/search/semantic`, {
       method: 'POST',
-      headers: {
-        Authorization: `Bearer ${this.accessToken}`,
-        'Content-Type': 'application/json',
-      },
+      headers: this.getAuthHeaders(),
       body: JSON.stringify(body),
     })
 
     if (!response.ok) {
       const error = await response.json().catch(() => ({ message: 'Semantic search failed' }))
-      throw new Error(error.message || 'Semantic search failed')
+      throw httpError(response, error, 'Semantic search failed')
     }
 
     const data = await response.json()
@@ -397,6 +473,25 @@ export class PiyAPIBackend implements IBackendProvider {
   /**
    * Hybrid search (semantic + keyword)
    */
+  private getAuthHeaders(additional: Record<string, string> = {}): Record<string, string> {
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+      ...additional,
+    }
+    if (this.accessToken) {
+      headers['Authorization'] = `Bearer ${this.accessToken}`
+    }
+    // No partner key here: PiyAPI's partner key can create and delete users,
+    // and anything in this app can be read out of the installed bundle. The
+    // Edge Function proxy holds it and provisions the managed account.
+    return headers
+  }
+
+  /**
+   * Hybrid search (semantic + keyword) via Zero-LLM endpoint on PiyAPI
+   * Zero cloud LLM spend ($0.00). Uses pgvector HNSW + BM25 + cognitive interceptors.
+   * Matches PiyAPI's hybridSearchSchema (semanticWeight + keywordWeight = 1.0).
+   */
   public async hybridSearch(
     query: string,
     namespace?: string,
@@ -404,23 +499,27 @@ export class PiyAPIBackend implements IBackendProvider {
   ): Promise<SearchResult[]> {
     await this.ensureAuthenticated()
 
-    const body: Record<string, unknown> = { query, limit }
+    const body: Record<string, unknown> = {
+      query,
+      semanticWeight: 0.7,
+      keywordWeight: 0.3,
+      limit,
+      relevanceRecencyWeight: 0.3,
+      includeAttributions: true,
+    }
     if (namespace) {
       body.namespace = namespace
     }
 
     const response = await this.fetchWithTimeout(`${this.baseUrl}/search/hybrid`, {
       method: 'POST',
-      headers: {
-        Authorization: `Bearer ${this.accessToken}`,
-        'Content-Type': 'application/json',
-      },
+      headers: this.getAuthHeaders(),
       body: JSON.stringify(body),
     })
 
     if (!response.ok) {
       const error = await response.json().catch(() => ({ message: 'Hybrid search failed' }))
-      throw new Error(error.message || 'Hybrid search failed')
+      throw httpError(response, error, 'Hybrid search failed')
     }
 
     const data = await response.json()
@@ -428,32 +527,118 @@ export class PiyAPIBackend implements IBackendProvider {
   }
 
   /**
-   * Ask AI a question
+   * Get token-budgeted context for local LLM generation (Zero-LLM endpoint)
+   * Fetches relevant memories & graph context from PiyAPI at $0.00 cloud LLM spend.
    */
-  public async ask(query: string, namespace?: string): Promise<AskResponse> {
+  public async getContext(
+    query: string,
+    namespace?: string,
+    maxTokens: number = 2000
+  ): Promise<{ context: string; results: SearchResult[] }> {
     await this.ensureAuthenticated()
 
-    const body: Record<string, unknown> = { query }
+    const body: Record<string, unknown> = { query, max_tokens: maxTokens, format: 'json' }
     if (namespace) {
       body.namespace = namespace
     }
 
-    const response = await this.fetchWithTimeout(`${this.baseUrl}/ask`, {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${this.accessToken}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(body),
-    })
+    try {
+      // POST /context/retrieve. (This used to call POST /context, a route that
+      // does not exist, so every call fell through to the hybrid search below.)
+      const response = await this.fetchWithTimeout(`${this.baseUrl}/context/retrieve`, {
+        method: 'POST',
+        headers: this.getAuthHeaders(),
+        body: JSON.stringify(body),
+      })
 
-    if (!response.ok) {
-      const error = await response.json().catch(() => ({ message: 'AI query failed' }))
-      throw new Error(error.message || 'AI query failed')
+      if (response.ok) {
+        const results = this.contextMemoriesToResults(await response.json())
+        // Built from the results after decryption, never from text the
+        // server assembled: for an encrypted memory that would be ciphertext.
+        const context = results
+          .map(r => r.memory?.content || '')
+          .filter(Boolean)
+          .join('\n\n')
+        if (context) return { context, results }
+      }
+    } catch (err) {
+      log.debug('PiyAPI /context/retrieve failed, falling back to hybridSearch:', err)
     }
 
-    const data = await response.json()
-    return data
+    // Zero-LLM fallback: Hybrid Search (/search/hybrid)
+    const results = await this.hybridSearch(query, namespace, 10)
+    const context = results
+      .map(r => r.memory?.content || '')
+      .filter(Boolean)
+      .join('\n\n')
+    return { context, results }
+  }
+
+  /**
+   * Ask AI a question — Zero-LLM Retrieval on PiyAPI + Local LLM Synthesis in BlueArkive
+   * Completely bypasses PiyAPI cloud LLM generation costs ($0.00 cloud spend).
+   */
+  public async ask(query: string, namespace?: string): Promise<AskResponse> {
+    // Step 1: Zero-LLM Retrieval via PiyAPI (Hybrid Search / Context Endpoint)
+    //
+    // The retrieval query is sent upstream as plain text. A short question is
+    // what search needs; but several callers pass a whole prompt with the
+    // transcript embedded in it, which uploaded that transcript unencrypted.
+    // Unless the user has allowed cloud analysis of meeting text, a long
+    // prompt skips retrieval and goes straight to the local model — it
+    // already carries its own context.
+    const isQuestion = query.length <= PiyAPIBackend.MAX_RETRIEVAL_QUERY_CHARS
+    const retrieve = isQuestion || isCloudEnrichmentAllowed()
+    const { context, results } = retrieve
+      ? await this.getContext(query, namespace, 2000)
+      : { context: '', results: [] as SearchResult[] }
+
+    // Step 2: Local LLM Synthesis inside BlueArkive
+    try {
+      const { getModelManager } = await import('../ModelManager')
+      const mm = getModelManager()
+
+      const prompt = !retrieve
+        ? query
+        : context.trim()
+          ? `Answer the question concisely based ONLY on the provided meeting context.\n\nCONTEXT:\n${context.substring(0, 6000)}\n\nQUESTION: ${query}\n\nANSWER:`
+          : `Answer the following question concisely:\n\nQUESTION: ${query}\n\nANSWER:`
+
+      const localAnswer = await mm.generate({ prompt, temperature: 0.3, maxTokens: 400 }, 'ask')
+
+      if (localAnswer && !localAnswer.startsWith('⚠️')) {
+        return {
+          answer: localAnswer,
+          confidence: results[0]?.similarity ? Number(results[0].similarity) : 0.9,
+          sources: results.map(r => ({
+            memoryId: r.memory?.id || '',
+            content: r.memory?.content || '',
+            similarity: Number(r.similarity) || 0,
+          })),
+          model: 'BlueArkive-Local-LLM (Zero-PiyAPI-Cost)',
+          tokensUsed: 0,
+        }
+      }
+    } catch (err) {
+      log.debug('Local LLM generation unavailable during ask(), falling back to context:', err)
+    }
+
+    // The local model produced nothing (still loading, not downloaded, out of
+    // memory). For a short question the retrieved excerpts are still a useful
+    // reply. For a long prompt they are not an answer to it, and neither is a
+    // canned sentence — callers showed "No relevant context found…" as if it
+    // were the generated summary or suggestion. Return no answer instead.
+    return {
+      answer: isQuestion ? context : '',
+      confidence: 0.8,
+      sources: results.map(r => ({
+        memoryId: r.memory?.id || '',
+        content: r.memory?.content || '',
+        similarity: Number(r.similarity) || 0,
+      })),
+      model: 'PiyAPI-Zero-LLM-Context',
+      tokensUsed: 0,
+    }
   }
 
   /**
@@ -462,9 +647,11 @@ export class PiyAPIBackend implements IBackendProvider {
   public async getGraph(namespace: string, maxHops: number = 2): Promise<GraphData> {
     await this.ensureAuthenticated()
 
+    // The server reads `maxHops` (1–3). It was sent as `max_hops`, which the
+    // server ignores, so every graph came back one hop deep.
     const params = new URLSearchParams({
       namespace,
-      max_hops: maxHops.toString(),
+      maxHops: Math.min(Math.max(maxHops, 1), 3).toString(),
     })
 
     const response = await this.fetchWithTimeout(`${this.baseUrl}/graph?${params}`, {
@@ -476,7 +663,7 @@ export class PiyAPIBackend implements IBackendProvider {
 
     if (!response.ok) {
       const error = await response.json().catch(() => ({ message: 'Failed to get graph' }))
-      throw new Error(error.message || 'Failed to get graph')
+      throw httpError(response, error, 'Failed to get graph')
     }
 
     const data = await response.json()
@@ -489,12 +676,14 @@ export class PiyAPIBackend implements IBackendProvider {
   public async traverseGraph(memoryId: string, maxHops: number = 2): Promise<GraphData> {
     await this.ensureAuthenticated()
 
+    // `memoryId` and `maxHops` are the names the server reads. With
+    // `memory_id` / `max_hops` the filter was ignored and the reply was the
+    // whole graph rather than the neighbourhood of this memory.
     const params = new URLSearchParams({
-      memory_id: memoryId,
-      max_hops: maxHops.toString(),
+      memoryId,
+      maxHops: Math.min(Math.max(maxHops, 1), 3).toString(),
     })
 
-    // Live-verified: /graph/traverse returns 404. /graph?memory_id= returns 200
     const response = await this.fetchWithTimeout(`${this.baseUrl}/graph?${params}`, {
       method: 'GET',
       headers: {
@@ -504,7 +693,7 @@ export class PiyAPIBackend implements IBackendProvider {
 
     if (!response.ok) {
       const error = await response.json().catch(() => ({ message: 'Failed to traverse graph' }))
-      throw new Error(error.message || 'Failed to traverse graph')
+      throw httpError(response, error, 'Failed to traverse graph')
     }
 
     const data = await response.json()
@@ -524,9 +713,6 @@ export class PiyAPIBackend implements IBackendProvider {
 
     const start = now
 
-    const controller = new AbortController()
-    const timeout = setTimeout(() => controller.abort(), 5000)
-
     try {
       // P1-1 FIX: /health is confirmed working at api.piyapi.cloud/health → {"status":"ok"}
       // In proxy mode: hit the Edge Function base to verify connectivity
@@ -535,11 +721,17 @@ export class PiyAPIBackend implements IBackendProvider {
         ? this.baseUrl.replace(/\/piyapi-proxy$/, '')
         : this.baseUrl.replace(/\/api\/v1$/, '/health')
 
-      const response = await this.fetchWithTimeout(healthUrl, {
-        method: 'GET',
-        signal: controller.signal,
-        headers: this.accessToken ? { Authorization: `Bearer ${this.accessToken}` } : {},
-      })
+      // 5s: a health probe that takes longer is itself the answer. (A separate
+      // AbortController used to be passed here, but fetchWithTimeout replaces
+      // the signal with its own, so the probe really waited the default 15s.)
+      const response = await this.fetchWithTimeout(
+        healthUrl,
+        {
+          method: 'GET',
+          headers: this.accessToken ? { Authorization: `Bearer ${this.accessToken}` } : {},
+        },
+        5_000
+      )
 
       const latency = Date.now() - start
       let result: HealthStatus
@@ -547,14 +739,14 @@ export class PiyAPIBackend implements IBackendProvider {
       if (response.ok) {
         const data = await response.json().catch(() => ({}))
         result = { status: 'healthy', latency, version: data.version }
+      } else if (this.proxyMode && response.status < 500) {
+        // The probe hits the Edge Functions base URL, which has no handler of
+        // its own: any answer below 500 (401/403/404) proves the gateway is
+        // reachable. Treating 404 as "degraded" switched every cloud feature
+        // off for accounts whose gateway answers the bare URL that way.
+        result = { status: 'healthy', latency, message: 'Proxy reachable' }
       } else if (response.status === 401 || response.status === 403) {
-        result = {
-          status: this.proxyMode ? 'healthy' : 'degraded',
-          latency,
-          message: this.proxyMode
-            ? 'Proxy reachable (auth required for data)'
-            : `Backend returned ${response.status}`,
-        }
+        result = { status: 'degraded', latency, message: `Backend returned ${response.status}` }
       } else {
         result = { status: 'degraded', latency, message: `Backend returned ${response.status}` }
       }
@@ -576,8 +768,6 @@ export class PiyAPIBackend implements IBackendProvider {
       // P4-3 FIX: 5s cache for down state — allow rapid retry
       this._healthCacheExpiry = Date.now() + 5_000
       return result
-    } finally {
-      clearTimeout(timeout)
     }
   }
 
@@ -664,6 +854,27 @@ export class PiyAPIBackend implements IBackendProvider {
   }
 
   /**
+   * Pin a memory so PiyAPI always includes it when it assembles context, or
+   * unpin it (POST / DELETE /memories/:id/pin).
+   */
+  public async pinMemory(memoryId: string, unpin: boolean = false): Promise<boolean> {
+    try {
+      await this.ensureAuthenticated()
+      const response = await this.fetchWithTimeout(
+        `${this.baseUrl}/memories/${encodeURIComponent(memoryId)}/pin`,
+        {
+          method: unpin ? 'DELETE' : 'POST',
+          headers: this.getAuthHeaders(),
+        }
+      )
+      return response.ok
+    } catch (err) {
+      log.debug('pinMemory failed:', err)
+      return false
+    }
+  }
+
+  /**
    * F3: Ingest content into PiyAPI knowledge graph.
    * Extracts entities and facts from transcript text.
    */
@@ -671,6 +882,8 @@ export class PiyAPIBackend implements IBackendProvider {
     content: string,
     memoryId?: string
   ): Promise<{ entities: number; facts: number } | null> {
+    // Sends the text itself. Off unless the user opted in (Settings › Privacy).
+    if (!isCloudEnrichmentAllowed()) return null
     try {
       await this.ensureAuthenticated()
       const body: Record<string, unknown> = { content }
@@ -727,25 +940,34 @@ export class PiyAPIBackend implements IBackendProvider {
   }
 
   /**
-   * F5: Check text for Protected Health Information (PHI/PII).
-   * REST endpoint path unknown (/compliance/phi returns 404).
-   * Feature works via MCP (verified: detects MRN, NAME, DATE, INSURANCE, EMAIL, PHONE).
-   * Kept as graceful stub — will activate when REST path is documented.
+   * F5: Check text for Protected Health Information (PHI/PII) with
+   * POST /compliance/phi-check.
    */
   public async checkPhi(text: string): Promise<{ risk_level: string; entities: unknown[] } | null> {
+    // Sends the text itself. Off unless the user opted in (Settings › Privacy).
+    if (!isCloudEnrichmentAllowed()) return null
     try {
       await this.ensureAuthenticated()
-      const response = await this.fetchWithTimeout(`${this.baseUrl}/compliance/phi`, {
+      const response = await this.fetchWithTimeout(`${this.baseUrl}/compliance/phi-check`, {
         method: 'POST',
         headers: {
           Authorization: `Bearer ${this.accessToken}`,
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ text }),
+        body: JSON.stringify({ content: text }),
       })
 
       if (!response.ok) return null
-      return await response.json()
+      const data = (await response.json()) as {
+        riskLevel?: string
+        risk_level?: string
+        detectedTypes?: unknown[]
+        entities?: unknown[]
+      }
+      return {
+        risk_level: data.riskLevel ?? data.risk_level ?? 'none',
+        entities: data.detectedTypes ?? data.entities ?? [],
+      }
     } catch (err) {
       log.debug('checkPhi failed:', err)
       return null
@@ -761,7 +983,10 @@ export class PiyAPIBackend implements IBackendProvider {
   ): Promise<{ download_url: string } | null> {
     try {
       await this.ensureAuthenticated()
-      const response = await this.fetchWithTimeout(`${this.baseUrl}/export?type=${type}`, {
+      // GET /export only lists the export endpoints; the export itself is
+      // /export/all, /export/memories or /export/usage, and its reply names
+      // the link `downloadUrl`.
+      const response = await this.fetchWithTimeout(`${this.baseUrl}/export/${type}`, {
         method: 'GET',
         headers: {
           Authorization: `Bearer ${this.accessToken}`,
@@ -769,7 +994,9 @@ export class PiyAPIBackend implements IBackendProvider {
       })
 
       if (!response.ok) return null
-      return await response.json()
+      const data = (await response.json()) as { downloadUrl?: string; download_url?: string }
+      const downloadUrl = data.downloadUrl ?? data.download_url
+      return downloadUrl ? { download_url: downloadUrl } : null
     } catch (err) {
       log.debug('exportAll failed:', err)
       return null
@@ -794,6 +1021,8 @@ export class PiyAPIBackend implements IBackendProvider {
       end_offset?: number
     }>
   > {
+    // Sends the text itself. Off unless the user opted in (Settings › Privacy).
+    if (!isCloudEnrichmentAllowed()) return []
     try {
       await this.ensureAuthenticated()
 
@@ -857,69 +1086,102 @@ export class PiyAPIBackend implements IBackendProvider {
 
   /**
    * Delete all user data from PiyAPI cloud (GDPR Article 17).
-   * P2-7/P1-5 FIX: /data/delete-all returns 404. Instead, iterate through
-   * all namespaces and delete memories individually.
+   *
+   * Namespace by namespace (DELETE /memories/namespace/<ns>, then one by one
+   * for whatever is left), followed by the knowledge graph built from it.
+   * PiyAPI's own "delete everything" route (DELETE /compliance/data) is not
+   * used: it removes the account and its API keys as well, which would leave
+   * a signed-in user without cloud storage.
    */
   public async deleteAllData(): Promise<boolean> {
     try {
       await this.ensureAuthenticated()
 
-      // Try bulk endpoint first (in case PiyAPI adds it)
-      try {
-        const response = await this.fetchWithTimeout(`${this.baseUrl}/data/delete-all`, {
-          method: 'DELETE',
-          headers: { Authorization: `Bearer ${this.accessToken}` },
-        })
-        if (response.ok) return true
-      } catch {
-        // Expected 404 — fall through to iterative approach
-      }
-
-      // Iterative deletion: fetch all memories and delete each
+      // SyncManager stores every table under `meetings.<table>`; the list here
+      // used to name only three of the nine, so meeting titles, action items,
+      // highlights, sentiment, calendar events and webhooks stayed in the cloud
+      // after "delete all my data".
       const namespaces = [
-        'meetings',
-        'meetings.transcripts',
-        'meetings.notes',
-        'meetings.entities',
+        ...SYNCED_TABLES.map(table => `meetings.${table}`),
+        'meetings.keyring', // wrapped copies of the account's data key
+        'meetings', // knowledge-graph ingests and pre-namespace uploads
         'default',
       ]
+      const PAGE_SIZE = 100
       let totalDeleted = 0
+      let complete = true
 
       for (const ns of namespaces) {
         try {
-          // M-18 AUDIT: Paginate to delete ALL memories, not just the first 100.
-          // GDPR Article 17 requires complete erasure — partial deletion is non-compliant.
-          const MAX_PAGES = 50 // Safety cap: 50 pages × 100 = 5000 memories max per namespace
-          let page = 0
-          let hasMore = true
-          while (hasMore && page < MAX_PAGES) {
-            const memories = await this.getMemories(ns, 100, 0) // Always offset 0 — items shift down
-            if (memories.length === 0) {
-              hasMore = false
-              break
-            }
+          // One call for the whole namespace where the server supports it;
+          // the loop below then finds nothing, or finishes the job.
+          try {
+            await this.fetchWithTimeout(
+              `${this.baseUrl}/memories/namespace/${encodeURIComponent(ns)}`,
+              { method: 'DELETE', headers: { Authorization: `Bearer ${this.accessToken}` } },
+              60_000
+            )
+          } catch (e) {
+            log.debug(`GDPR: namespace delete not available for ${ns}:`, (e as Error).message)
+          }
+
+          // No page cap: erasure has to be complete. The loop ends when the
+          // namespace is empty, or when a full page could not be deleted at
+          // all (deleting is always from offset 0 — the rest shifts down).
+          for (;;) {
+            const memories = await this.getMemories(ns, PAGE_SIZE, 0)
+            if (memories.length === 0) break
+
+            let deletedThisPage = 0
             for (const mem of memories) {
-              if (mem.id) {
-                try {
-                  await this.deleteMemory(mem.id)
-                  totalDeleted++
-                } catch (e) {
-                  log.debug(`GDPR: Failed to delete memory ${mem.id}:`, (e as Error).message)
+              if (!mem.id) continue
+              try {
+                await this.deleteMemory(mem.id)
+                deletedThisPage++
+              } catch (e) {
+                // 404: someone else already removed it.
+                if ((e as BackendHttpError)?.status === 404) {
+                  deletedThisPage++
+                } else {
+                  log.warn(`GDPR: failed to delete a memory in ${ns}:`, (e as Error).message)
                 }
               }
             }
-            page++
-            if (memories.length < 100) hasMore = false
+            totalDeleted += deletedThisPage
+            if (deletedThisPage === 0) {
+              complete = false
+              break
+            }
           }
         } catch (e) {
-          log.debug(`GDPR: Namespace ${ns} cleanup skipped:`, (e as Error).message)
+          complete = false
+          log.warn(`GDPR: could not clear namespace ${ns}:`, (e as Error).message)
         }
       }
 
+      // Entities and facts the knowledge graph extracted (only present when
+      // the user allowed cloud analysis). 404: nothing was ever ingested.
+      try {
+        const response = await this.fetchWithTimeout(`${this.baseUrl}/kg/data`, {
+          method: 'DELETE',
+          headers: { Authorization: `Bearer ${this.accessToken}` },
+        })
+        if (!response.ok && response.status !== 404) {
+          complete = false
+          log.warn(`GDPR: knowledge graph was not cleared (HTTP ${response.status})`)
+        }
+      } catch (e) {
+        complete = false
+        log.warn('GDPR: knowledge graph could not be cleared:', (e as Error).message)
+      }
+
       log.info(
-        `GDPR deleteAllData: deleted ${totalDeleted} memories across ${namespaces.length} namespaces`
+        `GDPR deleteAllData: deleted ${totalDeleted} memories across ${namespaces.length} namespaces` +
+          (complete ? '' : ' — INCOMPLETE')
       )
-      return totalDeleted > 0
+      // True only when every namespace was listed and left empty — including
+      // the case where there was nothing to delete in the first place.
+      return complete
     } catch (error) {
       log.error('deleteAllData failed:', error)
       return false
@@ -1041,7 +1303,25 @@ export class PiyAPIBackend implements IBackendProvider {
         body: JSON.stringify(params),
       })
       if (!response.ok) return null
-      return await response.json()
+      const data = (await response.json()) as {
+        context_session_id?: string
+        expires_in_seconds?: number
+      }
+      if (!data.context_session_id) return null
+
+      // The server keeps only the id; remember what this session was for.
+      if (this.contextSessions.size >= PiyAPIBackend.MAX_CONTEXT_SESSIONS) {
+        const oldest = this.contextSessions.keys().next().value
+        if (oldest !== undefined) this.contextSessions.delete(oldest)
+      }
+      this.contextSessions.set(data.context_session_id, {
+        namespace: params.namespace,
+        tokenBudget: params.token_budget,
+      })
+      return {
+        context_session_id: data.context_session_id,
+        expires_at: Date.now() + (data.expires_in_seconds ?? 24 * 60 * 60) * 1000,
+      }
     } catch (err) {
       log.debug('createContextSession failed:', err)
       return null
@@ -1062,21 +1342,63 @@ export class PiyAPIBackend implements IBackendProvider {
   } | null> {
     try {
       await this.ensureAuthenticated()
-      // P4-1 FIX: encodeURIComponent for sessionId to prevent injection
-      const response = await this.fetchWithTimeout(
-        `${this.baseUrl}/context/retrieve?session_id=${encodeURIComponent(sessionId)}&query=${encodeURIComponent(query)}`,
-        {
-          headers: {
-            Authorization: `Bearer ${this.accessToken}`,
-          },
-        }
-      )
+      // The session itself carries nothing but an id on the server (it tracks
+      // what has been returned already); the namespace and token budget asked
+      // for when it was created have to be sent with each retrieval.
+      const session = this.contextSessions.get(sessionId)
+      const body: Record<string, unknown> = {
+        query,
+        context_session_id: sessionId,
+        format: 'json',
+      }
+      if (session?.namespace) body.namespace = session.namespace
+      if (session?.tokenBudget) body.max_tokens = session.tokenBudget
+
+      // POST, so the user's text stays out of the URL (and out of access logs).
+      const response = await this.fetchWithTimeout(`${this.baseUrl}/context/retrieve`, {
+        method: 'POST',
+        headers: this.getAuthHeaders(),
+        body: JSON.stringify(body),
+      })
       if (!response.ok) return null
-      return await response.json()
+
+      // The reply is `{ memories, metadata: { tokens_used } }`. It was read as
+      // `{ context, tokens_used, segments }`, none of which exist, so the cloud
+      // context was never used.
+      const data = (await response.json()) as { metadata?: { tokens_used?: unknown } }
+      const results = this.contextMemoriesToResults(data)
+      const segments = results
+        .filter(r => r.memory?.content)
+        .map(r => {
+          const memory = r.memory as Memory & { event_time?: string; created_at?: string }
+          const when = Date.parse(memory.eventTime || memory.event_time || memory.created_at || '')
+          return {
+            content: memory.content,
+            timestamp: Number.isNaN(when) ? 0 : when,
+            meeting_id: String(memory.metadata?.meeting_id ?? ''),
+          }
+        })
+      return {
+        context: segments.map(s => s.content).join('\n\n'),
+        tokens_used: Number(data.metadata?.tokens_used) || 0,
+        segments,
+      }
     } catch (err) {
       log.debug('retrieveContext failed:', err)
       return null
     }
+  }
+
+  /** `{ memories: [...] }` from /context/retrieve, as decrypted search results. */
+  private contextMemoriesToResults(data: unknown): SearchResult[] {
+    const memories = (data as { memories?: unknown } | null)?.memories
+    if (!Array.isArray(memories)) return []
+    return this.normalizeSearchResults(
+      memories.map(item => {
+        const memory = item as Memory & { similarity?: number | string; score?: number | string }
+        return { memory, similarity: memory.similarity ?? memory.score ?? 0 }
+      })
+    )
   }
 
   // ════════════════════════════════════════════════════════════════
@@ -1091,11 +1413,67 @@ export class PiyAPIBackend implements IBackendProvider {
    */
   private normalizeSearchResults(results: SearchResult[]): SearchResult[] {
     if (!Array.isArray(results)) return []
-    return results.map(r => ({
-      ...r,
-      similarity: this.normalizeSimilarity(r.similarity),
-      memory: r.memory ? this.stripInternalFields(r.memory) : r.memory,
-    }))
+    // A memory this app encrypted before upload cannot be ranked by the
+    // server: whatever score it comes back with was computed from ciphertext.
+    // Such hits are dropped rather than decrypted and shown at a random rank.
+    const rankable = results.filter(r => {
+      const meta = r.memory?.metadata as Record<string, unknown> | undefined
+      return !(meta?.client_encrypted === true || meta?.skip_server_embedding === true)
+    })
+    return rankable.map(r => {
+      const rawSim =
+        r.similarity !== undefined && r.similarity !== null
+          ? r.similarity
+          : // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            ((r as any).hybridScore ?? (r as any).semanticScore ?? (r as any).score ?? 0.85)
+
+      return {
+        ...r,
+        similarity: this.normalizeSimilarity(rawSim),
+        memory: r.memory ? this.decryptMemory(this.stripInternalFields(r.memory)) : r.memory,
+      }
+    })
+  }
+
+  /**
+   * Synced memories hold ciphertext (see SyncManager). Search results used to
+   * hand that ciphertext straight to the UI and to the local LLM as "context".
+   * Decrypt with the session's key; if this device cannot read a memory, blank
+   * it rather than pass base64 noise downstream.
+   */
+  private decryptMemory(memory: Memory): Memory {
+    const meta = memory.metadata as Record<string, unknown> | undefined
+    if (!meta?.encrypted || typeof memory.content !== 'string') return memory
+
+    const plaintext = EncryptionService.decryptWithCachedKey({
+      ciphertext: memory.content,
+      iv: String(meta.iv ?? ''),
+      authTag: String(meta.authTag ?? ''),
+      salt: typeof meta.salt === 'string' ? meta.salt : undefined,
+    })
+    if (plaintext === null) {
+      return { ...memory, content: '', metadata: { ...meta, encrypted: true, locked: true } }
+    }
+
+    try {
+      const record = JSON.parse(plaintext) as Record<string, unknown>
+      const text = [record.text, record.content, record.original_text, record.title].find(
+        value => typeof value === 'string' && value.length > 0
+      ) as string | undefined
+      return {
+        ...memory,
+        content: text ?? '',
+        metadata: {
+          ...meta,
+          encrypted: false,
+          ...(typeof record.meeting_id === 'string' ? { meeting_id: record.meeting_id } : {}),
+          ...(typeof record.title === 'string' ? { meeting_title: record.title } : {}),
+          ...(typeof record.speaker_name === 'string' ? { speaker_name: record.speaker_name } : {}),
+        },
+      }
+    } catch {
+      return { ...memory, content: plaintext, metadata: { ...meta, encrypted: false } }
+    }
   }
 
   /**

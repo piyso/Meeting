@@ -23,6 +23,8 @@ export interface ExtractedEntity {
   metadata: Record<string, string>
 }
 
+import { getPhoneticNormalizer } from './PhoneticNormalizer'
+
 export class EntityExtractionService {
   // ── Regex-based extractors (zero-latency, local) ──
 
@@ -59,6 +61,7 @@ export class EntityExtractionService {
    * Extract entities from a transcript segment.
    */
   extractFromSegment(text: string, meetingId: string, segmentIndex: number): ExtractedEntity[] {
+    const normalizedSourceText = getPhoneticNormalizer().normalizeText(text)
     const entities: ExtractedEntity[] = []
     const seen = new Set<string>()
 
@@ -66,7 +69,7 @@ export class EntityExtractionService {
       const regex = new RegExp(pattern.regex.source, pattern.regex.flags)
       let match
 
-      while ((match = regex.exec(text)) !== null) {
+      while ((match = regex.exec(normalizedSourceText)) !== null) {
         // Person regex has two alternations: group1 (formal name) or group2 (@mention)
         const raw = (match[2] || match[1] || match[0]).trim()
         // Normalize: remove trailing punctuation, collapse whitespace

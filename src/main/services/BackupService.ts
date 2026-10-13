@@ -24,6 +24,15 @@ export interface BackupInfo {
   checksum: string
 }
 
+/**
+ * The table is snake_case, BackupInfo is camelCase. `SELECT *` rows were cast
+ * straight to BackupInfo, so `backup.filePath` was always undefined: restore
+ * failed with "Backup file missing: undefined" and retention never deleted a
+ * file, leaving a full database copy behind every six hours.
+ */
+const BACKUP_COLUMNS =
+  'SELECT id, file_path AS filePath, size_bytes AS sizeBytes, created_at AS createdAt, schema_version AS schemaVersion, checksum FROM backups'
+
 export class BackupService {
   private backupDir: string
   private timer: ReturnType<typeof setInterval> | null = null
@@ -47,11 +56,11 @@ export class BackupService {
     db.pragma('wal_checkpoint(TRUNCATE)')
 
     const timestamp = Date.now()
-    const fileName = `piynotes-backup-${new Date(timestamp).toISOString().replace(/[:.]/g, '-')}.sqlite`
+    const fileName = `bluearkive-backup-${new Date(timestamp).toISOString().replace(/[:.]/g, '-')}.sqlite`
     const filePath = path.join(this.backupDir, fileName)
 
     // Validate path contains only safe characters for VACUUM INTO
-    const safePath = filePath.replace(/[^a-zA-Z0-9_\-\/\\.\\: ]/g, '')
+    const safePath = filePath.replace(/[^a-zA-Z0-9_\-/\\.: ]/g, '')
     if (safePath !== filePath) {
       throw new Error('Backup path contains unsafe characters')
     }
@@ -96,11 +105,16 @@ export class BackupService {
    */
   async restoreFromBackup(backupId: string): Promise<boolean> {
     const db = getDatabaseService().getDb()
-    const backup = db.prepare('SELECT * FROM backups WHERE id = ?').get(backupId) as
+    const backup = db.prepare(`${BACKUP_COLUMNS} WHERE id = ?`).get(backupId) as
       | BackupInfo
       | undefined
     if (!backup) throw new Error(`Backup not found: ${backupId}`)
     if (!fs.existsSync(backup.filePath)) throw new Error(`Backup file missing: ${backup.filePath}`)
+
+    // Never replace the live database with a damaged copy.
+    if (backup.checksum && this.computeChecksum(backup.filePath) !== backup.checksum) {
+      throw new Error('Backup file is corrupted (checksum mismatch) — restore aborted')
+    }
 
     // Close current DB, replace with backup, reopen
     const dbPath = db.name || ''
@@ -112,6 +126,15 @@ export class BackupService {
 
     try {
       fs.copyFileSync(backup.filePath, dbPath)
+      // A leftover WAL from the old database would be replayed onto the
+      // restored file. close() normally removes it; make sure.
+      for (const suffix of ['-wal', '-shm']) {
+        try {
+          fs.unlinkSync(dbPath + suffix)
+        } catch {
+          /* not present */
+        }
+      }
       // Reopen the database after successful file replacement.
       // Without this, getDatabaseService().getDb() returns a closed handle.
       getDatabaseService().reopenDb()
@@ -142,7 +165,7 @@ export class BackupService {
   listBackups(): BackupInfo[] {
     try {
       const db = getDatabaseService().getDb()
-      return db.prepare('SELECT * FROM backups ORDER BY created_at DESC').all() as BackupInfo[]
+      return db.prepare(`${BACKUP_COLUMNS} ORDER BY created_at DESC`).all() as BackupInfo[]
     } catch {
       return []
     }
@@ -154,7 +177,7 @@ export class BackupService {
   deleteBackup(backupId: string): boolean {
     try {
       const db = getDatabaseService().getDb()
-      const backup = db.prepare('SELECT * FROM backups WHERE id = ?').get(backupId) as
+      const backup = db.prepare(`${BACKUP_COLUMNS} WHERE id = ?`).get(backupId) as
         | BackupInfo
         | undefined
       if (backup && fs.existsSync(backup.filePath)) {
@@ -192,9 +215,7 @@ export class BackupService {
   private enforceRetention(): void {
     try {
       const db = getDatabaseService().getDb()
-      const backups = db
-        .prepare('SELECT * FROM backups ORDER BY created_at DESC')
-        .all() as BackupInfo[]
+      const backups = db.prepare(`${BACKUP_COLUMNS} ORDER BY created_at DESC`).all() as BackupInfo[]
       const toDelete = backups.slice(BackupService.MAX_BACKUPS)
       for (const b of toDelete) {
         this.deleteBackup(b.id)
@@ -207,7 +228,7 @@ export class BackupService {
   private getSchemaVersion(): number {
     try {
       const db = getDatabaseService().getDb()
-      const row = db.prepare('SELECT MAX(version) as v FROM schema_migrations').get() as
+      const row = db.prepare('SELECT MAX(version) as v FROM schema_version').get() as
         | { v: number }
         | undefined
       return row?.v ?? 0

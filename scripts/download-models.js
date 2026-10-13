@@ -1,182 +1,128 @@
 #!/usr/bin/env node
-
 /**
- * Download AI Models for PiyAPI Notes
- * This script downloads all required AI models for the application
+ * Download the models the app needs for local development into resources/models.
+ *
+ *   node scripts/download-models.js            # speech + search models (~345 MB)
+ *   node scripts/download-models.js --llm      # also the 1.5B LLM (~1.1 GB)
+ *
+ * Files are pinned to exact Hugging Face revisions and verified by size and
+ * SHA-256, matching src/main/services/ModelDownloadService.ts (keep in sync).
  */
 
 const fs = require('fs')
 const path = require('path')
-const https = require('https')
-const { pipeline } = require('stream')
-const { promisify } = require('util')
+const crypto = require('crypto')
+const { Readable } = require('stream')
+const { pipeline } = require('stream/promises')
 
-const streamPipeline = promisify(pipeline)
-
-// Model directory
 const MODELS_DIR = path.join(__dirname, '..', 'resources', 'models')
+const hf = (repo, rev, file) => `https://huggingface.co/${repo}/resolve/${rev}/${file}`
 
-// ANSI color codes
-const colors = {
-  reset: '\x1b[0m',
-  red: '\x1b[31m',
-  green: '\x1b[32m',
-  yellow: '\x1b[33m',
-  blue: '\x1b[34m',
+const MOONSHINE_REV = '48b4e427b587bcf67797a5be706d6ddc4a298149'
+const MINILM_REV = '1110a243fdf4706b3f48f1d95db1a4f5529b4d41'
+
+const FILES = [
+  {
+    name: 'moonshine-encoder.onnx',
+    url: hf('moonshine-ai/moonshine', MOONSHINE_REV, 'onnx/merged/base/float/encoder_model.onnx'),
+    size: 80818781,
+    sha256: '153e128e7abd64a74ee47f2c3f585c3171c4d46cbb368b032827934c4e01e779',
+  },
+  {
+    name: 'moonshine-decoder.onnx',
+    url: hf(
+      'moonshine-ai/moonshine',
+      MOONSHINE_REV,
+      'onnx/merged/base/float/decoder_model_merged.onnx'
+    ),
+    size: 166211345,
+    sha256: '58778763ca8438963190244d6b26572bdca2cedec56a4b91e828f3f2d69ef3c5',
+  },
+  {
+    name: 'moonshine-tokenizer.json',
+    url: hf('moonshine-ai/moonshine', MOONSHINE_REV, 'onnx/merged/base/float/tokenizer.json'),
+    size: 3761751,
+    sha256: 'ad3a2ceb0e84e4da57451d86fa337f8116dcff5f5d106434f8aa0b0de89718b9',
+  },
+  {
+    name: 'all-MiniLM-L6-v2.onnx',
+    url: hf('sentence-transformers/all-MiniLM-L6-v2', MINILM_REV, 'onnx/model.onnx'),
+    size: 90405214,
+    sha256: '6fd5d72fe4589f189f8ebc006442dbb529bb7ce38f8082112682524616046452',
+  },
+  {
+    name: 'all-MiniLM-L6-v2-tokenizer.json',
+    url: hf('sentence-transformers/all-MiniLM-L6-v2', MINILM_REV, 'tokenizer.json'),
+    size: 466247,
+    sha256: 'be50c3628f2bf5bb5e3a7f17b1f74611b2561a3a27eeab05e5aa30f411572037',
+  },
+  {
+    name: 'all-MiniLM-L6-v2-vocab.txt',
+    url: hf('sentence-transformers/all-MiniLM-L6-v2', MINILM_REV, 'vocab.txt'),
+    size: 231508,
+    sha256: '07eced375cec144d27c900241f3e339478dec958f92fddbc551f295c992038a3',
+  },
+]
+
+// Apache-2.0. (The 3B variant is under the non-commercial Qwen Research License.)
+const LLM = {
+  name: 'qwen2.5-1.5b-instruct-q4_k_m.gguf',
+  url: hf(
+    'Qwen/Qwen2.5-1.5B-Instruct-GGUF',
+    '91cad51170dc346986eccefdc2dd33a9da36ead9',
+    'qwen2.5-1.5b-instruct-q4_k_m.gguf'
+  ),
+  size: 1117320736,
+  sha256: '6a1a2eb6d15622bf3c96857206351ba97e1af16c30d7a74ee38970e434e9407e',
 }
 
-/**
- * Download a file from URL to destination
- */
-async function downloadFile(url, dest, name) {
-  console.log(`${colors.yellow}Downloading ${name}...${colors.reset}`)
-
+function sha256(file) {
   return new Promise((resolve, reject) => {
-    const file = fs.createWriteStream(dest)
-    let downloadedBytes = 0
-    let totalBytes = 0
-
-    https
-      .get(url, response => {
-        // Handle redirects
-        if (response.statusCode === 302 || response.statusCode === 301) {
-          file.close()
-          fs.unlinkSync(dest)
-          return downloadFile(response.headers.location, dest, name).then(resolve).catch(reject)
-        }
-
-        if (response.statusCode !== 200) {
-          file.close()
-          fs.unlinkSync(dest)
-          return reject(new Error(`Failed to download: HTTP ${response.statusCode}`))
-        }
-
-        totalBytes = parseInt(response.headers['content-length'], 10)
-
-        response.on('data', chunk => {
-          downloadedBytes += chunk.length
-          const percent = ((downloadedBytes / totalBytes) * 100).toFixed(1)
-          const mbDownloaded = (downloadedBytes / 1024 / 1024).toFixed(2)
-          const mbTotal = (totalBytes / 1024 / 1024).toFixed(2)
-          process.stdout.write(`\r  Progress: ${percent}% (${mbDownloaded}MB / ${mbTotal}MB)`)
-        })
-
-        response.pipe(file)
-
-        file.on('finish', () => {
-          file.close()
-          process.stdout.write('\n')
-          const size = (fs.statSync(dest).size / 1024 / 1024).toFixed(2)
-          console.log(`${colors.green}✓ Downloaded ${name} (${size}MB)${colors.reset}\n`)
-          resolve()
-        })
-      })
-      .on('error', err => {
-        file.close()
-        fs.unlinkSync(dest)
-        reject(err)
-      })
+    const hash = crypto.createHash('sha256')
+    fs.createReadStream(file)
+      .on('data', chunk => hash.update(chunk))
+      .on('end', () => resolve(hash.digest('hex')))
+      .on('error', reject)
   })
 }
 
-/**
- * Check if file exists and return its size
- */
-function checkFile(filePath, name) {
-  if (fs.existsSync(filePath)) {
-    const size = (fs.statSync(filePath).size / 1024 / 1024).toFixed(2)
-    console.log(`${colors.green}✓ ${name} exists (${size}MB)${colors.reset}`)
-    return true
-  } else {
-    console.log(`${colors.yellow}⚠ ${name} not found${colors.reset}`)
-    return false
+async function ensure(file) {
+  const dest = path.join(MODELS_DIR, file.name)
+  if (fs.existsSync(dest) && fs.statSync(dest).size === file.size) {
+    if ((await sha256(dest)) === file.sha256) {
+      console.log(`✓ ${file.name} (already present)`)
+      return
+    }
+    console.log(`! ${file.name} is present but does not match its checksum — re-downloading`)
   }
+
+  const mb = (file.size / 1024 / 1024).toFixed(1)
+  console.log(`↓ ${file.name} (${mb} MB)`)
+  const partial = dest + '.partial'
+  const response = await fetch(file.url, { redirect: 'follow' })
+  if (!response.ok || !response.body) {
+    throw new Error(`${file.name}: HTTP ${response.status}`)
+  }
+  await pipeline(Readable.fromWeb(response.body), fs.createWriteStream(partial))
+
+  const size = fs.statSync(partial).size
+  const hash = size === file.size ? await sha256(partial) : ''
+  if (size !== file.size || hash !== file.sha256) {
+    fs.rmSync(partial, { force: true })
+    throw new Error(`${file.name}: verification failed (size ${size}, expected ${file.size})`)
+  }
+  fs.renameSync(partial, dest)
+  console.log(`✓ ${file.name}`)
 }
 
-/**
- * Main function
- */
 async function main() {
-  console.log('================================================')
-  console.log('PiyAPI Notes - AI Models Download Script')
-  console.log('================================================\n')
-
-  // Create models directory if it doesn't exist
-  if (!fs.existsSync(MODELS_DIR)) {
-    fs.mkdirSync(MODELS_DIR, { recursive: true })
-    console.log(`Created directory: ${MODELS_DIR}\n`)
-  }
-
-  // Download Silero VAD Model
-  console.log('1. Silero VAD Model')
-  console.log('-------------------')
-
-  const vadModel = path.join(MODELS_DIR, 'silero_vad.onnx')
-  const vadUrl = 'https://huggingface.co/onnx-community/silero-vad/resolve/main/onnx/model.onnx'
-
-  if (!checkFile(vadModel, 'Silero VAD')) {
-    try {
-      await downloadFile(vadUrl, vadModel, 'Silero VAD')
-    } catch (error) {
-      console.error(`${colors.red}✗ Failed to download Silero VAD:${colors.reset}`, error.message)
-      process.exit(1)
-    }
-  } else {
-    console.log('  Skipping download (already exists)\n')
-  }
-
-  // Download Whisper Turbo Model
-  console.log('2. Whisper Turbo Model (High Tier - 16GB+ RAM)')
-  console.log('-----------------------------------------------')
-
-  const whisperModel = path.join(MODELS_DIR, 'ggml-large-v3-turbo.bin')
-  const whisperUrl =
-    'https://huggingface.co/ggerganov/whisper.cpp/resolve/main/ggml-large-v3-turbo.bin'
-
-  if (!checkFile(whisperModel, 'Whisper Turbo')) {
-    console.log('  Model: ggml-large-v3-turbo.bin (~1.6GB)')
-    console.log('  Performance: 51.8x real-time (30s audio → 0.58s processing)')
-    console.log('  RAM Usage: ~1.5GB during transcription')
-    console.log('  Use Case: High tier machines (16GB+ RAM)\n')
-
-    try {
-      await downloadFile(whisperUrl, whisperModel, 'Whisper Turbo')
-    } catch (error) {
-      console.error(
-        `${colors.red}✗ Failed to download Whisper Turbo:${colors.reset}`,
-        error.message
-      )
-      console.log(`${colors.yellow}Note: You can manually download from:${colors.reset}`)
-      console.log(`  ${whisperUrl}`)
-      console.log(`  Save to: ${whisperModel}\n`)
-      process.exit(1)
-    }
-  } else {
-    console.log('  Skipping download (already exists)\n')
-  }
-
-  // Summary
-  console.log('================================================')
-  console.log('Download Summary')
-  console.log('================================================\n')
-
-  checkFile(vadModel, 'Silero VAD (Voice Activity Detection)')
-  checkFile(whisperModel, 'Whisper Turbo (ASR - High Tier)')
-
-  console.log(`\n${colors.green}✓ All required models are ready!${colors.reset}\n`)
-  console.log(`Models location: ${MODELS_DIR}\n`)
-  console.log('Next steps:')
-  console.log('1. The VAD model will be used by src/main/workers/vad.worker.ts')
-  console.log('2. The Whisper Turbo model will be used for high-tier transcription (16GB+ RAM)')
-  console.log('3. Run "npm run dev" to start the application')
-  console.log('4. The models will automatically load on first use\n')
-  console.log('Hardware Tier Information:')
-  console.log('  - High (16GB+ RAM): Whisper Turbo (1.5GB RAM, 51.8x RT)')
-  console.log('  - Mid/Low (8-12GB RAM): Moonshine Base (300MB RAM, 290x RT) - To be added\n')
+  fs.mkdirSync(MODELS_DIR, { recursive: true })
+  const files = process.argv.includes('--llm') ? [...FILES, LLM] : FILES
+  for (const file of files) await ensure(file)
+  console.log('\nAll models ready in resources/models')
 }
 
-// Run main function
 main().catch(error => {
-  console.error(`${colors.red}Error:${colors.reset}`, error)
+  console.error(`\n✗ ${error.message}`)
   process.exit(1)
 })

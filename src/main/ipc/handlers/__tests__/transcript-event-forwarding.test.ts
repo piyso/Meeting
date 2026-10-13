@@ -19,6 +19,7 @@ const mockMainWindow = {
   isDestroyed: vi.fn(() => false),
   getSize: vi.fn(() => [1200, 800]),
   getBounds: vi.fn(() => ({ x: 0, y: 0, width: 1200, height: 800 })),
+  getTitle: vi.fn(() => 'BlueArkive'),
 }
 
 vi.mock('electron', () => ({
@@ -57,6 +58,7 @@ vi.mock('../../../database/crud/transcripts', () => ({
 describe('Transcript Event Forwarding', () => {
   beforeEach(async () => {
     vi.clearAllMocks()
+    vi.useFakeTimers()
     mockTranscriptService = new MockTranscriptService()
     // Reset mock state that clearAllMocks doesn't reset
     mockMainWindow.isDestroyed = vi.fn(() => false)
@@ -68,6 +70,7 @@ describe('Transcript Event Forwarding', () => {
 
   afterEach(() => {
     mockTranscriptService.removeAllListeners()
+    vi.useRealTimers()
   })
 
   it('should forward transcript events to renderer', async () => {
@@ -90,6 +93,7 @@ describe('Transcript Event Forwarding', () => {
     }
 
     mockTranscriptService.emit('transcript', transcriptData)
+    vi.advanceTimersByTime(100)
 
     // Verify event was sent to renderer
     expect(mockWebContents.send).toHaveBeenCalledTimes(1)
@@ -101,6 +105,7 @@ describe('Transcript Event Forwarding', () => {
       endTime: 15.2,
       confidence: 0.95,
       speakerId: 'speaker-1',
+      speakerName: 'John Doe',
       isFinal: true,
     } as TranscriptChunk)
   })
@@ -119,6 +124,7 @@ describe('Transcript Event Forwarding', () => {
     }
 
     mockTranscriptService.emit('transcript', transcriptData)
+    vi.advanceTimersByTime(100)
 
     expect(mockWebContents.send).toHaveBeenCalledWith('event:transcriptChunk', {
       meetingId: 'meeting-123',
@@ -128,6 +134,7 @@ describe('Transcript Event Forwarding', () => {
       endTime: 5,
       confidence: 0.9,
       speakerId: null,
+      speakerName: null,
       isFinal: true,
     })
   })
@@ -149,6 +156,7 @@ describe('Transcript Event Forwarding', () => {
     }
 
     mockTranscriptService.emit('transcript', transcriptData)
+    vi.advanceTimersByTime(100)
 
     // Should not send event
     expect(mockWebContents.send).not.toHaveBeenCalled()
@@ -173,6 +181,7 @@ describe('Transcript Event Forwarding', () => {
     }
 
     mockTranscriptService.emit('transcript', transcriptData)
+    vi.advanceTimersByTime(100)
 
     // Should not send event
     expect(mockWebContents.send).not.toHaveBeenCalled()
@@ -194,6 +203,8 @@ describe('Transcript Event Forwarding', () => {
       })
     }
 
+    vi.advanceTimersByTime(100)
+
     // Verify all events were sent
     expect(mockWebContents.send).toHaveBeenCalledTimes(5)
   })
@@ -210,6 +221,8 @@ describe('Transcript Event Forwarding', () => {
       endTime: 5,
       confidence: 0.95,
     })
+
+    vi.advanceTimersByTime(100)
 
     const sentChunk = mockWebContents.send.mock.calls[0][1] as TranscriptChunk
     expect(sentChunk.isFinal).toBe(true)

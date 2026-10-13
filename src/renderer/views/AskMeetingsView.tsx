@@ -14,6 +14,10 @@ import { ChevronLeft, Send, Trash2, Square } from 'lucide-react'
 import { IconButton } from '../components/ui/IconButton'
 import { AISourceBadge } from '../components/ui/AISourceBadge'
 import { ProTeaseOverlay } from '../components/ui/ProTeaseOverlay'
+import {
+  ReceiptAudioPopover,
+  type ReceiptAnchorData,
+} from '../components/digest/ReceiptAudioPopover'
 import type { SemanticSearchResult } from '../../types/ipc'
 import './ask-meetings.css'
 
@@ -29,8 +33,22 @@ interface ChatMessage {
     meetingTitle: string
     snippet: string
     relevance: number
+    timestampMs?: number
   }>
   isStreaming?: boolean
+}
+
+/**
+ * Returns the URL only if it is an absolute https link; otherwise null.
+ * Matches what the main process will open (shell:openExternal is HTTPS-only).
+ */
+function safeExternalUrl(raw: string): string | null {
+  try {
+    const url = new URL(raw.trim())
+    return url.protocol === 'https:' ? url.href : null
+  } catch {
+    return null
+  }
 }
 
 function MarkdownText({ content }: { content: string }) {
@@ -82,13 +100,23 @@ function MarkdownText({ content }: { content: string }) {
         }
         const linkMatch = part.match(/^\[(.+?)\]\((.+?)\)$/)
         if (linkMatch) {
+          // Answers are model output built from meeting content — never trust
+          // the URL. Only https links become clickable; anything else
+          // (javascript:, file:, data:, custom schemes) renders as plain text.
+          const href = safeExternalUrl(linkMatch[2] ?? '')
+          if (!href) return <span key={idx}>{linkMatch[1]}</span>
           return (
             <a
               key={idx}
-              href={linkMatch[2]}
+              href={href}
               target="_blank"
               rel="noopener noreferrer"
               className="ask-msg-link"
+              onClick={e => {
+                // Open in the system browser, never inside the app window
+                e.preventDefault()
+                window.electronAPI?.shell?.openExternal?.(href)
+              }}
             >
               {linkMatch[1]}
             </a>
@@ -219,6 +247,10 @@ export default function AskMeetingsView() {
   // Abort ref — tracks whether the current request should be discarded.
   // Set to true on cancel or unmount so stale IPC responses don't update state.
   const abortRef = useRef(false)
+  const [activeReceipt, setActiveReceipt] = useState<{
+    data: ReceiptAnchorData
+    rect: DOMRect
+  } | null>(null)
 
   // P1-14 FIX: Track active request ID to prevent stream cross-contamination.
   // Without this, tokens from a cancelled request leak into the next request's
@@ -272,15 +304,52 @@ export default function AskMeetingsView() {
     }
   }, [messages, userId, isLoaded])
 
+  // Cancel a stuck/in-flight request
+  const handleCancel = useCallback(() => {
+    abortRef.current = true
+    activeRequestIdRef.current = null
+    setIsLoading(false)
+    // P1-2 FIX: Actually cancel the backend generation, not just UI cosmetics.
+    // Without this, the GPU continues inference until maxTokens is exhausted.
+    window.electronAPI?.intelligence?.cancelAsk?.()
+    // Mark the latest streaming message as cancelled
+    setMessages(prev =>
+      prev.map(msg =>
+        msg.isStreaming
+          ? {
+              ...msg,
+              content: msg.content || '_Request cancelled._',
+              isStreaming: false,
+            }
+          : msg
+      )
+    )
+  }, [])
+
+  const confirmClearTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  useEffect(() => {
+    return () => {
+      if (confirmClearTimerRef.current) clearTimeout(confirmClearTimerRef.current)
+    }
+  }, [])
+
   const handleClearHistory = () => {
+    if (messages.length === 0) return
+    if (confirmClearTimerRef.current) clearTimeout(confirmClearTimerRef.current)
     if (!confirmClear) {
       setConfirmClear(true)
-      // Auto-dismiss after 3 seconds if user doesn't confirm
-      setTimeout(() => setConfirmClear(false), 3000)
+      // Auto-dismiss after 4 seconds if user doesn't confirm
+      confirmClearTimerRef.current = setTimeout(() => setConfirmClear(false), 4000)
       return
     }
+    // Stop any in-flight answer so it can't re-populate the cleared chat
+    if (isLoading) handleCancel()
     setMessages([])
-    localStorage.removeItem(`${STORAGE_KEY_PREFIX}:${userId}`)
+    try {
+      localStorage.removeItem(`${STORAGE_KEY_PREFIX}:${userId}`)
+    } catch {
+      // storage unavailable — nothing persisted to remove
+    }
     setConfirmClear(false)
   }
 
@@ -320,28 +389,6 @@ export default function AskMeetingsView() {
     }
   }, [])
 
-  // Cancel a stuck/in-flight request
-  const handleCancel = useCallback(() => {
-    abortRef.current = true
-    activeRequestIdRef.current = null
-    setIsLoading(false)
-    // P1-2 FIX: Actually cancel the backend generation, not just UI cosmetics.
-    // Without this, the GPU continues inference until maxTokens is exhausted.
-    window.electronAPI?.intelligence?.cancelAsk?.()
-    // Mark the latest streaming message as cancelled
-    setMessages(prev =>
-      prev.map(msg =>
-        msg.isStreaming
-          ? {
-              ...msg,
-              content: msg.content || '_Request cancelled._',
-              isStreaming: false,
-            }
-          : msg
-      )
-    )
-  }, [])
-
   const handleSubmit = useCallback(
     async (e?: React.FormEvent | string) => {
       let query = input.trim()
@@ -354,10 +401,15 @@ export default function AskMeetingsView() {
 
       // Reset abort flag for this new request
       abortRef.current = false
+      // True once this request has been cancelled or superseded by a newer one
+      const isStale = () => abortRef.current || activeRequestIdRef.current !== assistantId
+
+      const requestStamp = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
+      const assistantId = `assistant-${requestStamp}`
 
       // Add user message
       const userMsg: ChatMessage = {
-        id: `user-${Date.now()}`,
+        id: `user-${requestStamp}`,
         role: 'user',
         content: query,
         timestamp: Date.now(),
@@ -367,7 +419,6 @@ export default function AskMeetingsView() {
       setIsLoading(true)
 
       // Add streaming placeholder
-      const assistantId = `assistant-${Date.now()}`
       // P1-14 FIX: Track the active request ID so the stream listener
       // only injects tokens for this specific request.
       activeRequestIdRef.current = assistantId
@@ -390,7 +441,7 @@ export default function AskMeetingsView() {
         })
 
         // Abort check: if cancelled during search, bail out
-        if (abortRef.current) return
+        if (isStale()) return
 
         let sources: ChatMessage['sources'] = []
         let contextText = ''
@@ -407,6 +458,11 @@ export default function AskMeetingsView() {
             meetingTitle: r.meeting?.title || 'Untitled Meeting',
             snippet: r.snippet,
             relevance: r.relevance,
+            // Only cite a position when the search returned one
+            timestampMs:
+              typeof r.startTime === 'number' && r.startTime >= 0 && r.startTime < 1_000_000_000
+                ? Math.round(r.startTime * 1000)
+                : undefined,
           }))
 
           // Build context from top results for LLM
@@ -449,23 +505,27 @@ export default function AskMeetingsView() {
         }
 
         // Abort check: if cancelled during AI generation, discard result
-        if (abortRef.current) return
+        if (isStale()) return
 
         // Final answer (streaming would have already updated content in real-time)
-        const answer =
-          intelligenceResult?.success && intelligenceResult?.data
-            ? intelligenceResult.data.answer
-            : 'I could not process your question. Make sure the AI engine is loaded.'
+        const answered = !!(intelligenceResult?.success && intelligenceResult?.data?.answer)
+        const answer = answered
+          ? (intelligenceResult?.data?.answer ?? '')
+          : intelligenceResult?.error?.message ||
+            'I could not process your question. Make sure the AI engine is loaded.'
 
-        // Update the streaming message with the final answer + sources
+        // Update the streaming message with the final answer (+ sources only
+        // when there really is an answer they back up)
         setMessages(prev =>
           prev.map(msg =>
-            msg.id === assistantId ? { ...msg, content: answer, sources, isStreaming: false } : msg
+            msg.id === assistantId
+              ? { ...msg, content: answer, sources: answered ? sources : [], isStreaming: false }
+              : msg
           )
         )
       } catch (error) {
         // Don't update state if aborted
-        if (abortRef.current) return
+        if (isStale()) return
         setMessages(prev =>
           prev.map(msg =>
             msg.id === assistantId
@@ -478,7 +538,8 @@ export default function AskMeetingsView() {
           )
         )
       } finally {
-        if (!abortRef.current) {
+        if (!isStale()) {
+          activeRequestIdRef.current = null
           setIsLoading(false)
         }
       }
@@ -545,7 +606,8 @@ export default function AskMeetingsView() {
           <IconButton
             icon={<Trash2 size={16} />}
             onClick={handleClearHistory}
-            tooltip={confirmClear ? 'Click again to confirm' : 'Clear Chat Context'}
+            tooltip={confirmClear ? 'Click again to clear the chat' : 'Clear chat history'}
+            disabled={messages.length === 0}
             className={
               confirmClear
                 ? 'text-[var(--color-rose)] animate-pulse transition-colors'
@@ -641,14 +703,23 @@ export default function AskMeetingsView() {
                   {msg.sources.map((src, i) => (
                     <button
                       key={i}
-                      className="ask-source-chip"
-                      onClick={() => {
-                        if (src.meetingId) {
-                          navigate('meeting-detail', src.meetingId)
-                        }
+                      className="ask-source-chip hover:scale-105 transition-transform"
+                      onClick={e => {
+                        const rect = e.currentTarget.getBoundingClientRect()
+                        setActiveReceipt({
+                          data: {
+                            meetingId: src.meetingId,
+                            meetingTitle: src.meetingTitle,
+                            timestampMs: src.timestampMs,
+                            snippet: src.snippet,
+                            relevance: src.relevance,
+                          },
+                          rect,
+                        })
                       }}
                     >
-                      📄 {src.meetingTitle} ({Math.round(Math.min(src.relevance, 1) * 100)}%)
+                      {src.meetingTitle} (
+                      {Math.round(Math.min(Math.max(src.relevance || 0, 0), 1) * 100)}%)
                     </button>
                   ))}
                 </div>
@@ -691,6 +762,15 @@ export default function AskMeetingsView() {
           )}
         </form>
       </div>
+
+      {/* Receipt-Anchored Evidence Popover */}
+      {activeReceipt && (
+        <ReceiptAudioPopover
+          data={activeReceipt.data}
+          rect={activeReceipt.rect}
+          onClose={() => setActiveReceipt(null)}
+        />
+      )}
     </div>
   )
 }

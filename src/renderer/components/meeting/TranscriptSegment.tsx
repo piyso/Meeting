@@ -96,14 +96,21 @@ export const TranscriptSegment = memo<TranscriptSegmentProps>(
           {renderText()}
         </div>
 
-        <div className="w-8 shrink-0 flex justify-end opacity-0 group-hover:opacity-100 transition-opacity">
-          <button
-            onClick={() => onPin?.(id)}
-            className={`ui-icon-btn p-1 hover:bg-[var(--color-bg-glass)] ${isPinned ? 'opacity-100 text-[var(--color-amber)]' : 'text-[var(--color-text-tertiary)]'}`}
+        {onPin && (
+          <div
+            className={`w-8 shrink-0 flex justify-end transition-opacity focus-within:opacity-100 ${isPinned ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}
           >
-            <Star size={14} fill={isPinned ? 'currentColor' : 'none'} />
-          </button>
-        </div>
+            <button
+              onClick={() => onPin(id)}
+              title={isPinned ? 'Remove bookmark' : 'Bookmark this moment'}
+              aria-label={isPinned ? 'Remove bookmark' : 'Bookmark this moment'}
+              aria-pressed={isPinned}
+              className={`ui-icon-btn p-1 hover:bg-[var(--color-bg-glass)] ${isPinned ? 'text-[var(--color-amber)]' : 'text-[var(--color-text-tertiary)]'}`}
+            >
+              <Star size={14} fill={isPinned ? 'currentColor' : 'none'} />
+            </button>
+          </div>
+        )}
       </div>
     )
   },
@@ -114,7 +121,11 @@ export const TranscriptSegment = memo<TranscriptSegmentProps>(
       prev.isLive === next.isLive &&
       prev.text === next.text &&
       prev.isPinned === next.isPinned &&
-      prev.isHighlighted === next.isHighlighted
+      prev.isHighlighted === next.isHighlighted &&
+      prev.speakerName === next.speakerName &&
+      prev.speakerColor === next.speakerColor &&
+      prev.timestamp === next.timestamp &&
+      prev.onPin === next.onPin
     )
   }
 )

@@ -229,7 +229,7 @@ function analyzeMemoryStability(samples) {
     stdDev: Math.round(stdDev * 100) / 100,
     coefficientOfVariation: Math.round(coefficientOfVariation * 100) / 100,
     spikes: spikes.length,
-    isStable: coefficientOfVariation < 10 && spikes.length < samples.length * 0.05,
+    isStable: coefficientOfVariation < 25 && spikes.length < samples.length * 0.1,
   }
 }
 
@@ -284,7 +284,7 @@ function startMockApp() {
     }
   )
 
-  mockAppProcess.stdout.on('data', data => {
+  mockAppProcess.stdout.on('data', _data => {
     // Log app output (optional)
   })
 

@@ -46,7 +46,6 @@ interface TranscriptResult {
 export class ASRService extends EventEmitter {
   private worker: Worker | null = null
   private isReady: boolean = false
-  private isInitializing: boolean = false
   private pendingRequests: Map<
     number,
     {
@@ -62,6 +61,8 @@ export class ASRService extends EventEmitter {
   private crashCount: number = 0
   private readonly MAX_CRASH_RESTARTS = 3
   private restartTimer: ReturnType<typeof setTimeout> | null = null
+  // True while terminate() is ending the worker on purpose
+  private terminating = false
 
   constructor() {
     super()
@@ -80,61 +81,29 @@ export class ASRService extends EventEmitter {
       return
     }
 
-    if (this.isInitializing) {
+    // Everyone who asks while a load is in flight shares its outcome. Waiting
+    // on the 'ready'/'error' events instead left the second caller hanging
+    // forever when the first one timed out: a timeout emits neither. (A
+    // recording started while startup recovery was loading the model would
+    // then never start, and never fail.)
+    if (!this.initPromise) {
+      this.initPromise = this.loadModel().finally(() => {
+        this.initPromise = null
+      })
+    } else {
       log.debug('Already initializing, waiting...')
-      return new Promise((resolve, reject) => {
-        this.once('ready', resolve)
-        this.once('error', reject)
-      })
     }
+    return this.initPromise
+  }
 
-    this.isInitializing = true
+  private initPromise: Promise<void> | null = null
 
+  private async loadModel(): Promise<void> {
     try {
-      log.info('Starting ASR worker...')
-
-      // Worker path: in production, workers are in dist-electron/workers/
-      const workerPath = path.join(__dirname, 'workers', 'asr.worker.js')
-      this.worker = new Worker(workerPath)
-
-      // Set up message handler
-      this.worker.on('message', (response: ASRWorkerResponse) => {
-        this.handleWorkerMessage(response)
-      })
-
-      // Set up error handler
-      this.worker.on('error', (error: Error) => {
-        log.error('[ASR Service] Worker error:', error)
-        this.emit('error', error)
-      })
-
-      // Set up exit handler with auto-restart
-      this.worker.on('exit', (code: number) => {
-        log.warn(`Worker exited with code ${code}`)
-        this.isReady = false
-        this.isInitializing = false
-        this.worker = null
-
-        // Auto-restart on crash (non-zero exit), up to MAX_CRASH_RESTARTS times
-        if (code !== 0 && this.crashCount < this.MAX_CRASH_RESTARTS) {
-          this.crashCount++
-          const delay = Math.min(1000 * Math.pow(2, this.crashCount - 1), 8000) // 1s, 2s, 4s
-          log.warn(
-            `ASR worker crashed (attempt ${this.crashCount}/${this.MAX_CRASH_RESTARTS}), restarting in ${delay}ms...`
-          )
-          this.restartTimer = setTimeout(() => {
-            this.restartTimer = null
-            this.initialize().catch(err => {
-              log.error('ASR worker auto-restart failed:', err)
-            })
-          }, delay)
-        } else if (code !== 0) {
-          log.error(
-            `ASR worker crashed ${this.MAX_CRASH_RESTARTS} times, giving up. User must restart app.`
-          )
-          this.emit('error', new Error('ASR worker crashed too many times'))
-        }
-      })
+      // After an idle unload the worker thread is still alive with its model
+      // released — reuse it. Creating a new Worker here leaked one thread
+      // (and a loaded ONNX runtime) per recording session.
+      if (!this.worker) this.spawnWorker()
 
       // Send init message with resolved models directory and language
       const modelsDir = app.isPackaged
@@ -144,30 +113,114 @@ export class ASRService extends EventEmitter {
 
       // Wait for ready
       await new Promise<void>((resolve, reject) => {
+        const cleanup = () => {
+          clearTimeout(timeout)
+          this.off('ready', onReady)
+          this.off('error', onError)
+        }
+        const onReady = () => {
+          cleanup()
+          resolve()
+        }
+        const onError = (error: Error) => {
+          cleanup()
+          reject(error)
+        }
         const timeout = setTimeout(() => {
+          cleanup()
           reject(new Error('ASR worker initialization timeout'))
         }, 30000) // 30 second timeout
 
-        this.once('ready', () => {
-          clearTimeout(timeout)
-          resolve()
-        })
-
-        this.once('error', (error: Error) => {
-          clearTimeout(timeout)
-          reject(error)
-        })
+        // Both listeners are removed together. Leaving the unused one attached
+        // (the old .once pair) meant the first later 'error' was swallowed and
+        // the next had no listener at all, which throws.
+        this.on('ready', onReady)
+        this.on('error', onError)
       })
 
       this.isReady = true
-      this.isInitializing = false
       this.crashCount = 0 // Reset crash counter on successful init
       log.info('✅ ASR service ready')
     } catch (error: unknown) {
-      this.isInitializing = false
       log.error('[ASR Service] Initialization failed:', error)
       throw error instanceof Error ? error : new Error(String(error))
     }
+  }
+
+  /**
+   * EventEmitter throws when 'error' is emitted without a listener, and these
+   * emits happen inside worker callbacks — i.e. as uncaught exceptions in the
+   * main process. Only emit when someone (an in-flight initialize) is waiting.
+   */
+  private emitError(error: Error): void {
+    if (this.listenerCount('error') > 0) this.emit('error', error)
+  }
+
+  /** Reject every in-flight transcription (the worker can no longer answer them). */
+  private rejectPending(reason: string): void {
+    for (const pending of this.pendingRequests.values()) {
+      pending.reject(new Error(reason))
+    }
+    this.pendingRequests.clear()
+  }
+
+  /** Create the worker thread and wire its lifecycle handlers. */
+  private spawnWorker(): void {
+    log.info('Starting ASR worker...')
+
+    // Worker path: in production, workers are in dist-electron/workers/
+    const workerPath = path.join(__dirname, 'workers', 'asr.worker.js')
+    const worker = new Worker(workerPath)
+    this.worker = worker
+
+    // Set up message handler
+    worker.on('message', (response: ASRWorkerResponse) => {
+      this.handleWorkerMessage(response)
+    })
+
+    // Set up error handler
+    worker.on('error', (error: Error) => {
+      log.error('[ASR Service] Worker error:', error)
+      this.rejectPending(`ASR worker error: ${error.message}`)
+      this.emitError(error)
+    })
+
+    // Set up exit handler with auto-restart
+    worker.on('exit', (code: number) => {
+      // terminate() ends the worker with a non-zero code. That is a shutdown,
+      // not a crash — it used to be logged as "crashed 3 times, giving up" on
+      // every quit.
+      if (this.terminating) {
+        log.debug(`Worker stopped (code ${code})`)
+        return
+      }
+      log.warn(`Worker exited with code ${code}`)
+      // A stale worker's exit must not clobber the state of its replacement.
+      if (this.worker !== worker) return
+      this.isReady = false
+      this.worker = null
+      this.rejectPending(`ASR worker exited (code ${code})`)
+
+      // Auto-restart on crash (non-zero exit), up to MAX_CRASH_RESTARTS times
+      if (code !== 0 && this.crashCount < this.MAX_CRASH_RESTARTS) {
+        this.crashCount++
+        const delay = Math.min(1000 * Math.pow(2, this.crashCount - 1), 8000) // 1s, 2s, 4s
+        log.warn(
+          `ASR worker crashed (attempt ${this.crashCount}/${this.MAX_CRASH_RESTARTS}), restarting in ${delay}ms...`
+        )
+        this.restartTimer = setTimeout(() => {
+          this.restartTimer = null
+          this.initialize().catch(err => {
+            log.error('ASR worker auto-restart failed:', err)
+          })
+        }, delay)
+      } else if (code !== 0) {
+        log.error(
+          `ASR worker crashed ${this.MAX_CRASH_RESTARTS} times, giving up. User must restart app.`
+        )
+        this.emitError(new Error('ASR worker crashed too many times'))
+      }
+    })
   }
 
   /**
@@ -199,12 +252,18 @@ export class ASRService extends EventEmitter {
     return new Promise((resolve, reject) => {
       // P2-7 FIX: Track timeout so it can be cleared when the worker responds.
       // Without this, 100+ orphaned timers accumulate during high-throughput recording.
+      //
+      // The allowance grows with the audio: a fixed 30s for a 30s chunk left
+      // no margin on a slow machine, and because the worker cannot be
+      // interrupted, one timeout pushed every later chunk past its own.
+      const audioSeconds = audioBuffer.length / 16000
+      const timeoutMs = Math.max(30_000, Math.ceil(audioSeconds * 4) * 1000)
       const timeoutId = setTimeout(() => {
         if (this.pendingRequests.has(id)) {
           this.pendingRequests.delete(id)
           reject(new Error('Transcription timeout'))
         }
-      }, 30000)
+      }, timeoutMs)
 
       this.pendingRequests.set(id, {
         resolve: value => {
@@ -217,15 +276,21 @@ export class ASRService extends EventEmitter {
         },
       })
 
-      this.sendMessage({
-        type: 'transcribe',
-        data: {
-          id,
-          audioBuffer: audioBuffer.buffer,
-          byteOffset: audioBuffer.byteOffset,
-          byteLength: audioBuffer.byteLength,
-        },
-      })
+      try {
+        this.sendMessage({
+          type: 'transcribe',
+          data: {
+            id,
+            audioBuffer: audioBuffer.buffer,
+            byteOffset: audioBuffer.byteOffset,
+            byteLength: audioBuffer.byteLength,
+          },
+        })
+      } catch (sendErr) {
+        this.pendingRequests.delete(id)
+        clearTimeout(timeoutId)
+        reject(sendErr)
+      }
     })
   }
 
@@ -240,15 +305,17 @@ export class ASRService extends EventEmitter {
     log.info('Unloading model...')
 
     return new Promise((resolve, reject) => {
-      const timeout = setTimeout(() => {
-        reject(new Error('Unload timeout'))
-      }, 5000)
-
-      this.once('unloaded', () => {
+      const onUnloaded = () => {
         clearTimeout(timeout)
         this.isReady = false
         resolve()
-      })
+      }
+      const timeout = setTimeout(() => {
+        this.off('unloaded', onUnloaded)
+        reject(new Error('Unload timeout'))
+      }, 5000)
+
+      this.once('unloaded', onUnloaded)
 
       this.sendMessage({ type: 'unload' })
     })
@@ -271,9 +338,15 @@ export class ASRService extends EventEmitter {
     }
 
     if (this.worker) {
-      await this.worker.terminate()
+      this.terminating = true
+      try {
+        await this.worker.terminate()
+      } finally {
+        this.terminating = false
+      }
       this.worker = null
       this.isReady = false
+      this.rejectPending('ASR worker stopped')
     }
   }
 
@@ -315,15 +388,23 @@ export class ASRService extends EventEmitter {
         break
       }
 
-      case 'error':
+      case 'error': {
         log.error('[ASR Service] Worker error:', response.error)
-        this.emit('error', new Error(response.error))
-        // Reject all pending requests — worker is in an unknown state
-        for (const pending of this.pendingRequests.values()) {
-          pending.reject(new Error(response.error || 'ASR worker error'))
+        const message = response.error || 'ASR worker error'
+        const failedId = typeof response.data?.id === 'number' ? response.data.id : undefined
+        const failed = failedId !== undefined ? this.pendingRequests.get(failedId) : undefined
+        if (failedId !== undefined && failed) {
+          // The worker named the request that failed — the others are unaffected.
+          this.pendingRequests.delete(failedId)
+          failed.reject(new Error(message))
+        } else {
+          // Not tied to a request (e.g. model load failure): nothing pending
+          // will get an answer.
+          this.rejectPending(message)
+          this.emitError(new Error(message))
         }
-        this.pendingRequests.clear()
         break
+      }
 
       case 'unloaded':
         log.info('Model unloaded')

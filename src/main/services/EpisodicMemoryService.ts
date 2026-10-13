@@ -2,7 +2,7 @@
  * EpisodicMemoryService — Always-on rolling audio buffer
  *
  * 13.6 FIX: Replaces "Start Meeting" with a passive rolling audio buffer.
- * Users can ask PiyNotes about any conversation from the last 24 hours.
+ * Users can ask BlueArkive about any conversation from the last 24 hours.
  *
  * Architecture:
  * - Maintains a 24-hour circular audio buffer in memory + disk

@@ -5,29 +5,15 @@ import { useConnectivityStore } from '../../store/connectivityStore'
 
 export const SyncStatusBadge: React.FC = () => {
   const isOnline = useConnectivityStore(s => s.isOnline)
+  const storeSyncStatus = useConnectivityStore(s => s.syncStatus)
   const [isSyncing, setIsSyncing] = useState(false)
   const [queuedEvents, setQueuedEvents] = useState(0)
   const [error, setError] = useState<string | null>(null)
   const [progress, setProgress] = useState<SyncProgress | null>(null)
 
   useEffect(() => {
-    let mounted = true
-    window.electronAPI?.sync
-      ?.getStatus()
-      ?.then(res => {
-        if (mounted && res?.success && res.data) {
-          setIsSyncing(res.data.isSyncing)
-          setQueuedEvents(res.data.queuedEvents)
-          setError(res.data.lastSyncError)
-        }
-      })
-      .catch(() => {
-        /* offline or unavailable */
-      })
-
     const unsub = window.electronAPI?.on?.syncEvent?.(
       (event: { type: string; progress?: SyncProgress; error?: { message: string } }) => {
-        // update state based on event
         if (event.type === 'started') {
           setIsSyncing(true)
           setError(null)
@@ -46,7 +32,6 @@ export const SyncStatusBadge: React.FC = () => {
     )
 
     return () => {
-      mounted = false
       if (unsub) unsub()
     }
   }, [])
@@ -63,11 +48,14 @@ export const SyncStatusBadge: React.FC = () => {
     )
   }
 
-  if (error) {
+  const effectiveError = error || (storeSyncStatus === 'error' ? 'Sync error' : null)
+  const effectiveSyncing = isSyncing || storeSyncStatus === 'syncing' || queuedEvents > 0
+
+  if (effectiveError) {
     return (
       <div
         className="flex items-center gap-1.5 px-2 py-1 object-contain flex-shrink-0 rounded-[6px] bg-[#3A1D1D] text-[#FF453A] text-[12px] font-medium select-none shadow-sm"
-        title={error}
+        title={effectiveError}
       >
         <AlertTriangle size={13} strokeWidth={2.5} />
         <span>Sync Error</span>
@@ -75,7 +63,7 @@ export const SyncStatusBadge: React.FC = () => {
     )
   }
 
-  if (isSyncing || queuedEvents > 0) {
+  if (effectiveSyncing) {
     return (
       <div
         className="flex items-center gap-1.5 px-2 flex-shrink-0 py-1 rounded-[6px] bg-[#1C1C1E] text-white text-[12px] font-medium select-none shadow-sm"

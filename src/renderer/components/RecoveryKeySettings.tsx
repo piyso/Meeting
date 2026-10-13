@@ -28,44 +28,51 @@ export const RecoveryKeySettings: React.FC<RecoveryKeySettingsProps> = ({ userId
     }
   }, [])
 
-  const handleExportClick = useCallback(() => {
-    setShowPasswordPrompt(true)
+  /**
+   * Ask the main process for the phrase. It decides what proof is needed: the
+   * account password (checked against the sign-in service), or — for an
+   * account without one — the operating system's own confirmation.
+   */
+  const reveal = useCallback(async (withPassword?: string) => {
     setError('')
-  }, [])
+    setIsVerifying(true)
+    try {
+      const res = await window.electronAPI?.auth?.revealRecoveryKey?.(
+        withPassword ? { password: withPassword } : undefined
+      )
 
-  const handlePasswordSubmit = useCallback(
-    async (e: React.FormEvent) => {
-      e.preventDefault()
-      setError('')
-      setIsVerifying(true)
-
-      try {
-        if (password.length < 8) {
-          setError('Invalid password')
-          setIsVerifying(false)
-          return
-        }
-
-        const res = await window.electronAPI?.auth?.generateRecoveryKey()
-
-        if (!res?.success || !res.data?.phrase) {
-          setError(res?.error?.message || 'Failed to generate recovery key')
-          setIsVerifying(false)
-          return
-        }
-
+      if (res?.success && res.data?.phrase) {
         setRecoveryPhrase(res.data.phrase)
         setShowRecoveryKey(true)
         setShowPasswordPrompt(false)
         setPassword('')
-      } catch (err) {
-        log.error('Recovery key generation failed:', err)
-        setError('An unexpected error occurred. Please try again.')
-      } finally {
-        setIsVerifying(false)
+        return
       }
+      if (res?.error?.code === 'PASSWORD_REQUIRED') {
+        setShowPasswordPrompt(true)
+        return
+      }
+      if (res?.error?.code === 'CANCELLED') return
+      setError(res?.error?.message || 'Could not show the recovery key')
+    } catch (err) {
+      log.error('Recovery key could not be shown:', err)
+      setError('An unexpected error occurred. Please try again.')
+    } finally {
+      setIsVerifying(false)
+    }
+  }, [])
+
+  const handleExportClick = useCallback(() => {
+    void reveal()
+  }, [reveal])
+
+  const handlePasswordSubmit = useCallback(
+    (e: React.FormEvent) => {
+      e.preventDefault()
+      if (!password) return
+      void reveal(password)
     },
-    [password]
+    [password, reveal]
   )
 
   const handleCopyToClipboard = useCallback(async () => {
@@ -144,17 +151,33 @@ export const RecoveryKeySettings: React.FC<RecoveryKeySettingsProps> = ({ userId
                         Recovery Key
                       </div>
                       <div className="text-[11px] text-[var(--color-text-tertiary)] mt-1 font-medium tracking-wider">
-                        A 24-word phrase to recover your account if you forget your password.
+                        A 24-word phrase that unlocks your synced data on a new device, or after a
+                        password reset.
                       </div>
                     </div>
                   </div>
 
                   <div className="flex items-center gap-3 flex-shrink-0">
-                    <Button variant="secondary" size="sm" onClick={handleExportClick}>
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      onClick={handleExportClick}
+                      disabled={isVerifying}
+                    >
                       Export Key
                     </Button>
                   </div>
                 </div>
+
+                {error && (
+                  <div
+                    role="alert"
+                    className="flex items-center gap-2 p-3 rounded-xl bg-rose-500/10 border border-rose-500/20 text-rose-400 text-[12px]"
+                  >
+                    <AlertCircle size={14} />
+                    {error}
+                  </div>
+                )}
 
                 <div className="flex items-center gap-4 px-6 py-4 rounded-[var(--radius-xl)] bg-amber-500/10 border border-amber-500/20 shadow-inner animate-slide-up mt-1">
                   <div className="flex-shrink-0 w-10 h-10 flex items-center justify-center rounded-[var(--radius-lg)] bg-amber-500/20 border border-amber-500/30 shadow-inner">

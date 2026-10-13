@@ -1,4 +1,4 @@
-import { defineConfig } from 'vite'
+import { defineConfig, type Plugin } from 'vite'
 import react from '@vitejs/plugin-react'
 import electron from 'vite-plugin-electron'
 import renderer from 'vite-plugin-electron-renderer'
@@ -20,10 +20,14 @@ const envKeys = [
   'SENTRY_DSN',
   'LOG_LEVEL',
   'BLUEARKIVE_BILLING_URL',
+  'UPDATE_FEED_URL',
+  'UPDATE_PUBLIC_KEY',
 ]
 const electronDefine: Record<string, string> = {}
 for (const key of envKeys) {
-  const value = envVars[key] || process.env[key] || ''
+  // A variable set in the real environment wins over the .env file (the usual
+  // dotenv rule) — CI secrets and `KEY=value npm run build` both rely on it.
+  const value = process.env[key] || envVars[key] || ''
   electronDefine[`process.env.${key}`] = JSON.stringify(value)
 }
 
@@ -40,6 +44,74 @@ for (const key of criticalKeys) {
         `   This is the variable NAME, not its VALUE.\n` +
         `   Check your .env file or GitHub Secrets configuration.\n`
     )
+  }
+}
+
+// Mock mode replaces the preload bridge with nothing (the renderer installs a
+// mock API in dev). A production build made that way ships an app whose
+// window.electronAPI is undefined — every screen is empty. Refuse to build it.
+const useMockData = (process.env.USE_MOCK_DATA || envVars['USE_MOCK_DATA'] || 'false') === 'true'
+const isBuildCommand = process.argv.includes('build')
+if (isBuildCommand && useMockData && process.env.ALLOW_MOCK_BUILD !== 'true') {
+  throw new Error(
+    '\n❌ BUILD ERROR: USE_MOCK_DATA=true.\n' +
+      '   A packaged build in mock mode has no backend bridge and cannot work.\n' +
+      '   Set USE_MOCK_DATA=false in .env (or run with USE_MOCK_DATA=false) and rebuild.\n'
+  )
+}
+
+/**
+ * Production Content-Security-Policy.
+ *
+ * electron/main.ts sets the policy as a response header, but Electron cannot
+ * attach headers to file:// loads — which is how the packaged app loads its
+ * pages — so packaged builds ran with no CSP at all. The same policy is
+ * injected here as a <meta> tag, at build time only (dev keeps the header,
+ * which must allow Vite's inline HMR preamble).
+ * Keep in sync with the header in electron/main.ts.
+ */
+function buildContentSecurityPolicy(): string {
+  let supabaseOrigin = ''
+  try {
+    const url = JSON.parse(electronDefine['process.env.SUPABASE_URL'] || '""') as string
+    if (url && !url.includes('placeholder')) supabaseOrigin = new URL(url).origin
+  } catch {
+    // not configured
+  }
+  return [
+    "default-src 'self'",
+    "script-src 'self'",
+    `connect-src 'self' ${supabaseOrigin} wss://*.deepgram.com https://api.deepgram.com https://api.piyapi.cloud https://dl.bluearkive.com`
+      .replace(/\s+/g, ' ')
+      .trim(),
+    // Tiptap/ProseMirror inject inline styles for cursors and selections.
+    "style-src 'self' 'unsafe-inline'",
+    "img-src 'self' data: blob:",
+    "font-src 'self'",
+    "media-src 'self' mediastream: blob:",
+    "worker-src 'self' blob:",
+    "object-src 'none'",
+    "base-uri 'self'",
+    "form-action 'none'",
+  ].join('; ')
+}
+
+function cspMetaPlugin(): Plugin {
+  return {
+    name: 'bluearkive-csp-meta',
+    apply: 'build',
+    transformIndexHtml() {
+      return [
+        {
+          tag: 'meta',
+          attrs: {
+            'http-equiv': 'Content-Security-Policy',
+            content: buildContentSecurityPolicy(),
+          },
+          injectTo: 'head-prepend',
+        },
+      ]
+    },
   }
 }
 
@@ -63,6 +135,7 @@ const allExternals = [...nativeModules, ...nodeBuiltins]
 export default defineConfig({
   plugins: [
     react(),
+    cspMetaPlugin(),
     electron([
       {
         // Main process entry point
@@ -107,9 +180,7 @@ export default defineConfig({
             // Toggle mock mode: 'true' ONLY for local UI dev (Vite dev server running)
             // so the renderer's mock layer can set window.electronAPI.
             // MUST be 'false' for production builds. Uses VITE_DEV_SERVER_URL presence to detect.
-            'process.env.USE_MOCK_DATA': JSON.stringify(
-              envVars['USE_MOCK_DATA'] || process.env.USE_MOCK_DATA || 'false'
-            ),
+            'process.env.USE_MOCK_DATA': JSON.stringify(useMockData ? 'true' : 'false'),
           },
           build: {
             outDir: 'dist-electron',
@@ -161,6 +232,12 @@ export default defineConfig({
     port: 5173,
   },
   build: {
+    // The audio worklet must ship as a real file. Small assets are normally
+    // inlined as `data:` URLs, and the production CSP (script-src 'self')
+    // refuses to load a worklet module from a data: URL — recording would
+    // fail to start in every packaged build.
+    assetsInlineLimit: filePath =>
+      filePath.endsWith('audio-worklet-processor.js') ? false : undefined,
     rollupOptions: {
       input: {
         main: path.resolve(__dirname, 'index.html'),

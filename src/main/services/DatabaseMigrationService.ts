@@ -248,6 +248,75 @@ const migrations: Migration[] = [
       }
     },
   },
+  {
+    version: 11,
+    name: 'sync_columns_and_skipped_tables',
+    up: db => {
+      // SyncManager marks every synced table with synced_at, but entities and
+      // audio_highlights never had the column — the bookkeeping UPDATE threw
+      // and their queue items were re-uploaded on every sync cycle.
+      const tablesNeedingSyncedAt = [
+        'entities',
+        'audio_highlights',
+        'action_items',
+        'sentiment_scores',
+        'calendar_events',
+        'webhooks',
+      ]
+      for (const table of tablesNeedingSyncedAt) {
+        const exists = db
+          .prepare("SELECT COUNT(*) as cnt FROM sqlite_master WHERE type='table' AND name = ?")
+          .get(table) as { cnt: number }
+        if (!exists || exists.cnt === 0) continue
+        const hasCol = db
+          .prepare(
+            `SELECT COUNT(*) as cnt FROM pragma_table_info('${table}') WHERE name='synced_at'`
+          )
+          .get() as { cnt: number }
+        if (!hasCol || hasCol.cnt === 0) {
+          db.exec(`ALTER TABLE ${table} ADD COLUMN synced_at INTEGER DEFAULT 0`)
+        }
+      }
+
+      // createSyncQueueItem() looks up waiting rows per record on every write.
+      db.exec(
+        'CREATE INDEX IF NOT EXISTS idx_sync_queue_record ON sync_queue(table_name, record_id)'
+      )
+
+      // connection.ts stamps a fresh database at schema version 5, so
+      // migrations 2–5 above are skipped on every new install and their
+      // tables only existed if a service happened to create them lazily.
+      db.exec(`
+        CREATE TABLE IF NOT EXISTS telemetry_events (
+          id TEXT PRIMARY KEY,
+          type TEXT NOT NULL,
+          timestamp INTEGER NOT NULL,
+          session_id TEXT NOT NULL,
+          properties TEXT DEFAULT '{}'
+        );
+        CREATE INDEX IF NOT EXISTS idx_telemetry_type_time ON telemetry_events(type, timestamp);
+
+        CREATE TABLE IF NOT EXISTS episodic_memory (
+          id TEXT PRIMARY KEY,
+          start_time INTEGER NOT NULL,
+          end_time INTEGER NOT NULL,
+          text TEXT NOT NULL,
+          confidence REAL DEFAULT 0.8,
+          created_at INTEGER DEFAULT (strftime('%s', 'now'))
+        );
+        CREATE INDEX IF NOT EXISTS idx_episodic_time ON episodic_memory(start_time, end_time);
+
+        CREATE TABLE IF NOT EXISTS speaker_profiles (
+          id TEXT PRIMARY KEY,
+          name TEXT NOT NULL,
+          voiceprint TEXT NOT NULL,
+          sample_count INTEGER DEFAULT 0,
+          last_seen_at INTEGER DEFAULT 0,
+          created_at INTEGER DEFAULT (strftime('%s', 'now'))
+        );
+      `)
+    },
+  },
 ]
 
 export class DatabaseMigrationService {
@@ -270,9 +339,7 @@ export class DatabaseMigrationService {
       try {
         const txn = db.transaction(() => {
           migration.up(db)
-          db.prepare('INSERT INTO schema_version (version) VALUES (?)').run(
-            migration.version
-          )
+          db.prepare('INSERT INTO schema_version (version) VALUES (?)').run(migration.version)
         })
         txn()
         applied++

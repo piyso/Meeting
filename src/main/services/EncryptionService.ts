@@ -124,6 +124,75 @@ export class EncryptionService {
   }
 
   /**
+   * Salt for an account's sync key.
+   *
+   * Derived from the user id rather than random, so the same password yields
+   * the same key on every device the account signs in on — a per-device
+   * random salt made each device's uploads unreadable to all the others.
+   * (PBKDF2 only needs the salt to be unique per account, which this is.)
+   */
+  public static syncSaltFor(userId: string): Buffer {
+    return crypto.createHash('sha256').update(`bluearkive:sync-salt:v1:${userId}`).digest()
+  }
+
+  /**
+   * Load a previously derived key (from the OS keychain) into the cache, so
+   * encryption works after an app restart without asking for the password.
+   */
+  public static primeKeyCache(key: Buffer, salt: Buffer): void {
+    if (key.length !== this.KEY_LENGTH) {
+      throw new Error('Invalid encryption key length')
+    }
+    if (this.keyCache) {
+      this.keyCache.key.fill(0)
+    }
+    this.keyCache = {
+      cacheKey: '', // not tied to a password — deriveKey() will never match it
+      key: Buffer.from(key),
+      salt: Buffer.from(salt),
+      expiresAt: Date.now() + this.KEY_CACHE_TTL,
+    }
+  }
+
+  /** The cached key and salt, base64-encoded, for storing in the OS keychain. */
+  public static exportCachedKey(): { key: string; salt: string } | null {
+    if (!this.keyCache) return null
+    return {
+      key: this.keyCache.key.toString('base64'),
+      salt: this.keyCache.salt.toString('base64'),
+    }
+  }
+
+  /**
+   * Decrypt a payload with the cached key.
+   * Returns null when there is no key, the payload was encrypted under a
+   * different salt (another password or a pre-v1 upload), or authentication
+   * fails — callers must treat null as "cannot be read on this device".
+   */
+  public static decryptWithCachedKey(payload: {
+    ciphertext: string
+    iv: string
+    authTag: string
+    salt?: string
+  }): string | null {
+    if (!this.keyCache) return null
+    try {
+      if (payload.salt && payload.salt !== this.keyCache.salt.toString('base64')) return null
+      const decipher = crypto.createDecipheriv(
+        this.CIPHER_ALGORITHM,
+        this.keyCache.key,
+        Buffer.from(payload.iv, 'base64')
+      )
+      decipher.setAuthTag(Buffer.from(payload.authTag, 'base64'))
+      let plaintext = decipher.update(payload.ciphertext, 'base64', 'utf8')
+      plaintext += decipher.final('utf8')
+      return plaintext
+    } catch {
+      return null
+    }
+  }
+
+  /**
    * Generate random salt (32 bytes)
    *
    * @returns Random salt buffer

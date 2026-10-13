@@ -1,4 +1,5 @@
 import React, { useEffect, useRef } from 'react'
+import { formatDate } from '../../utils/time'
 
 export interface SourcePopoverData {
   meetingTitle: string
@@ -12,14 +13,6 @@ interface SourceContextPopoverProps {
   anchorRect: DOMRect
   onClose: () => void
   onOpenMeeting: (id: string) => void
-}
-
-const formatDate = (ts: number) => {
-  return new Date(ts).toLocaleDateString(undefined, {
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric',
-  })
 }
 
 export const SourceContextPopover: React.FC<SourceContextPopoverProps> = ({
@@ -40,11 +33,11 @@ export const SourceContextPopover: React.FC<SourceContextPopoverProps> = ({
       if (e.key === 'Escape') onClose()
     }
     const handleScroll = () => onClose()
-    
+
     document.addEventListener('mousedown', handleClickOutside)
     document.addEventListener('keydown', handleEsc)
     document.addEventListener('scroll', handleScroll, true)
-    
+
     return () => {
       document.removeEventListener('mousedown', handleClickOutside)
       document.removeEventListener('keydown', handleEsc)
@@ -56,7 +49,7 @@ export const SourceContextPopover: React.FC<SourceContextPopoverProps> = ({
   const spaceAbove = anchorRect.top
   const spaceBelow = window.innerHeight - anchorRect.bottom
   const positionAbove = spaceAbove > 200 || spaceAbove > spaceBelow
-  
+
   const style: React.CSSProperties = {
     position: 'fixed',
     ...(positionAbove

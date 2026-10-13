@@ -24,6 +24,12 @@ export const config = {
   BLUEARKIVE_API_URL:
     process.env.BLUEARKIVE_API_URL || process.env.PIYAPI_BASE_URL || 'https://api.piyapi.cloud',
 
+  /** PiyAPI Partner Managed Tier key (e.g. pk_live_blue...) */
+  PIYAPI_PARTNER_KEY: process.env.PIYAPI_PARTNER_KEY || process.env.BLUEARKIVE_PARTNER_KEY || '',
+
+  /** PiyAPI Partner Managed Tier slug */
+  PARTNER_SLUG: process.env.PARTNER_SLUG || 'bluearkive',
+
   /** Deepgram cloud transcription API */
   DEEPGRAM_API_URL: process.env.DEEPGRAM_API_URL || 'https://api.deepgram.com/v1',
 
@@ -62,6 +68,20 @@ export const config = {
   /** App display name (for user-facing strings) */
   APP_NAME: process.env.APP_NAME || 'BlueArkive',
 
+  // ─── Updates ───────────────────────────────────────────────
+  /**
+   * Where update manifests and installers are served from. Must be the
+   * `build.publish.url` of package.json (a test holds the two together).
+   */
+  UPDATE_FEED_URL: process.env.UPDATE_FEED_URL || 'https://dl.bluearkive.com',
+
+  /**
+   * Public half of the key release manifests are signed with
+   * (scripts/update-signing.js). Empty = updates are not verified beyond the
+   * updater's own integrity check. See UpdateVerifier.
+   */
+  UPDATE_PUBLIC_KEY: process.env.UPDATE_PUBLIC_KEY || '',
+
   // ─── Security ──────────────────────────────────────────────
   /** Session timeout in ms (0 = disabled) */
   SESSION_TIMEOUT_MS: parseInt(process.env.SESSION_TIMEOUT_MS || '0', 10) || 0,
@@ -83,9 +103,9 @@ export type AppConfig = typeof config
  */
 export const FEATURE_FLAG_DEFAULTS: Record<string, boolean> = {
   /** Enable Knowledge Graph view */
-  knowledge_graph: false,
+  knowledge_graph: true,
   /** Enable Weekly Digest generation */
-  weekly_digest: false,
+  weekly_digest: true,
   /** Enable Entity Extraction sidebar */
   entity_extraction: false,
   /** Enable Silent Prompter during meetings */

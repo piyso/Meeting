@@ -53,6 +53,7 @@ export const useRecordingStore = create<RecordingState>()(set => ({
       liveCoachTip: recordingState === 'idle' ? null : s.liveCoachTip,
       entityCount: recordingState === 'idle' ? 0 : s.entityCount,
       noteCount: recordingState === 'idle' ? 0 : s.noteCount,
+      audioRms: recordingState === 'idle' ? 0 : s.audioRms,
     })),
   setActiveMeetingId: activeMeetingId => set({ activeMeetingId }),
   setRecordingStartTime: recordingStartTime => set({ recordingStartTime }),

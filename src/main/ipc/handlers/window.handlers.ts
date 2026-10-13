@@ -1,4 +1,4 @@
-import { ipcMain, BrowserWindow } from 'electron'
+import { ipcMain, BrowserWindow, screen } from 'electron'
 import { Logger } from '../../services/Logger'
 
 const log = Logger.create('WindowHandlers')
@@ -60,33 +60,47 @@ export function registerWindowHandlers(): void {
   })
 
   // ── Dynamic Window Resizing ──
-  ipcMain.handle('window:resize', (_event, { width, height }: { width: number; height: number }) => {
+  ipcMain.handle('window:resize', (_event, size: { width?: unknown; height?: unknown }) => {
     const win = getWidgetWindow()
-    if (win && !win.isDestroyed()) {
-      const { screen } = require('electron')
-      const primaryDisplay = screen.getPrimaryDisplay()
-      const { width: screenWidth } = primaryDisplay.workArea
-      const padding = 24 // Must match padding in main.ts
-      
-      const bounds = win.getBounds()
-      
-      let newX = bounds.x
-      // If the window's right edge is near the screen's right edge, keep it right-anchored
-      const isRightAnchored = Math.abs((bounds.x + bounds.width) - screenWidth) < 50
-      
-      if (isRightAnchored) {
-        newX = screenWidth - width - padding
-      }
+    if (!win || win.isDestroyed()) return { success: true, data: undefined }
 
-      console.log(`[Window Resize] Received: ${width}x${height} | isRightAnchored: ${isRightAnchored} | bounds: ${JSON.stringify(bounds)} | newX: ${newX}`)
-      
-      win.setBounds({
-        x: Math.ceil(newX),
-        y: Math.ceil(bounds.y), // Keep top anchored where it is
-        width: Math.ceil(width),
-        height: Math.ceil(height)
-      })
+    // setBounds throws on NaN/negative values, and the widget must never be
+    // sized beyond the screen it is on.
+    const requestedWidth = Number(size?.width)
+    const requestedHeight = Number(size?.height)
+    if (
+      !Number.isFinite(requestedWidth) ||
+      !Number.isFinite(requestedHeight) ||
+      requestedWidth <= 0 ||
+      requestedHeight <= 0
+    ) {
+      return {
+        success: false,
+        error: { code: 'INVALID_SIZE', message: 'width and height must be positive numbers' },
+      }
     }
+
+    const bounds = win.getBounds()
+    // Work area of the display the widget is on (not always the primary one),
+    // including its origin.
+    const workArea = screen.getDisplayMatching(bounds).workArea
+    const padding = 24 // Must match WIDGET_PADDING in main.ts
+
+    const width = Math.min(Math.ceil(requestedWidth), workArea.width)
+    const height = Math.min(Math.ceil(requestedHeight), workArea.height)
+    const workRight = workArea.x + workArea.width
+    const workBottom = workArea.y + workArea.height
+
+    // If the window's right edge is near the screen's right edge, keep it right-anchored
+    const isRightAnchored = Math.abs(bounds.x + bounds.width - workRight) < 50
+    let x = isRightAnchored ? workRight - width - padding : bounds.x
+    let y = bounds.y // Keep top anchored where it is
+
+    // Keep the whole widget on screen.
+    x = Math.max(workArea.x, Math.min(x, workRight - width))
+    y = Math.max(workArea.y, Math.min(y, workBottom - height))
+
+    win.setBounds({ x: Math.round(x), y: Math.round(y), width, height })
     return { success: true, data: undefined }
   })
 

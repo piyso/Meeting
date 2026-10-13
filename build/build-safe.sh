@@ -40,7 +40,7 @@ MOVED_FILES=()
 mkdir -p "$BACKUP_DIR"
 
 for ext in gguf bin; do
-  for f in "$MODELS_DIR"/*."$ext" 2>/dev/null; do
+  for f in "$MODELS_DIR"/*."$ext"; do
     [ -f "$f" ] || continue
     fname=$(basename "$f")
     size=$(du -h "$f" | cut -f1)
@@ -60,7 +60,7 @@ fi
 cleanup() {
   echo ""
   echo -e "${YELLOW}Restoring model files...${NC}"
-  for fname in "${MOVED_FILES[@]}"; do
+  for fname in "${MOVED_FILES[@]:-}"; do
     if [ -f "$BACKUP_DIR/$fname" ]; then
       mv "$BACKUP_DIR/$fname" "$MODELS_DIR/"
       echo -e "${GREEN}  ✓ Restored $fname${NC}"

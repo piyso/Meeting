@@ -15,8 +15,9 @@
   <true/>
   <key>com.apple.security.cs.allow-unsigned-executable-memory</key>
   <true/>
-  <key>com.apple.security.cs.allow-dyld-environment-variables</key>
-  <true/>
+  <!-- allow-dyld-environment-variables is intentionally NOT granted: it lets any
+       local process inject a library (DYLD_INSERT_LIBRARIES) and inherit this
+       app's microphone, screen-recording and keychain access. Nothing here needs it. -->
   <key>com.apple.security.cs.disable-library-validation</key>
   <true/>
   

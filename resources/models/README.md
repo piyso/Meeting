@@ -70,8 +70,8 @@ node scripts/download-whisper-turbo.js
 
 | Tier | RAM   | ASR Model              | LLM Model         | Total RAM |
 | ---- | ----- | ---------------------- | ----------------- | --------- |
-| High | 16GB+ | Whisper turbo (1.5GB)  | Qwen 3B (2.2GB)   | 3.7GB     |
-| Mid  | 12GB  | Moonshine Base (300MB) | Qwen 3B (2.2GB)   | 2.5GB     |
+| High | 16GB+ | Moonshine Base (300MB) | Qwen 1.5B (1.1GB) | 1.4GB     |
+| Mid  | 12GB  | Moonshine Base (300MB) | Qwen 1.5B (1.1GB) | 1.4GB     |
 | Low  | 8GB   | Moonshine Base (300MB) | Qwen 1.5B (1.1GB) | 1.4GB     |
 
 ## Model Selection Logic

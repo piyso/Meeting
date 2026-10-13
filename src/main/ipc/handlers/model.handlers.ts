@@ -74,7 +74,9 @@ export function registerModelHandlers() {
         errors.push(`LLM: ${llmResult.reason?.message || llmResult.reason}`)
       }
 
-      if (errors.length === 2) {
+      // The speech model is required — without it nothing can be transcribed,
+      // so its failure is a failure even if the AI model downloaded fine.
+      if (asrResult.status === 'rejected') {
         return {
           success: false,
           error: { code: 'MODEL_ERROR', message: errors.join('; '), timestamp: Date.now() },
@@ -156,8 +158,8 @@ export function registerModelHandlers() {
         errors.push(`LLM download failed: ${llmResult.reason?.message || llmResult.reason}`)
       }
 
-      if (errors.length === 2) {
-        // Both failed
+      if (asrResult.status === 'rejected') {
+        // The speech model is required; the AI model is optional.
         return {
           success: false,
           error: { code: 'MODEL_ERROR', message: errors.join('; '), timestamp: Date.now() },

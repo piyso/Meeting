@@ -25,6 +25,7 @@ const REFRESH_TOKEN_KEY = 'refresh-token'
 const USER_ID_KEY = 'user-id'
 const USER_EMAIL_KEY = 'user-email'
 const USER_TIER_KEY = 'user-tier'
+const BILLING_STATUS_KEY = 'billing_status'
 
 import { keytarSafe } from './keytarSafe'
 
@@ -45,10 +46,49 @@ interface AuthResult {
   user: UserInfo
 }
 
+/** A check the user has to pass (or could not be given) before something sensitive is shown. */
+export class AuthCheckError extends Error {
+  constructor(
+    public readonly code:
+      | 'NOT_SIGNED_IN'
+      | 'PASSWORD_REQUIRED'
+      | 'INCORRECT_PASSWORD'
+      | 'VERIFICATION_UNAVAILABLE'
+      | 'CANCELLED',
+    message: string
+  ) {
+    super(message)
+    this.name = 'AuthCheckError'
+  }
+}
+
+/** Grace after the paid period ends (late renewals) — same as the server's. */
+const PERIOD_GRACE_MS = 3 * 24 * 60 * 60 * 1000
+
+/**
+ * The tier a profile is entitled to right now: the granted tier, unless the
+ * period it was paid for ended more than a few days ago. Mirrors
+ * effectiveTier() in supabase/functions/_shared/piyapi.ts, which is the
+ * authority; this keeps the app's own display and local gating in step with
+ * it. A profile with no period on file (licence key) does not expire.
+ */
+export function entitledTier(profile: {
+  tier?: string | null
+  current_period_end?: string | null
+}): UserInfo['tier'] {
+  const tier = (profile.tier || 'free') as UserInfo['tier']
+  if (tier === 'free') return tier
+  const end = profile.current_period_end ? Date.parse(profile.current_period_end) : NaN
+  if (Number.isNaN(end)) return tier
+  return Date.now() > end + PERIOD_GRACE_MS ? 'free' : tier
+}
+
 export class AuthService {
   private refreshTimer: ReturnType<typeof setTimeout> | null = null
   private sessionTimer: ReturnType<typeof setInterval> | null = null
   private lastActivityTime: number = Date.now()
+  /** Set when the server rejects the refresh token (as opposed to being unreachable). */
+  private sessionInvalid = false
   private supabase: SupabaseClient
   private functionsUrl: string
 
@@ -57,13 +97,33 @@ export class AuthService {
     const supabaseKey = config.SUPABASE_ANON_KEY
     if (supabaseUrl && supabaseKey && !supabaseUrl.includes('placeholder')) {
       this.supabase = createClient(supabaseUrl, supabaseKey, {
+        auth: {
+          storage: createAuthStorage(),
+          // The OAuth callback handler exchanges a `?code=`; supabase-js
+          // defaults to the implicit flow, which returns tokens in the URL
+          // fragment instead and made every Google sign-in fail.
+          flowType: 'pkce',
+          // Refresh is driven by scheduleRefresh(), which persists the rotated
+          // refresh token to the keychain. Letting supabase-js also refresh in
+          // the background rotates the token without persisting it, so the
+          // stored one eventually gets rejected and the user is signed out.
+          autoRefreshToken: false,
+          detectSessionInUrl: false,
+        },
         realtime: {
           transport: WebSocket as unknown as typeof globalThis.WebSocket,
         },
       })
     } else {
-      // Create a client that will fail gracefully — no real network requests
-      this.supabase = null as unknown as SupabaseClient
+      // Use Proxy to prevent null dereference crashes when unconfigured
+      this.supabase = new Proxy(
+        {},
+        {
+          get: (_, prop) => {
+            throw new Error(`AuthService not configured: Cannot access supabase.${String(prop)}`)
+          },
+        }
+      ) as SupabaseClient
     }
     this.functionsUrl = config.BLUEARKIVE_FUNCTIONS_URL || ''
   }
@@ -87,8 +147,10 @@ export class AuthService {
     if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
       throw new Error('Invalid email format')
     }
-    if (!password || password.length < 8) {
-      throw new Error('Password must be at least 8 characters')
+    // Length rules belong to registration; an existing account's password is
+    // whatever the server accepted when it was created.
+    if (!password) {
+      throw new Error('Password is required')
     }
 
     // #6 fix: Mask email in logs to prevent PII leakage in log files
@@ -152,6 +214,89 @@ export class AuthService {
   }
 
   /**
+   * Finish the "forgot password" round trip: the emailed link lands on
+   * bluearkive://auth/reset-password?code=…, which signs the user in with a
+   * recovery session. The UI then asks for a new password (updatePassword).
+   */
+  async beginPasswordRecovery(url: string): Promise<{ email: string }> {
+    if (!this.isConfigured()) {
+      throw new Error('Authentication service not configured (no Supabase URL)')
+    }
+    let parsed: URL
+    try {
+      parsed = new URL(url)
+    } catch {
+      throw new Error('Malformed password reset link')
+    }
+    const linkError = parsed.searchParams.get('error_description')
+    if (linkError) {
+      // e.g. "Email link is invalid or has expired"
+      throw new Error(linkError)
+    }
+    const code = parsed.searchParams.get('code')
+    if (!code) {
+      throw new Error('This password reset link is not valid. Request a new one.')
+    }
+
+    const { data, error } = await this.supabase.auth.exchangeCodeForSession(code)
+    if (error || !data.session) {
+      throw new Error(
+        error?.message ||
+          'This password reset link has expired or was requested from another device. Request a new one.'
+      )
+    }
+
+    const result = await this.buildAuthResult(data.session)
+    await this.storeTokens(result)
+    this.scheduleRefresh(result.tokens.expiresIn)
+    this.startSessionTimer()
+    return { email: result.user.email }
+  }
+
+  /**
+   * Set a new password for the signed-in user (used after beginPasswordRecovery).
+   */
+  async updatePassword(newPassword: string): Promise<UserInfo> {
+    if (!this.isConfigured()) {
+      throw new Error('Authentication service not configured (no Supabase URL)')
+    }
+    if (!newPassword || newPassword.length < 8) {
+      throw new Error('Password must be at least 8 characters')
+    }
+    const user = await this.getCurrentUser()
+    const token = await this.getAccessToken()
+    if (!user || !token) {
+      throw new Error('Your reset session has expired. Request a new password reset link.')
+    }
+
+    // The client only has the session in memory; after a restart re-attach it.
+    const keytar = await keytarSafe()
+    const storedRefreshToken = (await keytar?.getPassword(TOKEN_SERVICE, REFRESH_TOKEN_KEY)) || ''
+    const { error: sessionError } = await this.supabase.auth.setSession({
+      access_token: token,
+      refresh_token: storedRefreshToken,
+    })
+    if (sessionError) {
+      throw new Error('Your reset session has expired. Request a new password reset link.')
+    }
+
+    const { error } = await this.supabase.auth.updateUser({ password: newPassword })
+    if (error) {
+      throw new Error(error.message || 'Could not update password')
+    }
+
+    log.info('Password updated')
+    // The data key does not change with the password; this re-wraps it with
+    // the new one so other devices can unlock with it. (On a device that does
+    // not hold the key — a reset done from a fresh install — sync stays
+    // locked until the recovery phrase is entered.)
+    this.initializeSyncManager(user.id, newPassword).catch(err => {
+      log.warn('SyncManager initialization after password change failed (non-blocking):', err)
+    })
+    return user
+  }
+
+  /**
    * Register a new account
    * Note: on-signup Edge Function auto-creates PiyAPI account
    */
@@ -204,7 +349,10 @@ export class AuthService {
     log.info('Logging out')
 
     try {
-      await this.supabase.auth.signOut()
+      // This device only. The default scope ends every session the account
+      // has — signing out here would sign the user out on their other
+      // computers too.
+      await this.supabase.auth.signOut({ scope: 'local' })
     } catch (err) {
       log.debug('Supabase signOut error (non-critical)', err)
     }
@@ -212,15 +360,27 @@ export class AuthService {
     try {
       const keytar = await keytarSafe()
       if (keytar) {
+        const userId = await keytar.getPassword(TOKEN_SERVICE, USER_ID_KEY)
         await keytar.deletePassword(TOKEN_SERVICE, ACCESS_TOKEN_KEY)
         await keytar.deletePassword(TOKEN_SERVICE, REFRESH_TOKEN_KEY)
         await keytar.deletePassword(TOKEN_SERVICE, USER_ID_KEY)
         await keytar.deletePassword(TOKEN_SERVICE, USER_EMAIL_KEY)
         await keytar.deletePassword(TOKEN_SERVICE, USER_TIER_KEY)
+        await keytar.deletePassword(TOKEN_SERVICE, BILLING_STATUS_KEY)
+        await this.clearDerivedStores(userId)
       }
     } catch (err) {
       log.warn('Failed to clear keytar tokens', err)
     }
+
+    // Zero the derived encryption key so it does not outlive the session.
+    try {
+      const { EncryptionService } = await import('./EncryptionService')
+      EncryptionService.clearKeyCache()
+    } catch {
+      // Non-critical
+    }
+    this.sessionInvalid = false
 
     if (this.refreshTimer) {
       clearTimeout(this.refreshTimer)
@@ -262,37 +422,286 @@ export class AuthService {
     log.info('Logout complete')
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  private _syncManager: any = null
+  private _syncManager: import('./SyncManager').SyncManager | null = null
+
+  /** The active sync manager, if a signed-in session has one (for status/trigger IPC). */
+  getSyncManager(): import('./SyncManager').SyncManager | null {
+    return this._syncManager
+  }
 
   /**
    * Initialize SyncManager with user credentials for encrypted cloud sync.
    * Called after successful login/register to start auto-syncing meeting data to PiyAPI.
    */
   private async initializeSyncManager(userId: string, password: string): Promise<void> {
-    try {
-      // S2: Use the shared BackendSingleton instead of creating a new PiyAPIBackend.
-      // This ensures SyncManager and all 7 handler files share the same authenticated backend.
-      const { getBackend, setBackendToken } = await import('./backend/BackendSingleton')
-      const { SyncManager } = await import('./SyncManager')
-      const { KeyStorageService } = await import('./KeyStorageService')
+    await this.startSyncManager(async manager => {
+      await manager.initialize(userId, password)
+      return manager.isReady()
+    })
+  }
 
-      // Set the access token on the shared singleton so all handlers are authenticated
-      const accessToken = await KeyStorageService.getAccessToken(userId)
-      if (accessToken) {
-        setBackendToken(accessToken, userId)
+  /**
+   * Resume sync without a password (app restart, Google sign-in). The data
+   * key comes from this device's keychain, or — for a new account that has no
+   * password to wrap one with — is created now. If the device cannot obtain
+   * the key by itself the manager is kept but locked, so the UI can say what
+   * the user has to do (enter the recovery phrase, or sign in with the
+   * password) instead of showing "disconnected".
+   */
+  private async resumeSyncManager(userId: string): Promise<void> {
+    await this.startSyncManager(manager => manager.initializeFromStoredKey(userId))
+  }
+
+  /**
+   * Unlock encrypted sync on this device with the account's recovery phrase.
+   * @throws with a user-facing message when the phrase does not fit.
+   */
+  async unlockSyncWithRecoveryPhrase(phrase: string): Promise<boolean> {
+    const user = await this.getCurrentUser()
+    if (!user) throw new Error('Sign in before entering a recovery phrase.')
+    if (!this._syncManager) await this.resumeSyncManager(user.id)
+    const manager = this._syncManager
+    if (!manager) throw new Error('Sync is not available right now. Try again in a moment.')
+
+    const unlocked = await manager.unlockWithRecoveryPhrase(phrase)
+    if (unlocked) {
+      // Keep the phrase with this device, as onboarding does for a new one.
+      try {
+        const { KeyStorageService } = await import('./KeyStorageService')
+        await KeyStorageService.storeRecoveryPhrase(user.id, phrase.trim())
+      } catch (err) {
+        log.debug('Recovery phrase not stored in keychain:', err)
       }
+      manager.startAutoSync()
+      void this.restoreIntoEmptyDevice(manager)
+    }
+    return unlocked
+  }
+
+  /**
+   * Download what the account holds and this device is missing.
+   * @throws with a user-facing message when it cannot be started.
+   */
+  async restoreFromCloud(): Promise<import('./CloudRestoreService').RestoreResult> {
+    const user = await this.getCurrentUser()
+    if (!user) throw new Error('Sign in to restore from your account.')
+    if (!this._syncManager) await this.resumeSyncManager(user.id)
+    const manager = this._syncManager
+    if (!manager) throw new Error('Sync is not available right now. Try again in a moment.')
+    return manager.restoreFromCloud()
+  }
+
+  /**
+   * A device with no meetings at all that has just obtained the account's key
+   * is a new computer or a fresh install: bring the account's meetings down
+   * without being asked. A device that already has meetings is left alone —
+   * there the user decides (Settings → Restore from cloud).
+   */
+  private async restoreIntoEmptyDevice(
+    manager: import('./SyncManager').SyncManager
+  ): Promise<void> {
+    try {
+      const { getDatabase } = await import('../database/connection')
+      const row = getDatabase().prepare('SELECT COUNT(*) AS count FROM meetings').get() as {
+        count: number
+      }
+      if (row.count > 0) return
+
+      const result = await manager.restoreFromCloud()
+      if (result.restored > 0) {
+        log.info(`Restored ${result.restored} record(s) from the account onto this device`)
+        const { broadcastToWindows } = await import('../ipc/windows')
+        broadcastToWindows('sync:restored', {
+          meetings: result.tables.meetings.restored,
+          records: result.restored,
+          automatic: true,
+        })
+      }
+    } catch (err) {
+      log.debug('Automatic restore skipped:', err instanceof Error ? err.message : err)
+    }
+  }
+
+  /**
+   * The recovery phrase for the signed-in account on this device: the one it
+   * already has, or a new one. Either way the phrase is made able to recover
+   * the account's data key (KeyringService) — it used to be 24 words that
+   * recovered nothing.
+   *
+   * Asking again returns the same phrase. Generating a fresh one on every
+   * call would silently invalidate what the user wrote down the first time.
+   */
+  async getOrCreateRecoveryPhrase(): Promise<string[]> {
+    const { RecoveryPhraseService } = await import('./RecoveryPhraseService')
+    const { KeyStorageService } = await import('./KeyStorageService')
+
+    let userId: string | null = null
+    try {
+      userId = (await this.getCurrentUser())?.id ?? (await KeyStorageService.getCurrentUserId())
+    } catch (err) {
+      log.debug('No signed-in user for recovery phrase:', err)
+    }
+    // Not signed in: nothing to protect yet, but onboarding still shows one.
+    if (!userId) return RecoveryPhraseService.generateRecoveryPhrase().words
+
+    let phrase: string | null = null
+    try {
+      phrase = await KeyStorageService.getRecoveryPhrase(userId)
+    } catch (err) {
+      log.debug('Stored recovery phrase could not be read:', err)
+    }
+    if (!phrase || !RecoveryPhraseService.verifyRecoveryPhrase(phrase)) {
+      phrase = RecoveryPhraseService.generateRecoveryPhrase().phrase
+      try {
+        await KeyStorageService.storeRecoveryPhrase(userId, phrase)
+      } catch (err) {
+        log.debug('Recovery phrase keychain store skipped:', err)
+      }
+    }
+
+    // Wrap the data key with it now if this device holds the key; otherwise
+    // the keyring picks the stored phrase up the next time it is written.
+    try {
+      await this._syncManager?.addRecoveryPhrase(phrase)
+    } catch (err) {
+      log.debug('Recovery phrase not added to keyring yet:', err)
+    }
+    return phrase.trim().split(/\s+/)
+  }
+
+  /**
+   * The recovery phrase, for someone who has shown they own the account. It is
+   * the one secret that opens the account's synced data without the password,
+   * so asking for it is checked for real: Settings used to ask for "your
+   * password" and accept any eight characters.
+   *
+   * @throws AuthCheckError — `PASSWORD_REQUIRED` tells the UI to ask for one.
+   */
+  async revealRecoveryPhrase(password?: string): Promise<string[]> {
+    const user = await this.getCurrentUser()
+    if (!user) throw new AuthCheckError('NOT_SIGNED_IN', 'Sign in to view your recovery key.')
+
+    if (await this.hasPasswordLogin()) {
+      if (!password) {
+        throw new AuthCheckError(
+          'PASSWORD_REQUIRED',
+          'Enter your password to view your recovery key.'
+        )
+      }
+      await this.verifyPassword(user, password)
+    } else {
+      await this.confirmDeviceOwner('show your recovery key')
+    }
+    return this.getOrCreateRecoveryPhrase()
+  }
+
+  /**
+   * Whether the account signs in with a password (rather than Google only).
+   * The access token lists the account's sign-in providers.
+   */
+  private async hasPasswordLogin(): Promise<boolean> {
+    try {
+      const keytar = await keytarSafe()
+      const token = await keytar?.getPassword(TOKEN_SERVICE, ACCESS_TOKEN_KEY)
+      const payloadPart = token?.split('.')[1]
+      if (!payloadPart) return true
+      const payload = JSON.parse(Buffer.from(payloadPart, 'base64').toString('utf-8')) as {
+        app_metadata?: { provider?: string; providers?: unknown }
+      }
+      const providers = Array.isArray(payload.app_metadata?.providers)
+        ? payload.app_metadata.providers
+        : [payload.app_metadata?.provider]
+      return providers.includes('email')
+    } catch (err) {
+      log.debug('Could not read sign-in providers from the session:', err)
+      // Unknown: ask for the password rather than show the phrase unchecked.
+      return true
+    }
+  }
+
+  /** Check a password against the sign-in service without disturbing this session. */
+  private async verifyPassword(user: UserInfo, password: string): Promise<void> {
+    if (!this.isConfigured()) {
+      throw new AuthCheckError('VERIFICATION_UNAVAILABLE', 'Sign-in is not configured.')
+    }
+    // A separate client: signing in on the app's own would replace its session.
+    let outcome: Awaited<ReturnType<SupabaseClient['auth']['signInWithPassword']>>
+    let verifier: SupabaseClient
+    try {
+      verifier = createClient(config.SUPABASE_URL, config.SUPABASE_ANON_KEY, {
+        auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false },
+        // supabase-js refuses to construct a client on Node 20 without one.
+        realtime: { transport: WebSocket as unknown as typeof globalThis.WebSocket },
+      })
+      outcome = await verifier.auth.signInWithPassword({ email: user.email, password })
+    } catch (err) {
+      log.warn('Password check could not be made:', err instanceof Error ? err.message : err)
+      throw new AuthCheckError(
+        'VERIFICATION_UNAVAILABLE',
+        'Your password could not be checked right now. Check your connection and try again.'
+      )
+    }
+    const { data, error } = outcome
+    if (error) {
+      const status = (error as { status?: number }).status
+      if (status === 400 || /invalid login credentials/i.test(error.message)) {
+        throw new AuthCheckError('INCORRECT_PASSWORD', 'That password is not correct.')
+      }
+      throw new AuthCheckError(
+        'VERIFICATION_UNAVAILABLE',
+        'Your password could not be checked right now. Check your connection and try again.'
+      )
+    }
+    // End the session this check opened — that one only.
+    await verifier.auth.signOut({ scope: 'local' }).catch(() => undefined)
+    if (data.user?.id !== user.id) {
+      throw new AuthCheckError('INCORRECT_PASSWORD', 'That password is not correct.')
+    }
+  }
+
+  /**
+   * For an account with no password to ask for: have the operating system
+   * confirm who is at the keyboard, where it can (Touch ID on macOS).
+   */
+  private async confirmDeviceOwner(reason: string): Promise<void> {
+    if (process.platform !== 'darwin') return
+    const { systemPreferences } = await import('electron')
+    if (!systemPreferences.canPromptTouchID?.()) return
+    try {
+      await systemPreferences.promptTouchID(reason)
+    } catch {
+      throw new AuthCheckError('CANCELLED', 'Touch ID was not confirmed.')
+    }
+  }
+
+  private async startSyncManager(
+    init: (manager: import('./SyncManager').SyncManager) => Promise<boolean>
+  ): Promise<void> {
+    try {
+      const { SyncManager } = await import('./SyncManager')
 
       // Stop existing SyncManager if any (e.g., re-login)
       if (this._syncManager) {
         this._syncManager.stopAutoSync()
       }
 
-      const backend = getBackend()
-      this._syncManager = new SyncManager(backend)
-      await this._syncManager.initialize(userId, password)
-      this._syncManager.startAutoSync()
-      log.info('SyncManager initialized and auto-sync started')
+      // No backend override: the manager resolves the shared backend lazily,
+      // so it never holds a reference that resetBackend() has discarded.
+      const manager = new SyncManager()
+      this._syncManager = manager
+      const ready = await init(manager)
+      // A newer sign-in may have replaced this manager while the key was
+      // being worked out.
+      if (this._syncManager !== manager) return
+      // Started even when locked: a pass does nothing without a key, but it
+      // is what retries a keyring that could not be read at startup.
+      manager.startAutoSync()
+      log.info(
+        ready
+          ? 'SyncManager initialized and auto-sync started'
+          : `Cloud sync is locked on this device (${manager.getLock()?.reason ?? 'no key'})`
+      )
+      if (ready) void this.restoreIntoEmptyDevice(manager)
     } catch (syncErr) {
       log.error('Failed to initialize SyncManager:', syncErr)
     }
@@ -313,9 +722,35 @@ export class AuthService {
    * Refresh the access token using the refresh token
    */
   async refreshToken(): Promise<AuthTokens | null> {
+    // One refresh at a time. Several callers notice an expired token in the
+    // same tick (session restore, auth check, billing status, sync); each used
+    // to start its own request with the same single-use refresh token.
+    if (!this.refreshInFlight) {
+      this.refreshInFlight = this.doRefreshToken().finally(() => {
+        this.refreshInFlight = null
+      })
+    }
+    return this.refreshInFlight
+  }
+
+  private refreshInFlight: Promise<AuthTokens | null> | null = null
+
+  private async doRefreshToken(): Promise<AuthTokens | null> {
     if (!this.isConfigured()) {
       log.debug('refreshToken: Supabase not configured, skipping')
       return null
+    }
+    // Offline: the stored session stays valid; don't spend a request (and a
+    // stack trace in the log) finding out the network is down.
+    try {
+      const { net } = await import('electron')
+      if (!net.isOnline()) {
+        log.debug('refreshToken: offline, keeping stored session')
+        this.scheduleRefreshRetry()
+        return null
+      }
+    } catch {
+      // Not running under Electron (tests) — carry on
     }
     try {
       const keytar = await keytarSafe()
@@ -332,9 +767,26 @@ export class AuthService {
       })
 
       if (error || !data.session) {
-        log.warn('Token refresh failed', { error: error?.message })
+        // A 4xx means the server rejected the refresh token (revoked, reused,
+        // expired) — the session is over. Anything else (no status, 5xx) is a
+        // connectivity problem and the stored session is still good.
+        const status = (error as { status?: number } | null)?.status
+        // 408 (timeout) and 429 (rate limit) say nothing about the token.
+        const rejected =
+          typeof status === 'number' &&
+          status >= 400 &&
+          status < 500 &&
+          status !== 408 &&
+          status !== 429
+        if (rejected) {
+          this.sessionInvalid = true
+        } else {
+          this.scheduleRefreshRetry()
+        }
+        log.warn('Token refresh failed', { error: error?.message, status })
         return null
       }
+      this.sessionInvalid = false
 
       const tokens: AuthTokens = {
         accessToken: data.session.access_token,
@@ -347,15 +799,10 @@ export class AuthService {
         await keytar.setPassword(TOKEN_SERVICE, REFRESH_TOKEN_KEY, tokens.refreshToken)
       }
 
-      // R1: Update BackendSingleton with fresh token so PiyAPI calls use it
-      try {
-        const { setBackendToken } = await import('./backend/BackendSingleton')
-        const userId = data.session.user?.id
-        if (userId) {
-          setBackendToken(tokens.accessToken, userId)
-        }
-      } catch {
-        // BackendSingleton may not be initialized yet — safe to skip
+      // R1: Propagate the fresh token to the backend and the feature-gating store
+      const userId = data.session.user?.id
+      if (userId) {
+        await this.syncDerivedStores(userId, tokens.accessToken)
       }
 
       this.scheduleRefresh(tokens.expiresIn)
@@ -364,8 +811,23 @@ export class AuthService {
       return tokens
     } catch (err) {
       log.warn('Token refresh error', err)
+      this.scheduleRefreshRetry()
       return null
     }
+  }
+
+  /**
+   * Try the refresh again in a minute. A refresh that fails for lack of a
+   * network used to end the cycle: the timer was only re-armed on success, so
+   * an app started offline stayed signed out of the cloud until it was
+   * restarted, even after the connection came back.
+   */
+  private scheduleRefreshRetry(): void {
+    if (this.refreshTimer) clearTimeout(this.refreshTimer)
+    this.refreshTimer = setTimeout(() => {
+      this.refreshToken().catch(err => log.warn('Scheduled refresh retry failed', err))
+    }, 60_000)
+    if (this.refreshTimer.unref) this.refreshTimer.unref()
   }
 
   /**
@@ -407,7 +869,132 @@ export class AuthService {
    */
   async isAuthenticated(): Promise<boolean> {
     const token = await this.getAccessToken()
-    return token !== null
+    if (token !== null) return true
+
+    // Local-first: an expired access token that could not be refreshed because
+    // the machine is offline is still a signed-in session. Only a refresh the
+    // server rejected ends it.
+    if (this.sessionInvalid) return false
+    try {
+      const keytar = await keytarSafe()
+      if (!keytar) return false
+      const [userId, refreshToken] = await Promise.all([
+        keytar.getPassword(TOKEN_SERVICE, USER_ID_KEY),
+        keytar.getPassword(TOKEN_SERVICE, REFRESH_TOKEN_KEY),
+      ])
+      return !!userId && !!refreshToken
+    } catch {
+      return false
+    }
+  }
+
+  /**
+   * Re-establish in-memory state from the keychain after an app start: push
+   * the access token to the shared backend, publish the user/tier to the
+   * feature-gating store, and arm the refresh timer. Safe to call when signed out.
+   */
+  async restoreSession(): Promise<void> {
+    if (!this.isConfigured()) return
+    try {
+      const user = await this.getCurrentUser()
+      if (!user) return
+
+      const token = await this.getAccessToken() // refreshes if expired
+      if (!token) {
+        // The server rejected the stored session: signed out.
+        if (this.sessionInvalid) return
+        // Otherwise the token is merely expired and could not be refreshed
+        // yet (offline at launch). The user is still signed in: keep the
+        // session timer and the sync manager going. getAccessToken() has
+        // already scheduled a refresh retry, and the sync manager asks for a
+        // fresh token itself when the server answers 401.
+        this.startSessionTimer()
+        await this.resumeSyncManager(user.id)
+        log.info('Session restored offline; the access token will be renewed when online')
+        return
+      }
+
+      await this.syncDerivedStores(user.id, token, user.tier)
+
+      const secondsLeft = this.secondsUntilExpiry(token)
+      if (secondsLeft !== null) this.scheduleRefresh(secondsLeft)
+      this.startSessionTimer()
+      await this.resumeSyncManager(user.id)
+      log.info('Session restored from keychain')
+    } catch (err) {
+      log.warn('Session restore failed (continuing signed-out/offline):', err)
+    }
+  }
+
+  /** Seconds until a JWT expires, or null if it cannot be decoded. */
+  private secondsUntilExpiry(token: string): number | null {
+    try {
+      const payloadPart = token.split('.')[1]
+      if (!payloadPart) return null
+      const payload = JSON.parse(Buffer.from(payloadPart, 'base64').toString('utf-8'))
+      if (typeof payload.exp !== 'number') return null
+      return Math.max(0, payload.exp - Math.floor(Date.now() / 1000))
+    } catch {
+      return null
+    }
+  }
+
+  /**
+   * Mirror the signed-in user into the stores the rest of the app reads.
+   *
+   * AuthService keeps tokens under flat keychain accounts ("access-token",
+   * "user-tier", …) while CloudAccessManager, SyncManager, the billing handler
+   * and PiyAPIBackend read KeyStorageService's per-user accounts
+   * ("<userId>:access-token", "current:user-id", …). Nothing wrote the latter
+   * after a Supabase login, so feature gating always saw "not logged in / free"
+   * and the shared backend never received a token.
+   */
+  private async syncDerivedStores(
+    userId: string,
+    accessToken: string,
+    tier?: UserInfo['tier'],
+    billingStatus?: string
+  ): Promise<void> {
+    try {
+      const { KeyStorageService } = await import('./KeyStorageService')
+      await KeyStorageService.storeUserId(userId)
+      await KeyStorageService.storeAccessToken(userId, accessToken)
+      if (tier) await KeyStorageService.storePlanTier(userId, tier)
+      if (billingStatus) await KeyStorageService.storeBillingStatus(userId, billingStatus)
+    } catch (err) {
+      log.warn('Failed to mirror session into KeyStorageService:', err)
+    }
+
+    try {
+      const { setBackendToken } = await import('./backend/BackendSingleton')
+      setBackendToken(accessToken, userId)
+    } catch (err) {
+      log.debug('setBackendToken failed (non-critical):', err)
+    }
+
+    try {
+      const { getCloudAccessManager } = await import('./CloudAccessManager')
+      getCloudAccessManager().clearCache()
+    } catch {
+      // Non-critical
+    }
+  }
+
+  /** Remove everything syncDerivedStores() wrote. Leaves encryption keys and recovery phrases alone. */
+  private async clearDerivedStores(userId: string | null): Promise<void> {
+    try {
+      const { KeyStorageService, KeyType } = await import('./KeyStorageService')
+      if (userId) {
+        await KeyStorageService.deleteKey(KeyType.ACCESS_TOKEN, userId)
+        await KeyStorageService.deleteKey(KeyType.REFRESH_TOKEN, userId)
+        await KeyStorageService.deleteKey(KeyType.PLAN_TIER, userId)
+        await KeyStorageService.deleteKey(KeyType.BILLING_STATUS, userId)
+        await KeyStorageService.deleteKey(KeyType.SYNC_KEY, userId)
+      }
+      await KeyStorageService.clearCurrentUserId()
+    } catch (err) {
+      log.debug('clearDerivedStores failed (non-critical):', err)
+    }
   }
 
   /**
@@ -493,6 +1080,12 @@ export class AuthService {
 
     const maskedEmail = result.user.email.replace(/^(.{2})(.*)(@.*)$/, '$1***$3')
     log.info('Google OAuth login successful', { email: maskedEmail })
+
+    // An OAuth sign-in has no password to derive the sync key from. Sync
+    // resumes if this device already holds the key; otherwise it stays paused.
+    this.resumeSyncManager(result.user.id).catch(err => {
+      log.warn('SyncManager resume after OAuth failed (non-blocking):', err)
+    })
     return result
   }
 
@@ -512,12 +1105,12 @@ export class AuthService {
     try {
       const { data: profile } = await this.supabase
         .from('profiles')
-        .select('tier')
+        .select('*')
         .eq('id', user.id)
         .single()
 
       if (profile?.tier) {
-        tier = profile.tier as UserInfo['tier']
+        tier = entitledTier(profile)
       }
     } catch {
       log.debug('Could not fetch profile tier, defaulting to free')
@@ -550,6 +1143,8 @@ export class AuthService {
     } catch (err) {
       log.error('Failed to store tokens in keytar', err)
     }
+    this.sessionInvalid = false
+    await this.syncDerivedStores(result.user.id, result.tokens.accessToken, result.user.tier)
   }
 
   /**
@@ -562,30 +1157,39 @@ export class AuthService {
       const token = await this.getAccessToken()
       if (!token) return null
 
-      // Set the Supabase session so authenticated queries work
-      await this.supabase.auth.setSession({
+      // Set the Supabase session so authenticated queries work. supabase-js
+      // rejects a session without a refresh token, which silently turned this
+      // into an anonymous query after every app restart.
+      const keytarForSession = await keytarSafe()
+      const storedRefreshToken =
+        (await keytarForSession?.getPassword(TOKEN_SERVICE, REFRESH_TOKEN_KEY)) || ''
+      const { error: sessionError } = await this.supabase.auth.setSession({
         access_token: token,
-        refresh_token: '', // Not needed for reads — Supabase auto-refreshes
+        refresh_token: storedRefreshToken,
       })
-      const { data: profile } = await this.supabase
-        .from('profiles')
-        .select('tier, billing_status')
-        .single()
+      if (sessionError) {
+        log.debug('refreshProfile: could not establish session', sessionError.message)
+        return this.getCurrentUser()
+      }
+      // select('*'): current_period_end only exists once the server-side
+      // billing migration has run, and naming a missing column fails the query.
+      const { data: profile } = await this.supabase.from('profiles').select('*').single()
 
       if (!profile) return this.getCurrentUser()
 
       const currentUser = await this.getCurrentUser()
       if (!currentUser) return null
 
-      const tier = (profile.tier || 'free') as UserInfo['tier']
+      const tier = entitledTier(profile)
       const billingStatus = profile.billing_status || 'active'
 
       // Update local keytar with latest tier from server
       const keytar = await keytarSafe()
       if (keytar) {
         await keytar.setPassword(TOKEN_SERVICE, USER_TIER_KEY, tier)
-        await keytar.setPassword(TOKEN_SERVICE, 'billing_status', billingStatus)
+        await keytar.setPassword(TOKEN_SERVICE, BILLING_STATUS_KEY, billingStatus)
       }
+      await this.syncDerivedStores(currentUser.id, token, tier, billingStatus)
 
       if (billingStatus === 'past_due') {
         log.warn('Billing issue: payment past due', { tier, billingStatus })
@@ -655,8 +1259,9 @@ export class AuthService {
     if (keytar) {
       await keytar.setPassword(TOKEN_SERVICE, USER_TIER_KEY, tier)
     }
+    await this.syncDerivedStores(currentUser.id, token, tier, 'active')
 
-    log.info('License activated', { tier, key: trimmed.slice(0, 12) + '...' })
+    log.info('License activated', { tier, key: trimmed.slice(0, 4) + '...' })
     return { ...currentUser, tier }
   }
 
@@ -704,8 +1309,10 @@ export class AuthService {
         warningSent = true
         try {
           const { BrowserWindow } = await import('electron')
-          const win = BrowserWindow.getAllWindows()[0]
-          if (win) {
+          // Broadcast: getAllWindows()[0] can be the recording widget, which
+          // does not listen for session events.
+          for (const win of BrowserWindow.getAllWindows()) {
+            if (win.isDestroyed()) continue
             win.webContents.send('session:expiring', {
               remainingMs: remaining,
               timeoutMs,
@@ -726,8 +1333,8 @@ export class AuthService {
         // Notify renderer to show re-login prompt
         try {
           const { BrowserWindow } = await import('electron')
-          const win = BrowserWindow.getAllWindows()[0]
-          if (win) {
+          for (const win of BrowserWindow.getAllWindows()) {
+            if (win.isDestroyed()) continue
             win.webContents.send('session:expired', {
               reason: 'inactivity',
               timeoutMs,
@@ -760,6 +1367,56 @@ export class AuthService {
       clearInterval(this.sessionTimer)
       this.sessionTimer = null
     }
+  }
+}
+
+/**
+ * Storage for supabase-js. Everything stays in memory except PKCE code
+ * verifiers, which go to the OS keychain: an OAuth or password-reset link is
+ * often opened minutes later, and the exchange must still work if the app
+ * was restarted in between. (Sessions are deliberately not persisted here —
+ * AuthService stores tokens itself.)
+ */
+function createAuthStorage(): {
+  getItem: (key: string) => Promise<string | null>
+  setItem: (key: string, value: string) => Promise<void>
+  removeItem: (key: string) => Promise<void>
+} {
+  const memory = new Map<string, string>()
+  const isVerifier = (key: string) => key.endsWith('-code-verifier')
+  const account = (key: string) => `supabase:${key}`
+  return {
+    async getItem(key) {
+      const cached = memory.get(key)
+      if (cached !== undefined) return cached
+      if (!isVerifier(key)) return null
+      try {
+        const keytar = await keytarSafe()
+        return (await keytar?.getPassword(TOKEN_SERVICE, account(key))) ?? null
+      } catch {
+        return null
+      }
+    },
+    async setItem(key, value) {
+      memory.set(key, value)
+      if (!isVerifier(key)) return
+      try {
+        const keytar = await keytarSafe()
+        await keytar?.setPassword(TOKEN_SERVICE, account(key), value)
+      } catch {
+        // In-memory copy still covers the common case (no restart)
+      }
+    },
+    async removeItem(key) {
+      memory.delete(key)
+      if (!isVerifier(key)) return
+      try {
+        const keytar = await keytarSafe()
+        await keytar?.deletePassword(TOKEN_SERVICE, account(key))
+      } catch {
+        // Nothing to remove
+      }
+    },
   }
 }
 

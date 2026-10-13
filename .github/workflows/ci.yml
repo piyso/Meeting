@@ -17,7 +17,7 @@ env:
 jobs:
   quality:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
 
@@ -30,14 +30,30 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      # All three projects: src/ (tsconfig.json), electron/ + main process
+      # (tsconfig.node.json) and the Supabase edge functions.
       - name: TypeScript type-check
-        run: npx tsc --noEmit
+        run: npm run type-check
 
       - name: ESLint
-        run: npm run lint || true
+        run: npm run lint
 
+      # Tests mock the native modules (onnxruntime, keytar, electron) in
+      # src/test/setup.ts; the suite that needs real model files skips itself
+      # when they are absent, so a failure here is a real failure.
       - name: Run tests
-        run: npm run test:run || true
-        # Tests that depend on native modules (onnxruntime, keytar) or
-        # local model files will fail in CI. This is expected for an
-        # Electron app — the build-release workflow is the true gate.
+        run: npm run test:run
+
+      # The database layer cannot run under vitest (better-sqlite3 is built
+      # for Electron's ABI), so it had no automated coverage at all. This runs
+      # the real schema/upgrade/search code with Electron's own Node against a
+      # fresh database and against databases as earlier releases left them.
+      - name: Database upgrade-path tests
+        run: npm run test:db
+
+      # Releases are built from this bundle. A build that fails — or was left
+      # in mock mode — should be caught here, not when a tag is pushed.
+      - name: Build renderer and main bundles
+        run: npx vite build
+        env:
+          USE_MOCK_DATA: 'false'

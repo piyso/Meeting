@@ -5,8 +5,9 @@
  * Includes sync queue integration and webhook dispatch.
  */
 
-import { ipcMain, BrowserWindow } from 'electron'
+import { ipcMain } from 'electron'
 import { Logger } from '../../services/Logger'
+import { getMainAppWindow } from '../windows'
 import {
   createActionItem,
   getActionItemsByMeeting,
@@ -79,9 +80,7 @@ export function registerActionItemHandlers(): void {
         // Sync is handled automatically by SyncManager's dirty-table interval
 
         // Push event to renderer
-        const mainWindow = BrowserWindow.getAllWindows().find(
-          w => !w.isDestroyed() && w.getBounds().width > 400
-        )
+        const mainWindow = getMainAppWindow()
         if (mainWindow) {
           mainWindow.webContents.send('event:actionItemDetected', {
             meetingId: params.meeting_id,
@@ -246,9 +245,7 @@ export function registerActionItemHandlers(): void {
         const items = extractRealTime(params.text)
         if (items.length > 0) {
           // Push to renderer
-          const mainWindow = BrowserWindow.getAllWindows().find(
-            w => !w.isDestroyed() && w.getBounds().width > 400
-          )
+          const mainWindow = getMainAppWindow()
           if (mainWindow) {
             mainWindow.webContents.send('event:actionItemDetected', {
               meetingId: params.meetingId,
@@ -264,6 +261,46 @@ export function registerActionItemHandlers(): void {
           success: false,
           error: {
             code: 'ACTION_ITEM_REALTIME_FAILED',
+            message: (error as Error).message,
+            timestamp: Date.now(),
+          },
+        }
+      }
+    }
+  )
+
+  // actionItem:dispatch — 1-Click dispatch to Linear, Jira, GitHub, or Webhooks
+  ipcMain.handle(
+    'actionItem:dispatch',
+    async (
+      _,
+      params: {
+        items: import('../../../types/features').ActionItem[]
+        target: 'linear' | 'jira' | 'github' | 'webhook'
+        config?: {
+          apiKey?: string
+          projectKey?: string
+          repoOwner?: string
+          repoName?: string
+          webhookUrl?: string
+        }
+      }
+    ): Promise<IPCResponse> => {
+      try {
+        const { getActionItemDispatchService } =
+          await import('../../services/ActionItemDispatchService')
+        const result = await getActionItemDispatchService().dispatchBatch(
+          params.items,
+          params.target,
+          params.config
+        )
+        return { success: true, data: result }
+      } catch (error) {
+        log.error('actionItem:dispatch failed', error)
+        return {
+          success: false,
+          error: {
+            code: 'ACTION_ITEM_DISPATCH_FAILED',
             message: (error as Error).message,
             timestamp: Date.now(),
           },

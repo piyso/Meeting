@@ -14,6 +14,38 @@ export type PermissionStatus =
   | 'not-applicable'
   | 'unknown'
 
+/** What a successful start is actually recording from */
+export interface CaptureStartResult {
+  source: 'system' | 'microphone'
+  /** Set when system audio was requested but the microphone is being used instead */
+  fallbackReason?: string
+}
+
+const SAMPLE_RATE = 16000
+const CHANNELS = 1
+
+/** In mock mode there is no backend to receive audio — never open real devices. */
+const isMockBackend = (): boolean =>
+  (window as unknown as { __BLUEARKIVE_MOCK__?: boolean }).__BLUEARKIVE_MOCK__ === true
+
+// Loaded on first use: the capture module is only needed once a recording starts.
+const loadCaptureManager = async () => (await import('../audioCapture')).audioCaptureManager
+
+/**
+ * Stop the renderer-side device capture (releases the microphone / screen
+ * audio stream and flushes buffered audio to the main process). Safe to call
+ * when nothing is being captured.
+ */
+export async function stopDeviceCapture(): Promise<void> {
+  if (isMockBackend()) return
+  try {
+    const manager = await loadCaptureManager()
+    if (manager.getStatus().isCapturing) await manager.stopCapture()
+  } catch (error) {
+    log.error('Error releasing audio devices:', error)
+  }
+}
+
 export function useAudioSession(meetingId: string | null) {
   const setRecordingStartTime = useRecordingStore(s => s.setRecordingStartTime)
   const [isCapturing, setIsCapturing] = useState(false)
@@ -37,56 +69,84 @@ export function useAudioSession(meetingId: string | null) {
     return 'unknown'
   }, [])
 
+  /**
+   * Start recording: readies the transcription pipeline in the main process,
+   * then opens the audio device in this window and streams it there.
+   *
+   * @param mode 'system' records what the computer plays (the other meeting
+   *   participants); 'microphone' records the local microphone only.
+   * @param options.fallbackToMicrophone when system audio cannot be captured
+   *   (permission missing, unsupported OS), record the microphone instead.
+   * @throws when no audio source could be opened — the pipeline is torn down
+   *   again, so nothing is left half-started.
+   */
   const startCapture = useCallback(
-    async (mode: CaptureMode = 'system'): Promise<boolean> => {
-      if (!meetingId) return false
+    async (
+      mode: CaptureMode = 'system',
+      options: { fallbackToMicrophone?: boolean } = {}
+    ): Promise<CaptureStartResult | null> => {
+      if (!meetingId) return null
+      const fallbackToMicrophone = options.fallbackToMicrophone ?? true
 
-      // Check permission for system mode on Mac, device availability on Windows
-      if (mode === 'system') {
-        const isMacOS = window.electronAPI?.platform === 'darwin'
-        if (isMacOS) {
-          const status = await checkPermissionStatus()
-          if (status === 'not-determined' || status === 'denied') {
-            return false // Flow will be handled by UI observing permissionStatus
-          }
-        } else {
-          // G2: Windows/Linux pre-flight — verify at least one audio device exists
-          // Without this, startCapture proceeds silently and produces a blank recording
-          try {
-            const devices = await navigator.mediaDevices.enumerateDevices()
-            const hasAudioInput = devices.some(d => d.kind === 'audioinput')
-            if (!hasAudioInput) {
-              log.error('No audio input devices found — cannot start capture')
-              return false
-            }
-          } catch (enumErr) {
-            log.warn('Device enumeration failed (non-blocking):', enumErr)
-            // Continue anyway — capture may still work via WASAPI loopback
-          }
-        }
+      // Refresh the permission state for the UI. A missing permission no longer
+      // aborts here: opening the device is what makes macOS show its prompt,
+      // and the microphone fallback keeps the meeting recordable meanwhile.
+      if (mode === 'system' && window.electronAPI?.platform === 'darwin') {
+        void checkPermissionStatus()
       }
 
+      setIsCapturing(true)
+      setCaptureMode(mode)
+      let pipelineStarted = false
       try {
-        setIsCapturing(true)
-        setCaptureMode(mode)
-
+        // "Already capturing" (a second start while one recording is live)
+        // fails here — before anything of the live recording is touched.
         const result = await window.electronAPI?.audio?.startCapture({
           meetingId,
-          // G1-FIX: Was `mode === 'microphone'` which set fallback to FALSE for 'system' mode,
-          // completely negating the G1 fallback fix. Must be true for both system and microphone.
-          fallbackToMicrophone: mode !== 'cloud',
+          fallbackToMicrophone: mode !== 'cloud' && fallbackToMicrophone,
         })
-
         if (!result?.success) {
-          setIsCapturing(false)
           throw new Error(result?.error?.message || 'Failed to start capture')
         }
+        pipelineStarted = true
+
+        let started: CaptureStartResult = {
+          source: mode === 'microphone' ? 'microphone' : 'system',
+        }
+        if (!isMockBackend()) {
+          const manager = await loadCaptureManager()
+          // A stream left over from an aborted start would block this one
+          if (manager.getStatus().isCapturing) await manager.stopCapture()
+          if (mode === 'microphone') {
+            await manager.startMicrophoneCapture(SAMPLE_RATE, CHANNELS)
+          } else {
+            const source = await manager.startSystemAudioCapture(
+              '',
+              SAMPLE_RATE,
+              CHANNELS,
+              fallbackToMicrophone
+            )
+            started =
+              source === 'microphone'
+                ? { source, fallbackReason: manager.getLastFallbackReason() ?? undefined }
+                : { source }
+          }
+        }
+
         // Record the start time globally so DynamicIsland timer works
         setRecordingStartTime(Date.now())
-        return true
+        return started
       } catch (error) {
         log.error('Error starting capture:', error)
         setIsCapturing(false)
+        if (pipelineStarted) {
+          // This attempt got as far as owning the pipeline: release whatever
+          // device it opened and don't leave the main process "recording"
+          // with no audio coming in. (If the pipeline never started, another
+          // recording may own the device — leave it alone.)
+          await stopDeviceCapture()
+          await window.electronAPI?.audio?.stopCapture({ meetingId }).catch(() => undefined)
+        }
         throw error
       }
     },
@@ -95,6 +155,8 @@ export function useAudioSession(meetingId: string | null) {
 
   const stopCapture = useCallback(async () => {
     if (!meetingId) return
+    // Release the device first so its last buffered audio reaches the pipeline
+    await stopDeviceCapture()
     try {
       const result = await window.electronAPI?.audio?.stopCapture({ meetingId })
       if (result?.success) {
@@ -107,18 +169,27 @@ export function useAudioSession(meetingId: string | null) {
   }, [meetingId, setRecordingStartTime])
 
   const pauseCapture = useCallback(async () => {
-    try {
-      await window.electronAPI?.audio?.pauseCapture?.()
-    } catch (error) {
-      log.error('Error pausing capture:', error)
+    // Suspend the device first: that hands over the audio captured so far,
+    // which the pipeline would drop if it were already paused.
+    const manager = isMockBackend() ? null : await loadCaptureManager().catch(() => null)
+    if (manager) {
+      await manager.pause().catch(error => log.warn('Could not suspend audio device:', error))
+    }
+    const result = await window.electronAPI?.audio?.pauseCapture?.()
+    if (result && !result.success) {
+      await manager?.resume().catch(() => undefined)
+      throw new Error(result.error?.message || 'Failed to pause capture')
     }
   }, [])
 
   const resumeCapture = useCallback(async () => {
-    try {
-      await window.electronAPI?.audio?.resumeCapture?.()
-    } catch (error) {
-      log.error('Error resuming capture:', error)
+    if (!isMockBackend()) {
+      const manager = await loadCaptureManager()
+      await manager.resume()
+    }
+    const result = await window.electronAPI?.audio?.resumeCapture?.()
+    if (result && !result.success) {
+      throw new Error(result.error?.message || 'Failed to resume capture')
     }
   }, [])
 

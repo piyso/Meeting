@@ -41,6 +41,8 @@ export const OnboardingFlow: React.FC = () => {
   const [authLoading, setAuthLoading] = useState(false)
   const [authMode, setAuthMode] = useState<'register' | 'login'>('register')
   const [isNewUser, setIsNewUser] = useState(false)
+  // No account: everything stays on this device (no sync, no recovery key, no plan)
+  const [localOnly, setLocalOnly] = useState(false)
   const copyTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   // Cleanup copy timer on unmount
@@ -58,6 +60,7 @@ export const OnboardingFlow: React.FC = () => {
     const unsubSuccess = window.electronAPI?.auth?.onOAuthSuccess?.(data => {
       log.info('Google OAuth callback received', { email: data?.user?.email })
       setAuthError(null)
+      setLocalOnly(false)
       setIsNewUser(false) // Google users are treated as returning users
       setStep('setup')
     })
@@ -74,14 +77,16 @@ export const OnboardingFlow: React.FC = () => {
   // Auto-trigger hardware detection + model download when entering 'setup' step
   useEffect(() => {
     if (step === 'setup') {
-      if (isNewUser) {
+      if (isNewUser || localOnly) {
         detectHardwareTier()
       } else {
         // Returning user — skip onboarding setup, go straight to plan selection
         setStep('plan-selection' as OnboardingStep)
       }
     }
-  }, [step, isNewUser])
+    // detectHardwareTier is recreated every render; this must run once per step change
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [step, isNewUser, localOnly])
 
   const detectHardwareTier = async () => {
     const result = await window.electronAPI?.model?.detectHardwareTier()
@@ -107,6 +112,14 @@ export const OnboardingFlow: React.FC = () => {
       }
     } catch (err) {
       log.warn('[Onboarding] Model download error (non-fatal):', err)
+    }
+
+    if (localOnly) {
+      // A recovery key protects the encryption key of a synced account —
+      // there is nothing to recover (and no plan to pick) without one.
+      setIsDownloading(false)
+      setStep('ghost-meeting')
+      return
     }
 
     try {
@@ -143,35 +156,39 @@ export const OnboardingFlow: React.FC = () => {
           : await window.electronAPI?.auth?.login?.({ email: authEmail, password: authPass })
 
       if (result?.success) {
+        setLocalOnly(false)
         setIsNewUser(authMode === 'register')
         setStep('setup')
-      } else if (result) {
-        const errMsg = result?.error?.message || ''
-        if (
-          errMsg.includes('fetch') ||
-          errMsg.includes('ECONNREFUSED') ||
-          errMsg.includes('network') ||
-          errMsg.includes('supabaseUrl') ||
-          errMsg.includes('supabase_not_configured')
-        ) {
-          // Backend not configured — skip auth and proceed (offline-first mode)
-          log.warn('Auth backend unavailable, proceeding in offline mode')
-          setIsNewUser(authMode === 'register')
-          setStep('setup')
-        } else {
-          setAuthError(errMsg || 'Authentication failed')
-        }
       } else {
-        setIsNewUser(authMode === 'register')
-        setStep('setup')
+        const errMsg = result?.error?.message || ''
+        // The sign-in service could not be reached (offline, or this build has
+        // no backend configured). Don't pretend an account was created — say
+        // so and point at the local-only path.
+        const unreachable =
+          !result ||
+          /fetch|ECONNREFUSED|ENOTFOUND|ETIMEDOUT|network|supabaseUrl|supabase_not_configured/i.test(
+            errMsg
+          )
+        setAuthError(
+          unreachable
+            ? "Can't reach the sign-in service. Check your connection and try again, or continue without an account."
+            : errMsg || 'Authentication failed'
+        )
       }
     } catch (err) {
-      // Any error = skip to setup (offline-first)
-      log.warn('Auth error, proceeding in offline mode:', err)
-      setStep('setup')
+      log.warn('Auth request failed:', err)
+      setAuthError(
+        "Can't reach the sign-in service. Check your connection and try again, or continue without an account."
+      )
     } finally {
       setAuthLoading(false)
     }
+  }
+
+  const handleContinueLocal = () => {
+    setAuthError(null)
+    setLocalOnly(true)
+    setStep('setup')
   }
 
   const handleCopyKey = async () => {
@@ -210,14 +227,17 @@ export const OnboardingFlow: React.FC = () => {
   }
 
   const completeOnboarding = async () => {
-    try {
-      await window.electronAPI?.settings?.update?.({
-        key: 'onboarding_completed',
-        value: true,
-      } as { key: string; value: boolean })
-    } catch {
-      // Settings API may not be available in dev
+    const save = async (key: string, value: boolean) => {
+      try {
+        const res = await window.electronAPI?.settings?.update?.({ key, value })
+        if (res && !res.success) log.error(`Could not save "${key}":`, res.error?.message)
+      } catch (err) {
+        log.error(`Could not save "${key}":`, err)
+      }
     }
+    // Remembered so the next launch does not send a local-only user back to sign-in
+    await save('local_only_mode', localOnly)
+    await save('onboarding_completed', true)
     useNavigationStore.getState().navigate('meeting-list')
   }
 
@@ -239,12 +259,12 @@ export const OnboardingFlow: React.FC = () => {
 
       {/* Right Control Panel (Form) */}
       <div
-        className={`w-full ${step === 'plan-selection' || step === 'ghost-meeting' ? '' : 'lg:w-5/12 xl:w-2/5'} h-full flex items-center justify-center p-8 relative overflow-y-auto pt-[env(titlebar-area-height,32px)]`}
+        className={`w-full ${step === 'plan-selection' || step === 'ghost-meeting' ? '' : 'lg:w-5/12 xl:w-2/5'} h-full flex items-center justify-center p-4 sm:p-6 md:p-8 relative overflow-y-auto pt-[env(titlebar-area-height,32px)]`}
       >
         {/* Subtle global noise texture for right side too */}
         <div className="absolute inset-0 z-0 bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-indigo-900/10 via-[#02040a] to-[#02040a]" />
 
-        <div className="w-full flex flex-col items-center justify-center my-auto relative z-10">
+        <div className="w-full max-w-lg mx-auto flex flex-col items-center justify-center my-auto relative z-10 py-4 sm:py-6">
           {step === 'auth' && (
             <OnboardingAuthPanel
               authMode={authMode}
@@ -257,14 +277,12 @@ export const OnboardingFlow: React.FC = () => {
               setAuthError={setAuthError}
               authLoading={authLoading}
               handleAuth={handleAuth}
+              onContinueLocal={handleContinueLocal}
             />
           )}
 
           {step === 'setup' && (
-            <OnboardingSetupPanel
-              isDownloading={isDownloading}
-              tierInfo={tierInfo}
-            />
+            <OnboardingSetupPanel isDownloading={isDownloading} tierInfo={tierInfo} />
           )}
 
           {step === 'recovery-key' && (

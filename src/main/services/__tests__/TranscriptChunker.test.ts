@@ -14,6 +14,16 @@ vi.mock('../TierMappingService', () => ({
     }
     return messages[tier] || null
   },
+  getTierLimits: (tier: string) => {
+    const limits: Record<string, { transcriptSize: number }> = {
+      free: { transcriptSize: 5000 },
+      starter: { transcriptSize: 15000 },
+      pro: { transcriptSize: 50000 },
+      team: { transcriptSize: 100000 },
+      enterprise: { transcriptSize: 100000 },
+    }
+    return limits[tier] || { transcriptSize: 5000 }
+  },
 }))
 describe('TranscriptChunker', () => {
   let chunker: TranscriptChunker

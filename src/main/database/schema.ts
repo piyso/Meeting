@@ -77,6 +77,7 @@ CREATE TABLE IF NOT EXISTS entities (
   transcript_id TEXT,
   segment_index INTEGER DEFAULT 0,
   metadata TEXT DEFAULT '{}',
+  synced_at INTEGER DEFAULT 0,
   created_at INTEGER DEFAULT (strftime('%s', 'now')),
   FOREIGN KEY (meeting_id) REFERENCES meetings(id) ON DELETE CASCADE,
   FOREIGN KEY (transcript_id) REFERENCES transcripts(id) ON DELETE CASCADE
@@ -92,6 +93,15 @@ CREATE TABLE IF NOT EXISTS sync_queue (
   retry_count INTEGER DEFAULT 0,
   created_at INTEGER DEFAULT (strftime('%s', 'now')),
   last_attempt INTEGER
+);
+
+-- Cloud memory ids of synced records (a record uploaded in chunks has several).
+-- Lets updates and deletes address the remote copy directly.
+CREATE TABLE IF NOT EXISTS sync_remote_ids (
+  table_name TEXT NOT NULL,
+  record_id TEXT NOT NULL,
+  remote_id TEXT NOT NULL,
+  PRIMARY KEY (table_name, record_id, remote_id)
 );
 
 -- Encryption keys table
@@ -159,6 +169,7 @@ CREATE TABLE IF NOT EXISTS action_items (
   priority TEXT DEFAULT 'normal',
   status TEXT DEFAULT 'open',
   source TEXT DEFAULT 'manual',
+  synced_at INTEGER DEFAULT 0,
   created_at INTEGER DEFAULT (strftime('%s', 'now')),
   completed_at INTEGER,
   FOREIGN KEY (meeting_id) REFERENCES meetings(id) ON DELETE CASCADE
@@ -196,6 +207,7 @@ CREATE TABLE IF NOT EXISTS audio_highlights (
   end_time REAL NOT NULL,
   label TEXT,
   color TEXT DEFAULT '#7c3aed',
+  synced_at INTEGER DEFAULT 0,
   created_at INTEGER DEFAULT (strftime('%s', 'now')),
   FOREIGN KEY (meeting_id) REFERENCES meetings(id) ON DELETE CASCADE
 );
@@ -211,6 +223,7 @@ CREATE TABLE IF NOT EXISTS sentiment_scores (
   source TEXT NOT NULL DEFAULT 'heuristic',
   speaker_name TEXT,
   timestamp_sec INTEGER NOT NULL,
+  synced_at INTEGER DEFAULT 0,
   created_at INTEGER DEFAULT (strftime('%s', 'now')),
   FOREIGN KEY (meeting_id) REFERENCES meetings(id) ON DELETE CASCADE,
   FOREIGN KEY (transcript_id) REFERENCES transcripts(id) ON DELETE SET NULL
@@ -244,6 +257,7 @@ CREATE TABLE IF NOT EXISTS webhooks (
   secret TEXT NOT NULL,
   description TEXT,
   is_active INTEGER DEFAULT 1,
+  synced_at INTEGER DEFAULT 0,
   created_at INTEGER DEFAULT (strftime('%s', 'now')),
   updated_at INTEGER DEFAULT (strftime('%s', 'now'))
 );
@@ -290,6 +304,7 @@ CREATE INDEX IF NOT EXISTS idx_entities_meeting_type ON entities(meeting_id, typ
 -- Sync queue indexes
 CREATE INDEX IF NOT EXISTS idx_sync_queue_pending ON sync_queue(retry_count, created_at);
 CREATE INDEX IF NOT EXISTS idx_sync_queue_created ON sync_queue(created_at);
+CREATE INDEX IF NOT EXISTS idx_sync_queue_record ON sync_queue(table_name, record_id);
 
 -- Devices indexes
 CREATE INDEX IF NOT EXISTS idx_devices_user ON devices(user_id);
@@ -367,6 +382,14 @@ CREATE VIRTUAL TABLE IF NOT EXISTS action_items_fts USING fts5(
   content_rowid=rowid
 );
 `
+
+/** The FTS5 tables created above — external-content indexes kept current by the triggers below. */
+export const FTS_TABLE_NAMES = [
+  'transcripts_fts',
+  'notes_fts',
+  'entities_fts',
+  'action_items_fts',
+] as const
 
 /**
  * FTS5 triggers to keep search indexes synchronized

@@ -196,6 +196,7 @@ export type WebhookEventType =
   | 'transcript.ready'
   | 'action_item.created'
   | 'action_item.completed'
+  | 'action_item.dispatched'
   | 'digest.generated'
   | 'sentiment.alert'
 

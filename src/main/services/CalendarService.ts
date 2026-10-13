@@ -48,7 +48,7 @@ export function parseICS(icsContent: string): Array<{
   const blocks = icsContent.split('BEGIN:VEVENT')
 
   for (let i = 1; i < blocks.length; i++) {
-    const block = blocks[i]?.split('END:VEVENT')[0]
+    const block = blocks[i]?.split('END:VEVENT')?.[0]
     if (!block) continue
 
     const uid = extractField(block, 'UID') || `ics-${Date.now()}-${i}`

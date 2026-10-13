@@ -12,8 +12,10 @@ const AVAILABLE_EVENTS = [
   { id: 'transcript.ready', label: 'Transcript Ready' },
   { id: 'action_item.created', label: 'Action Item Created' },
   { id: 'action_item.completed', label: 'Action Item Completed' },
+  { id: 'action_item.dispatched', label: 'Action Item Dispatched' },
   { id: 'digest.generated', label: 'Digest Generated' },
-  { id: 'sentiment.alert', label: 'Sentiment Alert' },
+  // 'sentiment.alert' is accepted by the backend but nothing produces it yet,
+  // so it is not offered here.
 ]
 
 export const WebhookSettingsView: React.FC = () => {
@@ -22,6 +24,10 @@ export const WebhookSettingsView: React.FC = () => {
   const [isAdding, setIsAdding] = useState(false)
   const [newUrl, setNewUrl] = useState('')
   const [expandedId, setExpandedId] = useState<string | null>(null)
+  // The signing secret of the endpoint just created. The backend returns it
+  // once, at creation; it cannot be read again afterwards.
+  const [newSecret, setNewSecret] = useState<string | null>(null)
+  const [secretCopied, setSecretCopied] = useState(false)
 
   // OPTIMIZATION: Parse events and flags once when webhooks change
   // Prevents O(N*M) JSON.parse operations during every render loop
@@ -73,13 +79,28 @@ export const WebhookSettingsView: React.FC = () => {
         events: ['meeting.completed'],
       },
       {
-        onSuccess: () => {
+        onSuccess: created => {
           setIsAdding(false)
           setNewUrl('')
+          const secret = (created as { signingSecret?: unknown } | undefined)?.signingSecret
+          if (typeof secret === 'string' && secret) {
+            setNewSecret(secret)
+            setSecretCopied(false)
+          }
         },
       }
     )
   }, [newUrl, saveWebhook])
+
+  const copySecret = useCallback(async () => {
+    if (!newSecret) return
+    try {
+      await navigator.clipboard.writeText(newSecret)
+      setSecretCopied(true)
+    } catch {
+      // Clipboard unavailable — the secret stays on screen and can be selected by hand
+    }
+  }, [newSecret])
 
   return (
     <div className="flex flex-col gap-8">
@@ -97,6 +118,30 @@ export const WebhookSettingsView: React.FC = () => {
             Add Endpoint
           </Button>
         </div>
+
+        {newSecret && (
+          <div className="mb-3 p-5 border border-amber-500/30 bg-amber-500/5 rounded-2xl flex flex-col gap-3">
+            <div className="text-[13px] font-semibold text-[var(--color-text-primary)]">
+              Signing secret — copy it now
+            </div>
+            <p className="text-[11px] text-[var(--color-text-tertiary)] leading-relaxed">
+              Every delivery carries an <span className="font-mono">X-BlueArkive-Signature</span>{' '}
+              header: <span className="font-mono">sha256=</span> followed by the HMAC-SHA256 of the
+              request body, keyed with this secret. It is shown only this once.
+            </p>
+            <code className="text-[12px] font-mono break-all select-all text-[var(--color-text-primary)] bg-black/40 border border-[var(--color-border-subtle)] rounded-xl px-4 py-2.5">
+              {newSecret}
+            </code>
+            <div className="flex items-center gap-2">
+              <Button variant="primary" size="sm" onClick={copySecret}>
+                {secretCopied ? 'Copied' : 'Copy'}
+              </Button>
+              <Button variant="secondary" size="sm" onClick={() => setNewSecret(null)}>
+                Done
+              </Button>
+            </div>
+          </div>
+        )}
 
         <div className="surface-glass-premium border border-[var(--color-border-subtle)] rounded-3xl p-2 shadow-sm">
           <div className="flex flex-col gap-2">

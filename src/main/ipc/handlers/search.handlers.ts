@@ -2,8 +2,160 @@ import { ipcMain } from 'electron'
 import { searchAll } from '../../database/search'
 import { getLocalEmbeddingService } from '../../services/LocalEmbeddingService'
 import { Logger } from '../../services/Logger'
+import { getDatabase } from '../../database/connection'
+import { TopK, cosineSimilarity, embeddingFromBlob } from '../../utils/vectorSearch'
 
 const log = Logger.create('SearchHandlers')
+
+/** Rows scored per step before yielding back to the event loop. */
+const SCAN_PAGE_SIZE = 4000
+
+/**
+ * Semantic search over every transcript segment that has an embedding.
+ *
+ * This used to look at the newest 500 segments only — roughly the last hour or
+ * two of meetings — so anything older could never be found. The scan reads the
+ * stored vectors page by page (yielding between pages so the app stays
+ * responsive) and keeps the best matches; text is loaded for those only.
+ */
+async function searchLocalTranscripts(
+  query: string,
+  limit: number,
+  meetingId?: string
+): Promise<
+  Array<{
+    snippet: string
+    relevance: number
+    source: 'local'
+    startTime?: number
+    meeting: { id: string; title: string }
+  }>
+> {
+  const queryVector = Float32Array.from((await getLocalEmbeddingService().embed(query)).embedding)
+  const db = getDatabase()
+
+  const meetingFilter = meetingId ? 'AND t.meeting_id = ?' : ''
+  const scan = db.prepare(
+    `SELECT t.rowid AS rid, t.id, t.embedding_blob, t.embedding
+     FROM transcripts t
+     JOIN meetings m ON m.id = t.meeting_id
+     WHERE t.rowid > ?
+       AND (t.embedding_blob IS NOT NULL OR t.embedding IS NOT NULL)
+       AND m.deleted_at IS NULL ${meetingFilter}
+     ORDER BY t.rowid
+     LIMIT ${SCAN_PAGE_SIZE}`
+  )
+
+  const best = new TopK<string>(limit)
+  let afterRowid = 0
+  for (;;) {
+    const page = scan.all(...(meetingId ? [afterRowid, meetingId] : [afterRowid])) as Array<{
+      rid: number
+      id: string
+      embedding_blob: Buffer | null
+      embedding: string | null
+    }>
+    for (const row of page) {
+      let vector: ArrayLike<number> | null = null
+      if (row.embedding_blob) {
+        vector = embeddingFromBlob(row.embedding_blob)
+      } else if (row.embedding) {
+        // Rows written before embeddings were stored as binary
+        try {
+          const parsed: unknown = JSON.parse(row.embedding)
+          if (Array.isArray(parsed)) vector = parsed as number[]
+        } catch {
+          /* unreadable — skip */
+        }
+      }
+      if (!vector || vector.length !== queryVector.length) continue
+      best.offer(cosineSimilarity(queryVector, vector), row.id)
+    }
+    const last = page[page.length - 1]
+    if (page.length < SCAN_PAGE_SIZE || !last) break
+    afterRowid = last.rid
+    await new Promise<void>(resolve => setImmediate(resolve))
+  }
+
+  // Segments saved while the search model was unavailable have no embedding
+  // and cannot be found; fill them in for the next search.
+  void backfillMissingEmbeddings()
+
+  const hits = best.results()
+  if (hits.length === 0) return []
+
+  const details = db
+    .prepare(
+      `SELECT t.id, t.meeting_id, t.text, t.start_time, m.title AS meeting_title
+       FROM transcripts t
+       JOIN meetings m ON m.id = t.meeting_id
+       WHERE t.id IN (${hits.map(() => '?').join(', ')})`
+    )
+    .all(...hits.map(hit => hit.item)) as Array<{
+    id: string
+    meeting_id: string
+    text: string
+    start_time: number
+    meeting_title: string | null
+  }>
+  const byId = new Map(details.map(row => [row.id, row]))
+
+  return hits.flatMap(hit => {
+    const row = byId.get(hit.item)
+    if (!row) return []
+    return [
+      {
+        snippet: row.text.substring(0, 200),
+        relevance: hit.score,
+        source: 'local' as const,
+        // Seconds from the start of the recording — lets the UI cite the real moment
+        startTime: typeof row.start_time === 'number' ? row.start_time : undefined,
+        meeting: { id: row.meeting_id, title: row.meeting_title || 'Untitled Meeting' },
+      },
+    ]
+  })
+}
+
+let backfillRunning = false
+
+/**
+ * Compute embeddings for transcript segments that have none (newest first, a
+ * bounded number per run). Stops at the first failure — that means the model
+ * is not available, and retrying every row would only burn CPU.
+ */
+async function backfillMissingEmbeddings(maxRows = 200): Promise<void> {
+  if (backfillRunning) return
+  backfillRunning = true
+  try {
+    // Not while recording: transcription needs the CPU more than old segments do.
+    const { getAudioPipelineService } = await import('../../services/AudioPipelineService')
+    if (getAudioPipelineService().getStatus().isCapturing) return
+
+    const db = getDatabase()
+    const rows = db
+      .prepare(
+        `SELECT id, text FROM transcripts
+         WHERE embedding_blob IS NULL AND embedding IS NULL AND LENGTH(text) > 0
+         ORDER BY created_at DESC
+         LIMIT ?`
+      )
+      .all(maxRows) as Array<{ id: string; text: string }>
+    if (rows.length === 0) return
+
+    const store = db.prepare('UPDATE transcripts SET embedding_blob = ? WHERE id = ?')
+    let stored = 0
+    for (const row of rows) {
+      const { embedding } = await getLocalEmbeddingService().embed(row.text)
+      store.run(Buffer.from(new Float32Array(embedding).buffer), row.id)
+      stored++
+    }
+    log.info(`Backfilled embeddings for ${stored} transcript segment(s)`)
+  } catch (err) {
+    log.debug('Embedding backfill stopped:', err)
+  } finally {
+    backfillRunning = false
+  }
+}
 
 export function registerSearchHandlers(): void {
   // search:query — FTS5 full-text search across transcripts and notes
@@ -50,96 +202,29 @@ export function registerSearchHandlers(): void {
       const cam = getCloudAccessManager()
       const features = await cam.getFeatureAccess()
 
-      // ── Local semantic search (always runs for Starter+) ──
-      const embeddingService = getLocalEmbeddingService()
-
-      // Load transcripts with pre-computed embeddings from DB
-      const { getDatabase } = await import('../../database/connection')
-      const db = getDatabase()
-      // Scope to a single meeting if meetingId is provided (much faster for in-meeting search)
-      const meetingFilter = params.meetingId ? 'AND t.meeting_id = ?' : ''
-      const queryParams = params.meetingId ? [params.meetingId] : []
-
-      const rows = db
-        .prepare(
-          `
-        SELECT t.id, t.meeting_id, t.text, t.embedding_blob, t.embedding, t.start_time, t.end_time,
-               m.title as meeting_title
-        FROM transcripts t
-        JOIN meetings m ON m.id = t.meeting_id
-        WHERE t.text IS NOT NULL AND LENGTH(t.text) > 0 ${meetingFilter}
-        ORDER BY t.created_at DESC
-        LIMIT 500
-      `
-        )
-        .all(...queryParams) as Array<{
-        id: string
-        meeting_id: string
-        text: string
-        embedding_blob: Buffer | null
-        embedding: string | null
-        start_time: number
-        end_time: number
-        meeting_title: string
-      }>
-
-      // Map to documents for embedding search
-      // Prefer BLOB (migration v3) → fallback to TEXT (legacy)
-      const documents = rows.map(r => {
-        let parsedEmbedding: number[] | undefined
-        if (r.embedding_blob) {
-          // BLOB: raw Float32Array binary
-          parsedEmbedding = Array.from(
-            new Float32Array(
-              r.embedding_blob.buffer,
-              r.embedding_blob.byteOffset,
-              r.embedding_blob.byteLength / 4
-            )
-          )
-        } else if (r.embedding) {
-          // Legacy TEXT: JSON-stringified array
-          try {
-            parsedEmbedding = JSON.parse(r.embedding)
-          } catch {
-            /* skip */
-          }
-        }
-        return {
-          id: r.id,
-          text: r.text,
-          embedding: parsedEmbedding,
-          metadata: {
-            meetingId: r.meeting_id,
-            meetingTitle: r.meeting_title,
-            startTime: r.start_time,
-            endTime: r.end_time,
-          },
-        }
-      })
-
-      const searchResults = await embeddingService.search(
-        params.query,
-        documents,
-        // M-14 AUDIT: Cap semantic search limit
-        params.limit || 10
-      )
-
-      // Transform into the format GlobalContextBar expects
-      const localResults = searchResults.map(r => ({
-        snippet: r.text.substring(0, 200),
-        relevance: r.score,
-        source: 'local' as const,
-        meeting: {
-          id: r.metadata?.meetingId,
-          title: r.metadata?.meetingTitle || 'Untitled Meeting',
-        },
-      }))
+      // ── Local semantic search (every plan) ──
+      const limit = Math.min(Math.max(1, Math.floor(Number(params.limit)) || 10), 50)
+      let localResults: Array<{
+        snippet: string
+        relevance: number
+        source: 'local'
+        startTime?: number
+        meeting: { id: string; title: string }
+      }> = []
+      try {
+        localResults = await searchLocalTranscripts(params.query, limit, params.meetingId)
+      } catch (localErr) {
+        // The search model may not be downloaded yet — cloud results (if the
+        // plan has them) are still worth returning.
+        log.warn('Local semantic search unavailable:', localErr)
+      }
 
       // ── Cloud search (Starter+ semantic, Pro+ hybrid) ──
       let cloudResults: Array<{
         snippet: string
         relevance: number
         source: 'local' | 'cloud-semantic' | 'cloud-hybrid' | 'cloud-fuzzy'
+        startTime?: number
         meeting: { id: string; title: string }
       }> = []
       try {
@@ -149,7 +234,6 @@ export function registerSearchHandlers(): void {
 
         if (health.status === 'healthy') {
           const namespace = params.namespace || 'meetings'
-          const limit = params.limit || 10
 
           // Helper to map a cloud search hit to the result format
           // (previously this 15-line block was copy-pasted 3× for hybrid/semantic/fuzzy)
@@ -201,17 +285,11 @@ export function registerSearchHandlers(): void {
             cloudResults = cloudHits.map(hit => mapCloudHit(hit, 'cloud-fuzzy', 0.4))
           }
 
-          // P1-3 FIX: Track actual PiyAPI memory IDs for feedback (not local meeting IDs)
-          if (cloudResults.length > 0) {
-            const memoryIds = cloudResults
-              .map(r => (r as unknown as { _piyApiMemoryId?: string })._piyApiMemoryId)
-              .filter((id): id is string => !!id && id.length > 0)
-            if (memoryIds.length > 0) {
-              backend.feedbackPositive(memoryIds).catch(() => {
-                /* non-critical */
-              })
-            }
-          }
+          // No feedback is sent from here. Every hit used to be reported to
+          // PiyAPI as "used in a response" the moment it was listed, whether
+          // or not anyone opened it — which teaches the ranking that whatever
+          // it returned was right. Feedback belongs where a result is acted
+          // on (piyapi:feedback); each hit carries its memory id for that.
         }
       } catch (cloudErr) {
         // Cloud search failure is non-fatal — fall back to local results only
@@ -230,7 +308,7 @@ export function registerSearchHandlers(): void {
         ),
       ]
         .sort((a, b) => b.relevance - a.relevance)
-        .slice(0, params.limit || 10)
+        .slice(0, limit)
 
       return { success: true, data: { results: mergedResults, query: params.query } }
     } catch (error) {

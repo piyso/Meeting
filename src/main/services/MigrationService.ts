@@ -55,7 +55,9 @@ export async function migrateIfNeeded(): Promise<void> {
   // macOS: ~/Library/Application Support/<name>
   // Windows: %APPDATA%/<name>
   // Linux: ~/.config/<name>
-  const oldUserData = newUserData.replace(path.basename(newUserData), OLD_APP_NAME)
+  // Sibling folder of the current userData. (String.replace swapped the first
+  // match anywhere in the path — e.g. a user account named like the app.)
+  const oldUserData = path.join(path.dirname(newUserData), OLD_APP_NAME)
 
   // If the old directory doesn't exist, this is a fresh install — no migration needed
   if (!fs.existsSync(oldUserData)) {

@@ -400,6 +400,8 @@
 }
 .ui-toast {
   pointer-events: auto;
+  display: flex;
+  align-items: center;
   min-width: 320px;
   max-width: 480px;
   padding: var(--space-12) var(--space-16);

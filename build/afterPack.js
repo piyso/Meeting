@@ -231,6 +231,7 @@ exports.default = async function afterPack(context) {
       if (fs.existsSync(buildRelease)) {
         const nodeFiles = fs.readdirSync(buildRelease).filter(f => f.endsWith('.node'))
         for (const nodeFile of nodeFiles) {
+          if (nodeFile === 'test_extension.node') continue
           const nodePath = path.join(buildRelease, nodeFile)
           const archOk = verifyBinaryArch(nodePath, arch)
           if (!archOk) {

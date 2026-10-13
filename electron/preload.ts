@@ -41,6 +41,8 @@ const electronAPI: ElectronAPI = {
     delete: params => ipcRenderer.invoke('meeting:delete', params),
     restore: params => ipcRenderer.invoke('meeting:restore', params),
     export: params => ipcRenderer.invoke('meeting:export', params),
+    importFile: () => ipcRenderer.invoke('meeting:importFile'),
+    onImported: createEventListener('meeting:imported'),
     onGlobalShortcutStart: createEventListener('global-shortcut:start-recording'),
   },
 
@@ -94,6 +96,10 @@ const electronAPI: ElectronAPI = {
     onConflict: createEventListener('sync:conflict'),
     resolveConflict: (params: { noteId: string; strategy: string; mergedContent?: string }) =>
       ipcRenderer.invoke('sync:resolveConflict', params),
+    unlockWithRecoveryPhrase: (params: { phrase: string }) =>
+      ipcRenderer.invoke('sync:unlockWithRecoveryPhrase', params),
+    restoreFromCloud: () => ipcRenderer.invoke('sync:restoreFromCloud'),
+    onRestored: createEventListener('sync:restored'),
   },
 
   // ============================================================================
@@ -237,6 +243,8 @@ const electronAPI: ElectronAPI = {
     search: params => ipcRenderer.invoke('graph:search', params),
     getStats: () => ipcRenderer.invoke('graph:getStats'),
     contradictionPreview: params => ipcRenderer.invoke('graph:contradictionPreview', params),
+    resolveContradiction: (params: unknown) =>
+      ipcRenderer.invoke('graph:resolveContradiction', params),
   },
 
   // ============================================================================
@@ -282,7 +290,10 @@ const electronAPI: ElectronAPI = {
   // Window Operations
   // ============================================================================
   window: {
+    rendererReady: () => ipcRenderer.send('app:rendererReady'),
     restoreMain: () => ipcRenderer.invoke('window:restoreMain'),
+    resize: (width: number, height: number) =>
+      ipcRenderer.invoke('window:resize', { width, height }),
   },
 
   // ============================================================================
@@ -305,13 +316,14 @@ const electronAPI: ElectronAPI = {
       recordingPausedAt?: number | null
       recordingTotalPausedMs?: number
       // Phase 1: Type-safe meetingId (removes unsafe `as` cast in WidgetApp)
-      meetingId?: string
+      meetingId?: string | null
       // Phase 3: VAD silence feedback
       silenceDetected?: boolean
     }) => ipcRenderer.invoke('widget:updateState', state),
     triggerBookmark: () => ipcRenderer.invoke('widget:triggerBookmark'),
     triggerPauseToggle: () => ipcRenderer.invoke('widget:triggerPauseToggle'),
     submitQuickNote: (note: string) => ipcRenderer.invoke('widget:submitQuickNote', note),
+    triggerStartCapture: () => ipcRenderer.invoke('widget:triggerStartCapture'),
   },
 
   // ============================================================================
@@ -338,6 +350,9 @@ const electronAPI: ElectronAPI = {
     audioEvent: createEventListener('event:audioEvent'),
     batchExpandProgress: createEventListener('event:batchExpandProgress'),
     widgetStateUpdated: createEventListener('widget:stateUpdated'),
+    spatialHandoff: createEventListener<{ state: 'expanded' | 'orb' | 'hidden' }>(
+      'widget:spatialHandoff'
+    ),
     error: createEventListener('event:error'),
     'intelligence:streamToken': createEventListener('intelligence:streamToken'),
     showIntelligenceWall: createEventListener('show-intelligence-wall'),
@@ -407,6 +422,8 @@ const electronAPI: ElectronAPI = {
     googleAuth: () => ipcRenderer.invoke('auth:googleAuth'),
     refreshToken: () => ipcRenderer.invoke('auth:refreshToken'),
     generateRecoveryKey: () => ipcRenderer.invoke('auth:generateRecoveryKey'),
+    revealRecoveryKey: (params?: { password?: string }) =>
+      ipcRenderer.invoke('auth:revealRecoveryKey', params),
     onSessionExpired: createEventListener('session:expired'),
     onSessionExpiring: createEventListener('session:expiring'),
     onOAuthSuccess: createEventListener('auth:oauthSuccess'),
@@ -417,6 +434,9 @@ const electronAPI: ElectronAPI = {
       ipcRenderer.invoke('auth:activateLicense', params),
     forgotPassword: (params: { email: string }) =>
       ipcRenderer.invoke('auth:forgotPassword', params),
+    updatePassword: (params: { password: string }) =>
+      ipcRenderer.invoke('auth:updatePassword', params),
+    onPasswordRecovery: createEventListener('auth:passwordRecovery'),
   },
 
   // ============================================================================
@@ -428,9 +448,9 @@ const electronAPI: ElectronAPI = {
     getCurrent: () => ipcRenderer.invoke('device:getCurrent'),
     register: (params: { userId: string; customName?: string; planTier?: string }) =>
       ipcRenderer.invoke('device:register', params),
-    deactivate: (params: { deviceId: string; userId: string }) =>
+    deactivate: (params: { deviceId: string; userId?: string }) =>
       ipcRenderer.invoke('device:deactivate', params),
-    rename: (params: { deviceId: string; userId: string; newName: string }) =>
+    rename: (params: { deviceId: string; userId?: string; newName: string }) =>
       ipcRenderer.invoke('device:rename', params),
   },
 
@@ -510,6 +530,7 @@ const electronAPI: ElectronAPI = {
       ipcRenderer.invoke('actionItem:extractRealTime', params),
     getOverdue: () => ipcRenderer.invoke('actionItem:getOverdue'),
     stats: () => ipcRenderer.invoke('actionItem:stats'),
+    dispatch: (params: unknown) => ipcRenderer.invoke('actionItem:dispatch', params),
   },
 
   // ============================================================================
@@ -548,6 +569,15 @@ const electronAPI: ElectronAPI = {
     test: (params: { id: string }) => ipcRenderer.invoke('webhook:test', params),
     getDeliveries: (params: { webhookId: string; limit?: number }) =>
       ipcRenderer.invoke('webhook:getDeliveries', params),
+  },
+
+  // ============================================================================
+  // Podcast Synthesis Operations
+  // ============================================================================
+  podcast: {
+    generate: () => ipcRenderer.invoke('podcast:generate'),
+    synthesize: () => ipcRenderer.invoke('podcast:synthesize'),
+    latest: () => ipcRenderer.invoke('podcast:latest'),
   },
 }
 

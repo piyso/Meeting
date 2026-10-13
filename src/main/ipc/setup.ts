@@ -8,6 +8,7 @@
 import { Logger } from '../services/Logger'
 import { ipcMain } from 'electron'
 import { getAllChannels } from '../../types/ipcChannels'
+import { getDiagnosticLogger } from '../services/DiagnosticLogger'
 
 const log = Logger.create('IPC')
 
@@ -100,11 +101,9 @@ export function setupIPC(): void {
       }
       // Forward to diagnostic logger if available
       try {
-        const { getDiagnosticLogger } = require('../services/DiagnosticLogger')
-        getDiagnosticLogger().logError(`Renderer crash: ${data.message}`, {
-          source: data.source,
-          stack: data.stack?.substring(0, 1000),
-        })
+        const rendererError = new Error(`Renderer crash: ${data.message || 'unknown error'}`)
+        if (data.stack) rendererError.stack = data.stack.substring(0, 1000)
+        getDiagnosticLogger().logError(rendererError, data.source || 'renderer')
       } catch {
         /* diagnostic logger may not be initialized */
       }

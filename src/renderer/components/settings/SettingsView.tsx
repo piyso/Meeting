@@ -1,22 +1,22 @@
 import { useAppStore } from '../../store/appStore'
 import { useNavigationStore } from '../../store/navigationStore'
+import { useRecordingStore } from '../../store/recordingStore'
 
 import React, { useState, useEffect, useCallback } from 'react'
+import { useQueryClient } from '@tanstack/react-query'
 import {
   Mic,
   Type,
-  Brain,
   Shield,
-  HardDrive,
   User,
   RefreshCw,
   Download,
   Monitor,
   Activity,
   Database,
-  Lock,
   Code,
   Webhook,
+  Volume2,
 } from 'lucide-react'
 import { Select } from '../ui/Select'
 import { Toggle } from '../ui/Toggle'
@@ -31,64 +31,76 @@ import { RecoveryKeySettings } from '../RecoveryKeySettings'
 import { UpgradePrompt } from './UpgradePrompt'
 import { openUpgrade } from '../../utils/openUpgrade'
 import { WebhookSettingsView } from '../webhooks/WebhookSettingsView'
+import { AudioStudioDiagnostics } from '../audio/AudioStudioDiagnostics'
 
 import { rendererLog } from '../../utils/logger'
 const log = rendererLog.create('Settings')
 
 interface SettingsState {
   // Recording
-  preferredAudioDevice: string
+  preferredAudioDevice: 'system' | 'microphone'
   audioFallbackEnabled: boolean
-  keepAudioFiles: boolean
 
   // Transcription
   hardwareTier: string
-  useCloudTranscription: boolean
   language: string
 
-  // Intelligence
-  autoExpandNotes: boolean
-  llmEngine: string
-  maxTokensPerExpansion: number
-
-  // Sync & Privacy
-  syncEnabled: boolean
-  encryptionEnabled: boolean
+  // Privacy
   phiDetectionEnabled: boolean
   maskPHIBeforeSync: boolean
-  auditLoggingEnabled: boolean
-
-  // Storage
-  maxDiskUsage: number
-  autoDeleteOldMeetings: boolean
-  autoDeleteAfterDays: number
-
-  // UI
-  theme: string
-  showSmartChips: boolean
+  cloudEnrichmentEnabled: boolean
+  crashReportsEnabled: boolean
 }
 
 const DEFAULT_SETTINGS: SettingsState = {
-  preferredAudioDevice: 'default',
+  preferredAudioDevice: 'system',
   audioFallbackEnabled: true,
-  keepAudioFiles: true,
   hardwareTier: '',
-  useCloudTranscription: false,
   language: 'auto',
-  autoExpandNotes: false,
-  llmEngine: 'local',
-  maxTokensPerExpansion: 512,
-  syncEnabled: false,
-  encryptionEnabled: true,
   phiDetectionEnabled: true,
   maskPHIBeforeSync: true,
-  auditLoggingEnabled: true,
-  maxDiskUsage: 10,
-  autoDeleteOldMeetings: false,
-  autoDeleteAfterDays: 90,
-  theme: 'dark',
-  showSmartChips: true,
+  cloudEnrichmentEnabled: false,
+  crashReportsEnabled: false,
 }
+
+/** Which stored key backs each editable setting on this screen */
+const STORAGE_KEYS = {
+  preferredAudioDevice: 'preferredAudioDevice',
+  audioFallbackEnabled: 'audioFallbackEnabled',
+  language: 'transcription_language',
+  phiDetectionEnabled: 'phiDetectionEnabled',
+  maskPHIBeforeSync: 'maskPHIBeforeSync',
+  cloudEnrichmentEnabled: 'cloudEnrichmentEnabled',
+  crashReportsEnabled: 'crashReportsEnabled',
+} as const satisfies Partial<Record<keyof SettingsState, string>>
+
+type EditableSetting = keyof typeof STORAGE_KEYS
+
+/** Build screen state from the stored key/value map, ignoring anything malformed */
+function settingsFromStore(stored: Record<string, unknown>): Partial<SettingsState> {
+  const next: Partial<SettingsState> = {}
+  const source = stored[STORAGE_KEYS.preferredAudioDevice]
+  if (source === 'system' || source === 'microphone') next.preferredAudioDevice = source
+  const fallback = stored[STORAGE_KEYS.audioFallbackEnabled]
+  if (typeof fallback === 'boolean') next.audioFallbackEnabled = fallback
+  const language = stored[STORAGE_KEYS.language]
+  if (typeof language === 'string' && language) next.language = language
+  const phi = stored[STORAGE_KEYS.phiDetectionEnabled]
+  if (typeof phi === 'boolean') next.phiDetectionEnabled = phi
+  const mask = stored[STORAGE_KEYS.maskPHIBeforeSync]
+  if (typeof mask === 'boolean') next.maskPHIBeforeSync = mask
+  const enrichment = stored[STORAGE_KEYS.cloudEnrichmentEnabled]
+  if (typeof enrichment === 'boolean') next.cloudEnrichmentEnabled = enrichment
+  const crashReports = stored[STORAGE_KEYS.crashReportsEnabled]
+  if (typeof crashReports === 'boolean') next.crashReportsEnabled = crashReports
+  return next
+}
+
+type SyncSummary =
+  | { state: 'loading' }
+  | { state: 'signed-out' }
+  | { state: 'connected'; pending: number }
+  | { state: 'unavailable'; message: string; reason?: string }
 
 export const SettingsView: React.FC = () => {
   const [settings, setSettings] = useState<SettingsState>(DEFAULT_SETTINGS)
@@ -101,8 +113,102 @@ export const SettingsView: React.FC = () => {
     tier: string
     billingStatus?: string
   } | null>(null)
-  const [localMeetingCount, setLocalMeetingCount] = useState<number>(0)
-  const [syncedMeetingCount, setSyncedMeetingCount] = useState<number>(0)
+  const [localMeetingCount, setLocalMeetingCount] = useState<number | null>(null)
+  const [syncedMeetingCount, setSyncedMeetingCount] = useState<number | null>(null)
+  const [syncSummary, setSyncSummary] = useState<SyncSummary>({ state: 'loading' })
+  // Recovery-phrase entry, shown when this device cannot unlock sync by itself
+  const [recoveryPhraseInput, setRecoveryPhraseInput] = useState('')
+  const [isUnlockingSync, setIsUnlockingSync] = useState(false)
+  const handleUnlockSync = useCallback(async () => {
+    setIsUnlockingSync(true)
+    try {
+      const res = await window.electronAPI?.sync?.unlockWithRecoveryPhrase?.({
+        phrase: recoveryPhraseInput,
+      })
+      if (!res?.success) throw new Error(res?.error?.message || 'Sync could not be unlocked')
+      setRecoveryPhraseInput('')
+      setSyncSummary({ state: 'connected', pending: 0 })
+      useAppStore.getState().addToast({
+        type: 'success',
+        title: 'Encrypted sync unlocked',
+        message: 'This device can now read and upload your synced meetings.',
+        duration: 5000,
+      })
+    } catch (err) {
+      useAppStore.getState().addToast({
+        type: 'error',
+        title: 'Sync not unlocked',
+        message: err instanceof Error ? err.message : undefined,
+        duration: 6000,
+      })
+    } finally {
+      setIsUnlockingSync(false)
+    }
+  }, [recoveryPhraseInput])
+  const queryClient = useQueryClient()
+  const [isImportingMeeting, setIsImportingMeeting] = useState(false)
+  const handleImportMeeting = useCallback(async () => {
+    setIsImportingMeeting(true)
+    try {
+      const res = await window.electronAPI?.meeting?.importFile?.()
+      if (!res?.success) throw new Error(res?.error?.message || 'The file could not be imported')
+      if (!res.data) return // picker cancelled
+      void queryClient.invalidateQueries({ queryKey: ['meetings'] })
+      useAppStore.getState().addToast({
+        type: res.data.status === 'imported' ? 'success' : 'info',
+        title: res.data.status === 'imported' ? 'Meeting imported' : 'Already in your library',
+        message: res.data.title || undefined,
+        duration: 4000,
+      })
+      useNavigationStore.getState().navigate('meeting-detail', res.data.meetingId)
+    } catch (err) {
+      useAppStore.getState().addToast({
+        type: 'error',
+        title: 'Meeting not imported',
+        message: err instanceof Error ? err.message : undefined,
+        duration: 6000,
+      })
+    } finally {
+      setIsImportingMeeting(false)
+    }
+  }, [queryClient])
+  const [isRestoring, setIsRestoring] = useState(false)
+  const handleRestoreFromCloud = useCallback(async () => {
+    setIsRestoring(true)
+    try {
+      const res = await window.electronAPI?.sync?.restoreFromCloud?.()
+      if (!res?.success || !res.data) {
+        throw new Error(res?.error?.message || 'Your account could not be read')
+      }
+      const { meetings, records, complete, unreadable } = res.data
+      const restored =
+        records === 0
+          ? 'Everything in your account is already on this device.'
+          : `Restored ${meetings} meeting${meetings === 1 ? '' : 's'} (${records} records in all).`
+      const notes = [
+        complete ? '' : 'The download stopped early — run it again to fetch the rest.',
+        unreadable > 0
+          ? `${unreadable} record${unreadable === 1 ? '' : 's'} could not be read with this device's key.`
+          : '',
+      ].filter(Boolean)
+      useAppStore.getState().addToast({
+        type: complete ? 'success' : 'warning',
+        title: complete ? 'Restore finished' : 'Restore incomplete',
+        message: [restored, ...notes].join(' '),
+        duration: 8000,
+      })
+    } catch (err) {
+      useAppStore.getState().addToast({
+        type: 'error',
+        title: 'Restore failed',
+        message: err instanceof Error ? err.message : undefined,
+        duration: 6000,
+      })
+    } finally {
+      setIsRestoring(false)
+    }
+  }, [])
+  const [appVersion, setAppVersion] = useState<string>('')
   const [licenseKey, setLicenseKey] = useState('')
   const [licenseStatus, setLicenseStatus] = useState<'idle' | 'loading' | 'success' | 'error'>(
     'idle'
@@ -142,10 +248,8 @@ export const SettingsView: React.FC = () => {
         const res = await window.electronAPI?.settings?.getAll()
         if (!isMounted) return
         if (res?.success && res.data) {
-          setSettings(
-            prev =>
-              ({ ...prev, ...(res.data as unknown as Record<string, unknown>) }) as SettingsState
-          )
+          const stored = res.data as unknown as Record<string, unknown>
+          setSettings(prev => ({ ...prev, ...settingsFromStore(stored) }))
         }
       } catch {
         // Use defaults
@@ -171,12 +275,14 @@ export const SettingsView: React.FC = () => {
       }
 
       // Load user info and billing status
+      let signedIn = false
       try {
         const userRes = await window.electronAPI?.auth?.getCurrentUser()
         const billingRes = await window.electronAPI?.billing?.getStatus()
         if (!isMounted) return
 
         if (userRes?.success && userRes.data) {
+          signedIn = true
           setUserInfo({
             email: userRes.data.email,
             tier: userRes.data.tier,
@@ -187,21 +293,68 @@ export const SettingsView: React.FC = () => {
         log.warn('Not logged in or auth unavailable:', err)
       }
 
+      // Cloud sync state (read-only here: sync follows sign-in and plan)
+      try {
+        const syncRes = signedIn ? await window.electronAPI?.sync?.getStatus() : null
+        if (!isMounted) return
+        if (!signedIn) {
+          setSyncSummary({ state: 'signed-out' })
+        } else if (syncRes?.success && syncRes.data) {
+          const data = syncRes.data
+          // Builds that predate the explicit `status` field report only the queue
+          setSyncSummary(
+            data.status === 'disconnected'
+              ? {
+                  state: 'unavailable',
+                  message: data.message || 'Not available on this device or plan.',
+                  reason: data.reason,
+                }
+              : { state: 'connected', pending: data.pending ?? data.queuedEvents ?? 0 }
+          )
+        } else {
+          setSyncSummary({
+            state: 'unavailable',
+            message: syncRes?.error?.message || 'Sync status is unavailable.',
+          })
+        }
+      } catch {
+        if (isMounted)
+          setSyncSummary({ state: 'unavailable', message: 'Sync status is unavailable.' })
+      }
+
+      try {
+        const deviceRes = await window.electronAPI?.device?.getCurrent?.()
+        const version = deviceRes?.success ? deviceRes.data?.appVersion : undefined
+        if (isMounted && typeof version === 'string') setAppVersion(version)
+      } catch {
+        // version label is optional
+      }
+
       if (isMounted) setLoading(false)
     }
 
-    // Load meeting counts for Data Locality Report
+    // Load meeting counts for the data location report
     const loadMeetingCounts = async () => {
       try {
-        const res = await window.electronAPI?.meeting?.list({ limit: 100 })
-        if (!isMounted) return
-        if (res?.success && res.data) {
-          const meetings = (res.data as { items: Array<{ synced_at?: number }> }).items || []
-          setLocalMeetingCount(meetings.length)
-          setSyncedMeetingCount(meetings.filter(m => (m.synced_at ?? 0) > 0).length)
+        const PAGE = 200
+        let offset = 0
+        let total = 0
+        let synced = 0
+        // Page through everything — a single capped page under-reported the totals
+        for (let page = 0; page < 500; page++) {
+          const res = await window.electronAPI?.meeting?.list({ limit: PAGE, offset })
+          if (!isMounted || !res?.success || !res.data) break
+          const items = (res.data as { items?: Array<{ synced_at?: number | null }> }).items || []
+          total += items.length
+          synced += items.filter(m => (m.synced_at ?? 0) > 0).length
+          if (items.length < PAGE) break
+          offset += PAGE
         }
+        if (!isMounted) return
+        setLocalMeetingCount(total)
+        setSyncedMeetingCount(synced)
       } catch {
-        // Ignore
+        // Counts stay unknown ("—")
       }
     }
 
@@ -221,30 +374,55 @@ export const SettingsView: React.FC = () => {
 
   // Persist a setting change to DB with rollback on failure
   const updateSetting = useCallback(
-    async (key: string, value: unknown) => {
-      const previousValue = (settingsRef.current as unknown as Record<string, unknown>)[key]
+    async <K extends EditableSetting>(key: K, value: SettingsState[K]) => {
+      const previousValue = settingsRef.current[key]
       setSettings(prev => ({ ...prev, [key]: value }))
       try {
-        await window.electronAPI?.settings?.update({ key, value } as {
-          key: string
-          value: unknown
-        })
+        const res = await window.electronAPI?.settings?.update({
+          key: STORAGE_KEYS[key],
+          value,
+        } as { key: string; value: unknown })
+        // The handler reports failures in the response — it does not throw
+        if (!res?.success) throw new Error(res?.error?.message || 'The setting was not saved')
       } catch (err) {
         // Rollback UI state to previous value on failure
         setSettings(prev => ({ ...prev, [key]: previousValue }))
         log.error(`[Settings] Failed to save "${key}":`, err)
+        useAppStore.getState().addToast({
+          type: 'error',
+          title: 'Setting not saved',
+          message: err instanceof Error ? err.message : undefined,
+          duration: 4000,
+        })
       }
     },
     [] // No deps — uses ref for settings
   )
 
   const handleLogout = React.useCallback(async () => {
+    const recordingState = useRecordingStore.getState().recordingState
+    if (recordingState !== 'idle') {
+      useAppStore.getState().addToast({
+        type: 'warning',
+        title: 'Recording in progress',
+        message: 'Stop the recording before signing out.',
+        duration: 4000,
+      })
+      return
+    }
     try {
-      await window.electronAPI?.auth?.logout()
+      const res = await window.electronAPI?.auth?.logout()
+      if (res && !res.success) throw new Error(res.error?.message || 'Sign out failed')
       setUserInfo(null)
       useNavigationStore.getState().navigate('onboarding')
     } catch (err) {
       log.error('Logout failed:', err)
+      useAppStore.getState().addToast({
+        type: 'error',
+        title: 'Could not sign out',
+        message: err instanceof Error ? err.message : undefined,
+        duration: 4000,
+      })
     }
   }, [])
 
@@ -252,27 +430,80 @@ export const SettingsView: React.FC = () => {
   const handleExportData = React.useCallback(async () => {
     setIsExporting(true)
     try {
-      const res = await window.electronAPI?.meeting?.list({ limit: 999 })
-      if (res?.success && res.data) {
-        const meetings = (res.data as { items: unknown[] }).items || []
-        const blob = new Blob([JSON.stringify(meetings, null, 2)], { type: 'application/json' })
-        const url = URL.createObjectURL(blob)
-        const a = document.createElement('a')
-        a.href = url
-        a.download = `bluearkive-export-${new Date().toISOString().split('T')[0]}.json`
-        a.click()
-        URL.revokeObjectURL(url)
-        useAppStore
-          .getState()
-          .addToast({ type: 'success', title: 'Data exported successfully', duration: 3000 })
+      // The main process writes the file itself (after asking where): the
+      // whole library is too much to pass through here as one string.
+      const res = await window.electronAPI?.export?.userData({ format: 'json' })
+      if (!res?.success || !res.data) {
+        throw new Error(res?.error?.message || 'Export failed')
       }
+      // No path = the save dialog was cancelled; nothing was written.
+      if (!res.data.filePath) return
+      const meetings = res.data.stats?.meetings
+      useAppStore.getState().addToast({
+        type: 'success',
+        title: 'Data exported',
+        message: `${typeof meetings === 'number' ? `${meetings} meeting${meetings === 1 ? '' : 's'} saved` : 'Saved'} as ${res.data.filePath.split(/[\\/]/).pop()}`,
+        duration: 5000,
+      })
+      window.electronAPI?.shell?.showItemInFolder?.(res.data.filePath)
     } catch (err) {
       log.error('Data export failed:', err)
-      useAppStore.getState().addToast({ type: 'error', title: 'Export failed', duration: 3000 })
+      useAppStore.getState().addToast({
+        type: 'error',
+        title: 'Export failed',
+        message: err instanceof Error ? err.message : undefined,
+        duration: 4000,
+      })
     } finally {
       setIsExporting(false)
     }
   }, [])
+
+  // Erase everything (GDPR Art. 17). Requires typing DELETE — there is no undo.
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = React.useState(false)
+  const [deleteConfirmText, setDeleteConfirmText] = React.useState('')
+  const [isDeleting, setIsDeleting] = React.useState(false)
+  const handleDeleteAllData = React.useCallback(async () => {
+    setIsDeleting(true)
+    try {
+      const res = await window.electronAPI?.export?.deleteAllData()
+      if (!res?.success) throw new Error(res?.error?.message || 'Deletion failed')
+      try {
+        // Renderer-side caches of the deleted content
+        for (let i = localStorage.length - 1; i >= 0; i--) {
+          const key = localStorage.key(i)
+          if (key?.startsWith('bluearkive:')) localStorage.removeItem(key)
+        }
+      } catch {
+        // storage unavailable
+      }
+      useAppStore.getState().addToast({
+        type: 'success',
+        title: 'All data deleted',
+        message: res.data?.message,
+        duration: 6000,
+      })
+      setDeleteConfirmOpen(false)
+      setDeleteConfirmText('')
+      setUserInfo(null)
+      // Start from a clean app state
+      window.location.reload()
+    } catch (err) {
+      log.error('Delete all data failed:', err)
+      useAppStore.getState().addToast({
+        type: 'error',
+        title: 'Could not delete data',
+        message: err instanceof Error ? err.message : undefined,
+        duration: 6000,
+      })
+    } finally {
+      setIsDeleting(false)
+    }
+  }, [])
+
+  // System (loopback) audio: Windows always; macOS 13+ once Screen Recording
+  // permission is granted. Linux has no loopback source in this build.
+  const systemAudioSupported = window.electronAPI?.platform !== 'linux'
 
   const tierDisplay = settings.hardwareTier
     ? settings.hardwareTier.charAt(0).toUpperCase() + settings.hardwareTier.slice(1)
@@ -294,43 +525,53 @@ export const SettingsView: React.FC = () => {
                 <div className="flex flex-wrap items-center justify-between gap-6 px-5 py-4 rounded-2xl hover:bg-[rgba(255,255,255,0.03)] transition-colors">
                   <span className="text-[15px] font-medium text-[var(--color-text-primary)]">
                     Audio source
+                    <span className="block text-[12px] font-normal text-[var(--color-text-tertiary)] mt-0.5">
+                      {!systemAudioSupported
+                        ? 'Recording the computer\u2019s own audio is not available on Linux in this version. On this computer BlueArkive records your microphone.'
+                        : settings.preferredAudioDevice === 'system'
+                          ? 'Records what your computer plays — everyone in the call.'
+                          : 'Records only your microphone.'}
+                    </span>
                   </span>
                   <div className="w-full max-w-[16rem]">
                     <Select
-                      value={settings.preferredAudioDevice}
-                      onChange={e => updateSetting('preferredAudioDevice', e.target.value)}
-                      options={[
-                        { label: 'System Audio (Default)', value: 'default' },
-                        { label: 'Built-in Microphone', value: 'internal' },
-                      ]}
+                      aria-label="Audio source"
+                      value={systemAudioSupported ? settings.preferredAudioDevice : 'microphone'}
+                      disabled={!systemAudioSupported}
+                      onChange={e =>
+                        updateSetting(
+                          'preferredAudioDevice',
+                          e.target.value === 'microphone' ? 'microphone' : 'system'
+                        )
+                      }
+                      options={
+                        systemAudioSupported
+                          ? [
+                              { label: 'System audio (meeting participants)', value: 'system' },
+                              { label: 'Microphone only', value: 'microphone' },
+                            ]
+                          : [{ label: 'Microphone', value: 'microphone' }]
+                      }
                     />
                   </div>
                 </div>
                 <div className="flex flex-wrap items-center justify-between gap-6 px-5 py-4 rounded-2xl hover:bg-[rgba(255,255,255,0.03)] transition-colors">
                   <span className="text-[15px] font-medium text-[var(--color-text-primary)]">
                     Fallback to microphone
+                    <span className="block text-[12px] font-normal text-[var(--color-text-tertiary)] mt-0.5">
+                      If system audio can&apos;t be captured, record the microphone instead of
+                      failing.
+                    </span>
                   </span>
                   <Toggle
-                    checked={settings.audioFallbackEnabled}
+                    aria-label="Fallback to microphone"
+                    checked={
+                      systemAudioSupported &&
+                      settings.preferredAudioDevice === 'system' &&
+                      settings.audioFallbackEnabled
+                    }
+                    disabled={!systemAudioSupported || settings.preferredAudioDevice !== 'system'}
                     onChange={e => updateSetting('audioFallbackEnabled', e.target.checked)}
-                  />
-                </div>
-              </div>
-            </div>
-          </div>
-          <div>
-            <h4 className="pl-4 mb-3 text-[11px] uppercase tracking-widest text-[var(--color-text-tertiary)] font-bold">
-              Local Storage
-            </h4>
-            <div className="surface-glass-premium border border-[var(--color-border-subtle)] rounded-3xl p-2 shadow-sm">
-              <div className="flex flex-col gap-1">
-                <div className="flex flex-wrap items-center justify-between gap-6 px-5 py-4 rounded-2xl hover:bg-[rgba(255,255,255,0.03)] transition-colors">
-                  <span className="text-[15px] font-medium text-[var(--color-text-primary)]">
-                    Keep audio files
-                  </span>
-                  <Toggle
-                    checked={settings.keepAudioFiles}
-                    onChange={e => updateSetting('keepAudioFiles', e.target.checked)}
                   />
                 </div>
               </div>
@@ -338,6 +579,13 @@ export const SettingsView: React.FC = () => {
           </div>
         </div>
       ),
+    },
+    {
+      id: 'audio-studio',
+      title: 'Audio Studio',
+      icon: <Volume2 size={20} className="text-[var(--color-emerald)]" />,
+      content: <AudioStudioDiagnostics />,
+      isCustomLayout: true,
     },
     {
       id: 'transcription',
@@ -372,123 +620,39 @@ export const SettingsView: React.FC = () => {
           </div>
           <div>
             <h4 className="pl-4 mb-3 text-[11px] uppercase tracking-widest text-[var(--color-text-tertiary)] font-bold">
-              Cloud Services
+              Language
             </h4>
             <div className="surface-glass-premium border border-[var(--color-border-subtle)] rounded-3xl p-2 shadow-sm">
               <div className="flex flex-col gap-1">
-                <div className="flex flex-wrap items-center justify-between gap-6 px-5 py-4 rounded-2xl hover:bg-[rgba(255,255,255,0.03)] transition-colors">
-                  <span className="text-[15px] font-medium text-[var(--color-text-primary)] flex items-center">
-                    Cloud transcription
-                    {currentTier === 'free' && (
-                      <Lock
-                        size={12}
-                        className="inline ml-1.5 opacity-60 text-[var(--color-amber)]"
-                      />
-                    )}
-                  </span>
-                  <Toggle
-                    checked={settings.useCloudTranscription}
-                    disabled={currentTier === 'free'}
-                    onChange={e => updateSetting('useCloudTranscription', e.target.checked)}
-                  />
-                </div>
                 <div className="flex flex-wrap items-center justify-between gap-6 px-5 py-4 rounded-2xl hover:bg-[rgba(255,255,255,0.03)] transition-colors">
                   <span className="text-[15px] font-medium text-[var(--color-text-primary)]">
                     Transcription language
-                  </span>
-                  <Select
-                    value={settings.language}
-                    onChange={value => {
-                      updateSetting('language', value)
-                      // Also persist as transcription_language for ASR + Deepgram wiring
-                      window.electronAPI?.settings?.update({
-                        key: 'transcription_language',
-                        value: value,
-                      })
-                    }}
-                    options={[
-                      { label: '🌐 Auto-detect', value: 'auto' },
-                      { label: '🇬🇧 English', value: 'en' },
-                      { label: '🇮🇳 हिन्दी (Hindi)', value: 'hi' },
-                      { label: '🇯🇵 日本語 (Japanese)', value: 'ja' },
-                      { label: '🇫🇷 Français (French)', value: 'fr' },
-                      { label: '🇪🇸 Español (Spanish)', value: 'es' },
-                      { label: '🇩🇪 Deutsch (German)', value: 'de' },
-                      { label: '🇧🇷 Português (Portuguese)', value: 'pt' },
-                      { label: '🇰🇷 한국어 (Korean)', value: 'ko' },
-                      { label: '🇸🇦 العربية (Arabic)', value: 'ar' },
-                      { label: '🇮🇹 Italiano (Italian)', value: 'it' },
-                      { label: '🇳🇱 Nederlands (Dutch)', value: 'nl' },
-                      { label: '🇨🇳 中文 (Chinese)', value: 'zh' },
-                    ]}
-                  />
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      ),
-    },
-    {
-      id: 'intelligence',
-      title: 'Intelligence',
-      icon: <Brain size={20} className="text-[var(--color-sky)]" />,
-      content: (
-        <div className="flex flex-col gap-8">
-          <div>
-            <h4 className="pl-4 mb-3 text-[11px] uppercase tracking-widest text-[var(--color-text-tertiary)] font-bold">
-              Automation
-            </h4>
-            <div className="surface-glass-premium border border-[var(--color-border-subtle)] rounded-3xl p-2 shadow-sm">
-              <div className="flex flex-col gap-1">
-                <div className="flex flex-wrap items-center justify-between gap-6 px-5 py-4 rounded-2xl hover:bg-[rgba(255,255,255,0.03)] transition-colors">
-                  <span className="text-[15px] font-medium text-[var(--color-text-primary)] flex items-center">
-                    Auto-expand notes
-                    {currentTier === 'free' && (
-                      <Lock
-                        size={12}
-                        className="inline ml-1.5 opacity-60 text-[var(--color-amber)]"
-                      />
-                    )}
-                  </span>
-                  <Toggle
-                    checked={settings.autoExpandNotes}
-                    disabled={currentTier === 'free'}
-                    onChange={e => updateSetting('autoExpandNotes', e.target.checked)}
-                  />
-                </div>
-              </div>
-            </div>
-          </div>
-          <div>
-            <h4 className="pl-4 mb-3 text-[11px] uppercase tracking-widest text-[var(--color-text-tertiary)] font-bold">
-              Model Configuration
-            </h4>
-            <div className="surface-glass-premium border border-[var(--color-border-subtle)] rounded-3xl p-2 shadow-sm">
-              <div className="flex flex-col gap-1">
-                <div className="flex flex-wrap items-center justify-between gap-6 px-5 py-4 rounded-2xl hover:bg-[rgba(255,255,255,0.03)] transition-colors">
-                  <span className="text-[15px] font-medium text-[var(--color-text-primary)]">
-                    Intelligence engine
+                    <span className="block text-[12px] font-normal text-[var(--color-text-tertiary)] mt-0.5">
+                      Applies to the next recording.
+                    </span>
                   </span>
                   <div className="w-full max-w-[16rem]">
                     <Select
-                      value={settings.llmEngine}
-                      onChange={e => updateSetting('llmEngine', e.target.value)}
+                      aria-label="Transcription language"
+                      value={settings.language}
+                      onChange={e => updateSetting('language', e.target.value)}
                       options={[
-                        { label: 'Local Runtime (node-llama-cpp)', value: 'local' },
-                        { label: 'Accelerated (Apple Silicon)', value: 'mlx' },
+                        { label: '🌐 Auto-detect', value: 'auto' },
+                        { label: '🇬🇧 English', value: 'en' },
+                        { label: '🇮🇳 हिन्दी (Hindi)', value: 'hi' },
+                        { label: '🇯🇵 日本語 (Japanese)', value: 'ja' },
+                        { label: '🇫🇷 Français (French)', value: 'fr' },
+                        { label: '🇪🇸 Español (Spanish)', value: 'es' },
+                        { label: '🇩🇪 Deutsch (German)', value: 'de' },
+                        { label: '🇧🇷 Português (Portuguese)', value: 'pt' },
+                        { label: '🇰🇷 한국어 (Korean)', value: 'ko' },
+                        { label: '🇸🇦 العربية (Arabic)', value: 'ar' },
+                        { label: '🇮🇹 Italiano (Italian)', value: 'it' },
+                        { label: '🇳🇱 Nederlands (Dutch)', value: 'nl' },
+                        { label: '🇨🇳 中文 (Chinese)', value: 'zh' },
                       ]}
                     />
                   </div>
-                </div>
-                <div className="flex flex-wrap items-center justify-between gap-6 px-5 py-4 rounded-2xl hover:bg-[rgba(255,255,255,0.03)] transition-colors">
-                  <span className="text-[15px] font-medium text-[var(--color-text-primary)]">
-                    Show smart chips
-                  </span>
-                  <Toggle
-                    checked={settings.showSmartChips}
-                    onChange={e => updateSetting('showSmartChips', e.target.checked)}
-                  />
                 </div>
               </div>
             </div>
@@ -504,25 +668,25 @@ export const SettingsView: React.FC = () => {
         <div className="flex flex-col gap-8">
           <div>
             <h4 className="pl-4 mb-3 text-[11px] uppercase tracking-widest text-[var(--color-text-tertiary)] font-bold">
-              Data Locality Report
+              Where your data lives
             </h4>
             <div className="surface-glass-premium border border-[var(--color-border-subtle)] rounded-3xl p-2 shadow-sm">
               <div className="flex flex-col gap-1 p-3">
                 <div className="flex justify-between items-center text-[14px]">
-                  <span className="text-[var(--color-text-secondary)]">Local meetings</span>
+                  <span className="text-[var(--color-text-secondary)]">
+                    Meetings on this device
+                  </span>
                   <span className="font-mono font-medium text-[var(--color-text-primary)]">
-                    {localMeetingCount}
+                    {localMeetingCount ?? '—'}
                   </span>
                 </div>
                 <div className="flex justify-between items-center text-[14px] mt-3">
-                  <span className="text-[var(--color-text-secondary)]">Synced (Encrypted)</span>
-                  <span className="font-mono font-medium text-[var(--color-text-primary)]">
-                    {syncedMeetingCount}
+                  <span className="text-[var(--color-text-secondary)]">
+                    Also synced to your account (encrypted)
                   </span>
-                </div>
-                <div className="flex justify-between items-center text-[14px] mt-3">
-                  <span className="text-[var(--color-text-secondary)]">Data to 3rd parties</span>
-                  <span className="font-mono font-medium text-[var(--color-emerald)]">0 bytes</span>
+                  <span className="font-mono font-medium text-[var(--color-text-primary)]">
+                    {syncedMeetingCount ?? '—'}
+                  </span>
                 </div>
               </div>
             </div>
@@ -530,24 +694,36 @@ export const SettingsView: React.FC = () => {
 
           <div>
             <h4 className="pl-4 mb-3 text-[11px] uppercase tracking-widest text-[var(--color-text-tertiary)] font-bold">
-              Local Processing
+              Processing
             </h4>
             <div className="surface-glass-premium border border-[var(--color-border-subtle)] rounded-3xl p-2 shadow-sm">
               <div className="flex flex-col gap-1">
-                <div className="flex items-center justify-between px-5 py-4 rounded-2xl hover:bg-[rgba(255,255,255,0.03)] transition-colors">
+                <div className="flex items-center justify-between gap-6 px-5 py-4 rounded-2xl hover:bg-[rgba(255,255,255,0.03)] transition-colors">
                   <span className="text-[15px] font-medium text-[var(--color-text-primary)]">
-                    Audio processed on-device
+                    Audio & transcription
+                    <span className="block text-[12px] font-normal text-[var(--color-text-tertiary)] mt-0.5">
+                      Speech is transcribed by the model on this computer. Audio is not uploaded.
+                    </span>
                   </span>
-                  <Badge variant="success">✅ Verified</Badge>
+                  <Badge variant="success">On this device</Badge>
                 </div>
-                <div className="flex items-center justify-between px-5 py-4 rounded-2xl hover:bg-[rgba(255,255,255,0.03)] transition-colors">
+                <div className="flex items-center justify-between gap-6 px-5 py-4 rounded-2xl hover:bg-[rgba(255,255,255,0.03)] transition-colors">
                   <span className="text-[15px] font-medium text-[var(--color-text-primary)]">
-                    End-to-end encryption (AES-256-GCM)
+                    Sync encryption (AES-256-GCM)
+                    <span className="block text-[12px] font-normal text-[var(--color-text-tertiary)] mt-0.5">
+                      Synced content is encrypted on this device before upload. Always on.
+                    </span>
                   </span>
-                  <Toggle
-                    checked={settings.encryptionEnabled}
-                    onChange={e => updateSetting('encryptionEnabled', e.target.checked)}
-                  />
+                  <Badge variant="success">Always on</Badge>
+                </div>
+                <div className="flex items-center justify-between gap-6 px-5 py-4 rounded-2xl hover:bg-[rgba(255,255,255,0.03)] transition-colors">
+                  <span className="text-[15px] font-medium text-[var(--color-text-primary)]">
+                    Audit logging
+                    <span className="block text-[12px] font-normal text-[var(--color-text-tertiary)] mt-0.5">
+                      Changes to your data are recorded in the audit log below.
+                    </span>
+                  </span>
+                  <Badge variant="success">Always on</Badge>
                 </div>
               </div>
             </div>
@@ -555,35 +731,65 @@ export const SettingsView: React.FC = () => {
 
           <div>
             <h4 className="pl-4 mb-3 text-[11px] uppercase tracking-widest text-[var(--color-text-tertiary)] font-bold">
-              Privacy & Auditing
+              Privacy
             </h4>
             <div className="surface-glass-premium border border-[var(--color-border-subtle)] rounded-3xl p-2 shadow-sm">
               <div className="flex flex-col gap-1">
-                <div className="flex items-center justify-between px-5 py-4 rounded-2xl hover:bg-[rgba(255,255,255,0.03)] transition-colors">
+                <div className="flex items-center justify-between gap-6 px-5 py-4 rounded-2xl hover:bg-[rgba(255,255,255,0.03)] transition-colors">
                   <span className="text-[15px] font-medium text-[var(--color-text-primary)]">
-                    PHI auto-redaction
+                    Detect health information (PHI)
+                    <span className="block text-[12px] font-normal text-[var(--color-text-tertiary)] mt-0.5">
+                      Checks content for protected health information before it is synced.
+                    </span>
                   </span>
                   <Toggle
+                    aria-label="Detect health information (PHI)"
                     checked={settings.phiDetectionEnabled}
                     onChange={e => updateSetting('phiDetectionEnabled', e.target.checked)}
                   />
                 </div>
-                <div className="flex items-center justify-between px-5 py-4 rounded-2xl hover:bg-[rgba(255,255,255,0.03)] transition-colors">
+                <div className="flex items-center justify-between gap-6 px-5 py-4 rounded-2xl hover:bg-[rgba(255,255,255,0.03)] transition-colors">
                   <span className="text-[15px] font-medium text-[var(--color-text-primary)]">
                     Mask PHI before sync
+                    <span className="block text-[12px] font-normal text-[var(--color-text-tertiary)] mt-0.5">
+                      Replaces detected health information before content leaves this device.
+                    </span>
                   </span>
                   <Toggle
-                    checked={settings.maskPHIBeforeSync}
+                    aria-label="Mask PHI before sync"
+                    checked={settings.phiDetectionEnabled && settings.maskPHIBeforeSync}
+                    disabled={!settings.phiDetectionEnabled}
                     onChange={e => updateSetting('maskPHIBeforeSync', e.target.checked)}
                   />
                 </div>
-                <div className="flex items-center justify-between px-5 py-4 rounded-2xl hover:bg-[rgba(255,255,255,0.03)] transition-colors">
+                <div className="flex items-center justify-between gap-6 px-5 py-4 rounded-2xl hover:bg-[rgba(255,255,255,0.03)] transition-colors">
                   <span className="text-[15px] font-medium text-[var(--color-text-primary)]">
-                    Immutable Audit logging
+                    Cloud analysis of meeting text
+                    <span className="block text-[12px] font-normal text-[var(--color-text-tertiary)] mt-0.5">
+                      Lets cloud entity extraction and the knowledge graph read meeting text. That
+                      text is sent without end-to-end encryption. Off: these run on this device
+                      only.
+                    </span>
                   </span>
                   <Toggle
-                    checked={settings.auditLoggingEnabled}
-                    onChange={e => updateSetting('auditLoggingEnabled', e.target.checked)}
+                    aria-label="Cloud analysis of meeting text"
+                    checked={settings.cloudEnrichmentEnabled}
+                    onChange={e => updateSetting('cloudEnrichmentEnabled', e.target.checked)}
+                  />
+                </div>
+                <div className="flex items-center justify-between gap-6 px-5 py-4 rounded-2xl hover:bg-[rgba(255,255,255,0.03)] transition-colors">
+                  <span className="text-[15px] font-medium text-[var(--color-text-primary)]">
+                    Send crash reports
+                    <span className="block text-[12px] font-normal text-[var(--color-text-tertiary)] mt-0.5">
+                      When the app hits an error, sends the error and where in the code it happened,
+                      with the app version and your operating system. Never meeting content, file
+                      names or your account details.
+                    </span>
+                  </span>
+                  <Toggle
+                    aria-label="Send crash reports"
+                    checked={settings.crashReportsEnabled}
+                    onChange={e => updateSetting('crashReportsEnabled', e.target.checked)}
                   />
                 </div>
               </div>
@@ -592,98 +798,90 @@ export const SettingsView: React.FC = () => {
 
           <div>
             <h4 className="pl-4 mb-3 text-[11px] uppercase tracking-widest text-[var(--color-text-tertiary)] font-bold">
-              Cloud Connectivity
+              Cloud Sync
             </h4>
             <div className="surface-glass-premium border border-[var(--color-border-subtle)] rounded-3xl p-2 shadow-sm">
               <div className="flex flex-col gap-1">
-                <div className="flex items-center justify-between px-5 py-4 rounded-2xl hover:bg-[rgba(255,255,255,0.03)] transition-colors">
-                  <span className="text-[15px] font-medium text-[var(--color-text-primary)] flex items-center">
-                    Cloud Sync (E2EE)
-                    {currentTier === 'free' && (
-                      <Lock
-                        size={12}
-                        className="inline ml-1.5 opacity-60 text-[var(--color-amber)]"
-                      />
-                    )}
-                  </span>
-                  <Toggle
-                    checked={settings.syncEnabled}
-                    disabled={currentTier === 'free'}
-                    onChange={e => updateSetting('syncEnabled', e.target.checked)}
-                  />
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      ),
-    },
-    {
-      id: 'storage',
-      title: 'Storage',
-      icon: <HardDrive size={20} className="text-[var(--color-text-secondary)]" />,
-      content: (
-        <div className="flex flex-col gap-8">
-          <div>
-            <h4 className="pl-4 mb-3 text-[11px] uppercase tracking-widest text-[var(--color-text-tertiary)] font-bold">
-              Disk Management
-            </h4>
-            <div className="surface-glass-premium border border-[var(--color-border-subtle)] rounded-3xl p-2 shadow-sm">
-              <div className="flex flex-col gap-1">
-                <div className="flex flex-wrap items-center justify-between gap-6 px-5 py-4 rounded-2xl hover:bg-[rgba(255,255,255,0.03)] transition-colors">
+                <div className="flex items-center justify-between gap-6 px-5 py-4 rounded-2xl hover:bg-[rgba(255,255,255,0.03)] transition-colors">
                   <span className="text-[15px] font-medium text-[var(--color-text-primary)]">
-                    Max disk usage
-                  </span>
-                  <div className="w-full max-w-[16rem]">
-                    <Select
-                      value={String(settings.maxDiskUsage)}
-                      onChange={e => updateSetting('maxDiskUsage', Number(e.target.value))}
-                      options={[
-                        { label: '5 GB', value: '5' },
-                        { label: '10 GB', value: '10' },
-                        { label: '25 GB', value: '25' },
-                        { label: '50 GB', value: '50' },
-                        { label: 'Unlimited', value: '0' },
-                      ]}
-                    />
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-          <div>
-            <h4 className="pl-4 mb-3 text-[11px] uppercase tracking-widest text-[var(--color-text-tertiary)] font-bold">
-              Retention Policy
-            </h4>
-            <div className="surface-glass-premium border border-[var(--color-border-subtle)] rounded-3xl p-2 shadow-sm">
-              <div className="flex flex-col gap-1">
-                <div className="flex flex-wrap items-center justify-between gap-6 px-5 py-4 rounded-2xl hover:bg-[rgba(255,255,255,0.03)] transition-colors">
-                  <span className="text-[15px] font-medium text-[var(--color-text-primary)]">
-                    Auto-delete old meetings
-                  </span>
-                  <Toggle
-                    checked={settings.autoDeleteOldMeetings}
-                    onChange={e => updateSetting('autoDeleteOldMeetings', e.target.checked)}
-                  />
-                </div>
-                {settings.autoDeleteOldMeetings && (
-                  <div className="flex flex-wrap items-center justify-between gap-6 px-5 py-4 rounded-2xl hover:bg-[rgba(255,255,255,0.03)] transition-colors">
-                    <span className="text-[15px] font-medium text-[var(--color-text-primary)]">
-                      Delete after
+                    Encrypted sync
+                    <span className="block text-[12px] font-normal text-[var(--color-text-tertiary)] mt-0.5">
+                      {syncSummary.state === 'connected'
+                        ? syncSummary.pending > 0
+                          ? `${syncSummary.pending} change${syncSummary.pending === 1 ? '' : 's'} waiting to upload.`
+                          : 'Everything is up to date.'
+                        : syncSummary.state === 'signed-out'
+                          ? 'Sign in to sync your meetings across devices.'
+                          : syncSummary.state === 'unavailable'
+                            ? syncSummary.message
+                            : 'Checking…'}
                     </span>
-                    <div className="w-full max-w-[16rem]">
-                      <Select
-                        value={String(settings.autoDeleteAfterDays)}
-                        onChange={e => updateSetting('autoDeleteAfterDays', Number(e.target.value))}
-                        options={[
-                          { label: '30 days', value: '30' },
-                          { label: '60 days', value: '60' },
-                          { label: '90 days', value: '90' },
-                          { label: '180 days', value: '180' },
-                          { label: '1 year', value: '365' },
-                        ]}
+                  </span>
+                  <Badge variant={syncSummary.state === 'connected' ? 'success' : 'outline'}>
+                    {syncSummary.state === 'connected'
+                      ? 'On'
+                      : syncSummary.state === 'loading'
+                        ? '…'
+                        : 'Off'}
+                  </Badge>
+                </div>
+                {syncSummary.state === 'unavailable' &&
+                  syncSummary.reason === 'recovery_phrase_required' && (
+                    <div className="flex flex-col gap-3 px-5 py-4 rounded-2xl">
+                      <label
+                        htmlFor="sync-recovery-phrase"
+                        className="text-[13px] font-medium text-[var(--color-text-primary)]"
+                      >
+                        Recovery phrase
+                        <span className="block text-[12px] font-normal text-[var(--color-text-tertiary)] mt-0.5">
+                          The 24 words you saved when you set up BlueArkive. They unlock your synced
+                          meetings on this device and are not sent anywhere.
+                        </span>
+                      </label>
+                      <textarea
+                        id="sync-recovery-phrase"
+                        rows={3}
+                        autoComplete="off"
+                        autoCorrect="off"
+                        autoCapitalize="none"
+                        spellCheck={false}
+                        value={recoveryPhraseInput}
+                        onChange={e => setRecoveryPhraseInput(e.target.value)}
+                        placeholder="word1 word2 word3 …"
+                        className="w-full rounded-xl border border-[var(--color-border-subtle)] bg-transparent px-3 py-2 text-[13px] font-mono text-[var(--color-text-primary)] outline-none focus:border-[var(--color-violet)]"
                       />
+                      <div>
+                        <Button
+                          variant="secondary"
+                          size="sm"
+                          disabled={isUnlockingSync || recoveryPhraseInput.trim().length === 0}
+                          onClick={handleUnlockSync}
+                        >
+                          {isUnlockingSync ? 'Unlocking…' : 'Unlock sync'}
+                        </Button>
+                      </div>
                     </div>
+                  )}
+                {(syncSummary.state === 'connected' ||
+                  (syncSummary.state === 'unavailable' &&
+                    syncSummary.reason !== 'recovery_phrase_required' &&
+                    syncSummary.reason !== 'password_required')) && (
+                  <div className="flex items-center justify-between gap-6 px-5 py-4 rounded-2xl hover:bg-[rgba(255,255,255,0.03)] transition-colors">
+                    <span className="text-[15px] font-medium text-[var(--color-text-primary)]">
+                      Restore from cloud
+                      <span className="block text-[12px] font-normal text-[var(--color-text-tertiary)] mt-0.5">
+                        Downloads meetings stored in your account that are missing on this device.
+                        Nothing already here is changed or removed.
+                      </span>
+                    </span>
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      disabled={isRestoring}
+                      onClick={handleRestoreFromCloud}
+                    >
+                      {isRestoring ? 'Restoring…' : 'Restore'}
+                    </Button>
                   </div>
                 )}
               </div>
@@ -753,7 +951,7 @@ export const SettingsView: React.FC = () => {
                       <span className="text-[15px] font-medium text-[var(--color-text-primary)]">
                         Plan
                       </span>
-                      <Badge variant={currentTier === 'pro' ? 'success' : 'default'}>
+                      <Badge variant={currentTier === 'free' ? 'default' : 'success'}>
                         {currentTier.charAt(0).toUpperCase() + currentTier.slice(1)}
                       </Badge>
                     </div>
@@ -766,7 +964,14 @@ export const SettingsView: React.FC = () => {
                           <input
                             type="text"
                             value={licenseKey}
-                            onChange={e => setLicenseKey(e.target.value.toUpperCase())}
+                            onChange={e => {
+                              setLicenseKey(e.target.value.toUpperCase())
+                              if (licenseStatus === 'error') setLicenseStatus('idle')
+                            }}
+                            aria-label="License key"
+                            maxLength={64}
+                            spellCheck={false}
+                            autoComplete="off"
                             placeholder="BLUEARKIVE-PRO-XXXX-XXXX"
                             className="px-3 py-1.5 text-[var(--text-sm)] bg-[var(--color-bg-elevated)] border border-[var(--color-border-subtle)] rounded-[var(--radius-md)] text-[var(--color-text-primary)] w-[220px] placeholder:text-[var(--color-text-tertiary)] focus:border-[var(--color-violet)] outline-none transition-colors"
                             onKeyDown={e => e.key === 'Enter' && handleActivateLicense()}
@@ -827,7 +1032,10 @@ export const SettingsView: React.FC = () => {
 
                     <div className="flex items-center justify-between px-5 py-4 rounded-2xl hover:bg-[rgba(255,255,255,0.03)] transition-colors">
                       <span className="text-[15px] font-medium text-[var(--color-text-primary)]">
-                        Export data (GDPR)
+                        Export my data
+                        <span className="block text-[12px] font-normal text-[var(--color-text-tertiary)] mt-0.5">
+                          Meetings, transcripts, notes and action items as a JSON file.
+                        </span>
                       </span>
                       <Button
                         variant="secondary"
@@ -837,6 +1045,22 @@ export const SettingsView: React.FC = () => {
                       >
                         <Download size={14} className="mr-1" />{' '}
                         {isExporting ? 'Exporting...' : 'Export'}
+                      </Button>
+                    </div>
+                    <div className="flex items-center justify-between px-5 py-4 rounded-2xl hover:bg-[rgba(255,255,255,0.03)] transition-colors">
+                      <span className="text-[15px] font-medium text-[var(--color-text-primary)]">
+                        Import a meeting file
+                        <span className="block text-[12px] font-normal text-[var(--color-text-tertiary)] mt-0.5">
+                          Adds a meeting exported from BlueArkive as a .pnotes file.
+                        </span>
+                      </span>
+                      <Button
+                        variant="secondary"
+                        size="sm"
+                        onClick={handleImportMeeting}
+                        disabled={isImportingMeeting}
+                      >
+                        {isImportingMeeting ? 'Importing...' : 'Import…'}
                       </Button>
                     </div>
                     <div className="flex items-center justify-between px-5 py-4 rounded-2xl hover:bg-[rgba(255,255,255,0.03)] transition-colors">
@@ -868,8 +1092,100 @@ export const SettingsView: React.FC = () => {
                   Sign In
                 </Button>
               </div>
+              <div className="flex items-center justify-between px-5 py-4 rounded-2xl hover:bg-[rgba(255,255,255,0.03)] transition-colors">
+                <span className="text-[15px] font-medium text-[var(--color-text-primary)]">
+                  Export my data
+                  <span className="block text-[12px] font-normal text-[var(--color-text-tertiary)] mt-0.5">
+                    Meetings, transcripts, notes and action items as a JSON file.
+                  </span>
+                </span>
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  onClick={handleExportData}
+                  disabled={isExporting}
+                >
+                  <Download size={14} className="mr-1" /> {isExporting ? 'Exporting...' : 'Export'}
+                </Button>
+              </div>
+              <div className="flex items-center justify-between px-5 py-4 rounded-2xl hover:bg-[rgba(255,255,255,0.03)] transition-colors">
+                <span className="text-[15px] font-medium text-[var(--color-text-primary)]">
+                  Import a meeting file
+                  <span className="block text-[12px] font-normal text-[var(--color-text-tertiary)] mt-0.5">
+                    Adds a meeting exported from BlueArkive as a .pnotes file.
+                  </span>
+                </span>
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  onClick={handleImportMeeting}
+                  disabled={isImportingMeeting}
+                >
+                  {isImportingMeeting ? 'Importing...' : 'Import…'}
+                </Button>
+              </div>
             </div>
           )}
+
+          {/* Erase everything — available with or without an account */}
+          <div>
+            <h4 className="pl-4 mb-3 text-[11px] uppercase tracking-widest text-[var(--color-rose)] font-bold">
+              Danger Zone
+            </h4>
+            <div className="surface-glass-premium border border-[rgba(244,63,94,0.25)] rounded-3xl p-2 shadow-sm">
+              <div className="flex flex-col gap-3 px-5 py-4">
+                <div className="flex items-center justify-between gap-6">
+                  <span className="text-[15px] font-medium text-[var(--color-text-primary)]">
+                    Delete all my data
+                    <span className="block text-[12px] font-normal text-[var(--color-text-tertiary)] mt-0.5">
+                      Permanently removes every meeting, transcript and note from this device
+                      {userInfo ? ' and requests deletion of your synced data' : ''}. This cannot be
+                      undone.
+                    </span>
+                  </span>
+                  {!deleteConfirmOpen && (
+                    <Button variant="danger" size="sm" onClick={() => setDeleteConfirmOpen(true)}>
+                      Delete…
+                    </Button>
+                  )}
+                </div>
+                {deleteConfirmOpen && (
+                  <div className="flex flex-wrap items-center gap-2">
+                    <input
+                      type="text"
+                      value={deleteConfirmText}
+                      onChange={e => setDeleteConfirmText(e.target.value)}
+                      placeholder="Type DELETE to confirm"
+                      aria-label="Type DELETE to confirm"
+                      autoFocus
+                      spellCheck={false}
+                      autoComplete="off"
+                      className="px-3 py-1.5 text-[var(--text-sm)] bg-[var(--color-bg-elevated)] border border-[var(--color-border-subtle)] rounded-[var(--radius-md)] text-[var(--color-text-primary)] w-[220px] placeholder:text-[var(--color-text-tertiary)] focus:border-[var(--color-rose)] outline-none transition-colors"
+                    />
+                    <Button
+                      variant="danger"
+                      size="sm"
+                      onClick={handleDeleteAllData}
+                      disabled={deleteConfirmText.trim() !== 'DELETE' || isDeleting}
+                    >
+                      {isDeleting ? 'Deleting…' : 'Delete everything'}
+                    </Button>
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      disabled={isDeleting}
+                      onClick={() => {
+                        setDeleteConfirmOpen(false)
+                        setDeleteConfirmText('')
+                      }}
+                    >
+                      Cancel
+                    </Button>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
         </div>
       ),
     },
@@ -956,11 +1272,13 @@ export const SettingsView: React.FC = () => {
 
       {userInfo && (
         <section className="animate-slide-up space-y-4" style={{ animationFillMode: 'both' }}>
-          {currentTier !== 'enterprise' && (
+          {(currentTier === 'free' || currentTier === 'starter') && (
             <UpgradePrompt
               feature="cloudSync"
               featureLabel={
-                currentTier === 'free' ? 'Cloud Sync & AI Features' : 'Premium Tier Expansion'
+                currentTier === 'free'
+                  ? 'Cloud Sync & AI Features'
+                  : 'Knowledge Graph & Ask Meetings'
               }
               currentTier={currentTier}
               requiredTier={currentTier === 'free' ? 'starter' : 'pro'}
@@ -974,7 +1292,7 @@ export const SettingsView: React.FC = () => {
       )}
 
       <div className="text-center text-[var(--text-xs)] text-[var(--color-text-tertiary)] pt-[var(--space-16)] font-mono tracking-wide opacity-80">
-        BlueArkive Beta
+        BlueArkive{appVersion ? ` v${appVersion}` : ''}
       </div>
     </div>
   )

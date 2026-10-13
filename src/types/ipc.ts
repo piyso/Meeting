@@ -88,11 +88,22 @@ export interface DeleteMeetingParams {
 
 export interface ExportMeetingParams {
   meetingId: string
-  format?: 'json' | 'markdown' | 'pdf'
+  /** `pnotes` is the app's own meeting file, which BlueArkive can open again. */
+  format?: 'json' | 'markdown' | 'pdf' | 'pnotes'
   includeAudio?: boolean
 }
 
+export interface MeetingImportSummary {
+  meetingId: string
+  title: string | null
+  /** `exists`: this device already had the meeting; it was left as it is. */
+  status: 'imported' | 'exists'
+  transcripts: number
+  notes: number
+}
+
 export interface ExportMeetingResponse {
+  /** Always empty: the export is written to `filePath`, not sent back. */
   content: string
   format: string
   filename: string
@@ -233,11 +244,29 @@ export interface SemanticSearchParams {
   limit?: number
 }
 
+/** A device registered to the signed-in account (row of the `devices` table) */
+export interface RegisteredDevice {
+  id: string
+  user_id: string
+  device_name: string
+  /** 'darwin' | 'win32' | 'linux' */
+  platform: string
+  hostname: string
+  app_version: string
+  is_active: boolean
+  /** ISO 8601 */
+  last_sync_at: string
+  created_at: string
+  updated_at: string
+}
+
 export interface SemanticSearchResult {
   meeting: Meeting
   relevance: number
   snippet: string
   entities: Entity[]
+  /** Seconds from the start of the recording for the matched segment (local hits only) */
+  startTime?: number
 }
 
 // ============================================================================
@@ -250,6 +279,18 @@ export interface SyncStatus {
   queuedEvents: number
   lastSyncTime: number | null
   lastSyncError: string | null
+  /** 'connected' once a signed-in device can upload; 'disconnected' otherwise */
+  status?: 'connected' | 'disconnected'
+  /** Why sync is disconnected, when there is a specific cause */
+  reason?: string
+  /** Human-readable explanation of `reason` */
+  message?: string
+  /** Items waiting to upload */
+  pending?: number
+  /** Items in the sync queue */
+  total?: number
+  /** Items the server rejected as invalid; they are retried after the next sign-in */
+  failed?: number
 }
 
 export interface SyncProgress {
@@ -527,6 +568,8 @@ export interface TranscriptChunk {
   endTime: number
   confidence: number
   speakerId: string | null
+  /** Display name, when diarization has labelled the speaker */
+  speakerName?: string | null
   isFinal: boolean
 }
 
@@ -591,6 +634,9 @@ export interface GraphEdge {
 export interface GraphData {
   nodes: GraphNode[]
   edges: GraphEdge[]
+  blocked?: boolean
+  reason?: string
+  interactive?: boolean
 }
 
 export interface GetGraphParams {
@@ -670,6 +716,8 @@ export interface WeeklyDigest {
 
 export interface GenerateDigestParams {
   meetingId?: string
+  /** Single-meeting digest: ignore the cached summary and generate a new one */
+  force?: boolean
   startDate?: number
   endDate?: number
   namespace?: string
@@ -680,6 +728,20 @@ export interface GenerateDigestParams {
 // ============================================================================
 // Electron API Interface (exposed to renderer)
 // ============================================================================
+
+export interface CloudRestoreSummary {
+  /** False when the download stopped early (see `error`); what was restored is kept. */
+  complete: boolean
+  error?: string
+  /** Meetings written to this device. */
+  meetings: number
+  /** Every record written: meetings, transcript segments, notes, … */
+  records: number
+  /** Meetings that were here already and were left as they are. */
+  alreadyPresent: number
+  /** Records this device's key could not read. */
+  unreadable: number
+}
 
 export interface ElectronAPI {
   // Platform info
@@ -697,6 +759,12 @@ export interface ElectronAPI {
     ) => Promise<IPCResponse<{ deleted: boolean; meetingId: string }>>
     restore: (params: { meetingId: string }) => Promise<IPCResponse<Meeting>>
     export: (params: ExportMeetingParams) => Promise<IPCResponse<ExportMeetingResponse>>
+    /** Pick a `.pnotes` file and add its meeting. `null`: the picker was cancelled. */
+    importFile?: () => Promise<IPCResponse<MeetingImportSummary | null>>
+    /** A meeting file opened from outside the app (double-click) was handled. */
+    onImported?: (
+      callback: (event: { result?: MeetingImportSummary; error?: string }) => void
+    ) => () => void
     onGlobalShortcutStart?: (callback: () => void) => () => void
   }
 
@@ -764,6 +832,22 @@ export interface ElectronAPI {
       localVersion?: string
       remoteVersion?: string
     }) => Promise<IPCResponse<void>>
+    /**
+     * Give this device the account's data key using a recovery phrase. Needed
+     * when sync status reports `reason: 'recovery_phrase_required'`.
+     */
+    unlockWithRecoveryPhrase?: (params: {
+      phrase: string
+    }) => Promise<IPCResponse<{ unlocked: boolean }>>
+    /**
+     * Download what the account holds and this device is missing. Additive:
+     * nothing already on the device is changed or removed.
+     */
+    restoreFromCloud?: () => Promise<IPCResponse<CloudRestoreSummary>>
+    /** Fired after a restore (asked for, or automatic on a new device) wrote records. */
+    onRestored?: (
+      callback: (event: { meetings: number; records: number; automatic: boolean }) => void
+    ) => () => void
   }
 
   // Audio operations
@@ -933,6 +1017,21 @@ export interface ElectronAPI {
         preview?: string | null
       }>
     >
+    resolveContradiction: (
+      params:
+        | {
+            contradictionId: string
+            preferredNodeId?: string
+            resolutionChoice?: 'supersede' | 'keep_both' | 'dismiss'
+          }
+        | unknown
+    ) => Promise<
+      IPCResponse<{
+        contradictionId: string
+        resolvedAt: number
+        status: string
+      }>
+    >
   }
 
   // Weekly digest operations
@@ -943,9 +1042,20 @@ export interface ElectronAPI {
 
   // Export & GDPR operations
   export: {
-    userData: (params?: {
-      format?: string
-    }) => Promise<IPCResponse<{ content: string; format: string }>>
+    /**
+     * Writes everything the app holds to a file the user picks. `filePath` is
+     * absent when the save dialog was cancelled. `content` is always empty —
+     * a whole library does not fit in one message.
+     */
+    userData: (params?: { format?: string }) => Promise<
+      IPCResponse<{
+        content: string
+        format: string
+        filePath?: string
+        bytes?: number
+        stats?: Record<string, number>
+      }>
+    >
     deleteAllData: () => Promise<
       IPCResponse<{ localDeleted: boolean; cloudDeleted: boolean; message: string }>
     >
@@ -953,6 +1063,11 @@ export interface ElectronAPI {
 
   // Window operations
   window: {
+    /**
+     * Tell the main process that this window's listeners are registered.
+     * Links and files that opened the app are held back until then.
+     */
+    rendererReady?: () => void
     restoreMain: () => Promise<IPCResponse<void>>
     resize: (width: number, height: number) => Promise<IPCResponse<void>>
   }
@@ -962,7 +1077,7 @@ export interface ElectronAPI {
     updateState: (state: {
       isRecording: boolean
       isPaused?: boolean
-      elapsedTime: string
+      elapsedTime?: string
       // P1-7 FIX: Raw timestamps for widget-side sub-second timer computation
       recordingStartTime?: number | null
       recordingTotalPausedMs?: number
@@ -1039,6 +1154,21 @@ export interface ElectronAPI {
     }) => Promise<IPCResponse<unknown[]>>
     getOverdue: () => Promise<IPCResponse<import('./features').ActionItem[]>>
     stats: () => Promise<IPCResponse<{ open: number; completed: number; overdue: number }>>
+    dispatch: (
+      params:
+        | {
+            items: import('./features').ActionItem[]
+            target: 'linear' | 'jira' | 'github' | 'webhook'
+            config?: {
+              apiKey?: string
+              projectKey?: string
+              repoOwner?: string
+              repoName?: string
+              webhookUrl?: string
+            }
+          }
+        | unknown
+    ) => Promise<IPCResponse<unknown>>
   }
 
   // Sentiment Analysis operations
@@ -1089,6 +1219,13 @@ export interface ElectronAPI {
       webhookId: string
       limit?: number
     }) => Promise<IPCResponse<import('./features').WebhookDelivery[]>>
+  }
+
+  // Podcast Synthesis operations
+  podcast: {
+    generate: () => Promise<IPCResponse<unknown>>
+    synthesize: () => Promise<IPCResponse<unknown>>
+    latest: () => Promise<IPCResponse<unknown>>
   }
 
   // Window controls (Windows title bar)
@@ -1186,6 +1323,14 @@ export interface ElectronAPI {
     googleAuth: () => Promise<IPCResponse<void>>
     refreshToken: () => Promise<IPCResponse<{ refreshed: boolean }>>
     generateRecoveryKey: () => Promise<IPCResponse<{ phrase: string[] }>>
+    /**
+     * The recovery phrase for Settings. Fails with `PASSWORD_REQUIRED` when the
+     * account has a password and none was given, `INCORRECT_PASSWORD` when it
+     * is wrong.
+     */
+    revealRecoveryKey?: (params?: {
+      password?: string
+    }) => Promise<IPCResponse<{ phrase: string[] }>>
     onSessionExpired?: (
       callback: (data: { reason: string; timeoutMs: number }) => void
     ) => () => void
@@ -1193,10 +1338,7 @@ export interface ElectronAPI {
       callback: (data: { remainingMs: number; timeoutMs: number }) => void
     ) => () => void
     onOAuthSuccess?: (
-      callback: (data: {
-        tokens: { accessToken: string; refreshToken: string; expiresIn: number }
-        user: { id: string; email: string; tier: string }
-      }) => void
+      callback: (data: { user: { id: string; email: string; tier: string } }) => void
     ) => () => void
     onOAuthError?: (callback: (data: { error: string }) => void) => () => void
     recordActivity: () => Promise<IPCResponse<void>>
@@ -1205,11 +1347,22 @@ export interface ElectronAPI {
       key: string
     }) => Promise<IPCResponse<{ id: string; email: string; tier: string } | null>>
     forgotPassword: (params: { email: string }) => Promise<IPCResponse<void>>
+    /** Set a new password for the session opened by a password-reset link. */
+    updatePassword: (params: {
+      password: string
+    }) => Promise<IPCResponse<{ id: string; email: string; tier: string }>>
+    /** Fired when a password-reset link was opened: `email` on success, `error` if the link is unusable. */
+    onPasswordRecovery?: (
+      callback: (data: { email?: string; error?: string }) => void
+    ) => () => void
   }
 
   // Device management
   device: {
-    list: (params?: { userId?: string; activeOnly?: boolean }) => Promise<IPCResponse<unknown[]>>
+    list: (params?: {
+      userId?: string
+      activeOnly?: boolean
+    }) => Promise<IPCResponse<RegisteredDevice[]>>
     getCurrent: () => Promise<
       IPCResponse<{
         deviceId: string
@@ -1229,13 +1382,14 @@ export interface ElectronAPI {
         message?: string
       }>
     >
+    /** `userId` is ignored when signed in — the main process uses the current account */
     deactivate: (params: {
       deviceId: string
-      userId: string
+      userId?: string
     }) => Promise<IPCResponse<{ deactivated: boolean }>>
     rename: (params: {
       deviceId: string
-      userId: string
+      userId?: string
       newName: string
     }) => Promise<IPCResponse<{ renamed: boolean }>>
   }

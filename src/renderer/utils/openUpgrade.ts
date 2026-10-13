@@ -1,4 +1,5 @@
 import { rendererLog } from './logger'
+import { useAppStore } from '../store/appStore'
 
 const log = rendererLog.create('openUpgrade')
 
@@ -19,7 +20,17 @@ const PROD_BILLING_URL = 'https://billing-web-azure.vercel.app'
 
 export async function openUpgrade(targetTier?: string): Promise<void> {
   try {
-    await window.electronAPI?.billing?.openCheckout?.({ targetTier })
+    const res = await window.electronAPI?.billing?.openCheckout?.({ targetTier })
+    // The handler reports "not signed in" / "session expired" in the response
+    // rather than throwing — without this the button silently did nothing.
+    if (res && !res.success) {
+      useAppStore.getState().addToast({
+        type: 'warning',
+        title: 'Could not open checkout',
+        message: res.error?.message || 'Please try again.',
+        duration: 6000,
+      })
+    }
   } catch (error) {
     log.error('Failed to open upgrade:', error)
     // Fallback if IPC fails

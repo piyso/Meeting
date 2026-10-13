@@ -2,9 +2,11 @@
  * Hardware Tier Detection Service
  *
  * Detects system hardware capabilities and classifies into tiers:
- * - High (16GB+): Whisper turbo + Qwen 3B (4.5GB total)
- * - Mid (12GB): Moonshine Base + Qwen 3B (3.3GB total)
- * - Low (8GB): Moonshine Base + Qwen 1.5B (2.2GB total)
+ * - High (16GB+), Mid (12GB), Low (8GB): Moonshine Base + Qwen 1.5B (2.2GB total)
+ *
+ * Every tier runs the same models today. (The 3B language model that 12GB+
+ * machines used to get is under a non-commercial licence — see
+ * ModelDownloadService.)
  *
  * Also provides:
  * - Battery-aware AI scheduling (performance/balanced/battery-saver)
@@ -94,7 +96,7 @@ export class HardwareTierService {
         concurrentASRandLLM: asrModel === 'moonshine-base', // Moonshine 300MB allows concurrent
       }
 
-      return this.hardwareInfo!
+      return this.hardwareInfo
     }
 
     // Detect and store
@@ -120,15 +122,20 @@ export class HardwareTierService {
 
     if (totalRAM >= 16) {
       tier = 'high'
-      asrModel = 'whisper-turbo'
-      llmModel = 'qwen2.5:3b'
-      ramBudget = 4.5 // 1.5GB ASR + 2.2GB LLM + 0.8GB overhead
-      concurrentASRandLLM = false // Whisper 1.5GB + Qwen 2.2GB = mutual exclusion needed
+      // The ASR worker has no Whisper runtime — it loads Moonshine on every
+      // tier. Recommending 'whisper-turbo' here made 16GB+ machines download
+      // a 1.6GB model that is never used and then fail to start transcription
+      // because the Moonshine files were never fetched. Switch this back once
+      // a Whisper backend exists in asr.worker.ts.
+      asrModel = 'moonshine-base'
+      llmModel = 'qwen2.5:1.5b'
+      ramBudget = 2.2 // 0.3GB ASR + 1.1GB LLM + 0.8GB overhead
+      concurrentASRandLLM = true // Moonshine 300MB allows concurrent operation
     } else if (totalRAM >= 12) {
       tier = 'mid'
       asrModel = 'moonshine-base'
-      llmModel = 'qwen2.5:3b'
-      ramBudget = 3.3 // 0.3GB ASR + 2.2GB LLM + 0.8GB overhead
+      llmModel = 'qwen2.5:1.5b'
+      ramBudget = 2.2 // 0.3GB ASR + 1.1GB LLM + 0.8GB overhead
       concurrentASRandLLM = true // Moonshine 300MB allows concurrent operation
     } else {
       tier = 'low'
@@ -194,13 +201,13 @@ export class HardwareTierService {
     let ramBudget: number
 
     if (tier === 'high') {
-      asrModel = 'whisper-turbo'
-      llmModel = 'qwen2.5:3b'
-      ramBudget = 4.5
+      asrModel = 'moonshine-base' // see detectHardware(): no Whisper runtime yet
+      llmModel = 'qwen2.5:1.5b'
+      ramBudget = 2.2
     } else if (tier === 'mid') {
       asrModel = 'moonshine-base'
-      llmModel = 'qwen2.5:3b'
-      ramBudget = 3.3
+      llmModel = 'qwen2.5:1.5b'
+      ramBudget = 2.2
     } else {
       asrModel = 'moonshine-base'
       llmModel = 'qwen2.5:1.5b'
@@ -274,7 +281,7 @@ export class HardwareTierService {
         }
 
         const match = pmset.match(/(\d+)%/)
-        const pct = match ? parseInt(match[1]!, 10) : 100
+        const pct = match?.[1] ? parseInt(match[1], 10) : 100
         this._powerMode = pct <= 20 ? 'battery-saver' : 'balanced'
         return this._powerMode
       }

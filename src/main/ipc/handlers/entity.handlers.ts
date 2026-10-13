@@ -63,12 +63,9 @@ export function registerEntityHandlers(): void {
               }))
             }
           }
-          // F3: Also ingest raw text into KG for entity/fact extraction
-          if (health.status === 'healthy') {
-            backend.kgIngest(params.text).catch(() => {
-              /* non-critical */
-            })
-          }
+          // No second kgIngest here: extractEntities() ingests the text into
+          // the knowledge graph as its first step. Ingesting it again stored
+          // every entity and fact twice (the second time without a namespace).
         }
       } catch (err) {
         // Cloud enrichment is non-fatal

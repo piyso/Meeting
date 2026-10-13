@@ -1,12 +1,18 @@
 /**
- * AudioProvenanceService — Cryptographic signing of audio streams
+ * AudioProvenanceService — Ed25519 attestations for audio segments
  *
- * 13.7 FIX: Signs audio streams at the hardware level using Ed25519.
- * Produces mathematically undeniable proof of what was said.
- * Essential for legal/regulatory use cases in the age of deepfakes.
+ * What an attestation says: "the installation holding this key recorded a
+ * segment with this SHA-256 at this time". The key pair is created once and
+ * kept in the OS keychain, so every attestation from one installation carries
+ * the same public key.
+ *
+ * What it does not say: who was speaking, or that the audio is genuine — and
+ * since audio is not kept after transcription, a segment can only be checked
+ * against its attestation by someone who still has that audio.
  */
 
-import { createSign, createVerify, createHash } from 'crypto'
+import { createHash, generateKeyPairSync, sign as cryptoSign, verify as cryptoVerify } from 'crypto'
+import { keytarSafe } from './keytarSafe'
 import { Logger } from './Logger'
 import { getDatabaseService } from './DatabaseService'
 import { v4 as uuidv4 } from 'uuid'
@@ -24,22 +30,73 @@ export interface ProvenanceAttestation {
   verified: boolean
 }
 
+const KEYCHAIN_SERVICE = 'bluearkive'
+const KEYCHAIN_ACCOUNT = 'audio-provenance-key'
+
+/** The exact bytes an attestation's signature covers. */
+function signedMessage(fields: {
+  meetingId: string
+  segmentIndex: number
+  audioHash: string
+  timestamp: number
+}): Buffer {
+  return Buffer.from(
+    `bluearkive-attestation-v1\n${fields.meetingId}\n${fields.segmentIndex}\n${fields.audioHash}\n${fields.timestamp}`,
+    'utf-8'
+  )
+}
+
 export class AudioProvenanceService {
   private keyPair: { publicKey: string; privateKey: string } | null = null
+  private loading: Promise<void> | null = null
 
   /**
-   * Generate or load the signing key pair.
+   * Load this installation's signing key pair from the OS keychain, creating
+   * it on first use. (A fresh pair used to be generated in memory on every
+   * launch, so no two sessions' attestations shared a key and none could be
+   * tied to the installation.)
+   *
+   * Does not touch the keychain until something is actually signed or
+   * verified: it is called during startup, and a keychain prompt there would
+   * hold up the first window.
    */
   async initialize(): Promise<void> {
+    // Deliberately empty — see ensureKeyPair().
+  }
+
+  private ensureKeyPair(): Promise<void> {
+    if (this.keyPair) return Promise.resolve()
+    if (!this.loading) {
+      this.loading = this.loadKeyPair().finally(() => {
+        this.loading = null
+      })
+    }
+    return this.loading
+  }
+
+  private async loadKeyPair(): Promise<void> {
     try {
-      const { generateKeyPairSync } = await import('crypto')
-      // In production, load from secure enclave / Keychain
+      const keytar = await keytarSafe()
+      const stored = await keytar?.getPassword(KEYCHAIN_SERVICE, KEYCHAIN_ACCOUNT)
+      if (stored) {
+        const parsed = JSON.parse(stored) as { publicKey?: string; privateKey?: string }
+        if (parsed.publicKey && parsed.privateKey) {
+          this.keyPair = { publicKey: parsed.publicKey, privateKey: parsed.privateKey }
+          return
+        }
+      }
+
       const { publicKey, privateKey } = generateKeyPairSync('ed25519', {
         publicKeyEncoding: { type: 'spki', format: 'pem' },
         privateKeyEncoding: { type: 'pkcs8', format: 'pem' },
       })
       this.keyPair = { publicKey, privateKey }
-      log.info('Audio provenance key pair initialized')
+      await keytar?.setPassword(
+        KEYCHAIN_SERVICE,
+        KEYCHAIN_ACCOUNT,
+        JSON.stringify({ publicKey, privateKey })
+      )
+      log.info('Audio provenance key pair created')
     } catch (err) {
       log.warn('Failed to initialize provenance keys:', err)
     }
@@ -53,19 +110,26 @@ export class AudioProvenanceService {
     segmentIndex: number,
     audioData: Buffer
   ): Promise<ProvenanceAttestation | null> {
+    await this.ensureKeyPair()
     if (!this.keyPair) {
       log.warn('Cannot sign — key pair not initialized')
       return null
     }
 
     try {
-      // Ed25519: use null algorithm (Ed25519 has built-in hashing)
-      const sign = createSign('')
-      sign.update(audioData)
-      sign.end()
-      const signature = sign.sign(this.keyPair.privateKey, 'base64')
-
       const audioHash = createHash('sha256').update(audioData).digest('hex')
+      const timestamp = Date.now()
+
+      // Ed25519 is signed in one shot with a null digest. (createSign('') —
+      // the streaming API — throws "Invalid digest" for Ed25519 keys, so this
+      // method returned null for every segment.)
+      // The signature covers the hash together with the meeting, position and
+      // time, so an attestation cannot be moved to another meeting or slot.
+      const signature = cryptoSign(
+        null,
+        signedMessage({ meetingId, segmentIndex, audioHash, timestamp }),
+        this.keyPair.privateKey
+      ).toString('base64')
 
       const attestation: ProvenanceAttestation = {
         id: uuidv4(),
@@ -74,7 +138,7 @@ export class AudioProvenanceService {
         audioHash,
         signature,
         publicKey: this.keyPair.publicKey,
-        timestamp: Date.now(),
+        timestamp,
         verified: true,
       }
 
@@ -87,19 +151,24 @@ export class AudioProvenanceService {
   }
 
   /**
-   * Verify an attestation's signature.
+   * Verify an attestation against the audio it claims to describe: the audio
+   * must hash to the attested value and the signature must be valid.
    */
   verifyAttestation(attestation: ProvenanceAttestation, audioData: Buffer): boolean {
-    try {
-      // First verify the audio hash matches
-      const computedHash = createHash('sha256').update(audioData).digest('hex')
-      if (computedHash !== attestation.audioHash) return false
+    const computedHash = createHash('sha256').update(audioData).digest('hex')
+    if (computedHash !== attestation.audioHash) return false
+    return this.verifySignature(attestation)
+  }
 
-      // Then verify the cryptographic signature
-      const verify = createVerify('')
-      verify.update(audioData)
-      verify.end()
-      return verify.verify(attestation.publicKey, attestation.signature, 'base64')
+  /** Check that an attestation's fields are exactly what its key signed. */
+  verifySignature(attestation: ProvenanceAttestation): boolean {
+    try {
+      return cryptoVerify(
+        null,
+        signedMessage(attestation),
+        attestation.publicKey,
+        Buffer.from(attestation.signature, 'base64')
+      )
     } catch {
       return false
     }
@@ -111,9 +180,30 @@ export class AudioProvenanceService {
   getAttestations(meetingId: string): ProvenanceAttestation[] {
     try {
       const db = getDatabaseService().getDb()
-      return db
+      const rows = db
         .prepare(`SELECT * FROM audio_attestations WHERE meeting_id = ? ORDER BY segment_index ASC`)
-        .all(meetingId) as ProvenanceAttestation[]
+        .all(meetingId) as Array<{
+        id: string
+        meeting_id: string
+        segment_index: number
+        audio_hash: string
+        signature: string
+        public_key: string
+        timestamp: number
+        verified: number
+      }>
+      // Columns are snake_case; returning the rows as they come left every
+      // camelCase field undefined, so each one was reported as tampered.
+      return rows.map(row => ({
+        id: row.id,
+        meetingId: row.meeting_id,
+        segmentIndex: row.segment_index,
+        audioHash: row.audio_hash,
+        signature: row.signature,
+        publicKey: row.public_key,
+        timestamp: row.timestamp,
+        verified: row.verified === 1,
+      }))
     } catch {
       return []
     }
@@ -131,11 +221,13 @@ export class AudioProvenanceService {
     const attestations = this.getAttestations(meetingId)
     const tampered: number[] = []
 
-    // Actually verify each attestation cryptographically.
-    // Without the original audio data we can only check structural integrity.
-    // Full verification requires the original audio segments.
+    // Each stored record is checked against its own signature: a row whose
+    // hash, position, meeting or time was edited after signing fails. Whether
+    // the *audio* matches needs the audio itself (verifyAttestation), and all
+    // records of a meeting must come from one key.
+    const signer = attestations[0]?.publicKey
     for (const att of attestations) {
-      if (!att.audioHash || !att.signature || !att.publicKey) {
+      if (att.publicKey !== signer || !this.verifySignature(att)) {
         tampered.push(att.segmentIndex)
       }
     }

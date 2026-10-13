@@ -120,7 +120,7 @@ export class BackgroundEmbeddingQueue {
             }
 
             log.debug(
-              `Embedded "${item.text.substring(0, 40)}..." → ${result.dimensions}d in ${result.generationTimeMs}ms`
+              `Embedded ${item.text.length} chars → ${result.dimensions}d in ${result.generationTimeMs}ms`
             )
           } catch (err) {
             log.debug(`Failed to embed item ${item.id}:`, err)

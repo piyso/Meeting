@@ -20,6 +20,7 @@ export const IPC_CHANNELS = {
     update: 'meeting:update',
     delete: 'meeting:delete',
     export: 'meeting:export',
+    importFile: 'meeting:importFile',
   },
 
   // ── Note ──
@@ -60,6 +61,8 @@ export const IPC_CHANNELS = {
     logout: 'sync:logout',
     googleAuth: 'sync:googleAuth',
     resolveConflict: 'sync:resolveConflict',
+    unlockWithRecoveryPhrase: 'sync:unlockWithRecoveryPhrase',
+    restoreFromCloud: 'sync:restoreFromCloud',
   },
 
   // ── Audio ──
@@ -131,10 +134,12 @@ export const IPC_CHANNELS = {
     googleAuth: 'auth:googleAuth',
     refreshToken: 'auth:refreshToken',
     generateRecoveryKey: 'auth:generateRecoveryKey',
+    revealRecoveryKey: 'auth:revealRecoveryKey',
     recordActivity: 'auth:recordActivity',
     refreshProfile: 'auth:refreshProfile',
     activateLicense: 'auth:activateLicense',
     forgotPassword: 'auth:forgotPassword',
+    updatePassword: 'auth:updatePassword',
   },
 
   // ── Graph ──
@@ -280,6 +285,8 @@ export const IPC_CHANNELS = {
     batchExpandProgress: 'event:batchExpandProgress',
     modelDownloadProgress: 'model-download-progress',
     syncConflict: 'sync:conflict',
+    syncRestored: 'sync:restored',
+    meetingImported: 'meeting:imported',
     sessionExpiring: 'session:expiring',
     sessionExpired: 'session:expired',
     widgetStateUpdated: 'widget:stateUpdated',

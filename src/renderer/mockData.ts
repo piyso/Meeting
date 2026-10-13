@@ -23,6 +23,7 @@ import type {
   SemanticSearchResult,
   SearchResponse,
   AudioCaptureStatus,
+  RegisteredDevice,
 } from '../types/ipc'
 
 // ============================================================================
@@ -289,13 +290,14 @@ function generateTranscripts(meetingId: string, meetingStart: number, count: num
 
   const dialogue = dialogues[Math.abs(meetingId.charCodeAt(7)) % dialogues.length]!
   const segmentCount = Math.min(count, dialogue.length)
-  const segmentDuration = 15 // 15 seconds per segment (Unix seconds)
+  const segmentDuration = 15 // 15 seconds per segment
 
   return Array.from({ length: segmentCount }, (_, i) => ({
     id: `txn-${meetingId}-${String(i).padStart(3, '0')}`,
     meeting_id: meetingId,
-    start_time: meetingStart + i * segmentDuration,
-    end_time: meetingStart + (i + 1) * segmentDuration,
+    // Offsets (seconds) from the start of the recording — same as the real ASR pipeline
+    start_time: i * segmentDuration,
+    end_time: (i + 1) * segmentDuration,
     text: dialogue[i % dialogue.length]!,
     confidence: 0.85 + Math.random() * 0.14,
     speaker_id: SPEAKERS[i % SPEAKERS.length]!.id,
@@ -865,7 +867,7 @@ export const MOCK_QUOTA = {
   used: 42,
   limit: 100,
   remaining: 58,
-  resetsAt: new Date(now + 20 * day).toISOString(),
+  resetsAt: new Date((now + 20 * day) * 1000).toISOString(),
   exhausted: false,
   tier: 'pro',
 }
@@ -884,33 +886,39 @@ export const MOCK_USER = {
 // Devices
 // ============================================================================
 
-export const MOCK_DEVICES = [
+export const MOCK_DEVICES: RegisteredDevice[] = [
   {
-    device_id: 'dev-macbook-001',
+    id: 'dev-macbook-001',
+    user_id: 'usr-mock-001',
     device_name: 'MacBook Pro M2',
     hostname: 'Piyushs-MacBook-Pro',
-    platform: 'darwin-arm64',
-    app_version: '0.3.4',
-    is_active: 1,
-    last_active_at: new Date(now - 5 * 60000).toISOString(),
+    platform: 'darwin',
+    app_version: '0.8.0',
+    is_active: true,
+    last_sync_at: new Date(Date.now() - 5 * 60_000).toISOString(),
+    created_at: new Date(Date.now() - 90 * 86_400_000).toISOString(),
+    updated_at: new Date(Date.now() - 5 * 60_000).toISOString(),
   },
   {
-    device_id: 'dev-iphone-001',
-    device_name: 'iPhone 15 Pro',
-    hostname: 'Piyushs-iPhone',
-    platform: 'ios',
-    app_version: '0.3.4',
-    is_active: 1,
-    last_active_at: new Date(now - 2 * hour).toISOString(),
+    id: 'dev-thinkpad-001',
+    user_id: 'usr-mock-001',
+    device_name: 'ThinkPad X1',
+    hostname: 'piyush-thinkpad',
+    platform: 'win32',
+    app_version: '0.8.0',
+    is_active: true,
+    last_sync_at: new Date(Date.now() - 2 * 3_600_000).toISOString(),
+    created_at: new Date(Date.now() - 30 * 86_400_000).toISOString(),
+    updated_at: new Date(Date.now() - 2 * 3_600_000).toISOString(),
   },
 ]
 
 export const MOCK_CURRENT_DEVICE = {
   deviceId: 'dev-macbook-001',
   deviceName: 'MacBook Pro M2',
-  platform: 'darwin-arm64',
+  platform: 'darwin',
   hostname: 'Piyushs-MacBook-Pro',
-  appVersion: '0.3.4',
+  appVersion: '0.8.0',
 }
 
 // ============================================================================
@@ -921,7 +929,7 @@ export const MOCK_SYNC_STATUS: SyncStatus = {
   isOnline: true,
   isSyncing: false,
   queuedEvents: 0,
-  lastSyncTime: now - 5 * 60000,
+  lastSyncTime: Date.now() - 5 * 60_000,
   lastSyncError: null,
 }
 
@@ -934,7 +942,7 @@ export const MOCK_HARDWARE_TIER: HardwareTierInfo = {
   totalRAM: 16,
   availableRAM: 10,
   asrEngine: 'whisper-turbo',
-  llmModel: 'qwen2.5:3b',
+  llmModel: 'qwen2.5:1.5b',
   llmMaxTokens: 4096,
   totalRAMBudget: '6 GB',
   canRunConcurrent: true,
@@ -951,7 +959,13 @@ export const MOCK_ENGINE_STATUS: InferenceEngineStatus = {
       lastUsed: now - 30000,
       autoUnloadIn: 270,
     },
-    { name: 'qwen2.5:3b', isLoaded: true, ramUsage: 2.8, lastUsed: now - 60000, autoUnloadIn: 240 },
+    {
+      name: 'qwen2.5:1.5b',
+      isLoaded: true,
+      ramUsage: 1.6,
+      lastUsed: now - 60000,
+      autoUnloadIn: 240,
+    },
   ],
 }
 
@@ -1002,7 +1016,7 @@ export const MOCK_BILLING_CONFIG = {
 export const MOCK_AUDIT_LOGS = [
   {
     id: 'aud-1',
-    timestamp: new Date(now - 10 * 60000).toISOString(),
+    timestamp: new Date(Date.now() - 10 * 60000).toISOString(),
     operation: 'create_meeting',
     table: 'meetings',
     recordId: 'meet-001',
@@ -1011,7 +1025,7 @@ export const MOCK_AUDIT_LOGS = [
   },
   {
     id: 'aud-2',
-    timestamp: new Date(now - 30 * 60000).toISOString(),
+    timestamp: new Date(Date.now() - 30 * 60000).toISOString(),
     operation: 'update_note',
     table: 'notes',
     recordId: 'note-meet-001-0',
@@ -1020,7 +1034,7 @@ export const MOCK_AUDIT_LOGS = [
   },
   {
     id: 'aud-3',
-    timestamp: new Date(now - 1 * hour).toISOString(),
+    timestamp: new Date((now - 1 * hour) * 1000).toISOString(),
     operation: 'create_transcript',
     table: 'transcripts',
     recordId: 'txn-meet-001-000',
@@ -1029,7 +1043,7 @@ export const MOCK_AUDIT_LOGS = [
   },
   {
     id: 'aud-4',
-    timestamp: new Date(now - 2 * hour).toISOString(),
+    timestamp: new Date((now - 2 * hour) * 1000).toISOString(),
     operation: 'login',
     table: 'auth',
     recordId: 'usr-mock-001',
@@ -1038,7 +1052,7 @@ export const MOCK_AUDIT_LOGS = [
   },
   {
     id: 'aud-5',
-    timestamp: new Date(now - 3 * hour).toISOString(),
+    timestamp: new Date((now - 3 * hour) * 1000).toISOString(),
     operation: 'update_settings',
     table: 'settings',
     recordId: 'settings-global',
@@ -1047,7 +1061,7 @@ export const MOCK_AUDIT_LOGS = [
   },
   {
     id: 'aud-6',
-    timestamp: new Date(now - 5 * hour).toISOString(),
+    timestamp: new Date((now - 5 * hour) * 1000).toISOString(),
     operation: 'create_meeting',
     table: 'meetings',
     recordId: 'meet-002',
@@ -1056,7 +1070,7 @@ export const MOCK_AUDIT_LOGS = [
   },
   {
     id: 'aud-7',
-    timestamp: new Date(now - 6 * hour).toISOString(),
+    timestamp: new Date((now - 6 * hour) * 1000).toISOString(),
     operation: 'delete_transcript',
     table: 'transcripts',
     recordId: 'txn-old-001',
@@ -1065,7 +1079,7 @@ export const MOCK_AUDIT_LOGS = [
   },
   {
     id: 'aud-8',
-    timestamp: new Date(now - 8 * hour).toISOString(),
+    timestamp: new Date((now - 8 * hour) * 1000).toISOString(),
     operation: 'create_entity',
     table: 'entities',
     recordId: 'ent-meet-002-0',
@@ -1074,7 +1088,7 @@ export const MOCK_AUDIT_LOGS = [
   },
   {
     id: 'aud-9',
-    timestamp: new Date(now - 1 * day).toISOString(),
+    timestamp: new Date((now - 1 * day) * 1000).toISOString(),
     operation: 'register_device',
     table: 'devices',
     recordId: 'dev-iphone-001',
@@ -1083,7 +1097,7 @@ export const MOCK_AUDIT_LOGS = [
   },
   {
     id: 'aud-10',
-    timestamp: new Date(now - 1 * day - 2 * hour).toISOString(),
+    timestamp: new Date((now - 1 * day - 2 * hour) * 1000).toISOString(),
     operation: 'create_meeting',
     table: 'meetings',
     recordId: 'meet-004',
@@ -1092,7 +1106,7 @@ export const MOCK_AUDIT_LOGS = [
   },
   {
     id: 'aud-11',
-    timestamp: new Date(now - 1 * day - 4 * hour).toISOString(),
+    timestamp: new Date((now - 1 * day - 4 * hour) * 1000).toISOString(),
     operation: 'update_note',
     table: 'notes',
     recordId: 'note-meet-004-1',
@@ -1101,7 +1115,7 @@ export const MOCK_AUDIT_LOGS = [
   },
   {
     id: 'aud-12',
-    timestamp: new Date(now - 2 * day).toISOString(),
+    timestamp: new Date((now - 2 * day) * 1000).toISOString(),
     operation: 'create_meeting',
     table: 'meetings',
     recordId: 'meet-008',
@@ -1110,7 +1124,7 @@ export const MOCK_AUDIT_LOGS = [
   },
   {
     id: 'aud-13',
-    timestamp: new Date(now - 3 * day).toISOString(),
+    timestamp: new Date((now - 3 * day) * 1000).toISOString(),
     operation: 'rename_meeting',
     table: 'meetings',
     recordId: 'meet-009',
@@ -1119,7 +1133,7 @@ export const MOCK_AUDIT_LOGS = [
   },
   {
     id: 'aud-14',
-    timestamp: new Date(now - 4 * day).toISOString(),
+    timestamp: new Date((now - 4 * day) * 1000).toISOString(),
     operation: 'login',
     table: 'auth',
     recordId: 'usr-mock-001',
@@ -1128,7 +1142,7 @@ export const MOCK_AUDIT_LOGS = [
   },
   {
     id: 'aud-15',
-    timestamp: new Date(now - 5 * day).toISOString(),
+    timestamp: new Date((now - 5 * day) * 1000).toISOString(),
     operation: 'deactivate_device',
     table: 'devices',
     recordId: 'dev-old-laptop',

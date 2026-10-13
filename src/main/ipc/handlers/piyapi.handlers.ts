@@ -97,8 +97,6 @@ export function registerPiyapiHandlers(): void {
   )
 
   // piyapi:pinMemory — Pin/unpin a memory for priority context retrieval
-  // NOTE: PiyAPIBackend doesn't have a pinMemory method yet — this is a stub
-  // that will work once the REST endpoint is documented
   ipcMain.handle(
     IPC_CHANNELS.piyapi.pinMemory,
     async (_, params: { memoryId: string; unpin?: boolean }) => {
@@ -107,8 +105,19 @@ export function registerPiyapiHandlers(): void {
           return { success: false, error: { code: 'INVALID_PARAMS', message: 'memoryId required' } }
         }
 
-        // Stub: When PiyAPI documents the pin endpoint, wire it here
-        log.info(`piyapi:pinMemory ${params.unpin ? 'unpin' : 'pin'}: ${params.memoryId}`)
+        // This used to log the request and answer "pinned" without calling
+        // anything. It now reports what the server actually did.
+        const { getBackend } = await import('../../services/backend/BackendSingleton')
+        const backend = getBackend()
+        const applied = backend.pinMemory
+          ? await backend.pinMemory(params.memoryId, params.unpin === true)
+          : false
+        if (!applied) {
+          return {
+            success: false,
+            error: { code: 'PIN_FAILED', message: 'The memory could not be pinned in the cloud' },
+          }
+        }
         return {
           success: true,
           data: { memoryId: params.memoryId, pinned: !params.unpin },

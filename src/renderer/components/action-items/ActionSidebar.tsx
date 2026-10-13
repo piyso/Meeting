@@ -1,12 +1,14 @@
 import React from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Sparkles, Loader2, Bot, Layers } from 'lucide-react'
+import { Loader2, Bot, Layers, Send } from 'lucide-react'
 import { ActionChip, ActionChipProps } from './ActionChip'
 import { EmptyState } from '../ui/EmptyState'
 import { useActionItems } from '../../hooks/queries/useActionItems'
+import { ActionDispatchModal } from './ActionDispatchModal'
 
 export const ActionSidebar: React.FC = () => {
   const { actionItems: rawActions, isLoading, updateStatus } = useActionItems()
+  const [isDispatchOpen, setIsDispatchOpen] = React.useState(false)
 
   // Map backend raw actions to frontend props
   const actions: ActionChipProps[] = rawActions.map(
@@ -51,14 +53,23 @@ export const ActionSidebar: React.FC = () => {
           </span>
         </div>
 
-        <button
-          disabled={true}
-          className="w-full flex items-center justify-center gap-2 py-2 rounded-lg bg-[rgba(167,139,250,0.1)] border border-[rgba(167,139,250,0.2)] text-violet text-xs font-semibold hover:bg-[rgba(167,139,250,0.15)] transition-colors disabled:opacity-50"
-        >
-          <Sparkles size={14} />
-          NLP Auto-Extraction Active
-        </button>
+        <div className="flex gap-2">
+          <button
+            onClick={() => setIsDispatchOpen(true)}
+            disabled={actions.length === 0}
+            className="w-full flex items-center justify-center gap-2 py-2 rounded-lg bg-[rgba(139,92,246,0.15)] border border-[rgba(139,92,246,0.3)] text-violet text-xs font-semibold hover:bg-[rgba(139,92,246,0.25)] transition-colors disabled:opacity-50"
+          >
+            <Send size={13} />
+            Dispatch to Linear / Jira
+          </button>
+        </div>
       </div>
+
+      <ActionDispatchModal
+        items={rawActions}
+        isOpen={isDispatchOpen}
+        onClose={() => setIsDispatchOpen(false)}
+      />
 
       {/* Content */}
       <div className="flex-1 overflow-y-auto p-5 sovereign-scrollbar flex flex-col gap-3">

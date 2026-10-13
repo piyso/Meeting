@@ -9,7 +9,6 @@
 
 import { EventEmitter } from 'events'
 import { getDatabaseService } from './DatabaseService'
-import { KeyStorageService as _KeyStorageService } from './KeyStorageService'
 import { config } from '../config/environment'
 import { Logger } from './Logger'
 import { keytarSafe } from './keytarSafe'
@@ -106,11 +105,23 @@ export class CloudTranscriptionService extends EventEmitter {
       this.apiKey = null
     }
 
-    const tier = db.getSetting('subscription_tier') || 'free'
-    this.usageStats.tier = tier as 'free' | 'starter' | 'pro'
+    // The plan lives in the keychain (written at sign-in / profile refresh),
+    // read through CloudAccessManager like every other tier gate. The
+    // 'subscription_tier' setting this used to read was never written, so
+    // cloud transcription was disabled for every user.
+    let tier: string = 'free'
+    try {
+      const { getCloudAccessManager } = await import('./CloudAccessManager')
+      tier = (await getCloudAccessManager().getCloudAccessStatus()).tier
+    } catch (tierErr) {
+      log.warn('[Cloud Transcription] Could not read plan tier, assuming free', tierErr)
+    }
+    // Team/Enterprise include everything Pro does.
+    const limitTier = tier === 'team' || tier === 'enterprise' ? 'pro' : tier
+    this.usageStats.tier = limitTier as 'free' | 'starter' | 'pro'
 
     // Set monthly limits based on tier
-    switch (tier) {
+    switch (limitTier) {
       case 'free':
         this.usageStats.monthlyLimit = 0 // Strict local-only enforcement
         break

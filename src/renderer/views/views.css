@@ -692,7 +692,7 @@
   overflow-y: overlay;
   overflow-y: auto;
   overscroll-behavior: contain;
-  padding: var(--space-24) clamp(var(--space-16), 3vw, var(--space-32)) var(--space-48);
+  padding: 0;
   /* Use Instrument Sans per latest design guidelines */
   font-family: var(--font-heading);
 }
@@ -702,7 +702,7 @@
   display: flex;
   align-items: center;
   background: rgba(255, 255, 255, 0.04);
-  border: 1px solid var(--color-border-subtle);
+  border: none;
   border-radius: var(--radius-lg);
   padding: 2px;
   gap: 0;
@@ -875,7 +875,7 @@
   text-transform: uppercase;
   letter-spacing: 0.05em;
   background: var(--color-bg-elevated);
-  border: 1px solid var(--color-border-subtle);
+  border: none;
   color: var(--color-text-secondary);
 }
 
@@ -1211,42 +1211,42 @@
 .ui-digest-count-badge.is-emerald {
   background: rgba(52, 211, 153, 0.12);
   color: rgb(52, 211, 153);
-  border: 1px solid rgba(52, 211, 153, 0.2);
+  border: none;
 }
 .ui-digest-count-badge.is-emerald.monochrome {
-  background: rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.06);
   color: var(--color-text-secondary);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  border: none;
 }
 .ui-digest-count-badge.is-violet {
   background: rgba(167, 139, 250, 0.12);
   color: rgb(167, 139, 250);
-  border: 1px solid rgba(167, 139, 250, 0.2);
+  border: none;
 }
 .ui-digest-count-badge.is-violet.monochrome {
-  background: rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.06);
   color: var(--color-text-secondary);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  border: none;
 }
 .ui-digest-count-badge.is-gray {
   background: rgba(161, 161, 170, 0.1);
   color: var(--color-text-secondary);
-  border: 1px solid rgba(161, 161, 170, 0.15);
+  border: none;
 }
 .ui-digest-count-badge.is-rose {
   background: rgba(244, 63, 94, 0.12);
   color: rgb(244, 63, 94);
-  border: 1px solid rgba(244, 63, 94, 0.2);
+  border: none;
 }
 .ui-digest-count-badge.is-rose.monochrome {
-  background: rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.06);
   color: var(--color-text-secondary);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  border: none;
 }
 .ui-digest-count-badge.monochrome {
-  background: rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.06);
   color: var(--color-text-secondary);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  border: none;
 }
 
 /* Chevron rotation for expand/collapse */
@@ -1314,7 +1314,6 @@
 .ui-digest-source-link:hover {
   color: var(--color-text-primary);
   background: rgba(255, 255, 255, 0.08);
-  border-color: rgba(255, 255, 255, 0.1);
   transform: translateY(-1px);
   box-shadow: 0 2px 8px rgba(167, 139, 250, 0.15);
 }
@@ -1330,15 +1329,15 @@
 /* ── Source Context Popover ── */
 .ui-digest-source-popover {
   width: 320px;
-  background: rgba(22, 22, 28, 0.95);
+  background: rgba(18, 18, 24, 0.96);
   backdrop-filter: blur(24px) saturate(180%);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.04);
   border-radius: var(--radius-lg);
   padding: 16px;
   box-shadow:
     0 24px 48px -12px rgba(0, 0, 0, 0.7),
-    0 0 0 1px rgba(255, 255, 255, 0.04),
-    inset 0 1px 0 rgba(255, 255, 255, 0.06);
+    0 0 0 1px rgba(255, 255, 255, 0.03),
+    inset 0 1px 0 rgba(255, 255, 255, 0.04);
   animation: popover-in 200ms var(--ease-spring);
 }
 @keyframes popover-in {
@@ -1375,8 +1374,8 @@
 .ui-digest-source-popover-quote {
   margin: 0 0 12px;
   padding: 10px 12px;
-  border-left: 3px solid rgba(255, 255, 255, 0.2);
-  background: rgba(255, 255, 255, 0.03);
+  border-left: 2px solid rgba(167, 139, 250, 0.5);
+  background: rgba(167, 139, 250, 0.03);
   border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
   font-size: 12.5px;
   line-height: 1.5;
@@ -1391,14 +1390,14 @@
   font-size: 12px;
   font-weight: 500;
   color: var(--color-text-secondary);
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.04);
   border-radius: var(--radius-md);
   cursor: pointer;
   transition: all 200ms ease;
 }
 .ui-digest-source-popover-open:hover {
-  background: rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.08);
   color: var(--color-text-primary);
 }
 

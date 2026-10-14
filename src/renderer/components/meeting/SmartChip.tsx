@@ -1,5 +1,6 @@
 import React, { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
+import { User, Calendar, DollarSign, Zap } from 'lucide-react'
 import '../ui/ui.css'
 
 export type EntityType = 'PERSON' | 'DATE' | 'AMOUNT' | 'ACTION_ITEM'
@@ -13,16 +14,16 @@ interface SmartChipProps {
 export const SmartChip: React.FC<SmartChipProps> = ({ type, label, onClick }) => {
   const [isHovered, setIsHovered] = useState(false)
 
-  const getIcon = () => {
+  const renderIcon = () => {
     switch (type) {
       case 'PERSON':
-        return '👤'
+        return <User size={12} className="text-violet-400 shrink-0" />
       case 'DATE':
-        return '📅'
+        return <Calendar size={12} className="text-blue-400 shrink-0" />
       case 'AMOUNT':
-        return '💰'
+        return <DollarSign size={12} className="text-emerald-400 shrink-0" />
       case 'ACTION_ITEM':
-        return '⚡'
+        return <Zap size={12} className="text-amber-400 shrink-0" />
     }
   }
 
@@ -61,7 +62,7 @@ export const SmartChip: React.FC<SmartChipProps> = ({ type, label, onClick }) =>
         }}
         disabled={!onClick}
       >
-        <span className="chip-icon">{getIcon()}</span>
+        <span className="chip-icon flex items-center">{renderIcon()}</span>
         <span className="chip-label">{label}</span>
       </motion.button>
 

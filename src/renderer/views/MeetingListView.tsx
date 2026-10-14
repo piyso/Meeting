@@ -41,25 +41,41 @@ export default function MeetingListView() {
   const scrollRef = useRef<HTMLDivElement>(null)
   const [columns, setColumns] = useState(3)
 
+  const CARD_WIDTH = 320
+  const CARD_HEIGHT = 156
+  const GRID_GAP = 20
+
   // Measure container width to determine grid columns dynamically
   useEffect(() => {
     if (!scrollRef.current) return
-    let timeoutId: ReturnType<typeof setTimeout>
+    let animFrameId: number | null = null
+
+    const updateColumns = (width: number) => {
+      // Grid items have 24px padding on left/right (total 48px)
+      const availableWidth = width - 48
+      // Fixed 320px cards with 20px gap, capped at 6 columns for optimal dashboard viewing
+      const cols = Math.min(
+        6,
+        Math.max(1, Math.floor((availableWidth + GRID_GAP) / (CARD_WIDTH + GRID_GAP)))
+      )
+      setColumns(prev => (prev !== cols ? cols : prev))
+    }
+
+    if (scrollRef.current) {
+      updateColumns(scrollRef.current.clientWidth)
+    }
+
     const observer = new ResizeObserver(entries => {
-      clearTimeout(timeoutId)
-      timeoutId = setTimeout(() => {
-        for (const entry of entries) {
-          // Grid items have 24px padding on left/right (total 48px)
-          const availableWidth = entry.contentRect.width - 48
-          // Grid: minmax(280px, 1fr) with 20px gap
-          const cols = Math.max(1, Math.floor((availableWidth + 20) / 300))
-          setColumns(cols)
-        }
-      }, 150)
+      for (const entry of entries) {
+        if (animFrameId) cancelAnimationFrame(animFrameId)
+        animFrameId = requestAnimationFrame(() => {
+          updateColumns(entry.contentRect.width)
+        })
+      }
     })
     observer.observe(scrollRef.current)
     return () => {
-      clearTimeout(timeoutId)
+      if (animFrameId) cancelAnimationFrame(animFrameId)
       observer.disconnect()
     }
   }, [])
@@ -370,11 +386,16 @@ export default function MeetingListView() {
     getScrollElement: () => scrollRef.current,
     estimateSize: i => {
       const row = virtualRows[i]
-      if (row && row.type === 'header') return 68
-      return 184 // ~160px card (min-height 150) + 24px gap
+      if (row && row.type === 'header') return 48
+      return CARD_HEIGHT + GRID_GAP // 156 + 20 = 176px
     },
     overscan: 4,
   })
+
+  // Synchronize virtualizer item positions whenever columns or row counts change
+  useEffect(() => {
+    rowVirtualizer.measure()
+  }, [columns, virtualRows.length, rowVirtualizer])
 
   if (isLoading) {
     return (
@@ -585,16 +606,23 @@ export default function MeetingListView() {
             const row = virtualRows[virtualItem.index]
             if (!row) return null
 
+            const itemKey =
+              row.type === 'header'
+                ? `header-${row.label}`
+                : `row-${row.items.map(m => m.id).join('-')}`
+
             return (
               <div
-                key={virtualItem.key}
+                key={itemKey}
+                data-index={virtualItem.index}
+                ref={rowVirtualizer.measureElement}
                 style={{
                   position: 'absolute',
                   top: 0,
                   left: 0,
                   width: '100%',
                   transform: `translateY(${virtualItem.start}px)`,
-                  paddingBottom: '24px', // gap equivalent
+                  paddingBottom: `${GRID_GAP}px`,
                 }}
               >
                 {row.type === 'header' ? (
@@ -613,16 +641,13 @@ export default function MeetingListView() {
                     {row.label}
                   </motion.h2>
                 ) : (
-                  <motion.div
+                  <div
                     style={{
                       display: 'grid',
-                      gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))`,
-                      gap: '20px',
+                      gridTemplateColumns: `repeat(${columns}, ${CARD_WIDTH}px)`,
+                      gap: `${GRID_GAP}px`,
                       padding: '0 24px',
                     }}
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    transition={{ staggerChildren: 0.05 }}
                   >
                     {row.items.map((m: MeetingItem, i: number) => (
                       <MeetingCard
@@ -654,7 +679,7 @@ export default function MeetingListView() {
                         onContextMenu={handleContextMenu}
                       />
                     ))}
-                  </motion.div>
+                  </div>
                 )}
               </div>
             )

@@ -704,12 +704,19 @@
 
 /* Skeletons */
 .ui-skeleton-meeting-card {
-  padding: var(--space-16);
+  width: 320px;
+  min-width: 320px;
+  max-width: 320px;
+  height: 156px;
+  min-height: 156px;
+  max-height: 156px;
+  box-sizing: border-box;
+  padding: 18px 20px;
   border: 1px solid var(--color-border-subtle);
-  border-radius: var(--radius-md);
-  height: 120px;
+  border-radius: 16px;
   display: flex;
   flex-direction: column;
+  flex-shrink: 0;
 }
 .ui-skeleton-meeting-title {
   height: 16px;

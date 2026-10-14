@@ -4,7 +4,19 @@ import { useNavigationStore } from '../../store/navigationStore'
 
 import React, { useState, useEffect, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Square, Loader2, Mic, Monitor, Cloud, Info, Pause, Play, Sparkles } from 'lucide-react'
+import {
+  Square,
+  Loader2,
+  Mic,
+  Monitor,
+  Cloud,
+  Info,
+  Pause,
+  Play,
+  Sparkles,
+  Users,
+  FileText,
+} from 'lucide-react'
 import { modKey } from '../../utils/platformShortcut'
 import { AudioIndicator } from '../meeting/AudioIndicator'
 import { SyncStatusBadge } from '../ui/SyncStatusBadge'
@@ -253,13 +265,15 @@ const IslandExpandedContent: React.FC<{ hasTranscript: boolean; hasCoachTip: boo
             {(entityCount > 0 || noteCount > 0) && (
               <div className="flex gap-2 mt-0.5">
                 {entityCount > 0 && (
-                  <span className="bg-[rgba(255,255,255,0.05)] border border-[rgba(255,255,255,0.1)] rounded-full px-2 py-0.5 text-[9px] font-medium tracking-wider text-white/80">
-                    👤 {entityCount} ENTITIES
+                  <span className="inline-flex items-center gap-1 bg-[rgba(255,255,255,0.05)] border border-[rgba(255,255,255,0.1)] rounded-full px-2 py-0.5 text-[9px] font-medium tracking-wider text-white/80">
+                    <Users size={10} className="text-violet-400" />
+                    <span>{entityCount} ENTITIES</span>
                   </span>
                 )}
                 {noteCount > 0 && (
-                  <span className="bg-[rgba(255,255,255,0.05)] border border-[rgba(255,255,255,0.1)] rounded-full px-2 py-0.5 text-[9px] font-medium tracking-wider text-white/80">
-                    📝 {noteCount} NOTES
+                  <span className="inline-flex items-center gap-1 bg-[rgba(255,255,255,0.05)] border border-[rgba(255,255,255,0.1)] rounded-full px-2 py-0.5 text-[9px] font-medium tracking-wider text-white/80">
+                    <FileText size={10} className="text-blue-400" />
+                    <span>{noteCount} NOTES</span>
                   </span>
                 )}
               </div>
